@@ -1,0 +1,29 @@
+<div class="auth-container">
+  <h2>Registracija</h2>
+
+  <form (ngSubmit)="onSubmit()" #registerForm="ngForm">
+    <div>
+      <label for="username">Korisničko ime</label>
+      <input id="username" name="username" type="text" [(ngModel)]="username" required />
+    </div>
+
+    <div>
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" [(ngModel)]="email" required />
+    </div>
+
+    <div>
+      <label for="password">Lozinka</label>
+      <input id="password" name="password" type="password" [(ngModel)]="password" required minlength="6" />
+    </div>
+
+    <button type="submit" [disabled]="loading || !registerForm.valid">
+      {{ loading ? 'Šaljem...' : 'Registruj se' }}
+    </button>
+  </form>
+
+  <p *ngIf="errorMessage" style="color: red;">{{ errorMessage }}</p>
+  <p *ngIf="successMessage" style="color: green;">{{ successMessage }}</p>
+
+  <p>Već imaš nalog? <a routerLink="/login">Uloguj se</a></p>
+</div>
