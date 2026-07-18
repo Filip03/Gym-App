@@ -8,12 +8,15 @@ import { Router, RouterLink } from '@angular/router';
   selector: 'app-register',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
-  templateUrl: './register.component.html'
+  templateUrl: './register.component.html',
+  styleUrls: ['./register.component.scss']
 })
 export class RegisterComponent {
   email = '';
   password = '';
   username = '';
+  weight = 0.0;
+  height = 0;
   errorMessage = '';
   successMessage = '';
   loading = false;

@@ -1,23 +1,30 @@
-<div class="auth-container">
-  <h2>Login</h2>
-
-  <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
-    <div>
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" [(ngModel)]="email" required />
+<div class="wrapper">
+  <div class="auth-container">
+    <div class="holder">
+      <h2>Login</h2>
+      <img class="j" src="assets/j.jpg">
     </div>
 
-    <div>
-      <label for="password">Lozinka</label>
-      <input id="password" name="password" type="password" [(ngModel)]="password" required />
-    </div>
+    <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+      <div class="email">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" [(ngModel)]="email" required />
+      </div>
 
-    <button type="submit" [disabled]="loading || !loginForm.valid">
-      {{ loading ? 'Prijavljivanje...' : 'Uloguj se' }}
-    </button>
-  </form>
+      <div class="password">
+        <label for="password">Lozinka</label>
+        <input id="password" name="password" type="password" [(ngModel)]="password" required />
+      </div>
 
-  <p *ngIf="errorMessage" style="color: red;">{{ errorMessage }}</p>
+      <button class="btn" type="submit" [disabled]="loading || !loginForm.valid">
+        {{ loading ? 'Prijavljivanje...' : 'Uloguj se' }}
+      </button>
+    </form>
 
-  <p>Nemaš nalog? <a routerLink="/register">Registruj se</a></p>
+    <p *ngIf="errorMessage">{{ errorMessage }}</p>
+
+    <a class="registration" routerLink="/register">
+      Postani član <span class="jeba">Jebe</span>  
+    </a>
+  </div>
 </div>
