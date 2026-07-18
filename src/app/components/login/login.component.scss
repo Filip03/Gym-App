@@ -148,3 +148,71 @@ h2{
     right: 5%;
     top: 5%;   
 }
+
+@media (max-width: 768px) {
+
+  .wrapper {
+    width: 100%;
+    min-height: 100vh;
+    padding: 20px 0;
+    align-items: flex-start;
+  }
+
+  .auth-container {
+    width: 85%;
+    border-radius: 30px;
+    padding: 20px 0;
+  }
+
+  h2 {
+    font-size: 35px;
+  }
+
+  form {
+    width: 100%;
+  }
+
+  .email,
+  .password,
+  .wh {
+    width: 75%;
+    padding: 10px !important;
+  }
+
+  .email label,
+  .password label,
+  .wh label {
+    font-size: 16px;
+    padding: 8px;
+  }
+
+  .email input,
+  .password input,
+  .wh input {
+    height: 35px;
+    font-size: 14px;
+  }
+
+  .btn {
+    font-size: 16px;
+    padding: 12px 25px;
+    margin: 15px;
+  }
+
+  .registration {
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 25px;
+  }
+
+  .holder {
+    width: 100%;
+  }
+
+  .j {
+    width: 40px;
+    height: 40px;
+    right: 8%;
+    top: 3%;
+  }
+}

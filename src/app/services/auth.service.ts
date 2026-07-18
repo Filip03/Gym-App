@@ -18,12 +18,21 @@ export class AuthService {
     });
   }
 
-  async signUp(email: string, password: string, username: string) {
+  async signUp(email: string, password: string, username: string, weight: number, height: number) {
     const { data, error } = await this.supabase.client.auth.signUp({
       email,
-      password
+      password,
+      options:{
+        data:{
+          username,
+          weight,
+          height
+        }
+      }
     });
     if (error) throw error;
+
+    console.log(data.user)
 
     // pošto profiles.id ima default auth.uid(), profil se ne kreira automatski
     // treba ti trigger u bazi ili ručni insert nakon signup-a

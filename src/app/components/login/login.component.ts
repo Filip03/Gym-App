@@ -20,12 +20,27 @@ export class LoginComponent {
 
   constructor(private authService: AuthService, private router: Router) {}
 
+   playAudio():Promise<void> {
+    return new Promise((resolve) => {
+      const audio = new Audio('assets/bas si fina.m4a');
+
+      audio.volume = 0.5;
+
+      audio.onended = () => {
+        resolve();
+      };
+
+      audio.play();
+    });
+}
+
   async onSubmit() {
     this.errorMessage = '';
     this.loading = true;
 
     try {
       await this.authService.signIn(this.email, this.password);
+      await this.playAudio();
       this.router.navigate(['/dashboard']); // promeni na tvoju glavnu rutu
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška prilikom logovanja.';

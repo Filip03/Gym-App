@@ -22,21 +22,18 @@
 
       <div class="wh">
         <label for="weight">Težina (kg)</label>
-        <input id="weight" name="weight" type="number" [(ngModel)] = 'weight' required/>
+        <input id="weight" name="weight" type="number" [(ngModel)]="weight" required/>
       </div>
 
       <div class="wh">
         <label for="height">Visina (cm)</label>
-        <input id="height" name="height" type="number" [(ngModel)] = 'height' required/>
+        <input id="height" name="height" type="number" [(ngModel)]="height" required/>
       </div>
 
       <button class="btn" type="submit" [disabled]="loading || !registerForm.valid">
         {{ loading ? 'Šaljem...' : 'Registruj se' }}
       </button>
     </form>
-
-    <p *ngIf="errorMessage" style="color: red;">{{ errorMessage }}</p>
-    <p *ngIf="successMessage" style="color: green;">{{ successMessage }}</p>
 
     <p class="registration">Već si dio Jebe? <a class="route" routerLink="/login">Uloguj se</a></p>
   </div>

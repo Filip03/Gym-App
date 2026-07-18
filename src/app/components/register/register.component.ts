@@ -23,14 +23,29 @@ export class RegisterComponent {
 
   constructor(private authService: AuthService, private router: Router) {}
 
+  playAudio():Promise<void> {
+    return new Promise((resolve) => {
+      const audio = new Audio('assets/prskulja.m4a');
+
+      audio.volume = 0.5;
+
+      audio.onended = () => {
+        resolve();
+      };
+
+      audio.play();
+    });
+}
+
   async onSubmit() {
     this.errorMessage = '';
     this.successMessage = '';
     this.loading = true;
 
     try {
-      await this.authService.signUp(this.email, this.password, this.username);
-      this.successMessage = 'Registracija uspešna! Proveri email za potvrdu (ako je uključena), zatim se uloguj.';
+      await this.authService.signUp(this.email, this.password, this.username, this.weight, this.height);
+      await this.playAudio();
+      this.router.navigate(['/login'])
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška prilikom registracije.';
     } finally {
