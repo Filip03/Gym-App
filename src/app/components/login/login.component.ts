@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -12,17 +12,26 @@ import { Router } from '@angular/router';
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit{
+
+
   email = '';
   password = '';
   errorMessage = '';
   loading = false;
+  audioOver = false;
+
+  private audioPromise!: Promise<void>;
 
   constructor(private authService: AuthService, private router: Router) {}
 
+  ngOnInit(){
+    this.audioPromise = this.playAudio();
+  }
+
    playAudio():Promise<void> {
     return new Promise((resolve) => {
-      const audio = new Audio('assets/bas si fina.m4a');
+      const audio = new Audio('assets/ko je.m4a');
 
       audio.volume = 0.5;
 
@@ -30,18 +39,24 @@ export class LoginComponent {
         resolve();
       };
 
-      audio.play();
+      audio.onerror = () => {
+        resolve();
+      }
+
+      audio.play().catch(() => {
+        resolve();
+      });
     });
-}
+  }
 
   async onSubmit() {
     this.errorMessage = '';
     this.loading = true;
 
     try {
+      await this.audioPromise
       await this.authService.signIn(this.email, this.password);
-      await this.playAudio();
-      this.router.navigate(['/dashboard']); // promeni na tvoju glavnu rutu
+      this.router.navigate(['/dashboard']);
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška prilikom logovanja.';
     } finally {

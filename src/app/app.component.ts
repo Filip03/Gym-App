@@ -1,24 +1,34 @@
 import { Component, OnInit } from '@angular/core';
-import { SupabaseService } from './services/supabase_service'
+import { Router, RouterOutlet, NavigationEnd } from '@angular/router'
+import { filter } from 'rxjs'
 
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent implements OnInit{
-  constructor (private supabase: SupabaseService) {}
+export class AppComponent{
   
-  async ngOnInit(){
-      const { data, error } = await this.supabase.client
-      .from('exercices')
-      .select('*')
-      .limit(1);
+ showLayout = true;
+ showFooter = true;
 
-    if (error) {
-      console.error('Konekcija NE radi:', error.message);
-    } else {
-      console.log('Konekcija radi, primer podataka:', data);
-    }
+  constructor(private router: Router) {
+    this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe(() => {
+
+        const hiddenRoutes = [
+          '/',
+        ];
+
+        const hiddenRoutesFooter = [
+          '/',
+          '/login',
+          '/register'
+        ]
+
+        this.showLayout = !hiddenRoutes.includes(this.router.url);
+        this.showFooter = !hiddenRoutesFooter.includes(this.router.url);
+      });
   }
 }

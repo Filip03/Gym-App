@@ -1,0 +1,31 @@
+div{
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 1.5s ease;
+}
+
+.landing.fade-out{
+    opacity: 0;
+}
+
+img{
+    width: 500px;
+    height: auto;
+}
+
+p{
+    color: white;
+    font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    font-size: 40px;
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+}
+
+span{
+    color: greenyellow;
+}

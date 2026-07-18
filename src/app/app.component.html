@@ -1,6 +1,13 @@
 <div class="wrapper">
-    <div class="logo">
+
+    <div class="logo" *ngIf="showLayout">
         <img src="assets/logo.png" alt="logo">
     </div>
-    <router-outlet></router-outlet>
+
+    <div class="content">
+        <router-outlet></router-outlet>
+    </div>
+
+    <app-footer *ngIf="showFooter"></app-footer>
+
 </div>

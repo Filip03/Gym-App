@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -11,7 +11,7 @@ import { Router, RouterLink } from '@angular/router';
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.scss']
 })
-export class RegisterComponent {
+export class RegisterComponent{
   email = '';
   password = '';
   username = '';
@@ -25,7 +25,7 @@ export class RegisterComponent {
 
   playAudio():Promise<void> {
     return new Promise((resolve) => {
-      const audio = new Audio('assets/prskulja.m4a');
+      const audio = new Audio('assets/imun na batine.m4a');
 
       audio.volume = 0.5;
 

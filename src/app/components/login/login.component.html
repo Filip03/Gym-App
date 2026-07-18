@@ -16,7 +16,7 @@
         <input id="password" name="password" type="password" [(ngModel)]="password" required />
       </div>
 
-      <button class="btn" type="submit" [disabled]="loading || !loginForm.valid">
+      <button class="btn" type="submit" [disabled]="!loginForm.valid">
         {{ loading ? 'Prijavljivanje...' : 'Uloguj se' }}
       </button>
     </form>
