@@ -39,13 +39,7 @@ export class LoginComponent implements OnInit{
         resolve();
       };
 
-      audio.onerror = () => {
-        resolve();
-      }
-
-      audio.play().catch(() => {
-        resolve();
-      });
+      audio.play();
     });
   }
 

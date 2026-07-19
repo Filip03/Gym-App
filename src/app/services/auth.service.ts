@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
 import { Session, User } from '@supabase/supabase-js';
 import { BehaviorSubject } from 'rxjs';
+import { Profile } from "../models/models"
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -16,6 +17,10 @@ export class AuthService {
     this.supabase.client.auth.getSession().then(({ data }) => {
       this.currentUserSubject.next(data.session?.user ?? null);
     });
+  }
+
+  getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
   }
 
   async signUp(email: string, password: string, username: string, weight: number, height: number) {
@@ -52,5 +57,23 @@ export class AuthService {
   async signOut() {
     const { error } = await this.supabase.client.auth.signOut();
     if (error) throw error;
+  }
+
+  async getCurrentProfile(): Promise<Profile | null> {
+    const user = this.getCurrentUser();
+    if (!user) return null;
+
+    const { data, error } = await this.supabase.client
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      console.error('Greška pri dobavljanju profila:', error.message);
+      return null;
+    }
+
+    return data as Profile;
   }
 }

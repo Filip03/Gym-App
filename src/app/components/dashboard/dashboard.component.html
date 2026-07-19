@@ -1,1 +1,137 @@
-<p>dashboard works!</p>
+<div class="wrapper">
+    <div class="dashboard-container">
+
+    <p *ngIf="loading">Učitavanje...</p>
+    <p *ngIf="errorMessage" style="color: red;">{{ errorMessage }}</p>
+
+    <div class="sections" *ngIf="!loading && !errorMessage">
+
+        <section class="my-plans">
+        <div class="header">
+            <h2>Moji planovi</h2>
+            <div class="options">
+                <span id="add" class="material-icons" (click)="openCreateModal()">add_box</span>
+            </div>
+        </div>
+
+        <div class="plans-grid" *ngIf="myPlans.length > 0; else noMyPlans">
+            <div class="plan-card" *ngFor="let plan of myPlans">
+            <h3>{{ plan.name }}</h3>
+            <p>{{ plan.description }}</p>
+            <p>Kreirao: {{plan.profiles?.username}}, {{ plan.created_at | date:'dd.MM.yyyy' }}</p>
+            </div>
+        </div>
+
+        <ng-template #noMyPlans>
+            <p>Još nisi kreirao nijedan plan.</p>
+        </ng-template>
+        </section>
+
+        <div class="section-divider"></div>
+
+        <section class="other-plans">
+        <h2>Planovi ostalih korisnika</h2>
+
+        <div class="plans-grid" *ngIf="otherPlans.length > 0; else noOtherPlans">
+            <div class="plan-card" *ngFor="let plan of otherPlans">
+            <h3>{{ plan.name }}</h3>
+            <p>{{ plan.description }}</p>
+            <p>Kreirao: {{plan.profiles?.username}}, {{plan.created_at}}</p>
+            </div>
+        </div>
+
+        <ng-template #noOtherPlans>
+            <p>Nema drugih planova.</p>
+        </ng-template>
+        </section>
+
+    </div>
+
+    </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
+  <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
+    <h2>Novi plan</h2>
+
+    <form (ngSubmit)="onSubmitPlan()" #planForm="ngForm">
+
+      <!-- GORNJI DIO: osnovne informacije -->
+      <div class="plan-info-section">
+        <div class="form-group">
+          <label for="name">Naziv plana</label>
+          <input id="name" name="name" type="text" [(ngModel)]="newPlanName" required />
+        </div>
+
+        <div class="form-group">
+          <label for="description">Opis</label>
+          <textarea id="description" name="description" [(ngModel)]="newPlanDescription" rows="2"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="planType">Tip plana</label>
+          <select id="planType" name="planType" [(ngModel)]="newPlanTypeId" (change)="onPlanTypeChange()">
+            <option value="">-- Izaberi tip --</option>
+            <option *ngFor="let type of planTypes" [value]="type.id">{{ type.name }}</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- DONJI DIO: raspored po danima -->
+        <div class="week-schedule">
+        <h3>Raspored treninga</h3>
+
+        <div class="days-grid">
+            <div class="day-row" *ngFor="let day of weekDays">
+            <div class="day-header">
+                <span class="day-name">{{ day.dayName }}</span>
+
+                <select
+                [(ngModel)]="day.dayTypeId"
+                [name]="'dayType_' + day.dayNumber"
+                (change)="onDayTypeChange(day)"
+                >
+                <option [ngValue]="null">-- Izaberi tip dana --</option>
+                <option *ngFor="let type of filteredDayTypes" [value]="type.id">{{ type.name }}</option>
+                </select>
+            </div>
+
+            <div class="exercice-list" *ngIf="day.availableExercices.length > 0">
+                <div
+                class="exercice-item"
+                *ngFor="let ex of day.availableExercices"
+                [class.selected]="isExerciceSelected(day, ex.id)"
+                (click)="toggleExercice(day, ex)"
+                >
+                {{ ex.name }}
+                </div>
+            </div>
+
+            <p *ngIf="day.dayTypeId && day.availableExercices.length === 0" class="no-exercices">
+                Nema vežbi za ovaj tip dana.
+            </p>
+
+            <div class="selected-exercices" *ngIf="day.selectedExercices.length > 0">
+                <div class="selected-exercice-row" *ngFor="let sel of day.selectedExercices">
+                <span>{{ sel.name }}</span>
+                <input type="number" [(ngModel)]="sel.targetSets" [name]="'sets_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj setova" />
+                <input type="number" [(ngModel)]="sel.targetReps" [name]="'reps_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj ponavljanja" />
+                </div>
+            </div>
+            </div>
+        </div>
+        </div>
+
+      <p *ngIf="createError" class="error">{{ createError }}</p>
+
+      <div class="form-actions">
+        <button type="button" (click)="closeCreateModal()">Otkaži</button>
+        <button type="submit" [disabled]="creating || !planForm.valid">
+          {{ creating ? 'Čuvam...' : 'Sačuvaj plan' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -78,3 +78,9 @@ export interface DayType {
     id: string;
     name: string | null;
 }
+
+export interface DayTypeMuscleGroup{
+  id: string;
+  day_type_id: string;
+  muscle_group_id: string
+}
