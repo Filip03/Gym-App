@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
@@ -44,6 +44,17 @@ export class DashboardComponent implements OnInit {
   weekDays: DayEntry[] = [];
   filteredDayTypes: DayType[] = [];
 
+  showViewModal = false;
+  viewedPlan: any = null;
+  viewLoading = false;
+  viewError = '';
+  isOwnPlan = false;
+  isFollowing = false;
+  followLoading = false;
+
+  isMobile = false;
+  currentDayIndex = 0;
+
   private dayNames = ['Ponedeljak', 'Utorak', 'Sreda', 'Četvrtak', 'Petak', 'Subota', 'Nedelja'];
 
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
@@ -52,6 +63,15 @@ export class DashboardComponent implements OnInit {
     'BRO SPLIT': ['CHEST', 'BACK', 'LEGS', 'ARMS', 'REST'],
     'FULL BODY': ['FULLBODY', 'REST']
   };
+
+  @HostListener('window:resize')
+  onResize() {
+    this.checkIfMobile();
+  }
+
+  private checkIfMobile() {
+    this.isMobile = window.innerWidth <= 768;
+  }
 
   constructor(
     private dashboardService: DashboardService,
@@ -67,6 +87,8 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
+    this.checkIfMobile();
+
     try {
       this.myPlans = await this.dashboardService.getMyPlans(user.id);
       this.otherPlans = await this.dashboardService.getOtherPlans(user.id);
@@ -79,10 +101,27 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  goToTraining() {
+    this.router.navigate(['/training']);
+  }
+
   openCreateModal() {
     this.showCreateModal = true;
     this.initWeekDays();
     this.filteredDayTypes = [];
+    this.currentDayIndex = 0;
+  }
+
+  nextDay(totalDays: number) {
+    if (this.currentDayIndex < totalDays - 1) {
+      this.currentDayIndex++;
+    }
+  }
+
+  prevDay() {
+    if (this.currentDayIndex > 0) {
+      this.currentDayIndex--;
+    }
   }
 
   closeCreateModal() {
@@ -208,4 +247,85 @@ export class DashboardComponent implements OnInit {
       this.creating = false;
     }
   }
+
+  async openViewModal(planId: string) {
+    this.showViewModal = true;
+    this.viewLoading = true;
+    this.viewError = '';
+    this.viewedPlan = null;
+    this.currentDayIndex = 0;
+    this.isOwnPlan = false;
+    this.isFollowing = false;
+
+    const user = this.authService.getCurrentUser();
+
+    try {
+      this.viewedPlan = await this.dashboardService.getFullPlan(planId);
+      // sortiraj dane po day_number da budu pon-ned
+      this.viewedPlan.workout_days.sort((a: any, b: any) => a.day_number - b.day_number);
+      // sortiraj vežbe u svakom danu po order_num
+      this.viewedPlan.workout_days.forEach((day: any) => {
+        day.day_exercice.sort((a: any, b: any) => a.order_num - b.order_num);
+      });
+
+      if (user) {
+        this.isOwnPlan = this.viewedPlan.created_by === user.id;
+        if (!this.isOwnPlan) {
+          this.isFollowing = await this.dashboardService.isFollowingPlan(planId, user.id);
+        }
+      }
+    } catch (err: any) {
+      this.viewError = err.message ?? 'Greška pri učitavanju plana.';
+    } finally {
+      this.viewLoading = false;
+    }
+  }
+
+  async toggleFollowPlan(event: Event) {
+    event.stopPropagation();
+    const user = this.authService.getCurrentUser();
+    if (!user || !this.viewedPlan || this.followLoading) return;
+
+    this.followLoading = true;
+
+    try {
+      if (this.isFollowing) {
+        await this.dashboardService.unfollowPlan(this.viewedPlan.id, user.id);
+        this.isFollowing = false;
+      } else {
+        await this.dashboardService.followPlan(this.viewedPlan.id, user.id);
+        this.isFollowing = true;
+      }
+    } catch (err: any) {
+      this.viewError = err.message ?? 'Greška prilikom ažuriranja praćenja plana.';
+    } finally {
+      this.followLoading = false;
+    }
+  }
+
+  closeViewModal() {
+    this.showViewModal = false;
+    this.viewedPlan = null;
+    this.viewError = '';
+    this.isOwnPlan = false;
+    this.isFollowing = false;
+  }
+
+  async deletePlan(planId: string, event: Event){
+    event.stopPropagation(); // sprečava da klik "probije" i ponovo otvori/zatvori modal
+    const confirmed = confirm('Da li si siguran da želiš da obrišeš ovaj plan?');
+    if (!confirmed) return;
+
+    try {
+      await this.dashboardService.deletePlan(planId);
+      this.closeViewModal();
+
+      const user = this.authService.getCurrentUser();
+      if (user) {
+        this.myPlans = await this.dashboardService.getMyPlans(user.id);
+      }
+    } catch (err: any) {
+      this.viewError = err.message ?? 'Greška prilikom brisanja plana.';
+    }
+    }
 }

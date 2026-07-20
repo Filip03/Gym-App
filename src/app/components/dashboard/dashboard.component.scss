@@ -6,6 +6,39 @@
     color: white;
 }
 
+.start-training-bar {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.start-training-btn {
+  background: greenyellow;
+  color: black;
+  border: none;
+  border-radius: 12px;
+  padding: 0.8rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.start-training-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(173, 255, 47, 0.4);
+}
+
+@media (max-width: 768px) {
+  .start-training-btn {
+    width: 90%;
+    padding: 0.7rem 1rem;
+    font-size: 1rem;
+  }
+}
+
 .header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -28,6 +61,13 @@
 #add{
     font-size: 40px;
     color: greenyellow;
+    transition: all ease-in-out;
+}
+
+#add:hover{
+  transform: scale(1.25);
+  transition: all ease-in-out 0.3s;
+  cursor: pointer;
 }
 
 .dashboard-container{
@@ -113,6 +153,7 @@ h3{
   gap: 1rem;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .plan-card::before {
@@ -356,4 +397,334 @@ h3{
   padding: 0.2rem 0.3rem;
   color: white;
   font-size: 0.9rem;
+}
+
+.day-type-badge {
+  display: inline-block;
+  background: rgba(173, 255, 47, 0.15);
+  color: greenyellow;
+  border-radius: 10px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.exercice-view-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.exercice-view-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.exercice-name {
+  color: white;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.exercice-sets-reps {
+  color: greenyellow;
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  margin-left: 0.4rem;
+}
+
+.group{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.delete-btn{
+  padding: 10px;
+  background-color: #ff6b6b;
+  color: white;
+  border: 1px solid red;
+  border-radius: 10px;
+  transition: all ease-in-out 0.2;
+  align-self: flex-end;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.delete-btn:hover{
+  cursor: pointer;
+  transform: scale(1.25);
+  background-color: red;
+  transition: all ease-in-out 0.3s;
+}
+
+.follow-btn {
+  padding: 10px;
+  background-color: greenyellow;
+  color: black;
+  border: 1px solid greenyellow;
+  border-radius: 10px;
+  transition: all ease-in-out 0.2s;
+  align-self: flex-end;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.follow-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.follow-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.follow-btn.following {
+  background-color: transparent;
+  color: #ff6b6b;
+  border: 1px solid #ff6b6b;
+}
+
+.follow-btn.following:hover:not(:disabled) {
+  background-color: #ff6b6b;
+  color: white;
+}
+
+@media (max-width: 768px) {
+
+  .dashboard-container {
+    width: 95%;
+    border-radius: 20px;
+  }
+
+  .header {
+    grid-template-columns: auto 1fr auto;
+    margin: 20px 0;
+  }
+
+  .header h2 {
+    font-size: 1.3rem;
+  }
+
+  #add {
+    font-size: 32px;
+  }
+
+  // Sekcije idu jedna ispod druge umesto jedna pored druge
+  .sections {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .my-plans,
+  .other-plans {
+    margin: 0;
+    width: 100%;
+  }
+
+  // Divider postaje horizontalna linija umesto vertikalne
+  .section-divider {
+    width: 100%;
+    height: 1px;
+    align-self: stretch;
+    margin: 10px 0;
+  }
+
+  h2 {
+    font-size: 1.4rem;
+  }
+
+  // Kartice planova - jedna po redu na malim ekranima
+  .plans-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .plan-card {
+    padding: 1.25rem 1rem;
+  }
+
+  .plan-card h3 {
+    font-size: 1.2rem;
+  }
+
+  .plan-card p {
+    font-size: 1rem;
+  }
+
+  // Modal - zauzima skoro celu širinu ekrana
+  .modal-card {
+    width: 95%;
+    padding: 1.5rem;
+  }
+
+  .modal-card-large {
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 90vh;
+    padding: 1.25rem;
+  }
+
+  // Raspored dana - 2 kolone umesto 7
+  .days-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+
+  .day-row {
+    padding: 0.5rem;
+  }
+
+  // Raspored dana na mobilnom - špil karata, jedan dan vidljiv, listanje strelicama
+  .days-grid.mobile-carousel {
+    display: block;
+    position: relative;
+    grid-template-columns: none;
+    padding-bottom: 18px;
+  }
+
+  .days-grid.mobile-carousel::before,
+  .days-grid.mobile-carousel::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    width: 90%;
+    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .days-grid.mobile-carousel::before {
+    bottom: 0;
+    transform: translateX(-50%) scale(0.96);
+  }
+
+  .days-grid.mobile-carousel::after {
+    bottom: -6px;
+    transform: translateX(-50%) scale(0.9);
+    opacity: 0.6;
+  }
+
+  .days-grid.mobile-carousel .day-row {
+    position: relative;
+    z-index: 1;
+    background: rgba(20, 20, 20, 0.9);
+  }
+
+  .days-grid.mobile-carousel .day-row.day-hidden {
+    display: none !important;
+  }
+
+  .days-grid.mobile-carousel .day-row.active-day {
+    animation: cardSlideIn 0.25s ease;
+  }
+
+  .carousel-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .carousel-label {
+    flex: 1;
+    text-align: center;
+    font-weight: 600;
+    color: greenyellow;
+  }
+
+  .carousel-label small {
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 400;
+    margin-left: 0.3rem;
+  }
+
+  .arrow-btn {
+    flex-shrink: 0;
+    width: 2.2rem;
+    height: 2.2rem;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: greenyellow;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .arrow-btn:hover:not(:disabled) {
+    background: rgba(173, 255, 47, 0.15);
+    transform: scale(1.1);
+  }
+
+  .arrow-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  @keyframes cardSlideIn {
+    from {
+      opacity: 0;
+      transform: translateX(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .day-name {
+    font-size: 0.75rem;
+  }
+
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+
+  .days-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .header h2 {
+    font-size: 1.1rem;
+  }
+
+  #add {
+    font-size: 28px;
+  }
+
+  .modal-card-large {
+    padding: 1rem;
+  }
+
+  .selected-exercice-row input {
+    width: 100%;
+  }
 }

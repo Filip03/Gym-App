@@ -64,7 +64,7 @@ export interface ExerciceLog {
   exercice_id: string;
   plan_id: string;
   date: string;
-  sets: number;
+  set_number: number;
   reps: number;
   weight: number;
 }

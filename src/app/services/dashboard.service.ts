@@ -202,7 +202,7 @@ async createFullPlan(
         plan_id: newPlan.id,
         name: day.dayName,
         day_number: day.dayNumber,
-        day_type_id: day.dayTypeId  // <- promenjeno: koristi day_type_id (FK), ne day_type
+        day_type: day.dayTypeId  // <- promenjeno: koristi day_type_id (FK), ne day_type
       })
       .select()
       .single();
@@ -228,4 +228,59 @@ async createFullPlan(
 
   return newPlan as WorkoutPlan;
 }
+
+// Da li je korisnik već pridružen tuđem planu
+async isFollowingPlan(planId: string, userId: string): Promise<boolean> {
+  const { data, error } = await this.supabase.client
+    .from('plan_members')
+    .select('id')
+    .eq('plan_id', planId)
+    .eq('profile_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return !!data;
+}
+
+async followPlan(planId: string, userId: string): Promise<void> {
+  const { error } = await this.supabase.client
+    .from('plan_members')
+    .insert({ plan_id: planId, profile_id: userId });
+
+  if (error) throw error;
+}
+
+async unfollowPlan(planId: string, userId: string): Promise<void> {
+  const { error } = await this.supabase.client
+    .from('plan_members')
+    .delete()
+    .eq('plan_id', planId)
+    .eq('profile_id', userId);
+
+  if (error) throw error;
+}
+
+async getFullPlan(planId: string) {
+  const { data, error } = await this.supabase.client
+    .from('workout_plan')
+    .select(`
+      *,
+      profiles:created_by ( username, profile_pic_url ),
+      plan_type:plan_type_id ( name ),
+      workout_days (
+        *,
+        day_type:day_type ( name ),
+        day_exercice (
+          *,
+          exercices ( name, picture, description )
+        )
+      )
+    `)
+    .eq('id', planId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 }

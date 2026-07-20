@@ -1,0 +1,249 @@
+.training-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.training-container {
+  width: 600px;
+  max-width: 100%;
+  border: 2px solid greenyellow;
+  border-radius: 30px;
+  box-shadow: 0 3px 10px white;
+  backdrop-filter: blur(5px);
+  background: rgba(20, 20, 20, 0.4);
+  padding: 2rem;
+  color: white;
+  font-size: 1.1rem;
+}
+
+.training-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.training-header h2 {
+  margin: 0;
+  color: greenyellow;
+  font-size: 1.9rem;
+}
+
+.day-badge {
+  background: rgba(173, 255, 47, 0.15);
+  color: greenyellow;
+  border-radius: 10px;
+  padding: 0.3rem 0.8rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.rest-day {
+  text-align: center;
+  padding: 2rem 0;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 1.2rem;
+}
+
+.exercice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.exercice-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.exercice-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.logged-sets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.logged-set {
+  background: rgba(173, 255, 47, 0.12);
+  color: greenyellow;
+  border: 1px solid rgba(173, 255, 47, 0.3);
+  border-radius: 8px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.logged-set:hover {
+  background: rgba(173, 255, 47, 0.25);
+}
+
+.edit-set-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.edit-set-form input {
+  flex: 1;
+  min-width: 100px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  color: white;
+  font-size: 0.95rem;
+}
+
+.edit-set-form input:focus {
+  outline: none;
+  border-color: greenyellow;
+}
+
+.cancel-edit-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel-edit-btn:hover {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.log-form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.set-label {
+  color: greenyellow;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.log-form input {
+  flex: 1;
+  min-width: 110px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  color: white;
+  font-size: 1rem;
+}
+
+.log-form input:focus {
+  outline: none;
+  border-color: greenyellow;
+}
+
+.save-log-btn {
+  flex-shrink: 0;
+  background: greenyellow;
+  color: black;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.save-log-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.exercice-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.exercice-name {
+  font-weight: 600;
+  color: white;
+  font-size: 1.15rem;
+}
+
+.exercice-target {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 1rem;
+}
+
+.log-btn {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: greenyellow;
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.log-btn:hover {
+  background: rgba(173, 255, 47, 0.15);
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 1.1rem;
+}
+
+.back-btn {
+  margin-top: 2rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.back-btn:hover {
+  border-color: greenyellow;
+  color: greenyellow;
+}
+
+@media (max-width: 768px) {
+  .training-container {
+    border-radius: 20px;
+    padding: 1.25rem;
+  }
+}

@@ -1,0 +1,78 @@
+<div class="training-wrapper">
+  <div class="training-container">
+
+    <p *ngIf="loading">Učitavanje...</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+    <ng-container *ngIf="!loading && !errorMessage">
+
+      <div class="training-header">
+        <h2>{{ plan.name }}</h2>
+        <span class="day-badge">{{ todayDayName }}</span>
+      </div>
+
+      <div class="rest-day" *ngIf="isRestDay">
+        <p>Danas je rest day. Odmori se!</p>
+      </div>
+
+      <div class="exercice-list" *ngIf="!isRestDay">
+        <div class="exercice-row" *ngFor="let ex of todayExercices">
+
+          <div class="exercice-main">
+            <div class="exercice-info">
+              <span class="exercice-name">{{ ex.name }}</span>
+              <span class="exercice-target">{{ ex.targetSets }} x {{ ex.targetReps }}</span>
+            </div>
+            <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
+              {{ ex.showLogForm ? 'Otkaži' : 'Upiši rezultat' }}
+            </button>
+          </div>
+
+          <div class="logged-sets" *ngIf="ex.loggedSets.length > 0">
+            <ng-container *ngFor="let set of ex.loggedSets">
+
+              <button type="button" class="logged-set" *ngIf="!set.editing" (click)="startEditSet(set)">
+                Set {{ set.setNumber }}: {{ set.reps }} x {{ set.weight }}kg
+              </button>
+
+              <div class="edit-set-form" *ngIf="set.editing">
+                <span class="set-label">Set {{ set.setNumber }}</span>
+                <input type="number" [(ngModel)]="set.editReps" min="1" placeholder="Ponavljanja" />
+                <input type="number" [(ngModel)]="set.editWeight" min="0" step="0.5" placeholder="Kilaža (kg)" />
+                <button
+                  type="button"
+                  class="save-log-btn"
+                  [disabled]="set.saving || set.editReps == null || set.editWeight == null"
+                  (click)="saveEditSet(set)"
+                >
+                  {{ set.saving ? 'Čuvam...' : 'Sačuvaj' }}
+                </button>
+                <button type="button" class="cancel-edit-btn" (click)="cancelEditSet(set)">Otkaži</button>
+              </div>
+
+            </ng-container>
+          </div>
+
+          <div class="log-form" *ngIf="ex.showLogForm">
+            <span class="set-label">Set {{ ex.loggedSets.length + 1 }}</span>
+            <input type="number" [(ngModel)]="ex.repsInput" min="1" placeholder="Ponavljanja" />
+            <input type="number" [(ngModel)]="ex.weightInput" min="0" step="0.5" placeholder="Kilaža (kg)" />
+            <button
+              type="button"
+              class="save-log-btn"
+              [disabled]="ex.saving || ex.repsInput == null || ex.weightInput == null"
+              (click)="saveLog(ex)"
+            >
+              {{ ex.saving ? 'Čuvam...' : 'Sačuvaj' }}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </ng-container>
+
+    <button type="button" class="back-btn" (click)="goBack()">Nazad na dashboard</button>
+
+  </div>
+</div>

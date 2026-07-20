@@ -1,3 +1,7 @@
+<div class="start-training-bar">
+    <button type="button" class="start-training-btn" (click)="goToTraining()">Započni trening</button>
+</div>
+
 <div class="wrapper">
     <div class="dashboard-container">
 
@@ -15,7 +19,7 @@
         </div>
 
         <div class="plans-grid" *ngIf="myPlans.length > 0; else noMyPlans">
-            <div class="plan-card" *ngFor="let plan of myPlans">
+            <div class="plan-card" (click)="openViewModal(plan.id)" *ngFor="let plan of myPlans">
             <h3>{{ plan.name }}</h3>
             <p>{{ plan.description }}</p>
             <p>Kreirao: {{plan.profiles?.username}}, {{ plan.created_at | date:'dd.MM.yyyy' }}</p>
@@ -33,10 +37,10 @@
         <h2>Planovi ostalih korisnika</h2>
 
         <div class="plans-grid" *ngIf="otherPlans.length > 0; else noOtherPlans">
-            <div class="plan-card" *ngFor="let plan of otherPlans">
+            <div class="plan-card" (click)="openViewModal(plan.id)" *ngFor="let plan of otherPlans">
             <h3>{{ plan.name }}</h3>
             <p>{{ plan.description }}</p>
-            <p>Kreirao: {{plan.profiles?.username}}, {{plan.created_at}}</p>
+            <p>Kreirao: {{plan.profiles?.username}}, {{plan.created_at | date:"dd.MM.yyyy"}}</p>
             </div>
         </div>
 
@@ -83,8 +87,15 @@
         <div class="week-schedule">
         <h3>Raspored treninga</h3>
 
-        <div class="days-grid">
-            <div class="day-row" *ngFor="let day of weekDays">
+        <div class="days-grid" [class.mobile-carousel]="isMobile">
+
+            <div class="carousel-nav" *ngIf="isMobile">
+              <button type="button" class="arrow-btn" (click)="prevDay()" [disabled]="currentDayIndex === 0" aria-label="Prethodni dan">‹</button>
+              <span class="carousel-label">{{ weekDays[currentDayIndex]?.dayName }} <small>({{ currentDayIndex + 1 }}/{{ weekDays.length }})</small></span>
+              <button type="button" class="arrow-btn" (click)="nextDay(weekDays.length)" [disabled]="currentDayIndex === weekDays.length - 1" aria-label="Sledeći dan">›</button>
+            </div>
+
+            <div class="day-row" *ngFor="let day of weekDays; let i = index" [class.active-day]="i === currentDayIndex" [class.day-hidden]="isMobile && i !== currentDayIndex">
             <div class="day-header">
                 <span class="day-name">{{ day.dayName }}</span>
 
@@ -133,5 +144,78 @@
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showViewModal" (click)="closeViewModal()">
+  <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
+
+    <p *ngIf="viewLoading">Učitavanje...</p>
+    <p *ngIf="viewError" class="error">{{ viewError }}</p>
+
+    <ng-container *ngIf="viewedPlan && !viewLoading">
+
+      <div class="plan-info-section">
+        <div class="group">
+          <h2>{{ viewedPlan.name }}</h2>
+          <button type="button" class="delete-btn" *ngIf="isOwnPlan" (click)="deletePlan(viewedPlan.id, $event)">Obriši</button>
+          <button
+            type="button"
+            class="follow-btn"
+            *ngIf="!isOwnPlan"
+            [class.following]="isFollowing"
+            [disabled]="followLoading"
+            (click)="toggleFollowPlan($event)"
+          >
+            {{ isFollowing ? 'Prestani pratiti' : 'Prati plan' }}
+          </button>
+        </div>
+        <p>{{ viewedPlan.description }}</p>
+        <div class="meta-row">
+          <small>Tip: {{ viewedPlan.plan_type?.name }}</small><br>
+          <small>Kreirao: {{ viewedPlan.profiles?.username }}</small>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="week-schedule">
+        <h3>Raspored treninga</h3>
+
+        <div class="days-grid" [class.mobile-carousel]="isMobile">
+
+          <div class="carousel-nav" *ngIf="isMobile">
+            <button type="button" class="arrow-btn" (click)="prevDay()" [disabled]="currentDayIndex === 0" aria-label="Prethodni dan">‹</button>
+            <span class="carousel-label">{{ viewedPlan.workout_days[currentDayIndex]?.name }} <small>({{ currentDayIndex + 1 }}/{{ viewedPlan.workout_days.length }})</small></span>
+            <button type="button" class="arrow-btn" (click)="nextDay(viewedPlan.workout_days.length)" [disabled]="currentDayIndex === viewedPlan.workout_days.length - 1" aria-label="Sledeći dan">›</button>
+          </div>
+
+          <div class="day-row" *ngFor="let day of viewedPlan.workout_days; let i = index" [class.active-day]="i === currentDayIndex" [class.day-hidden]="isMobile && i !== currentDayIndex">
+            <div class="day-header">
+              <span class="day-name">{{ day.name }}</span>
+              <span class="day-type-badge">{{ day.day_type?.name ?? 'Rest' }}</span>
+            </div>
+
+            <div class="exercice-view-list" *ngIf="day.day_exercice.length > 0">
+              <div class="exercice-view-item" *ngFor="let dayEx of day.day_exercice">
+                <span class="exercice-name">{{ dayEx.exercices?.name }}</span>
+                <span class="exercice-sets-reps">{{ dayEx.target_sets }} x {{ dayEx.target_reps }}</span>
+              </div>
+            </div>
+
+            <p *ngIf="day.day_exercice.length === 0" class="no-exercices">
+              Rest day
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" (click)="closeViewModal()">Zatvori</button>
+
+      </div>
+
+    </ng-container>
+
   </div>
 </div>
