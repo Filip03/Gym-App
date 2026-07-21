@@ -1,4 +1,4 @@
-import { NgModule } from '@angular/core';
+import { NgModule, isDevMode } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms'
 
@@ -14,6 +14,7 @@ import { TrainingComponent } from './components/training/training.component';
 import { ExercicesComponent } from './components/exercices/exercices.component';
 import { LeaderboardComponent } from './components/leaderboard/leaderboard.component';
 import { ProfileComponent } from './components/profile/profile.component';
+import { ServiceWorkerModule } from '@angular/service-worker';
 
 @NgModule({
   declarations: [
@@ -32,7 +33,13 @@ import { ProfileComponent } from './components/profile/profile.component';
     RouterModule,
     RegisterComponent,
     LoginComponent,
-    FormsModule
+    FormsModule,
+    ServiceWorkerModule.register('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      // Register the ServiceWorker as soon as the application is stable
+      // or after 30 seconds (whichever comes first).
+      registrationStrategy: 'registerWhenStable:30000'
+    })
   ],
   providers: [],
   bootstrap: [AppComponent]
