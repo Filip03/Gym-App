@@ -19,27 +19,18 @@ export class LoginComponent implements OnInit{
   password = '';
   errorMessage = '';
   loading = false;
-  audioOver = false;
-
-  private audioPromise!: Promise<void>;
 
   constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit(){
-    this.audioPromise = this.playAudio();
+    this.playAudio();
   }
 
-   playAudio():Promise<void> {
-    return new Promise((resolve) => {
-      const audio = new Audio('assets/ko je.m4a');
-
-      audio.volume = 0.5;
-
-      audio.onended = () => {
-        resolve();
-      };
-
-      audio.play();
+  playAudio(): void {
+    const audio = new Audio('assets/ko je.m4a');
+    audio.volume = 0.5;
+    audio.play().catch(() => {
+      // autoplay može biti blokiran dok korisnik ne klikne na stranicu - nije bitno za login
     });
   }
 
@@ -48,7 +39,6 @@ export class LoginComponent implements OnInit{
     this.loading = true;
 
     try {
-      await this.audioPromise
       await this.authService.signIn(this.email, this.password);
       this.router.navigate(['/dashboard']);
     } catch (err: any) {
