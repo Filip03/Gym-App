@@ -1,0 +1,77 @@
+<div class="exercices-wrapper">
+  <div class="exercices-container">
+
+    <div class="header">
+      <h2>Vežbe</h2>
+      <span id="add" class="material-icons" (click)="openCreateModal()">add_box</span>
+    </div>
+
+    <p *ngIf="loading">Učitavanje...</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+    <ng-container *ngIf="!loading && !errorMessage">
+      <div class="muscle-group-section" *ngFor="let group of groups">
+        <h3>{{ group.name }}</h3>
+
+        <div class="exercice-grid" *ngIf="group.exercices.length > 0; else noExercices">
+          <div class="exercice-card" *ngFor="let ex of group.exercices">
+            <img *ngIf="ex.picture" [src]="ex.picture" [alt]="ex.name">
+            <h4>{{ ex.name }}</h4>
+            <p *ngIf="ex.description">{{ ex.description }}</p>
+          </div>
+        </div>
+
+        <ng-template #noExercices>
+          <p class="no-exercices">Nema vežbi u ovoj grupi.</p>
+        </ng-template>
+      </div>
+    </ng-container>
+
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <h2>Nova vežba</h2>
+
+    <form (ngSubmit)="onSubmitExercice()" #exerciceForm="ngForm">
+      <div class="form-group">
+        <label for="exName">Naziv</label>
+        <input id="exName" name="exName" type="text" [(ngModel)]="newName" required />
+      </div>
+
+      <div class="form-group">
+        <label for="exDescription">Opis</label>
+        <textarea id="exDescription" name="exDescription" [(ngModel)]="newDescription" rows="2"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="exPicture">URL slike (opciono)</label>
+        <input id="exPicture" name="exPicture" type="text" [(ngModel)]="newPicture" />
+      </div>
+
+      <div class="form-group">
+        <label>Mišićne grupe</label>
+        <div class="muscle-group-picker">
+          <span
+            class="muscle-group-chip"
+            *ngFor="let mg of muscleGroups"
+            [class.selected]="isMuscleGroupSelected(mg.id)"
+            (click)="toggleMuscleGroup(mg.id)"
+          >
+            {{ mg.name }}
+          </span>
+        </div>
+      </div>
+
+      <p *ngIf="createError" class="error">{{ createError }}</p>
+
+      <div class="form-actions">
+        <button type="button" (click)="closeCreateModal()">Otkaži</button>
+        <button type="submit" [disabled]="creating || !exerciceForm.valid">
+          {{ creating ? 'Čuvam...' : 'Sačuvaj vežbu' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

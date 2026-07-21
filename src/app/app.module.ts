@@ -11,6 +11,7 @@ import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { LandingComponent } from './components/landing/landing.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { TrainingComponent } from './components/training/training.component';
+import { ExercicesComponent } from './components/exercices/exercices.component';
 
 @NgModule({
   declarations: [
@@ -18,7 +19,8 @@ import { TrainingComponent } from './components/training/training.component';
     DashboardComponent,
     LandingComponent,
     FooterComponent,
-    TrainingComponent
+    TrainingComponent,
+    ExercicesComponent
   ],
   imports: [
     BrowserModule,
