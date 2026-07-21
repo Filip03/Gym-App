@@ -12,6 +12,8 @@ import { LandingComponent } from './components/landing/landing.component';
 import { FooterComponent } from './components/footer/footer.component';
 import { TrainingComponent } from './components/training/training.component';
 import { ExercicesComponent } from './components/exercices/exercices.component';
+import { LeaderboardComponent } from './components/leaderboard/leaderboard.component';
+import { ProfileComponent } from './components/profile/profile.component';
 
 @NgModule({
   declarations: [
@@ -20,7 +22,9 @@ import { ExercicesComponent } from './components/exercices/exercices.component';
     LandingComponent,
     FooterComponent,
     TrainingComponent,
-    ExercicesComponent
+    ExercicesComponent,
+    LeaderboardComponent,
+    ProfileComponent
   ],
   imports: [
     BrowserModule,

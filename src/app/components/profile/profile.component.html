@@ -1,0 +1,191 @@
+<div class="profile-wrapper">
+  <div class="profile-container">
+
+    <p *ngIf="loading">Učitavanje...</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+    <ng-container *ngIf="!loading && !errorMessage && profile">
+
+      <div class="avatar-circle clickable" (click)="onAvatarClick()">
+        <img *ngIf="avatarUrl" [src]="avatarUrl" alt="Profilna slika">
+        <span *ngIf="!avatarUrl" class="material-icons avatar-placeholder">
+          {{ uploading ? 'hourglass_top' : 'add_a_photo' }}
+        </span>
+        <div class="avatar-overlay" *ngIf="avatarUrl">
+          <span class="material-icons">{{ uploading ? 'hourglass_top' : 'edit' }}</span>
+        </div>
+      </div>
+      <input #fileInput type="file" accept="image/*" hidden (change)="onFileSelected($event)">
+
+      <div class="profile-info" *ngIf="!editing">
+        <div class="username-row">
+          <h2>{{ profile.username }}</h2>
+          <i class="material-icons edit-icon" title="Izmeni" (click)="startEdit()">edit</i>
+        </div>
+        <p class="email">{{ email }}</p>
+
+        <div class="stats-row">
+          <div class="stat">
+            <span class="stat-label">Visina</span>
+            <span class="stat-value">{{ profile.height ?? '-' }} cm</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Težina</span>
+            <span class="stat-value">{{ profile.weight ?? '-' }} kg</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-form" *ngIf="editing">
+        <div class="form-group">
+          <label for="editUsername">Korisničko ime</label>
+          <input id="editUsername" type="text" [(ngModel)]="editUsername" />
+        </div>
+
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="editHeight">Visina (cm)</label>
+            <input id="editHeight" type="number" [(ngModel)]="editHeight" min="0" />
+          </div>
+          <div class="form-group">
+            <label for="editWeight">Težina (kg)</label>
+            <input id="editWeight" type="number" [(ngModel)]="editWeight" min="0" step="0.1" />
+          </div>
+        </div>
+
+        <p *ngIf="saveError" class="error">{{ saveError }}</p>
+
+        <div class="edit-actions">
+          <button type="button" class="cancel-btn" (click)="cancelEdit()">Otkaži</button>
+          <button type="button" class="save-btn" [disabled]="saving" (click)="saveEdit()">
+            {{ saving ? 'Čuvam...' : 'Sačuvaj' }}
+          </button>
+        </div>
+      </div>
+
+      <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
+
+      <div class="progress-section">
+        <h3>Progres</h3>
+
+        <div class="exercice-select">
+          <label for="progressExercice">Izaberi vježbu</label>
+          <select
+            id="progressExercice"
+            [(ngModel)]="selectedExerciceId"
+            (change)="onProgressExerciceChange()"
+            [disabled]="loadingExerciceGroups"
+          >
+            <option value="">-- Izaberi vježbu --</option>
+            <optgroup *ngFor="let group of exerciceGroups" [label]="group.name">
+              <option *ngFor="let ex of group.exercices" [value]="ex.id">{{ ex.name }}</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="exercice-select" *ngIf="selectedExerciceId && otherProfiles.length > 0">
+          <label for="compareUser">Uporedi sa</label>
+          <select id="compareUser" [(ngModel)]="compareUserId" (change)="onCompareUserChange()">
+            <option value="">-- Niko --</option>
+            <option *ngFor="let p of otherProfiles" [value]="p.id">{{ p.username }}</option>
+          </select>
+        </div>
+
+        <p *ngIf="progressLoading">Učitavanje...</p>
+        <p *ngIf="progressError" class="error">{{ progressError }}</p>
+
+        <ng-container *ngIf="selectedExerciceId && !progressLoading && !progressError">
+          <p *ngIf="chartPoints.length === 0 && comparePoints.length === 0" class="no-entries">
+            Nema upisanih rezultata za ovu vežbu.
+          </p>
+
+          <div class="chart-legend" *ngIf="compareUserId && compareUsername">
+            <span class="legend-item"><span class="legend-dot me"></span>Ti</span>
+            <span class="legend-item"><span class="legend-dot compare"></span>{{ compareUsername }}</span>
+          </div>
+
+          <div class="chart-wrapper" *ngIf="chartPoints.length > 0 || comparePoints.length > 0">
+            <svg
+              [attr.width]="chartWidth"
+              [attr.height]="chartHeight"
+              [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
+              class="progress-chart"
+            >
+              <defs>
+                <linearGradient id="progressAreaGradientMe" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#199e70" stop-opacity="0.4" />
+                  <stop offset="100%" stop-color="#199e70" stop-opacity="0" />
+                </linearGradient>
+                <linearGradient id="progressAreaGradientCompare" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e66767" stop-opacity="0.4" />
+                  <stop offset="100%" stop-color="#e66767" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+
+              <g *ngFor="let grid of yGridLines">
+                <line
+                  [attr.x1]="chartPaddingLeft"
+                  [attr.x2]="chartWidth - chartPaddingRight"
+                  [attr.y1]="grid.y"
+                  [attr.y2]="grid.y"
+                  class="grid-line"
+                />
+                <text [attr.x]="chartPaddingLeft - 8" [attr.y]="grid.y + 4" text-anchor="end" class="grid-label">
+                  {{ grid.label }}
+                </text>
+              </g>
+
+              <path [attr.d]="compareAreaPath" class="progress-area compare" />
+              <path [attr.d]="areaPath" class="progress-area me" />
+
+              <polyline [attr.points]="compareLinePoints" class="progress-line compare" />
+              <polyline [attr.points]="chartLinePoints" class="progress-line me" />
+
+              <g *ngFor="let point of comparePoints">
+                <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
+                  {{ point.reps }} rep.
+                </text>
+                <circle [attr.cx]="point.x" [attr.cy]="point.y" r="5" class="progress-point compare">
+                  <title>{{ compareUsername }} — {{ point.dateLabel }} — {{ point.weight }}kg x {{ point.reps }}</title>
+                </circle>
+              </g>
+
+              <g *ngFor="let point of chartPoints">
+                <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
+                  {{ point.reps }} rep.
+                </text>
+                <circle [attr.cx]="point.x" [attr.cy]="point.y" r="5" class="progress-point me">
+                  <title>Ti — {{ point.dateLabel }} — {{ point.weight }}kg x {{ point.reps }}</title>
+                </circle>
+              </g>
+
+              <text
+                *ngFor="let tick of xAxisLabels"
+                [attr.x]="tick.x"
+                [attr.y]="chartHeight - chartPaddingBottom + 18"
+                text-anchor="middle"
+                class="date-label"
+              >
+                {{ tick.label }}
+              </text>
+            </svg>
+          </div>
+
+          <div class="set-filter" *ngIf="availableSetNumbers.length > 0">
+            <button
+              type="button"
+              *ngFor="let setNumber of availableSetNumbers"
+              class="set-filter-btn"
+              [class.active]="setNumber === selectedSetNumber"
+              (click)="selectSet(setNumber)"
+            >
+              Set {{ setNumber }}
+            </button>
+          </div>
+        </ng-container>
+      </div>
+
+    </ng-container>
+
+  </div>
+</div>

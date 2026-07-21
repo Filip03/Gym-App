@@ -8,7 +8,10 @@
 
       <div class="training-header">
         <h2>{{ plan.name }}</h2>
-        <span class="day-badge">{{ todayDayName }}</span>
+        <div class="day-badges">
+          <span class="day-badge">{{ todayDayName }}</span>
+          <span class="day-type-badge" *ngIf="todayWorkoutDay?.day_type?.name">{{ todayWorkoutDay.day_type.name }}</span>
+        </div>
       </div>
 
       <div class="rest-day" *ngIf="isRestDay">
@@ -23,9 +26,21 @@
               <span class="exercice-name">{{ ex.name }}</span>
               <span class="exercice-target">{{ ex.targetSets }} x {{ ex.targetReps }}</span>
             </div>
-            <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
-              {{ ex.showLogForm ? 'Otkaži' : 'Upiši rezultat' }}
-            </button>
+            <div class="exercice-actions">
+              <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
+                {{ ex.showLogForm ? 'Otkaži' : 'Upiši rezultat' }}
+              </button>
+              <i
+                class="material-icons leaderboard-icon"
+                title="Leaderboard"
+                (click)="goToLeaderboard(ex)"
+              >leaderboard</i>
+              <i
+                class="material-icons leaderboard-icon"
+                title="Progres"
+                (click)="goToProgress(ex)"
+              >moving</i>
+            </div>
           </div>
 
           <div class="logged-sets" *ngIf="ex.loggedSets.length > 0">

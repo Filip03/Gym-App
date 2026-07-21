@@ -219,6 +219,14 @@ export class TrainingComponent implements OnInit {
     return `${year}-${month}-${day}`;
   }
 
+  goToLeaderboard(ex: TodayExercice) {
+    this.router.navigate(['/leaderboard'], { queryParams: { exercice: ex.exerciceId } });
+  }
+
+  goToProgress(ex: TodayExercice) {
+    this.router.navigate(['/profiles'], { queryParams: { exercice: ex.exerciceId } });
+  }
+
   goBack() {
     this.router.navigate(['/dashboard']);
   }

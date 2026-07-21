@@ -1,0 +1,75 @@
+<div class="leaderboard-wrapper">
+  <div class="leaderboard-container">
+
+    <h2>Leaderboard</h2>
+
+    <div class="exercice-select">
+      <label for="exercice">Izaberi vježbu</label>
+      <select id="exercice" [(ngModel)]="selectedExerciceId" (change)="onExerciceChange()" [disabled]="loadingExercices">
+        <option value="">-- Izaberi vježbu --</option>
+        <optgroup *ngFor="let group of exerciceGroups" [label]="group.name">
+          <option *ngFor="let ex of group.exercices" [value]="ex.id">{{ ex.name }}</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <p *ngIf="loadingExercices || loading">Učitavanje...</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+    <ng-container *ngIf="selectedExerciceId && !loading && !errorMessage">
+
+      <p *ngIf="entries.length === 0" class="no-entries">Još nema upisanih rezultata za ovu vežbu.</p>
+
+      <div class="podium" *ngIf="entries.length > 0">
+
+        <div class="podium-spot second">
+          <ng-container *ngIf="entries[1] as e">
+            <span class="podium-username">{{ e.username }}</span>
+            <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
+          </ng-container>
+          <div class="podium-block">2</div>
+        </div>
+
+        <div class="podium-spot first">
+          <ng-container *ngIf="entries[0] as e">
+            <span class="podium-username">{{ e.username }}</span>
+            <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
+          </ng-container>
+          <div class="podium-block">1</div>
+        </div>
+
+        <div class="podium-spot third">
+          <ng-container *ngIf="entries[2] as e">
+            <span class="podium-username">{{ e.username }}</span>
+            <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
+          </ng-container>
+          <div class="podium-block">3</div>
+        </div>
+
+      </div>
+
+      <div class="table-wrapper" *ngIf="entries.length > 0">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Korisnik</th>
+              <th>Kilaža</th>
+              <th>Ponavljanja</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of entries; let i = index">
+              <td>{{ i + 1 }}</td>
+              <td>{{ e.username }}</td>
+              <td>{{ e.weight }}kg</td>
+              <td>{{ e.reps }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </ng-container>
+
+  </div>
+</div>

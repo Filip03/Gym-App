@@ -55,7 +55,7 @@ export class DashboardComponent implements OnInit {
   isMobile = false;
   currentDayIndex = 0;
 
-  private dayNames = ['Ponedeljak', 'Utorak', 'Sreda', 'Četvrtak', 'Petak', 'Subota', 'Nedelja'];
+  private dayNames = ['Ponedeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota', 'Nedelja'];
 
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
     'PPL (PUSHPULLLEGS)': ['PUSH', 'PULL', 'LEGS', 'REST'],

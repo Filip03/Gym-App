@@ -83,55 +83,65 @@
 
       <hr class="divider" />
 
-      <!-- DONJI DIO: raspored po danima -->
+      <!-- DONJI DIO: raspored po danima - dan po dan, sa strelicama -->
         <div class="week-schedule">
         <h3>Raspored treninga</h3>
 
-        <div class="days-grid" [class.mobile-carousel]="isMobile">
+        <div class="plan-builder">
 
-            <div class="carousel-nav" *ngIf="isMobile">
+            <div class="plan-builder-nav">
               <button type="button" class="arrow-btn" (click)="prevDay()" [disabled]="currentDayIndex === 0" aria-label="Prethodni dan">‹</button>
-              <span class="carousel-label">{{ weekDays[currentDayIndex]?.dayName }} <small>({{ currentDayIndex + 1 }}/{{ weekDays.length }})</small></span>
+              <span class="plan-builder-label">{{ weekDays[currentDayIndex]?.dayName }} <small>({{ currentDayIndex + 1 }}/{{ weekDays.length }})</small></span>
               <button type="button" class="arrow-btn" (click)="nextDay(weekDays.length)" [disabled]="currentDayIndex === weekDays.length - 1" aria-label="Sledeći dan">›</button>
             </div>
 
-            <div class="day-row" *ngFor="let day of weekDays; let i = index" [class.active-day]="i === currentDayIndex" [class.day-hidden]="isMobile && i !== currentDayIndex">
-            <div class="day-header">
-                <span class="day-name">{{ day.dayName }}</span>
+            <ng-container *ngIf="weekDays[currentDayIndex] as day">
+              <div class="plan-builder-body">
 
-                <select
-                [(ngModel)]="day.dayTypeId"
-                [name]="'dayType_' + day.dayNumber"
-                (change)="onDayTypeChange(day)"
-                >
-                <option [ngValue]="null">-- Izaberi tip dana --</option>
-                <option *ngFor="let type of filteredDayTypes" [value]="type.id">{{ type.name }}</option>
-                </select>
-            </div>
+                <div class="plan-builder-picker">
+                  <select
+                  [(ngModel)]="day.dayTypeId"
+                  [name]="'dayType_' + day.dayNumber"
+                  (change)="onDayTypeChange(day)"
+                  >
+                  <option [ngValue]="null">-- Izaberi tip dana --</option>
+                  <option *ngFor="let type of filteredDayTypes" [value]="type.id">{{ type.name }}</option>
+                  </select>
 
-            <div class="exercice-list" *ngIf="day.availableExercices.length > 0">
-                <div
-                class="exercice-item"
-                *ngFor="let ex of day.availableExercices"
-                [class.selected]="isExerciceSelected(day, ex.id)"
-                (click)="toggleExercice(day, ex)"
-                >
-                {{ ex.name }}
+                  <div class="exercice-list" *ngIf="day.availableExercices.length > 0">
+                      <div
+                      class="exercice-item"
+                      *ngFor="let ex of day.availableExercices"
+                      [class.selected]="isExerciceSelected(day, ex.id)"
+                      (click)="toggleExercice(day, ex)"
+                      >
+                      {{ ex.name }}
+                      </div>
+                  </div>
+
+                  <p *ngIf="day.dayTypeId && day.availableExercices.length === 0" class="no-exercices">
+                      Nema vježbi za ovaj tip dana.
+                  </p>
                 </div>
-            </div>
 
-            <p *ngIf="day.dayTypeId && day.availableExercices.length === 0" class="no-exercices">
-                Nema vežbi za ovaj tip dana.
-            </p>
+                <div class="plan-builder-selected">
+                  <h4>Izabrane vježbe</h4>
 
-            <div class="selected-exercices" *ngIf="day.selectedExercices.length > 0">
-                <div class="selected-exercice-row" *ngFor="let sel of day.selectedExercices">
-                <span>{{ sel.name }}</span>
-                <input type="number" [(ngModel)]="sel.targetSets" [name]="'sets_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj setova" />
-                <input type="number" [(ngModel)]="sel.targetReps" [name]="'reps_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj ponavljanja" />
+                  <p *ngIf="day.selectedExercices.length === 0" class="no-exercices">
+                    Još nisi izabrao vježbe za ovaj dan.
+                  </p>
+
+                  <div class="selected-exercices" *ngIf="day.selectedExercices.length > 0">
+                      <div class="selected-exercice-row" *ngFor="let sel of day.selectedExercices">
+                      <span>{{ sel.name }}</span>
+                      <input type="number" [(ngModel)]="sel.targetSets" [name]="'sets_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj setova" />
+                      <input type="number" [(ngModel)]="sel.targetReps" [name]="'reps_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj ponavljanja" />
+                      </div>
+                  </div>
                 </div>
-            </div>
-            </div>
+
+              </div>
+            </ng-container>
         </div>
         </div>
 

@@ -1,0 +1,285 @@
+.leaderboard-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.leaderboard-container {
+  box-sizing: border-box;
+  width: 80%;
+  max-width: 800px;
+  border: 2px solid greenyellow;
+  border-radius: 30px;
+  box-shadow: 0 3px 10px white;
+  backdrop-filter: blur(5px);
+  padding: 2rem;
+  color: white;
+}
+
+h2 {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 1.9rem;
+  color: greenyellow;
+}
+
+.exercice-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 2rem;
+}
+
+.exercice-select label {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.exercice-select select {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  color: white;
+  font-size: 1rem;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.no-entries {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.podium-spot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 140px;
+  min-width: 0;
+  flex: 1 1 0;
+  max-width: 140px;
+}
+
+.podium-spot.first { order: 2; }
+.podium-spot.second { order: 1; }
+.podium-spot.third { order: 3; }
+
+.podium-username {
+  font-weight: 700;
+  color: white;
+  font-size: 1.05rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.podium-stats {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+}
+
+.podium-block {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px 10px 0 0;
+  font-weight: 800;
+  font-size: 1.6rem;
+  color: black;
+}
+
+.podium-spot.first .podium-block {
+  height: 140px;
+  background: greenyellow;
+}
+
+.podium-spot.second .podium-block {
+  height: 100px;
+  background: silver;
+}
+
+.podium-spot.third .podium-block {
+  height: 70px;
+  background: #cd7f32;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.results-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.results-table th:nth-child(1),
+.results-table td:nth-child(1) {
+  width: 10%;
+}
+
+.results-table th:nth-child(2),
+.results-table td:nth-child(2) {
+  width: 30%;
+}
+
+.results-table th:nth-child(3),
+.results-table td:nth-child(3) {
+  width: 30%;
+}
+
+.results-table th:nth-child(4),
+.results-table td:nth-child(4) {
+  width: 30%;
+}
+
+.results-table th,
+.results-table td {
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.results-table th {
+  color: greenyellow;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.results-table td {
+  color: white;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .leaderboard-wrapper {
+    padding: 20px 16px;
+  }
+
+  .leaderboard-container {
+    width: 100%;
+    padding: 1.25rem;
+    border-radius: 20px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  .podium {
+    gap: 0.6rem;
+  }
+
+  .podium-spot {
+    width: 90px;
+    max-width: 90px;
+  }
+
+  .podium-spot.first .podium-block {
+    height: 100px;
+    font-size: 1.3rem;
+  }
+
+  .podium-spot.second .podium-block {
+    height: 75px;
+    font-size: 1.2rem;
+  }
+
+  .podium-spot.third .podium-block {
+    height: 55px;
+    font-size: 1.2rem;
+  }
+
+  .podium-username {
+    font-size: 0.85rem;
+  }
+
+  .podium-stats {
+    font-size: 0.75rem;
+  }
+
+  .results-table th,
+  .results-table td {
+    padding: 0.5rem 0.4rem;
+  }
+
+  .results-table th {
+    font-size: 0.7rem;
+    letter-spacing: 0;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  .results-table td {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .podium {
+    gap: 0.4rem;
+  }
+
+  .podium-spot {
+    width: 72px;
+    max-width: 72px;
+  }
+
+  .podium-spot.first .podium-block {
+    height: 80px;
+    font-size: 1.1rem;
+  }
+
+  .podium-spot.second .podium-block {
+    height: 60px;
+    font-size: 1rem;
+  }
+
+  .podium-spot.third .podium-block {
+    height: 45px;
+    font-size: 1rem;
+  }
+
+  .podium-username {
+    font-size: 0.75rem;
+  }
+
+  .podium-stats {
+    font-size: 0.68rem;
+  }
+
+  .results-table th,
+  .results-table td {
+    padding: 0.45rem 0.35rem;
+  }
+
+  .results-table td {
+    font-size: 0.8rem;
+  }
+
+  .results-table th {
+    font-size: 0.65rem;
+  }
+}

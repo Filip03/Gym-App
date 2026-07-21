@@ -5,6 +5,7 @@
 
     width: 100%;
     height: 70px;
+    padding: 0 10px;
 
     display: flex;
     justify-content: space-evenly;
@@ -25,4 +26,24 @@
 .material-icons:hover {
     color: greenyellow;
     transform: scale(1.2);
+}
+
+@media (max-width: 480px) {
+    .footer {
+        gap: clamp(10px, 5vw, 40px);
+    }
+
+    .material-icons {
+        font-size: 28px;
+    }
+}
+
+@media (max-width: 360px) {
+    .footer {
+        gap: 4vw;
+    }
+
+    .material-icons {
+        font-size: 24px;
+    }
 }

@@ -72,6 +72,7 @@
 
 .dashboard-container{
     width: 80%;
+    padding: 1.5rem 2rem;
     display: flex;
     flex-direction: row;
     align-items: flex-start;
@@ -107,7 +108,6 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    margin: 10px 25px;
 }
 
 .other-plans{
@@ -117,7 +117,6 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: center;
-    margin: 10px 25px;
 }
 
 h2{
@@ -297,7 +296,7 @@ h3{
 
 .modal-card-large {
   width: 80vw;
-  max-width: 80vw;
+  max-width: 1200px;
   max-height: 85vh;
   overflow-y: auto;
 }
@@ -315,6 +314,110 @@ h3{
 .week-schedule h3 {
   color: greenyellow;
   margin-bottom: 1rem;
+}
+
+// Kreiranje plana: dan po dan, sa strelicama (uvek, na svim širinama)
+
+.plan-builder {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+
+.plan-builder-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.plan-builder-label {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: greenyellow;
+}
+
+.plan-builder-label small {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
+  margin-left: 0.3rem;
+}
+
+.plan-builder-body {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.plan-builder-picker {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.plan-builder-picker select {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+  color: white;
+  font-size: 1rem;
+}
+
+.plan-builder-selected {
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 1.5rem;
+}
+
+.plan-builder-selected h4 {
+  margin: 0 0 0.75rem;
+  color: greenyellow;
+  font-size: 1rem;
+}
+
+.arrow-btn {
+  flex-shrink: 0;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: greenyellow;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.arrow-btn:hover:not(:disabled) {
+  background: rgba(173, 255, 47, 0.15);
+  transform: scale(1.1);
+}
+
+.arrow-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .plan-builder-body {
+    flex-direction: column;
+  }
+
+  .plan-builder-selected {
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-left: 0;
+    padding-top: 1rem;
+  }
 }
 
 .days-grid {
@@ -504,16 +607,13 @@ h3{
 
   .dashboard-container {
     width: 95%;
+    padding: 1.25rem 1rem;
     border-radius: 20px;
   }
 
   .header {
     grid-template-columns: auto 1fr auto;
     margin: 20px 0;
-  }
-
-  .header h2 {
-    font-size: 1.3rem;
   }
 
   #add {
@@ -544,22 +644,22 @@ h3{
     font-size: 1.4rem;
   }
 
-  // Kartice planova - jedna po redu na malim ekranima
+  // Kartice planova - 2 u redu na mobilnom
   .plans-grid {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
   }
 
   .plan-card {
-    padding: 1.25rem 1rem;
+    padding: 1rem 0.85rem;
   }
 
   .plan-card h3 {
-    font-size: 1.2rem;
+    font-size: 1.05rem;
   }
 
   .plan-card p {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
   // Modal - zauzima skoro celu širinu ekrana
@@ -653,30 +753,6 @@ h3{
     margin-left: 0.3rem;
   }
 
-  .arrow-btn {
-    flex-shrink: 0;
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.08);
-    color: greenyellow;
-    font-size: 1.2rem;
-    line-height: 1;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .arrow-btn:hover:not(:disabled) {
-    background: rgba(173, 255, 47, 0.15);
-    transform: scale(1.1);
-  }
-
-  .arrow-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-
   @keyframes cardSlideIn {
     from {
       opacity: 0;
@@ -706,14 +782,6 @@ h3{
 
   .days-grid {
     grid-template-columns: repeat(1, 1fr);
-  }
-
-  .plans-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .header h2 {
-    font-size: 1.1rem;
   }
 
   #add {
