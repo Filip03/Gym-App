@@ -78,9 +78,13 @@ export class ProfileService {
     const fileExt = file.name.split('.').pop();
     const path = `${userId}/avatar.${fileExt}`;
 
+    // Na iOS Safari-ju upload sa "sirovim" File objektom ume da pošalje prazno telo zahteva
+    // ("No content provided") - čitanje u ArrayBuffer pre upload-a to zaobilazi.
+    const fileBuffer = await file.arrayBuffer();
+
     const { error: uploadError } = await this.supabase.client.storage
       .from(BUCKET_NAME)
-      .upload(path, file, { upsert: true });
+      .upload(path, fileBuffer, { upsert: true, contentType: file.type || 'image/jpeg' });
 
     if (uploadError) throw uploadError;
 
