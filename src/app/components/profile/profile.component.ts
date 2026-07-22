@@ -99,7 +99,7 @@ export class ProfileComponent implements OnInit {
       const groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
       this.exerciceGroups = groups.filter(g => g.exercices.length > 0);
     } catch (err: any) {
-      this.progressError = err.message ?? 'Greška pri učitavanju vežbi.';
+      this.progressError = err.message ?? 'Greška pri učitavanju vježbi.';
     } finally {
       this.loadingExerciceGroups = false;
     }

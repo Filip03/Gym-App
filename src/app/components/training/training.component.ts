@@ -28,6 +28,18 @@ interface TodayExercice {
   saving: boolean;
 }
 
+interface PreviousSet {
+  setNumber: number;
+  reps: number;
+  weight: number;
+}
+
+interface PreviousExerciceGroup {
+  exerciceId: string;
+  name: string;
+  sets: PreviousSet[];
+}
+
 @Component({
   selector: 'app-training',
   templateUrl: './training.component.html',
@@ -43,6 +55,10 @@ export class TrainingComponent implements OnInit {
   todayWorkoutDay: any = null;
   todayExercices: TodayExercice[] = [];
   isRestDay = false;
+
+  showPreviousModal = false;
+  previousSessionDate: string | null = null;
+  previousSessionGroups: PreviousExerciceGroup[] = [];
 
   private currentUserId = '';
   private dayNames = DAY_NAMES;
@@ -103,6 +119,7 @@ export class TrainingComponent implements OnInit {
 
       if (!this.isRestDay) {
         await this.loadLoggedSets();
+        await this.loadPreviousSession();
       }
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju treninga.';
@@ -134,6 +151,68 @@ export class TrainingComponent implements OnInit {
           saving: false
         }));
     }
+  }
+
+  private async loadPreviousSession() {
+    const exerciceIds = this.getSameTypeExerciceIds();
+
+    const previousDate = await this.trainingService.getPreviousSessionDate(
+      this.currentUserId,
+      this.plan.id,
+      exerciceIds,
+      this.todayDate
+    );
+
+    if (!previousDate) return;
+
+    const results = await this.trainingService.getSessionResults(
+      this.currentUserId,
+      this.plan.id,
+      exerciceIds,
+      previousDate
+    );
+
+    const grouped = new Map<string, PreviousExerciceGroup>();
+    for (const log of results) {
+      if (!grouped.has(log.exercice_id)) {
+        grouped.set(log.exercice_id, { exerciceId: log.exercice_id, name: log.name, sets: [] });
+      }
+      grouped.get(log.exercice_id)!.sets.push({
+        setNumber: log.set_number,
+        reps: log.reps,
+        weight: log.weight
+      });
+    }
+
+    this.previousSessionDate = previousDate;
+    this.previousSessionGroups = Array.from(grouped.values());
+  }
+
+  // Sve vježbe iz svih dana u planu koji dele isti tip dana kao danas
+  // (npr. i petak i ponedeljak ako su oba "Push"), ne samo današnji spisak
+  private getSameTypeExerciceIds(): string[] {
+    const typeName = this.todayWorkoutDay?.day_type?.name;
+
+    if (!typeName) {
+      return this.todayExercices.map(ex => ex.exerciceId);
+    }
+
+    const matchingDays = (this.plan.workout_days ?? []).filter(
+      (day: any) => day.day_type?.name === typeName
+    );
+
+    const ids = new Set<string>();
+    for (const day of matchingDays) {
+      for (const dayEx of day.day_exercice ?? []) {
+        if (dayEx.exercice_id) ids.add(dayEx.exercice_id);
+      }
+    }
+
+    return Array.from(ids);
+  }
+
+  togglePreviousModal() {
+    this.showPreviousModal = !this.showPreviousModal;
   }
 
   toggleLogForm(ex: TodayExercice) {

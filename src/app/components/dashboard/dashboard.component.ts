@@ -4,6 +4,7 @@ import { DashboardService } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
 import { WorkoutPlan, PlanType, DayType, Exercice } from '../../models/models';
 import { DAY_NAMES } from '../../shared/day-names';
+import { ExerciceService } from '../../services/exercice.service';
 
 interface SelectedExercice {
   exerciceId: string;
@@ -56,6 +57,9 @@ export class DashboardComponent implements OnInit {
   isMobile = false;
   currentDayIndex = 0;
 
+  showExercicePicker = false;
+  pickerDay: DayEntry | null = null;
+
   private dayNames = DAY_NAMES;
 
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
@@ -77,6 +81,7 @@ export class DashboardComponent implements OnInit {
   constructor(
     private dashboardService: DashboardService,
     private authService: AuthService,
+    private exerciceService: ExerciceService,
     private router: Router
   ) {}
 
@@ -111,6 +116,7 @@ export class DashboardComponent implements OnInit {
     this.initWeekDays();
     this.filteredDayTypes = [];
     this.currentDayIndex = 0;
+    this.closeExercicePicker();
   }
 
   nextDay(totalDays: number) {
@@ -133,6 +139,7 @@ export class DashboardComponent implements OnInit {
     this.createError = '';
     this.weekDays = [];
     this.filteredDayTypes = [];
+    this.closeExercicePicker();
   }
 
   private initWeekDays() {
@@ -178,27 +185,52 @@ export class DashboardComponent implements OnInit {
 
     try {
       day.availableExercices = await this.dashboardService.getExercicesForDayType(day.dayTypeId);
+      if (day.availableExercices.length > 0) {
+        this.openExercicePicker(day);
+      }
     } catch (err: any) {
-      this.createError = 'Greška pri učitavanju vežbi za ovaj dan.';
+      this.createError = 'Greška pri učitavanju vježbi za ovaj dan.';
     }
   }
 
-  isExerciceSelected(day: DayEntry, exerciceId: string): boolean {
-    return day.selectedExercices.some(e => e.exerciceId === exerciceId);
+  openExercicePicker(day: DayEntry) {
+    this.pickerDay = day;
+    this.showExercicePicker = true;
   }
 
-  toggleExercice(day: DayEntry, exercice: Exercice) {
-    const index = day.selectedExercices.findIndex(e => e.exerciceId === exercice.id);
+  closeExercicePicker() {
+    this.showExercicePicker = false;
+    this.pickerDay = null;
+  }
+
+  // Klik na karticu vježbe je dodaje/uklanja iz izabranih; setovi/ponavljanja
+  // se onda kucaju direktno u polja koja se pojave ispod kartice - bez posebnog modala
+  toggleExercicePick(exercice: Exercice) {
+    if (!this.pickerDay) return;
+
+    const index = this.pickerDay.selectedExercices.findIndex(e => e.exerciceId === exercice.id);
     if (index >= 0) {
-      day.selectedExercices.splice(index, 1);
+      this.pickerDay.selectedExercices.splice(index, 1);
     } else {
-      day.selectedExercices.push({
+      this.pickerDay.selectedExercices.push({
         exerciceId: exercice.id,
         name: exercice.name ?? '',
         targetSets: null,
         targetReps: null
       });
     }
+  }
+
+  isExercicePicked(exerciceId: string): boolean {
+    return this.pickerDay?.selectedExercices.some(e => e.exerciceId === exerciceId) ?? false;
+  }
+
+  getPickedInfo(exerciceId: string): SelectedExercice | undefined {
+    return this.pickerDay?.selectedExercices.find(e => e.exerciceId === exerciceId);
+  }
+
+  getExercicePictureUrl(picture: string | null): string | null {
+    return picture ? this.exerciceService.getPublicUrl(picture) : null;
   }
 
   async onSubmitPlan() {
@@ -264,7 +296,7 @@ export class DashboardComponent implements OnInit {
       this.viewedPlan = await this.dashboardService.getFullPlan(planId);
       // sortiraj dane po day_number da budu pon-ned
       this.viewedPlan.workout_days.sort((a: any, b: any) => a.day_number - b.day_number);
-      // sortiraj vežbe u svakom danu po order_num
+      // sortiraj vježbe u svakom danu po order_num
       this.viewedPlan.workout_days.forEach((day: any) => {
         day.day_exercice.sort((a: any, b: any) => a.order_num - b.order_num);
       });
@@ -299,6 +331,35 @@ export class DashboardComponent implements OnInit {
       }
     } catch (err: any) {
       this.viewError = err.message ?? 'Greška prilikom ažuriranja praćenja plana.';
+    } finally {
+      this.followLoading = false;
+    }
+  }
+
+  async toggleActivatePlan(event: Event) {
+    event.stopPropagation();
+    const user = this.authService.getCurrentUser();
+    if (!user || !this.viewedPlan || this.followLoading) return;
+
+    this.followLoading = true;
+    this.viewError = '';
+
+    try {
+      if (this.viewedPlan.active) {
+        await this.dashboardService.deactivatePlan(this.viewedPlan.id);
+        this.viewedPlan.active = false;
+      } else {
+        const followedPlanId = await this.dashboardService.getFollowedPlanId(user.id);
+        if (followedPlanId) {
+          this.viewError = 'Prvo moraš otpratiti trenutni plan da bi aktivirao sopstveni.';
+          return;
+        }
+
+        await this.dashboardService.activatePlan(this.viewedPlan.id, user.id);
+        this.viewedPlan.active = true;
+      }
+    } catch (err: any) {
+      this.viewError = err.message ?? 'Greška prilikom aktivacije plana.';
     } finally {
       this.followLoading = false;
     }

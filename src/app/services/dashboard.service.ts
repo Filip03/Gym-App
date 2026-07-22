@@ -115,7 +115,7 @@ export class DashboardService {
     return data as PlanType[];
   }
 
-  // Sve vežbe iz kataloga
+  // Sve vježbe iz kataloga
   async getAllExercices(): Promise<Exercice[]> {
     const { data, error } = await this.supabase.client
       .from('exercices')
@@ -136,7 +136,7 @@ export class DashboardService {
     return data as DayType[];
   }
 
-  // Vraća vežbe filtrirane po day_type preko muscle_group mapiranja
+  // Vraća vježbe filtrirane po day_type preko muscle_group mapiranja
   async getExercicesForDayType(dayTypeId: string): Promise<Exercice[]> {
   // 1. Nađi sve muscle_group_id mapirane na ovaj day_type
   const { data: mappings, error: mapError } = await this.supabase.client
@@ -160,7 +160,7 @@ export class DashboardService {
 
   const exerciceIds = [...new Set(exerciceMappings.map(e => e.exercice_id))];
 
-  // 3. Vrati pune podatke o vežbama
+  // 3. Vrati pune podatke o vježbama
   const { data: exercices, error: exError } = await this.supabase.client
     .from('exercices')
     .select('*')
@@ -171,7 +171,7 @@ export class DashboardService {
   return exercices as Exercice[];
 }
 
-// Kreira ceo plan sa danima i vežbama u jednom pozivu
+// Kreira ceo plan sa danima i vježbama u jednom pozivu
 async createFullPlan(
   plan: { name: string; description: string; plan_type_id: string; created_by: string },
   days: {
@@ -256,6 +256,44 @@ async unfollowPlan(planId: string, userId: string): Promise<void> {
     .delete()
     .eq('plan_id', planId)
     .eq('profile_id', userId);
+
+  if (error) throw error;
+}
+
+// Plan_id koji korisnik trenutno prati (max jedan zbog unique constraint-a na profile_id)
+async getFollowedPlanId(userId: string): Promise<string | null> {
+  const { data, error } = await this.supabase.client
+    .from('plan_members')
+    .select('plan_id')
+    .eq('profile_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data?.plan_id ?? null;
+}
+
+// Aktivira jedan od sopstvenih planova - deaktivira sve ostale kreatorove planove
+async activatePlan(planId: string, userId: string): Promise<void> {
+  const { error: deactivateError } = await this.supabase.client
+    .from('workout_plan')
+    .update({ active: false })
+    .eq('created_by', userId);
+
+  if (deactivateError) throw deactivateError;
+
+  const { error: activateError } = await this.supabase.client
+    .from('workout_plan')
+    .update({ active: true })
+    .eq('id', planId);
+
+  if (activateError) throw activateError;
+}
+
+async deactivatePlan(planId: string): Promise<void> {
+  const { error } = await this.supabase.client
+    .from('workout_plan')
+    .update({ active: false })
+    .eq('id', planId);
 
   if (error) throw error;
 }

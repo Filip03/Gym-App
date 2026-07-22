@@ -20,7 +20,8 @@ export class ExercicesComponent implements OnInit {
 
   newName = '';
   newDescription = '';
-  newPicture = '';
+  newPictureFile: File | null = null;
+  newPicturePreviewUrl: string | null = null;
   selectedMuscleGroupIds: string[] = [];
 
   constructor(private exerciceService: ExerciceService) {}
@@ -37,7 +38,7 @@ export class ExercicesComponent implements OnInit {
       this.muscleGroups = await this.exerciceService.getMuscleGroups();
       this.groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju vežbi.';
+      this.errorMessage = err.message ?? 'Greška pri učitavanju vježbi.';
     } finally {
       this.loading = false;
     }
@@ -47,13 +48,30 @@ export class ExercicesComponent implements OnInit {
     this.showCreateModal = true;
     this.newName = '';
     this.newDescription = '';
-    this.newPicture = '';
+    this.newPictureFile = null;
+    this.newPicturePreviewUrl = null;
     this.selectedMuscleGroupIds = [];
     this.createError = '';
   }
 
   closeCreateModal() {
     this.showCreateModal = false;
+  }
+
+  onPictureFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+
+    if (this.newPicturePreviewUrl) {
+      URL.revokeObjectURL(this.newPicturePreviewUrl);
+    }
+
+    this.newPictureFile = file;
+    this.newPicturePreviewUrl = file ? URL.createObjectURL(file) : null;
+  }
+
+  getExercicePictureUrl(picture: string | null): string | null {
+    return picture ? this.exerciceService.getPublicUrl(picture) : null;
   }
 
   toggleMuscleGroup(muscleGroupId: string) {
@@ -73,7 +91,7 @@ export class ExercicesComponent implements OnInit {
     this.createError = '';
 
     if (!this.newName.trim()) {
-      this.createError = 'Naziv vežbe je obavezan.';
+      this.createError = 'Naziv vježbe je obavezan.';
       return;
     }
 
@@ -83,14 +101,14 @@ export class ExercicesComponent implements OnInit {
       await this.exerciceService.addExercice({
         name: this.newName,
         description: this.newDescription,
-        picture: this.newPicture,
-        muscleGroupIds: this.selectedMuscleGroupIds
+        muscleGroupIds: this.selectedMuscleGroupIds,
+        pictureFile: this.newPictureFile
       });
 
       await this.loadExercices();
       this.closeCreateModal();
     } catch (err: any) {
-      this.createError = err.message ?? 'Greška prilikom dodavanja vežbe.';
+      this.createError = err.message ?? 'Greška prilikom dodavanja vježbe.';
     } finally {
       this.creating = false;
     }

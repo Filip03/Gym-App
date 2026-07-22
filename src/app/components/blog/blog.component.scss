@@ -1,0 +1,134 @@
+.blog-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.blog-container {
+  box-sizing: border-box;
+  width: 90%;
+  border: 2px solid greenyellow;
+  border-radius: 30px;
+  box-shadow: 0 3px 10px white;
+  backdrop-filter: blur(5px);
+  padding: 2rem;
+  color: white;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.9rem;
+  color: greenyellow;
+}
+
+#add {
+  font-size: 40px;
+  color: greenyellow;
+  cursor: pointer;
+  transition: all ease-in-out;
+}
+
+#add:hover {
+  transform: scale(1.25);
+  transition: all ease-in-out 0.3s;
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.no-entries {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.media-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.media-card {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  display: block;
+  line-height: 0; // sprečava sitan razmak ispod img/video zbog inline default-a
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.media-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(173, 255, 47, 0.4);
+}
+
+.media-card img,
+.media-card video {
+  display: block;
+  height: 220px;
+  width: auto;
+  min-width: 120px;
+  max-width: min(400px, 100%);
+  object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  .blog-container {
+    width: 95%;
+    padding: 1.25rem;
+  }
+
+  .media-grid {
+    gap: 0.6rem;
+  }
+
+  .media-card img,
+  .media-card video {
+    height: 160px;
+    min-width: 100px;
+    max-width: min(280px, 100%);
+  }
+}
+
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.lightbox-overlay img,
+.lightbox-overlay video {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.lightbox-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  color: white;
+  font-size: 2.2rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.lightbox-close:hover {
+  transform: scale(1.15);
+  color: greenyellow;
+}

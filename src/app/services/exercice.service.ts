@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
 import { Exercice, MuscleGroup } from '../models/models';
 
+const BUCKET_NAME = 'exercices-pictures';
+
 export interface MuscleGroupWithExercices {
   id: string;
   name: string;
@@ -25,7 +27,7 @@ export class ExerciceService {
     return data as MuscleGroup[];
   }
 
-  // Sve vežbe, grupisane po mišićnim grupama (vežba se može pojaviti u više grupa)
+  // Sve vježbe, grupisane po mišićnim grupama (vježba se može pojaviti u više grupa)
   async getExercicesGroupedByMuscleGroup(): Promise<MuscleGroupWithExercices[]> {
     const muscleGroups = await this.getMuscleGroups();
 
@@ -74,15 +76,15 @@ export class ExerciceService {
   async addExercice(entry: {
     name: string;
     description: string;
-    picture: string;
     muscleGroupIds: string[];
+    pictureFile: File | null;
   }): Promise<Exercice> {
     const { data: newExercice, error } = await this.supabase.client
       .from('exercices')
       .insert({
         name: entry.name,
         description: entry.description || null,
-        picture: entry.picture || null
+        picture: null
       })
       .select()
       .single();
@@ -102,6 +104,38 @@ export class ExerciceService {
       if (linkError) throw linkError;
     }
 
+    if (entry.pictureFile) {
+      newExercice.picture = await this.uploadPicture(newExercice.id, entry.pictureFile);
+    }
+
     return newExercice as Exercice;
+  }
+
+  getPublicUrl(path: string): string {
+    const { data } = this.supabase.client.storage.from(BUCKET_NAME).getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  private async uploadPicture(exerciceId: string, file: File): Promise<string> {
+    const fileExt = file.name.split('.').pop();
+    const path = `${exerciceId}/picture.${fileExt}`;
+
+    // Čitanje u ArrayBuffer da izbegnemo "No content provided" na iOS Safari-ju
+    const fileBuffer = await file.arrayBuffer();
+
+    const { error: uploadError } = await this.supabase.client.storage
+      .from(BUCKET_NAME)
+      .upload(path, fileBuffer, { upsert: true, contentType: file.type || 'image/jpeg' });
+
+    if (uploadError) throw uploadError;
+
+    const { error: updateError } = await this.supabase.client
+      .from('exercices')
+      .update({ picture: path })
+      .eq('id', exerciceId);
+
+    if (updateError) throw updateError;
+
+    return path;
   }
 }

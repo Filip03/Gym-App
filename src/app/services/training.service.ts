@@ -13,18 +13,11 @@ export class TrainingService {
     private dashboardService: DashboardService
   ) {}
 
-  // Plan za trening ekran: prioritet ima sopstveni plan (kreator),
-  // ako korisnik nema svoj plan, koristi se plan kojem se pridružio
+  // Plan za trening ekran: praćen tuđi plan uvek ima prioritet (max jedan zbog unique
+  // constraint-a). Ako korisnik ne prati nikog, koristi se jedan od sopstvenih planova -
+  // ako ima samo jedan, taj se koristi automatski; ako ih ima više, koristi se onaj
+  // označen kao aktivan (a ako nijedan nije aktivan, nema plana za prikaz)
   async getPlanForUser(userId: string) {
-    const { data: ownPlan, error: ownError } = await this.supabase.client
-      .from('workout_plan')
-      .select('id')
-      .eq('created_by', userId)
-      .maybeSingle();
-
-    if (ownError) throw ownError;
-    if (ownPlan) return this.dashboardService.getFullPlan(ownPlan.id);
-
     const { data: membership, error: memberError } = await this.supabase.client
       .from('plan_members')
       .select('plan_id')
@@ -32,12 +25,27 @@ export class TrainingService {
       .maybeSingle();
 
     if (memberError) throw memberError;
-    if (!membership) return null;
+    if (membership) return this.dashboardService.getFullPlan(membership.plan_id);
 
-    return this.dashboardService.getFullPlan(membership.plan_id);
+    const { data: ownPlans, error: ownError } = await this.supabase.client
+      .from('workout_plan')
+      .select('id, active')
+      .eq('created_by', userId);
+
+    if (ownError) throw ownError;
+    if (!ownPlans || ownPlans.length === 0) return null;
+
+    if (ownPlans.length === 1) {
+      return this.dashboardService.getFullPlan(ownPlans[0].id);
+    }
+
+    const activePlan = ownPlans.find(p => p.active);
+    if (!activePlan) return null;
+
+    return this.dashboardService.getFullPlan(activePlan.id);
   }
 
-  // Već upisani setovi za dati dan, za skup vežbi (koristi se za prikaz progresa i za automatski broj seta)
+  // Već upisani setovi za dati dan, za skup vježbi (koristi se za prikaz progresa i za automatski broj seta)
   async getTodayLogs(
     userId: string,
     planId: string,
@@ -85,6 +93,60 @@ export class TrainingService {
 
     if (error) throw error;
     return data as ExerciceLog;
+  }
+
+  // Datum poslednjeg prethodnog treninga za dati skup vježbi (npr. svi "Push" dani u planu,
+  // bez obzira na koji dan u nedelji padaju)
+  async getPreviousSessionDate(
+    userId: string,
+    planId: string,
+    exerciceIds: string[],
+    beforeDate: string
+  ): Promise<string | null> {
+    if (exerciceIds.length === 0) return null;
+
+    const { data, error } = await this.supabase.client
+      .from('exercice_logs')
+      .select('date')
+      .eq('user_id', userId)
+      .eq('plan_id', planId)
+      .in('exercice_id', exerciceIds)
+      .lt('date', beforeDate)
+      .order('date', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+    return data?.[0]?.date ?? null;
+  }
+
+  // Svi upisani setovi za dati datum, sa nazivom vježbe (prethodni dan istog tipa
+  // može imati drugačiji spisak vježbi od današnjeg)
+  async getSessionResults(
+    userId: string,
+    planId: string,
+    exerciceIds: string[],
+    date: string
+  ): Promise<{ exercice_id: string; name: string; set_number: number; reps: number; weight: number }[]> {
+    if (exerciceIds.length === 0) return [];
+
+    const { data, error } = await this.supabase.client
+      .from('exercice_logs')
+      .select('exercice_id, set_number, reps, weight, exercices ( name )')
+      .eq('user_id', userId)
+      .eq('plan_id', planId)
+      .eq('date', date)
+      .in('exercice_id', exerciceIds)
+      .order('set_number', { ascending: true });
+
+    if (error) throw error;
+
+    return ((data ?? []) as any[]).map(row => ({
+      exercice_id: row.exercice_id,
+      name: row.exercices?.name ?? '',
+      set_number: row.set_number,
+      reps: row.reps,
+      weight: row.weight
+    }));
   }
 
   // Izmena već upisanog seta (npr. korisnik je pogrešio reps/kilažu)

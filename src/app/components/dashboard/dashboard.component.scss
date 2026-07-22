@@ -316,71 +316,120 @@ h3{
   margin-bottom: 1rem;
 }
 
-// Kreiranje plana: dan po dan, sa strelicama (uvek, na svim širinama)
+// Kreiranje plana: kartice dana jedna pored druge (wrap po potrebi),
+// izbor vježbi ide u poseban veliki modal
 
-.plan-builder {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  padding: 1.25rem;
-}
-
-.plan-builder-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.create-days-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
 }
 
-.plan-builder-label {
-  flex: 1;
-  text-align: center;
-  font-weight: 600;
-  font-size: 1.1rem;
-  color: greenyellow;
-}
-
-.plan-builder-label small {
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 400;
-  margin-left: 0.3rem;
-}
-
-.plan-builder-body {
-  display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-}
-
-.plan-builder-picker {
-  flex: 1;
-  min-width: 0;
+.create-day-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.plan-builder-picker select {
+.create-day-card select {
   width: 100%;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 0.6rem 0.7rem;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
   color: white;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
-.plan-builder-selected {
-  flex: 1;
-  min-width: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  padding-left: 1.5rem;
-}
-
-.plan-builder-selected h4 {
-  margin: 0 0 0.75rem;
+.edit-exercices-btn {
+  background: rgba(173, 255, 47, 0.12);
+  border: 1px solid rgba(173, 255, 47, 0.4);
   color: greenyellow;
-  font-size: 1rem;
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-exercices-btn:hover {
+  background: rgba(173, 255, 47, 0.22);
+}
+
+.exercice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.exercice-card {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.exercice-card:hover {
+  border-color: rgba(173, 255, 47, 0.4);
+  transform: translateY(-2px);
+}
+
+.exercice-card.selected {
+  border-color: greenyellow;
+  background: rgba(173, 255, 47, 0.1);
+}
+
+.exercice-card img {
+  width: 100%;
+  height: 90px;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+}
+
+.exercice-card h4 {
+  margin: 0;
+  color: white;
+  font-size: 0.95rem;
+}
+
+.exercice-picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.exercice-picker-inputs {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.exercice-picker-inputs input {
+  width: 0;
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(173, 255, 47, 0.4);
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  color: white;
+  font-size: 0.85rem;
+}
+
+.exercice-picker-inputs input:focus {
+  outline: none;
+  border-color: greenyellow;
 }
 
 .arrow-btn {
@@ -405,19 +454,6 @@ h3{
 .arrow-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-}
-
-@media (max-width: 600px) {
-  .plan-builder-body {
-    flex-direction: column;
-  }
-
-  .plan-builder-selected {
-    border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-left: 0;
-    padding-top: 1rem;
-  }
 }
 
 .days-grid {
@@ -549,6 +585,12 @@ h3{
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+}
+
+.plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .delete-btn{

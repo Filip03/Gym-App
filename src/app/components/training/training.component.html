@@ -11,6 +11,12 @@
         <div class="day-badges">
           <span class="day-badge">{{ todayDayName }}</span>
           <span class="day-type-badge" *ngIf="todayWorkoutDay?.day_type?.name">{{ todayWorkoutDay.day_type.name }}</span>
+          <i
+            *ngIf="previousSessionDate"
+            class="material-icons history-icon"
+            title="Prošli trening"
+            (click)="togglePreviousModal()"
+          >history</i>
         </div>
       </div>
 
@@ -89,5 +95,24 @@
 
     <button type="button" class="back-btn" (click)="goBack()">Nazad na dashboard</button>
 
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showPreviousModal" (click)="togglePreviousModal()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <h3>Prošli trening — {{ previousSessionDate | date:'dd.MM.yyyy' }}</h3>
+
+    <div class="previous-exercice-list">
+      <div class="previous-exercice-row" *ngFor="let group of previousSessionGroups">
+        <span class="previous-exercice-name">{{ group.name }}</span>
+        <div class="previous-sets">
+          <span class="previous-set-badge" *ngFor="let s of group.sets">
+            Set {{ s.setNumber }}: {{ s.reps }} x {{ s.weight }}kg
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="cancel-edit-btn" (click)="togglePreviousModal()">Zatvori</button>
   </div>
 </div>

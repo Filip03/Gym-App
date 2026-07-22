@@ -15,7 +15,7 @@ import { Router } from '@angular/router';
 export class LoginComponent implements OnInit{
 
 
-  email = '';
+  username = '';
   password = '';
   errorMessage = '';
   loading = false;
@@ -39,7 +39,7 @@ export class LoginComponent implements OnInit{
     this.loading = true;
 
     try {
-      await this.authService.signIn(this.email, this.password);
+      await this.authService.signInWithUsername(this.username, this.password);
       this.router.navigate(['/dashboard']);
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška prilikom logovanja.';

@@ -28,7 +28,7 @@ export class LeaderboardComponent implements OnInit {
       const groups = await this.leaderboardService.getExerciceGroups();
       this.exerciceGroups = groups.filter(g => g.exercices.length > 0);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju vežbi.';
+      this.errorMessage = err.message ?? 'Greška pri učitavanju vježbi.';
     } finally {
       this.loadingExercices = false;
     }

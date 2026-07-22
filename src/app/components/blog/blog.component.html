@@ -1,0 +1,35 @@
+<div class="blog-wrapper">
+  <div class="blog-container">
+
+    <div class="header">
+      <h2>Blog</h2>
+      <span id="add" class="material-icons" (click)="triggerUpload()">add_box</span>
+    </div>
+    <input #fileInput type="file" accept="image/*,video/*" hidden (change)="onFileSelected($event)">
+
+    <p *ngIf="loading">Učitavanje...</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+    <p *ngIf="uploading">Otpremam...</p>
+    <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
+
+    <ng-container *ngIf="!loading && !errorMessage">
+      <p *ngIf="mediaItems.length === 0" class="no-entries">
+        Još nema objava. Klikni na + da dodaš prvu sliku, gif ili video.
+      </p>
+
+      <div class="media-grid" *ngIf="mediaItems.length > 0">
+        <div class="media-card" *ngFor="let item of mediaItems" (click)="openLightbox(item)">
+          <video *ngIf="item.type === 'video'" [src]="item.url" muted playsinline></video>
+          <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name">
+        </div>
+      </div>
+    </ng-container>
+
+  </div>
+</div>
+
+<div class="lightbox-overlay" *ngIf="selectedItem as item" (click)="closeLightbox()">
+  <span class="material-icons lightbox-close" (click)="closeLightbox()">close</span>
+  <video *ngIf="item.type === 'video'" [src]="item.url" controls autoplay playsinline (click)="$event.stopPropagation()"></video>
+  <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name" (click)="$event.stopPropagation()">
+</div>

@@ -15,6 +15,7 @@ import { ExercicesComponent } from './components/exercices/exercices.component';
 import { LeaderboardComponent } from './components/leaderboard/leaderboard.component';
 import { ProfileComponent } from './components/profile/profile.component';
 import { ServiceWorkerModule } from '@angular/service-worker';
+import { BlogComponent } from './components/blog/blog.component';
 
 @NgModule({
   declarations: [
@@ -25,7 +26,8 @@ import { ServiceWorkerModule } from '@angular/service-worker';
     TrainingComponent,
     ExercicesComponent,
     LeaderboardComponent,
-    ProfileComponent
+    ProfileComponent,
+    BlogComponent
   ],
   imports: [
     BrowserModule,

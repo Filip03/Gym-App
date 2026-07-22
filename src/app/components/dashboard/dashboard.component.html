@@ -83,65 +83,43 @@
 
       <hr class="divider" />
 
-      <!-- DONJI DIO: raspored po danima - dan po dan, sa strelicama -->
+      <!-- DONJI DIO: raspored po danima - kartice jedna pored druge, izbor vježbi ide u poseban modal -->
         <div class="week-schedule">
         <h3>Raspored treninga</h3>
 
-        <div class="plan-builder">
+        <div class="create-days-grid">
+            <div class="create-day-card" *ngFor="let day of weekDays">
+              <span class="day-name">{{ day.dayName }}</span>
 
-            <div class="plan-builder-nav">
-              <button type="button" class="arrow-btn" (click)="prevDay()" [disabled]="currentDayIndex === 0" aria-label="Prethodni dan">‹</button>
-              <span class="plan-builder-label">{{ weekDays[currentDayIndex]?.dayName }} <small>({{ currentDayIndex + 1 }}/{{ weekDays.length }})</small></span>
-              <button type="button" class="arrow-btn" (click)="nextDay(weekDays.length)" [disabled]="currentDayIndex === weekDays.length - 1" aria-label="Sledeći dan">›</button>
-            </div>
+              <select
+                [(ngModel)]="day.dayTypeId"
+                [name]="'dayType_' + day.dayNumber"
+                (change)="onDayTypeChange(day)"
+              >
+                <option [ngValue]="null">-- Izaberi tip dana --</option>
+                <option *ngFor="let type of filteredDayTypes" [value]="type.id">{{ type.name }}</option>
+              </select>
 
-            <ng-container *ngIf="weekDays[currentDayIndex] as day">
-              <div class="plan-builder-body">
+              <button
+                type="button"
+                class="edit-exercices-btn"
+                *ngIf="day.dayTypeId && day.availableExercices.length > 0"
+                (click)="openExercicePicker(day)"
+              >
+                {{ day.selectedExercices.length > 0 ? 'Izmeni vježbe' : 'Izaberi vježbe' }}
+              </button>
 
-                <div class="plan-builder-picker">
-                  <select
-                  [(ngModel)]="day.dayTypeId"
-                  [name]="'dayType_' + day.dayNumber"
-                  (change)="onDayTypeChange(day)"
-                  >
-                  <option [ngValue]="null">-- Izaberi tip dana --</option>
-                  <option *ngFor="let type of filteredDayTypes" [value]="type.id">{{ type.name }}</option>
-                  </select>
-
-                  <div class="exercice-list" *ngIf="day.availableExercices.length > 0">
-                      <div
-                      class="exercice-item"
-                      *ngFor="let ex of day.availableExercices"
-                      [class.selected]="isExerciceSelected(day, ex.id)"
-                      (click)="toggleExercice(day, ex)"
-                      >
-                      {{ ex.name }}
-                      </div>
-                  </div>
-
-                  <p *ngIf="day.dayTypeId && day.availableExercices.length === 0" class="no-exercices">
-                      Nema vježbi za ovaj tip dana.
-                  </p>
+              <div class="exercice-view-list" *ngIf="day.selectedExercices.length > 0">
+                <div class="exercice-view-item" *ngFor="let sel of day.selectedExercices">
+                  <span class="exercice-name">{{ sel.name }}</span>
+                  <span class="exercice-sets-reps">{{ sel.targetSets ?? '-' }} x {{ sel.targetReps ?? '-' }}</span>
                 </div>
-
-                <div class="plan-builder-selected">
-                  <h4>Izabrane vježbe</h4>
-
-                  <p *ngIf="day.selectedExercices.length === 0" class="no-exercices">
-                    Još nisi izabrao vježbe za ovaj dan.
-                  </p>
-
-                  <div class="selected-exercices" *ngIf="day.selectedExercices.length > 0">
-                      <div class="selected-exercice-row" *ngFor="let sel of day.selectedExercices">
-                      <span>{{ sel.name }}</span>
-                      <input type="number" [(ngModel)]="sel.targetSets" [name]="'sets_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj setova" />
-                      <input type="number" [(ngModel)]="sel.targetReps" [name]="'reps_' + day.dayNumber + '_' + sel.exerciceId" min="1" placeholder="broj ponavljanja" />
-                      </div>
-                  </div>
-                </div>
-
               </div>
-            </ng-container>
+
+              <p *ngIf="day.dayTypeId && day.availableExercices.length === 0" class="no-exercices">
+                Nema vježbi za ovaj tip dana.
+              </p>
+            </div>
         </div>
         </div>
 
@@ -168,17 +146,29 @@
       <div class="plan-info-section">
         <div class="group">
           <h2>{{ viewedPlan.name }}</h2>
-          <button type="button" class="delete-btn" *ngIf="isOwnPlan" (click)="deletePlan(viewedPlan.id, $event)">Obriši</button>
-          <button
-            type="button"
-            class="follow-btn"
-            *ngIf="!isOwnPlan"
-            [class.following]="isFollowing"
-            [disabled]="followLoading"
-            (click)="toggleFollowPlan($event)"
-          >
-            {{ isFollowing ? 'Prestani pratiti' : 'Prati plan' }}
-          </button>
+          <div class="plan-actions">
+            <button
+              type="button"
+              class="follow-btn"
+              *ngIf="isOwnPlan && myPlans.length > 1"
+              [class.following]="viewedPlan.active"
+              [disabled]="followLoading"
+              (click)="toggleActivatePlan($event)"
+            >
+              {{ viewedPlan.active ? 'Deaktiviraj' : 'Aktiviraj plan' }}
+            </button>
+            <button type="button" class="delete-btn" *ngIf="isOwnPlan" (click)="deletePlan(viewedPlan.id, $event)">Obriši</button>
+            <button
+              type="button"
+              class="follow-btn"
+              *ngIf="!isOwnPlan"
+              [class.following]="isFollowing"
+              [disabled]="followLoading"
+              (click)="toggleFollowPlan($event)"
+            >
+              {{ isFollowing ? 'Prestani pratiti' : 'Prati plan' }}
+            </button>
+          </div>
         </div>
         <p>{{ viewedPlan.description }}</p>
         <div class="meta-row">
@@ -227,5 +217,33 @@
 
     </ng-container>
 
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showExercicePicker" (click)="closeExercicePicker()">
+  <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
+    <h2>{{ pickerDay?.dayName }} — izbor vježbi</h2>
+
+    <div class="exercice-grid">
+      <div class="exercice-picker-item" *ngFor="let ex of pickerDay?.availableExercices">
+        <div
+          class="exercice-card"
+          [class.selected]="isExercicePicked(ex.id)"
+          (click)="toggleExercicePick(ex)"
+        >
+          <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name">
+          <h4>{{ ex.name }}</h4>
+        </div>
+
+        <div class="exercice-picker-inputs" *ngIf="getPickedInfo(ex.id) as picked" (click)="$event.stopPropagation()">
+          <input type="number" [(ngModel)]="picked.targetSets" min="1" placeholder="Serije" />
+          <input type="number" [(ngModel)]="picked.targetReps" min="1" placeholder="Ponavljanja" />
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" (click)="closeExercicePicker()">Gotovo</button>
+    </div>
   </div>
 </div>

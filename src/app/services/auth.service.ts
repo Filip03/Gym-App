@@ -54,6 +54,22 @@ export class AuthService {
     return data;
   }
 
+  async getEmailByUsername(username: string): Promise<string | null> {
+    const { data, error } = await this.supabase.client
+      .rpc('get_email_by_username', { p_username: username });
+
+    if (error) throw error;
+    return data ?? null;
+  }
+
+  async signInWithUsername(username: string, password: string) {
+    const email = await this.getEmailByUsername(username);
+    if (!email) {
+      throw new Error('Korisničko ime ne postoji.');
+    }
+    return this.signIn(email, password);
+  }
+
   async signOut() {
     const { error } = await this.supabase.client.auth.signOut();
     if (error) throw error;

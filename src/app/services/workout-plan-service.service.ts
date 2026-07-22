@@ -17,7 +17,7 @@ export class WorkoutPlanService {
     return data as WorkoutPlan[];
   }
 
-  // primer JOIN-a - plan sa danima i vežbama ugnježdeno
+  // primer JOIN-a - plan sa danima i vježbama ugnježdeno
   async getPlanWithDays(planId: string) {
     const { data, error } = await this.supabase.client
       .from('workout_plan')

@@ -27,7 +27,7 @@ export class LeaderboardService {
     return this.exerciceService.getExercicesGroupedByMuscleGroup();
   }
 
-  // Za datu vežbu: poslednji (po datumu) zapis sa set_number = 1 za svakog korisnika,
+  // Za datu vježbu: poslednji (po datumu) zapis sa set_number = 1 za svakog korisnika,
   // sortirano po kilaži opadajuće (tie-break po broju ponavljanja)
   async getLeaderboard(exerciceId: string): Promise<LeaderboardEntry[]> {
     const { data, error } = await this.supabase.client

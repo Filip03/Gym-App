@@ -44,7 +44,7 @@ export class ProfileService {
     return data as Profile;
   }
 
-  // Progres kroz vreme za jednu vežbu: svi setovi, sortirano hronološki
+  // Progres kroz vreme za jednu vježbu: svi setovi, sortirano hronološki
   // (filtriranje po set_number se radi na frontu, da ne bi trebalo ponovo da se gađa baza)
   async getProgress(userId: string, exerciceId: string): Promise<ProgressPoint[]> {
     const { data, error } = await this.supabase.client

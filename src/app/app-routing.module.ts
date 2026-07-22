@@ -8,6 +8,7 @@ import { TrainingComponent } from './components/training/training.component';
 import { ExercicesComponent } from './components/exercices/exercices.component';
 import { LeaderboardComponent } from './components/leaderboard/leaderboard.component';
 import { ProfileComponent } from './components/profile/profile.component';
+import { BlogComponent } from './components/blog/blog.component'
 
 const routes: Routes = [
   {path: "dashboard", component: DashboardComponent},
@@ -17,6 +18,7 @@ const routes: Routes = [
   {path: "profiles", component: ProfileComponent},
   {path: "register", component: RegisterComponent},
   {path: "login", component: LoginComponent},
+  {path: "blog", component: BlogComponent},
   {path: "", component: LandingComponent}
 
 ];
