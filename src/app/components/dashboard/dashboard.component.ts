@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
 import { WorkoutPlan, PlanType, DayType, Exercice } from '../../models/models';
+import { DAY_NAMES } from '../../shared/day-names';
 
 interface SelectedExercice {
   exerciceId: string;
@@ -55,7 +56,7 @@ export class DashboardComponent implements OnInit {
   isMobile = false;
   currentDayIndex = 0;
 
-  private dayNames = ['Ponedeljak', 'Utorak', 'Srijeda', 'Četvrtak', 'Petak', 'Subota', 'Nedelja'];
+  private dayNames = DAY_NAMES;
 
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
     'PPL (PUSHPULLLEGS)': ['PUSH', 'PULL', 'LEGS', 'REST'],

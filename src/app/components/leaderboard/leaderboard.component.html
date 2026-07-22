@@ -24,6 +24,10 @@
 
         <div class="podium-spot second">
           <ng-container *ngIf="entries[1] as e">
+            <div class="podium-avatar">
+              <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
+              <span *ngIf="!e.avatarUrl" class="material-icons">person</span>
+            </div>
             <span class="podium-username">{{ e.username }}</span>
             <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
           </ng-container>
@@ -32,6 +36,10 @@
 
         <div class="podium-spot first">
           <ng-container *ngIf="entries[0] as e">
+            <div class="podium-avatar">
+              <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
+              <span *ngIf="!e.avatarUrl" class="material-icons">person</span>
+            </div>
             <span class="podium-username">{{ e.username }}</span>
             <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
           </ng-container>
@@ -40,6 +48,10 @@
 
         <div class="podium-spot third">
           <ng-container *ngIf="entries[2] as e">
+            <div class="podium-avatar">
+              <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
+              <span *ngIf="!e.avatarUrl" class="material-icons">person</span>
+            </div>
             <span class="podium-username">{{ e.username }}</span>
             <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
           </ng-container>

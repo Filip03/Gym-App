@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
 import { ExerciceService, MuscleGroupWithExercices } from './exercice.service';
+import { ProfileService } from './profile.service';
 
 export interface LeaderboardEntry {
   userId: string;
@@ -8,6 +9,7 @@ export interface LeaderboardEntry {
   weight: number;
   reps: number;
   date: string;
+  avatarUrl: string | null;
 }
 
 @Injectable({
@@ -17,7 +19,8 @@ export class LeaderboardService {
 
   constructor(
     private supabase: SupabaseService,
-    private exerciceService: ExerciceService
+    private exerciceService: ExerciceService,
+    private profileService: ProfileService
   ) {}
 
   async getExerciceGroups(): Promise<MuscleGroupWithExercices[]> {
@@ -34,7 +37,7 @@ export class LeaderboardService {
         weight,
         reps,
         date,
-        profiles:user_id ( username )
+        profiles:user_id ( username, profile_pic_url )
       `)
       .eq('exercice_id', exerciceId)
       .eq('set_number', 1)
@@ -47,12 +50,15 @@ export class LeaderboardService {
     for (const row of (data ?? []) as any[]) {
       if (latestByUser.has(row.user_id)) continue;
 
+      const picturePath = row.profiles?.profile_pic_url;
+
       latestByUser.set(row.user_id, {
         userId: row.user_id,
         username: row.profiles?.username ?? 'Nepoznat',
         weight: row.weight,
         reps: row.reps,
-        date: row.date
+        date: row.date,
+        avatarUrl: picturePath ? this.profileService.getPublicUrl(picturePath) : null
       });
     }
 

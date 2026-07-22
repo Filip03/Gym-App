@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { TrainingService } from '../../services/training.service';
 import { AuthService } from '../../services/auth.service';
+import { DAY_NAMES } from '../../shared/day-names';
 
 interface LoggedSet {
   id: string;
@@ -44,7 +45,7 @@ export class TrainingComponent implements OnInit {
   isRestDay = false;
 
   private currentUserId = '';
-  private dayNames = ['Ponedeljak', 'Utorak', 'Sreda', 'Četvrtak', 'Petak', 'Subota', 'Nedelja'];
+  private dayNames = DAY_NAMES;
 
   constructor(
     private trainingService: TrainingService,
@@ -143,6 +144,7 @@ export class TrainingComponent implements OnInit {
 
   async saveLog(ex: TodayExercice) {
     if (ex.repsInput == null || ex.weightInput == null || ex.saving) return;
+    if (ex.weightInput < 2.5 || ex.weightInput > 500) return;
 
     ex.saving = true;
 
@@ -190,6 +192,7 @@ export class TrainingComponent implements OnInit {
 
   async saveEditSet(set: LoggedSet) {
     if (set.editReps == null || set.editWeight == null || set.saving) return;
+    if (set.editWeight < 2.5 || set.editWeight > 500) return;
 
     set.saving = true;
 

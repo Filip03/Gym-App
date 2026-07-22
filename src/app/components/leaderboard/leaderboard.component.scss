@@ -78,6 +78,36 @@ h2 {
 .podium-spot.second { order: 1; }
 .podium-spot.third { order: 3; }
 
+.podium-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.podium-spot.first .podium-avatar {
+  width: 60px;
+  height: 60px;
+  border-color: greenyellow;
+}
+
+.podium-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.podium-avatar .material-icons {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.6rem;
+}
+
 .podium-username {
   font-weight: 700;
   color: white;
@@ -212,6 +242,16 @@ h2 {
     font-size: 1.2rem;
   }
 
+  .podium-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  .podium-spot.first .podium-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
   .podium-username {
     font-size: 0.85rem;
   }
@@ -260,6 +300,16 @@ h2 {
   .podium-spot.third .podium-block {
     height: 45px;
     font-size: 1rem;
+  }
+
+  .podium-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .podium-spot.first .podium-avatar {
+    width: 40px;
+    height: 40px;
   }
 
   .podium-username {
