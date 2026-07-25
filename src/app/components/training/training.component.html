@@ -11,12 +11,6 @@
         <div class="day-badges">
           <span class="day-badge">{{ todayDayName }}</span>
           <span class="day-type-badge" *ngIf="todayWorkoutDay?.day_type?.name">{{ todayWorkoutDay.day_type.name }}</span>
-          <i
-            *ngIf="previousSessionDate"
-            class="material-icons history-icon"
-            title="Prošli trening"
-            (click)="togglePreviousModal()"
-          >history</i>
         </div>
       </div>
 
@@ -29,7 +23,14 @@
 
           <div class="exercice-main">
             <div class="exercice-info">
-              <span class="exercice-name">{{ ex.name }}</span>
+              <div class="exercice-name-row">
+                <span class="exercice-name">{{ ex.name }}</span>
+                <i
+                  class="material-icons history-icon"
+                  title="Prošli rezultati"
+                  (click)="openPreviousModal(ex)"
+                >history</i>
+              </div>
               <span class="exercice-target">{{ ex.targetSets }} x {{ ex.targetReps }}</span>
             </div>
             <div class="exercice-actions">
@@ -98,21 +99,26 @@
   </div>
 </div>
 
-<div class="modal-overlay" *ngIf="showPreviousModal" (click)="togglePreviousModal()">
+<div class="modal-overlay" *ngIf="showPreviousModal" (click)="closePreviousModal()">
   <div class="modal-card" (click)="$event.stopPropagation()">
-    <h3>Prošli trening — {{ previousSessionDate | date:'dd.MM.yyyy' }}</h3>
+    <h3>{{ previousModalExerciceName }}</h3>
 
-    <div class="previous-exercice-list">
-      <div class="previous-exercice-row" *ngFor="let group of previousSessionGroups">
-        <span class="previous-exercice-name">{{ group.name }}</span>
+    <p *ngIf="previousModalLoading">Učitavanje...</p>
+    <p *ngIf="previousModalError" class="error">{{ previousModalError }}</p>
+
+    <ng-container *ngIf="!previousModalLoading && !previousModalError">
+      <p *ngIf="!previousModalDate" class="previous-empty">Nema ranijih rezultata za ovu vežbu.</p>
+
+      <ng-container *ngIf="previousModalDate">
+        <p class="previous-date">{{ previousModalDate | date:'dd.MM.yyyy' }}</p>
         <div class="previous-sets">
-          <span class="previous-set-badge" *ngFor="let s of group.sets">
+          <span class="previous-set-badge" *ngFor="let s of previousModalSets">
             Set {{ s.setNumber }}: {{ s.reps }} x {{ s.weight }}kg
           </span>
         </div>
-      </div>
-    </div>
+      </ng-container>
+    </ng-container>
 
-    <button type="button" class="cancel-edit-btn" (click)="togglePreviousModal()">Zatvori</button>
+    <button type="button" class="cancel-edit-btn" (click)="closePreviousModal()">Zatvori</button>
   </div>
 </div>

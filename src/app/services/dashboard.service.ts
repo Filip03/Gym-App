@@ -195,14 +195,79 @@ async createFullPlan(
 
   if (planError) throw planError;
 
+  await this.insertDays(newPlan.id, days);
+
+  return newPlan as WorkoutPlan;
+}
+
+// Izmena postojećeg plana - osnovni podaci se ažuriraju, a raspored po danima
+// se u potpunosti zamenjuje novim (jednostavnije i pouzdanije od diff-ovanja)
+async updateFullPlan(
+  planId: string,
+  plan: { name: string; description: string; plan_type_id: string },
+  days: {
+    dayNumber: number;
+    dayName: string;
+    dayTypeId: string | null;
+    exercices: { exerciceId: string; targetSets: number | null; targetReps: number | null; orderNum: number }[];
+  }[]
+): Promise<void> {
+  const { error: planError } = await this.supabase.client
+    .from('workout_plan')
+    .update({
+      name: plan.name,
+      description: plan.description,
+      plan_type_id: plan.plan_type_id
+    })
+    .eq('id', planId);
+
+  if (planError) throw planError;
+
+  const { data: existingDays, error: fetchDaysError } = await this.supabase.client
+    .from('workout_days')
+    .select('id')
+    .eq('plan_id', planId);
+
+  if (fetchDaysError) throw fetchDaysError;
+
+  const existingDayIds = (existingDays ?? []).map(d => d.id);
+
+  if (existingDayIds.length > 0) {
+    const { error: deleteExError } = await this.supabase.client
+      .from('day_exercice')
+      .delete()
+      .in('workout_day_id', existingDayIds);
+
+    if (deleteExError) throw deleteExError;
+
+    const { error: deleteDaysError } = await this.supabase.client
+      .from('workout_days')
+      .delete()
+      .eq('plan_id', planId);
+
+    if (deleteDaysError) throw deleteDaysError;
+  }
+
+  await this.insertDays(planId, days);
+}
+
+private async insertDays(
+  planId: string,
+  days: {
+    dayNumber: number;
+    dayName: string;
+    dayTypeId: string | null;
+    exercices: { exerciceId: string; targetSets: number | null; targetReps: number | null; orderNum: number }[];
+  }[]
+): Promise<void> {
   for (const day of days) {
     const { data: newDay, error: dayError } = await this.supabase.client
       .from('workout_days')
       .insert({
-        plan_id: newPlan.id,
+        plan_id: planId,
         name: day.dayName,
         day_number: day.dayNumber,
-        day_type: day.dayTypeId  // <- promenjeno: koristi day_type_id (FK), ne day_type
+        day_type: day.dayTypeId
       })
       .select()
       .single();
@@ -225,8 +290,6 @@ async createFullPlan(
       if (dayExError) throw dayExError;
     }
   }
-
-  return newPlan as WorkoutPlan;
 }
 
 // Da li je korisnik već pridružen tuđem planu

@@ -593,6 +593,24 @@ h3{
   gap: 0.6rem;
 }
 
+.edit-plan-btn {
+  padding: 10px;
+  background-color: transparent;
+  color: greenyellow;
+  border: 1px solid greenyellow;
+  border-radius: 10px;
+  transition: all ease-in-out 0.2s;
+  align-self: flex-end;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.edit-plan-btn:hover {
+  transform: scale(1.1);
+  background-color: rgba(173, 255, 47, 0.15);
+}
+
 .delete-btn{
   padding: 10px;
   background-color: #ff6b6b;
