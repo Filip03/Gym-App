@@ -34,11 +34,6 @@ interface PreviousSet {
   weight: number;
 }
 
-interface PreviousExerciceGroup {
-  exerciceId: string;
-  name: string;
-  sets: PreviousSet[];
-}
 
 @Component({
   selector: 'app-training',
@@ -57,8 +52,11 @@ export class TrainingComponent implements OnInit {
   isRestDay = false;
 
   showPreviousModal = false;
-  previousSessionDate: string | null = null;
-  previousSessionGroups: PreviousExerciceGroup[] = [];
+  previousModalExerciceName = '';
+  previousModalDate: string | null = null;
+  previousModalSets: PreviousSet[] = [];
+  previousModalLoading = false;
+  previousModalError = '';
 
   private currentUserId = '';
   private dayNames = DAY_NAMES;
@@ -119,7 +117,6 @@ export class TrainingComponent implements OnInit {
 
       if (!this.isRestDay) {
         await this.loadLoggedSets();
-        await this.loadPreviousSession();
       }
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju treninga.';
@@ -153,66 +150,46 @@ export class TrainingComponent implements OnInit {
     }
   }
 
-  private async loadPreviousSession() {
-    const exerciceIds = this.getSameTypeExerciceIds();
+  async openPreviousModal(ex: TodayExercice) {
+    this.showPreviousModal = true;
+    this.previousModalExerciceName = ex.name;
+    this.previousModalDate = null;
+    this.previousModalSets = [];
+    this.previousModalError = '';
+    this.previousModalLoading = true;
 
-    const previousDate = await this.trainingService.getPreviousSessionDate(
-      this.currentUserId,
-      this.plan.id,
-      exerciceIds,
-      this.todayDate
-    );
+    try {
+      const previousDate = await this.trainingService.getPreviousSessionDate(
+        this.currentUserId,
+        this.plan.id,
+        [ex.exerciceId],
+        this.todayDate
+      );
 
-    if (!previousDate) return;
+      if (!previousDate) return;
 
-    const results = await this.trainingService.getSessionResults(
-      this.currentUserId,
-      this.plan.id,
-      exerciceIds,
-      previousDate
-    );
+      const results = await this.trainingService.getSessionResults(
+        this.currentUserId,
+        this.plan.id,
+        [ex.exerciceId],
+        previousDate
+      );
 
-    const grouped = new Map<string, PreviousExerciceGroup>();
-    for (const log of results) {
-      if (!grouped.has(log.exercice_id)) {
-        grouped.set(log.exercice_id, { exerciceId: log.exercice_id, name: log.name, sets: [] });
-      }
-      grouped.get(log.exercice_id)!.sets.push({
-        setNumber: log.set_number,
-        reps: log.reps,
-        weight: log.weight
-      });
+      this.previousModalDate = previousDate;
+      this.previousModalSets = results.map(r => ({
+        setNumber: r.set_number,
+        reps: r.reps,
+        weight: r.weight
+      }));
+    } catch (err: any) {
+      this.previousModalError = err.message ?? 'Greška pri učitavanju prethodnih rezultata.';
+    } finally {
+      this.previousModalLoading = false;
     }
-
-    this.previousSessionDate = previousDate;
-    this.previousSessionGroups = Array.from(grouped.values());
   }
 
-  // Sve vježbe iz svih dana u planu koji dele isti tip dana kao danas
-  // (npr. i petak i ponedeljak ako su oba "Push"), ne samo današnji spisak
-  private getSameTypeExerciceIds(): string[] {
-    const typeName = this.todayWorkoutDay?.day_type?.name;
-
-    if (!typeName) {
-      return this.todayExercices.map(ex => ex.exerciceId);
-    }
-
-    const matchingDays = (this.plan.workout_days ?? []).filter(
-      (day: any) => day.day_type?.name === typeName
-    );
-
-    const ids = new Set<string>();
-    for (const day of matchingDays) {
-      for (const dayEx of day.day_exercice ?? []) {
-        if (dayEx.exercice_id) ids.add(dayEx.exercice_id);
-      }
-    }
-
-    return Array.from(ids);
-  }
-
-  togglePreviousModal() {
-    this.showPreviousModal = !this.showPreviousModal;
+  closePreviousModal() {
+    this.showPreviousModal = false;
   }
 
   toggleLogForm(ex: TodayExercice) {

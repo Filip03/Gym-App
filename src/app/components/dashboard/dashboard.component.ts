@@ -38,6 +38,7 @@ export class DashboardComponent implements OnInit {
   showCreateModal = false;
   creating = false;
   createError = '';
+  editingPlanId: string | null = null;
 
   newPlanName = '';
   newPlanDescription = '';
@@ -139,7 +140,67 @@ export class DashboardComponent implements OnInit {
     this.createError = '';
     this.weekDays = [];
     this.filteredDayTypes = [];
+    this.editingPlanId = null;
     this.closeExercicePicker();
+  }
+
+  // Otvara isti modal kao za kreiranje plana, samo popunjen postojećim podacima
+  async openEditModal() {
+    if (!this.viewedPlan) return;
+
+    this.editingPlanId = this.viewedPlan.id;
+    this.newPlanName = this.viewedPlan.name ?? '';
+    this.newPlanDescription = this.viewedPlan.description ?? '';
+    this.newPlanTypeId = this.viewedPlan.plan_type_id ?? '';
+    this.createError = '';
+
+    this.onPlanTypeChange();
+
+    const workoutDaysByName = new Map<string, any>(
+      (this.viewedPlan.workout_days ?? []).map((d: any) => [d.name, d])
+    );
+
+    this.weekDays = this.dayNames.map((name, index) => {
+      const existing = workoutDaysByName.get(name);
+      const dayTypeName = existing?.day_type?.name ?? null;
+      const dayTypeId = dayTypeName
+        ? this.dayTypes.find(dt => dt.name === dayTypeName)?.id ?? null
+        : null;
+
+      const selectedExercices: SelectedExercice[] = ((existing?.day_exercice ?? []) as any[])
+        .slice()
+        .sort((a, b) => a.order_num - b.order_num)
+        .map(dayEx => ({
+          exerciceId: dayEx.exercice_id,
+          name: dayEx.exercices?.name ?? '',
+          targetSets: dayEx.target_sets,
+          targetReps: dayEx.target_reps
+        }));
+
+      return {
+        dayNumber: index + 1,
+        dayName: name,
+        dayTypeId,
+        availableExercices: [],
+        selectedExercices
+      };
+    });
+
+    // Učitaj dostupne vježbe za svaki dan koji već ima izabran tip,
+    // da bi picker modal mogao da ih ponudi za izmenu
+    for (const day of this.weekDays) {
+      if (day.dayTypeId) {
+        try {
+          day.availableExercices = await this.dashboardService.getExercicesForDayType(day.dayTypeId);
+        } catch {
+          // vežbe za taj dan jednostavno neće biti ponuđene za izmenu
+        }
+      }
+    }
+
+    this.closeViewModal();
+    this.showCreateModal = true;
+    this.currentDayIndex = 0;
   }
 
   private initWeekDays() {
@@ -262,20 +323,32 @@ export class DashboardComponent implements OnInit {
         }))
       }));
 
-      await this.dashboardService.createFullPlan(
-        {
-          name: this.newPlanName,
-          description: this.newPlanDescription,
-          plan_type_id: this.newPlanTypeId,
-          created_by: user.id
-        },
-        daysPayload
-      );
+      if (this.editingPlanId) {
+        await this.dashboardService.updateFullPlan(
+          this.editingPlanId,
+          {
+            name: this.newPlanName,
+            description: this.newPlanDescription,
+            plan_type_id: this.newPlanTypeId
+          },
+          daysPayload
+        );
+      } else {
+        await this.dashboardService.createFullPlan(
+          {
+            name: this.newPlanName,
+            description: this.newPlanDescription,
+            plan_type_id: this.newPlanTypeId,
+            created_by: user.id
+          },
+          daysPayload
+        );
+      }
 
       this.myPlans = await this.dashboardService.getMyPlans(user.id);
       this.closeCreateModal();
     } catch (err: any) {
-      this.createError = err.message ?? 'Greška prilikom kreiranja plana.';
+      this.createError = err.message ?? (this.editingPlanId ? 'Greška prilikom izmene plana.' : 'Greška prilikom kreiranja plana.');
     } finally {
       this.creating = false;
     }

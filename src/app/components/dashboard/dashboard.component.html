@@ -56,7 +56,7 @@
 
 <div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
   <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
-    <h2>Novi plan</h2>
+    <h2>{{ editingPlanId ? 'Izmijeni plan' : 'Novi plan' }}</h2>
 
     <form (ngSubmit)="onSubmitPlan()" #planForm="ngForm">
 
@@ -106,7 +106,7 @@
                 *ngIf="day.dayTypeId && day.availableExercices.length > 0"
                 (click)="openExercicePicker(day)"
               >
-                {{ day.selectedExercices.length > 0 ? 'Izmeni vježbe' : 'Izaberi vježbe' }}
+                {{ day.selectedExercices.length > 0 ? 'Izmijeni vježbe' : 'Izaberi vježbe' }}
               </button>
 
               <div class="exercice-view-list" *ngIf="day.selectedExercices.length > 0">
@@ -128,7 +128,7 @@
       <div class="form-actions">
         <button type="button" (click)="closeCreateModal()">Otkaži</button>
         <button type="submit" [disabled]="creating || !planForm.valid">
-          {{ creating ? 'Čuvam...' : 'Sačuvaj plan' }}
+          {{ creating ? 'Čuvam...' : (editingPlanId ? 'Sačuvaj izmene' : 'Sačuvaj plan') }}
         </button>
       </div>
     </form>
@@ -147,6 +147,7 @@
         <div class="group">
           <h2>{{ viewedPlan.name }}</h2>
           <div class="plan-actions">
+            <button type="button" class="edit-plan-btn" *ngIf="isOwnPlan" (click)="openEditModal()">Izmijeni</button>
             <button
               type="button"
               class="follow-btn"
