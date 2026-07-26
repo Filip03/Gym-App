@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-login',
@@ -20,9 +20,17 @@ export class LoginComponent implements OnInit{
   errorMessage = '';
   loading = false;
 
-  constructor(private authService: AuthService, private router: Router) {}
+  // Kad te guard preusmjeri sa zaštićene rute, upamti gdje si htio da ideš.
+  private redirectTo = '/dashboard';
+
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit(){
+    this.redirectTo = this.route.snapshot.queryParamMap.get('redirect') ?? '/dashboard';
     this.playAudio();
   }
 
@@ -40,7 +48,7 @@ export class LoginComponent implements OnInit{
 
     try {
       await this.authService.signInWithUsername(this.username, this.password);
-      this.router.navigate(['/dashboard']);
+      this.router.navigateByUrl(this.redirectTo);
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška prilikom logovanja.';
     } finally {

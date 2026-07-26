@@ -9,17 +9,37 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   currentUser$ = this.currentUserSubject.asObservable();
 
+  // Sesija se iz localStorage-a čita asinhrono, a komponente je traže sinhrono u
+  // ngOnInit. Bez ovoga svaki refresh stranice zatekne BehaviorSubject sa još
+  // uvijek null vrijednošću i korisnik dobije "Nisi ulogovan" iako jeste.
+  // Guard čeka na ovo obećanje prije nego što pusti rutu, pa je getCurrentUser()
+  // u komponentama od tog trenutka pouzdan.
+  private readonly sessionReady: Promise<void>;
+
   constructor(private supabase: SupabaseService) {
     this.supabase.client.auth.onAuthStateChange((_event, session) => {
       this.currentUserSubject.next(session?.user ?? null);
     });
 
-    this.supabase.client.auth.getSession().then(({ data }) => {
-      this.currentUserSubject.next(data.session?.user ?? null);
-    });
+    this.sessionReady = this.supabase.client.auth.getSession()
+      .then(({ data }) => {
+        this.currentUserSubject.next(data.session?.user ?? null);
+      })
+      .catch(() => {
+        // Neispravan ili istekao token u localStorage-u: tretiraj kao odjavu,
+        // umjesto da obećanje ostane neispunjeno i zablokira guard zauvijek.
+        this.currentUserSubject.next(null);
+      });
   }
 
   getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
+  }
+
+  // Sačekaj da se sesija razriješi, pa tek onda vrati korisnika. Koristi se u
+  // guardovima; komponente i dalje mogu koristiti sinhroni getCurrentUser().
+  async waitForSession(): Promise<User | null> {
+    await this.sessionReady;
     return this.currentUserSubject.value;
   }
 
