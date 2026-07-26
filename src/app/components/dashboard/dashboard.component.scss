@@ -58,13 +58,19 @@
   margin-top: -12px;
   padding: calc(var(--s-2) + 12px) var(--s-4) var(--s-3);
 
+  // Prelaz ide ODOZGO NADOLJE, od prozirnog ka zelenom: pri vrhu se stapa sa
+  // tamnom pozadinom aplikacije, a zelenilo se skuplja pri dnu — kao da svjetlo
+  // dolazi ispod. Suprotno od prvog pokušaja, gdje je zeleno bilo gore i traka
+  // je izgledala kao da curi iz dugmeta.
   background: linear-gradient(180deg,
-    var(--volt-a20) 0%,
-    var(--volt-a10) 50%,
-    rgba(198, 255, 59, 0.03) 100%);
+    rgba(198, 255, 59, 0.02) 0%,
+    var(--volt-a10) 55%,
+    var(--volt-a20) 88%,
+    rgba(198, 255, 59, 0.26) 100%);
 
   border: 1px solid var(--volt-a10);
   border-top: none;
+  border-bottom-color: var(--volt-a40);
   border-radius: 0 0 var(--r-md) var(--r-md);
 }
 
