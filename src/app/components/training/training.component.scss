@@ -854,40 +854,6 @@
   margin-bottom: var(--s-6);
 }
 
-.sum-stats {
-  display: flex;
-  justify-content: center;
-  gap: var(--s-2);
-  margin-bottom: var(--s-5);
-}
-
-.sum-stat {
-  flex: 1;
-  padding: var(--s-3) var(--s-2);
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-}
-
-.sum-stat .sv {
-  display: block;
-  font-size: var(--t-lg);
-  font-weight: 700;
-  color: var(--ice);
-  line-height: 1.1;
-}
-
-.sum-stat .sv .up { color: var(--volt); }
-.sum-stat .sv .dn { color: var(--ember); margin-left: 4px; }
-
-.sum-stat .sl {
-  font-family: var(--font-data);
-  font-size: 0.625rem;
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
-  color: var(--dust);
-}
-
 .sum-records {
   display: flex;
   flex-direction: column;
@@ -929,4 +895,44 @@
   letter-spacing: var(--ls-wider);
   text-transform: uppercase;
   color: var(--volt);
+}
+
+// --- Ishod po vježbama u sažetku -------------------------------------------
+//
+// Umjesto ukupne kilaže, koja ne govori ništa jer zavisi od toga koje su vježbe
+// na redu, stoji odgovor na jedino pitanje poslije treninga: gdje sam bolji,
+// gdje sam stao, gdje sam bio slabiji.
+
+.sum-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-bottom: var(--s-5);
+  text-align: left;
+}
+
+.sum-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.sum-row .material-icons { font-size: 15px; }
+.sum-row .rn { flex: 1; font-size: var(--t-sm); color: var(--ice); }
+.sum-row .rd { font-family: var(--font-data); font-size: var(--t-2xs); color: var(--mist); }
+
+[data-outcome="up"]   { border-color: var(--volt-a40); }
+[data-outcome="up"]   .material-icons { color: var(--volt); }
+[data-outcome="down"] { border-color: rgba(255,107,92,.28); }
+[data-outcome="down"] .material-icons { color: var(--ember); }
+[data-outcome="same"] .material-icons { color: var(--dust); }
+
+.sum-record .rw .prev {
+  color: var(--dust);
+  font-weight: 400;
+  margin-right: 2px;
 }

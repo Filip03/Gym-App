@@ -309,29 +309,26 @@
     <h2 class="sum-headline">{{ summary.headline }}</h2>
     <p class="sum-line">{{ summary.line }}</p>
 
-    <div class="sum-stats">
-      <div class="sum-stat">
-        <span class="sv num">{{ summary.sets }}</span>
-        <span class="sl">serija</span>
-      </div>
-      <div class="sum-stat">
-        <span class="sv num">{{ summary.tonnage }}</span>
-        <span class="sl">kg ukupno</span>
-      </div>
-      <div class="sum-stat" *ngIf="summary.up || summary.down">
-        <span class="sv num">
-          <span class="up" *ngIf="summary.up">+{{ summary.up }}</span><span
-                class="dn" *ngIf="summary.down">−{{ summary.down }}</span>
-        </span>
-        <span class="sl">vs prošli put</span>
-      </div>
-    </div>
-
+    <!-- Oboreni rekordi -->
     <div class="sum-records" *ngIf="summary.records.length">
       <div class="sum-record" *ngFor="let r of summary.records">
         <i class="material-icons">local_fire_department</i>
         <span class="rn">{{ r.name }}</span>
-        <span class="rw num">{{ r.weight }}<small>kg</small></span>
+        <span class="rw num">
+          <span class="prev" *ngIf="r.previous !== null">{{ r.previous }} →</span>
+          {{ r.weight }}<small>kg</small>
+        </span>
+      </div>
+    </div>
+
+    <!-- Ishod po vježbama -->
+    <div class="sum-rows" *ngIf="summary.rows.length">
+      <div class="sum-row" *ngFor="let r of summary.rows" [attr.data-outcome]="r.outcome">
+        <i class="material-icons">
+          {{ r.outcome === 'up' ? 'arrow_upward' : r.outcome === 'down' ? 'arrow_downward' : 'remove' }}
+        </i>
+        <span class="rn">{{ r.name }}</span>
+        <span class="rd">{{ r.detail }}</span>
       </div>
     </div>
 

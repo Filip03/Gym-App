@@ -455,61 +455,79 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
   get isFinished(): boolean { return !!this.session?.finishedAt; }
 
-  /** Sažetak koji se pokazuje po završetku. Računa se iz onoga što je već na ekranu. */
+  /**
+   * Sažetak po završetku treninga.
+   *
+   * Namjerno NIJE statistika. Ukupna podignuta kilaža ne govori ništa korisno —
+   * zavisi od toga koje su vježbe na redu, pa se ne može porediti ni sa čim.
+   * Ovdje stoji odgovor na jedino pitanje koje se postavlja poslije treninga:
+   * gdje sam napredovao, gdje sam stao, a gdje sam bio slabiji.
+   */
   summary: {
     tone: 'record' | 'progress' | 'steady' | 'down' | 'plain';
     headline: string;
     line: string;
-    sets: number;
-    tonnage: number;
-    records: { name: string; weight: number }[];
-    up: number;
-    down: number;
+    records: { name: string; weight: number; previous: number | null }[];
+    rows: { name: string; outcome: 'up' | 'same' | 'down'; detail: string }[];
   } | null = null;
 
   showSummary = false;
 
   private buildSummary() {
-    let sets = 0, tonnage = 0, up = 0, down = 0;
-    const records: { name: string; weight: number }[] = [];
+    const records: { name: string; weight: number; previous: number | null }[] = [];
+    const rows: { name: string; outcome: 'up' | 'same' | 'down'; detail: string }[] = [];
 
     for (const ex of this.exercices) {
-      sets += ex.loggedSets.length;
-      for (const s of ex.loggedSets) {
-        tonnage += s.weight * s.reps;
-        if (s.delta === 'up') up++;
-        if (s.delta === 'down') down++;
-      }
+      if (ex.loggedSets.length === 0) continue;
+
       if (ex.isPr) {
-        const best = this.todayBest(ex);
-        if (best !== null) records.push({ name: ex.name, weight: best });
+        records.push({ name: ex.name, weight: this.todayBest(ex)!, previous: ex.previousBest });
+        continue;   // rekord se prikazuje zasebno, ne i u spisku ishoda
       }
+
+      const up = ex.loggedSets.filter(s => s.delta === 'up').length;
+      const down = ex.loggedSets.filter(s => s.delta === 'down').length;
+      const compared = ex.loggedSets.filter(s => s.delta !== null).length;
+      if (compared === 0) continue;   // prvi put — nema se s čim porediti
+
+      const outcome: 'up' | 'same' | 'down' = up > down ? 'up' : down > up ? 'down' : 'same';
+      const detail =
+        outcome === 'up'   ? `${up} ${up === 1 ? 'serija bolja' : 'serije bolje'}` :
+        outcome === 'down' ? `${down} ${down === 1 ? 'serija slabija' : 'serije slabije'}` :
+                             'isto kao prošli put';
+
+      rows.push({ name: ex.name, outcome, detail });
     }
 
-    // Naslov bira NAJJAČU istinitu činjenicu o treningu, tim redom.
+    const up = rows.filter(r => r.outcome === 'up').length;
+    const same = rows.filter(r => r.outcome === 'same').length;
+    const down = rows.filter(r => r.outcome === 'down').length;
+
+    // Naslov bira NAJJAČU istinitu činjenicu, tim redom.
     let tone: 'record' | 'progress' | 'steady' | 'down' | 'plain' = 'plain';
     let headline = 'Trening upisan';
-    let line = `${sets} ${sets === 1 ? 'serija' : 'serija'} · ${Math.round(tonnage)} kg ukupno`;
+    let line = 'Nema ranijih rezultata za poređenje — od sljedećeg puta ih ima.';
 
     if (records.length > 0) {
       tone = 'record';
       headline = records.length === 1 ? 'Novi lični rekord' : `${records.length} nova rekorda`;
-      line = 'Podigao si više nego ikad na ovoj vježbi.';
-    } else if (up > down) {
+      line = 'Podigao si više nego ikad.';
+    } else if (up > 0 && up >= down) {
       tone = 'progress';
       headline = 'Napredovao si';
-      line = `${up} ${up === 1 ? 'serija' : 'serije'} bolje nego prošli put.`;
-    } else if (up > 0 && up === down) {
-      tone = 'steady';
-      headline = 'Održao si nivo';
-      line = 'Isto koliko i prošli put — i to je posao.';
-    } else if (down > up && down > 0) {
+      line = `Bolje na ${up} ${up === 1 ? 'vježbi' : 'vježbe'}` +
+             (same ? `, isto na ${same}` : '') + (down ? `, slabije na ${down}` : '') + '.';
+    } else if (down > 0 && down > up) {
       tone = 'down';
       headline = 'Težak dan';
-      line = 'Slabije nego prošli put. Dešava se — sljedeći put jače.';
+      line = `Slabije na ${down} ${down === 1 ? 'vježbi' : 'vježbe'}. Dešava se — sljedeći put jače.`;
+    } else if (same > 0) {
+      tone = 'steady';
+      headline = 'Održao si nivo';
+      line = `Isto kao prošli put na ${same} ${same === 1 ? 'vježbi' : 'vježbe'}. I to je posao.`;
     }
 
-    this.summary = { tone, headline, line, sets, tonnage: Math.round(tonnage), records, up, down };
+    this.summary = { tone, headline, line, records, rows };
   }
 
   closeSummary() { this.showSummary = false; }

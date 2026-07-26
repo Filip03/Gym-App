@@ -902,22 +902,36 @@
 .ord-actions button:not(:disabled):hover { color: var(--volt); background: var(--volt-a10); }
 .ord-actions .material-icons { font-size: 17px; }
 
-// Trening je danas označen kao gotov. Dugme ostaje klikabilno — trening se može
-// ponovo otvoriti, jer je "gotovo" izjava namjere a ne brava.
+// Trening je danas označen kao gotov.
+//
+// Crna podloga, NE providna — providno se gubilo na pozadinskoj fotografiji i
+// izgledalo nedovršeno. Oštar oblik i zelena traka sa strane umjesto obrisa
+// oko cijelog dugmeta: stanje "gotovo" treba da se razlikuje od poziva na
+// akciju i oblikom, ne samo bojom.
 .start-btn.done {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-2);
 
-  background: transparent;
-  border: 1px solid var(--volt);
+  background: #070B04;
   color: var(--volt);
+
+  border: 1px solid rgba(198, 255, 59, .22);
+  border-left: 3px solid var(--volt);
+  border-radius: var(--r-sm);
+
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  font-size: var(--t-base);
+
+  box-shadow: inset 0 0 30px -14px var(--volt);
 }
 
 .start-btn.done:hover {
-  background: var(--volt-a10);
-  box-shadow: none;
+  background: #0B1206;
+  border-left-color: #D4FF5E;
+  box-shadow: inset 0 0 30px -10px var(--volt), 0 0 18px -8px var(--volt-a40);
 }
 
-.start-btn.done .material-icons { font-size: 20px; }
+.start-btn.done .material-icons { font-size: 19px; }
