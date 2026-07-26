@@ -86,6 +86,11 @@ npm install
 npm run start:cloud     # → localhost:4300, radi protiv CLOUD baze
 ```
 
+> **`npm start` u ovom slučaju NE radi.** On gađa lokalnu bazu u Dockeru; bez
+> nje se aplikacija učita, ali svaka prijava padne sa „Failed to fetch".
+> Zato `npm start` sada prvo provjeri je li baza tu i, ako nije, stane uz
+> objašnjenje umjesto da servira aplikaciju koja ne radi.
+
 Nema Dockera, nema seed-a, nema `setup` koraka. Prijavljuješ se svojim pravim
 nalogom, jer je to prava baza.
 

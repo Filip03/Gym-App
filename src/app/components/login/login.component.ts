@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
+import { humanError } from '../../shared/errors';
 
 @Component({
   selector: 'app-login',
@@ -55,7 +56,7 @@ export class LoginComponent implements OnInit, OnDestroy {
       await this.authService.signInWithUsername(this.username, this.password);
       this.router.navigateByUrl(this.redirectTo);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom logovanja.';
+      this.errorMessage = humanError(err, 'Greška prilikom logovanja.');
     } finally {
       this.loading = false;
     }

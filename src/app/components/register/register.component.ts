@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { Router, RouterLink } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
+import { humanError } from '../../shared/errors';
 
 @Component({
   selector: 'app-register',
@@ -44,7 +45,7 @@ export class RegisterComponent{
       this.audio.play('register');
       this.router.navigate(['/login']);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom registracije.';
+      this.errorMessage = humanError(err, 'Greška prilikom registracije.');
     } finally {
       this.loading = false;
     }
