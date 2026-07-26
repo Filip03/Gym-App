@@ -640,3 +640,49 @@ mjesta (privremeni red u lokalnoj bazi, obrisan poslije provjere).
   otvaranju ekrana.
 - Nije rađeno, javljeno kao ideja: relativna snaga (kg / tjelesna težina) i zid
   rekorda po mišićnim grupama.
+
+---
+
+## [2026-07-26] Ekipa: novi redoslijed sekcija i rekordi sa opsegom
+**Tip:** funkcionalnost
+**Ref:** Roadmap 1.13
+
+**Problem:** Tri stvari nakon prve upotrebe ekrana:
+
+1. Rang po vježbi je bio na dnu, iako je on razlog zbog kojeg se ekran otvara.
+2. Spisak rekorda je bio **hardkodiran na 8** (`getRecentRecords(limit = 8)`),
+   bez načina da se vidi više. Kad trenira samo jedna osoba, tih osam su svi
+   njeni, pa spisak izgleda kao da je nešto zaglavilo.
+3. Nije se moglo vidjeti **samo svoje** rekorde — a to nigdje drugo u aplikaciji
+   ne postoji, ni u profilu.
+
+**Rješenje:**
+
+*Redoslijed* — Rang po vježbi → Ekipa · ova sedmica → Oboreni rekordi.
+
+*Rekordi* — servis više ne siječe spisak. `getRecentRecords(limit)` je postao
+`getRecords()` i vraća sve što je u prozoru od 90 dana oborilo prethodnu kilažu,
+najnovije prvo. Komponenta prikazuje 8 i dodaje po 8 dugmetom „Učitaj još (N)",
+gdje N pokazuje koliko ih još ima. Pošto je cio spisak već u memoriji, i
+prekidač i dugme rade **bez ijednog novog upita**.
+
+*Opseg* — prekidač „Svi / Moji". Prozor je proširen sa 14 na 90 dana prikaza,
+jer je za lični spisak dvije sedmice prekratko. Prazan slučaj ima svoju poruku:
+„Još nemaš oboren rekord u zadnja tri mjeseca."
+
+**Dodirnuti fajlovi:**
+- `src/app/services/leaderboard.service.ts` — `getRecords()` bez sječenja;
+  `FEED_HISTORY_DAYS`/`FEED_SHOW_DAYS` spojeni u `RECORD_WINDOW_DAYS = 90`
+- `src/app/components/leaderboard/leaderboard.component.ts` — `recordScope`,
+  `recordsShown`, `scopedRecords`, `visibleRecords`, `moreRecords`
+- `src/app/components/leaderboard/leaderboard.component.html` — nov redoslijed
+  sekcija, prekidač opsega, dugme „Učitaj još"
+- `src/app/components/leaderboard/leaderboard.component.scss` — `.scope-switch`, `.more`
+
+**Efekat:** Provjereno u pregledaču: „Moji" za marka tačno prijavljuje da nema
+oborenih rekorda (sva tri njegova upisa su prvi put ta vježba, pa nemaju šta da
+obore), „Svi" prikazuje 8 + „Učitaj još (1)".
+
+**Napomene:** Kašnjenje animacije koristi `i % 8`, pa se pri dodavanju novih
+osam animira samo novi blok — već prikazani redovi zadržavaju svoje čvorove
+(`trackBy` im se ne mijenja) i ne trepere.

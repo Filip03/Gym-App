@@ -79,7 +79,7 @@
 .avatar.lg { width: 54px; height: 54px; }
 .avatar.lg .material-icons { font-size: 26px; }
 
-// --- 1. Sedmica ------------------------------------------------------------
+// --- Sedmica ekipe ---------------------------------------------------------
 
 .week-list { display: flex; flex-direction: column; gap: var(--s-2); }
 
@@ -155,7 +155,50 @@
 
 .week-count.zero { color: var(--echo); }
 
-// --- 2. Novi rekordi -------------------------------------------------------
+// --- Oboreni rekordi -------------------------------------------------------
+
+// Prekidač opsega rekorda. Kad trenira samo jedan čovjek, cio spisak je njegov —
+// „Moji" je zato jedino mjesto gdje se vide sopstveni rekordi, jer profil to
+// još nema.
+.scope-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.scope-switch button {
+  flex: 1;
+  min-height: 34px;
+  border-radius: calc(var(--r-sm) - 2px);
+  color: var(--mist);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+}
+
+.scope-switch button:hover { color: var(--ice); }
+.scope-switch button.on { background: var(--volt); color: var(--volt-ink); }
+
+.more {
+  width: 100%;
+  min-height: 42px;
+  margin-top: var(--s-3);
+
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-size: var(--t-sm);
+}
+
+.more:hover { border-color: var(--volt-a40); color: var(--ice); }
+.more .num { color: var(--dust); }
 
 .rec-list { display: flex; flex-direction: column; gap: var(--s-2); }
 
@@ -216,7 +259,7 @@
 
 .rec-delta { font-size: var(--t-2xs); color: var(--volt-soft); }
 
-// --- 3. Rang po vježbi -----------------------------------------------------
+// --- Rang po vježbi --------------------------------------------------------
 
 .period-switch {
   display: flex;

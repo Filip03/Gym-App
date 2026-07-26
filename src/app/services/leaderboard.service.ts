@@ -89,10 +89,14 @@ interface TeamProfile {
   avatarUrl: string | null;
 }
 
-/** Koliko se dana unazad povlači za feed rekorda (kontekst za poređenje). */
-const FEED_HISTORY_DAYS = 90;
-/** Koliko se dana unazad rekordi PRIKAZUJU. */
-const FEED_SHOW_DAYS = 14;
+/**
+ * Koliko se dana unazad povlači za rekorde.
+ *
+ * Prvi zapis za neku vježbu unutar prozora nema šta da obori, pa se ne prijavljuje
+ * kao rekord. Zato prozor mora biti osjetno duži od onoga što se prikazuje —
+ * inače bi svaki povratak na vježbu poslije pauze ispao „rekord".
+ */
+const RECORD_WINDOW_DAYS = 90;
 
 @Injectable({
   providedIn: 'root'
@@ -242,22 +246,19 @@ export class LeaderboardService {
   // Feed rekorda
 
   /**
-   * Kilaže oborene u zadnje dvije sedmice.
+   * Svaka kilaža koja je u zadnja tri mjeseca oborila prethodnu, najnovija prva.
    *
-   * Povlači se 90 dana zapisa, a prikazuje se samo zadnjih 14 — starijih 76 dana
-   * služe kao mjerilo, da se „rekord" ne prijavi za nešto što je odavno urađeno
-   * teže. Prozor je namjerno ograničen: bez njega bi se pri svakom otvaranju
-   * ekrana povlačila cijela istorija.
+   * Vraća se cio spisak, bez sječenja. Prozor je namjerno ograničen na 90 dana:
+   * bez toga bi se pri svakom otvaranju ekrana povlačila cijela istorija.
    */
-  async getRecentRecords(limit = 8): Promise<RecordEvent[]> {
+  async getRecords(): Promise<RecordEvent[]> {
     const [profiles, logs, names] = await Promise.all([
       this.allProfiles(),
-      this.allLogsSince(this.daysAgo(FEED_HISTORY_DAYS)),
+      this.allLogsSince(this.daysAgo(RECORD_WINDOW_DAYS)),
       this.exerciceNames()
     ]);
 
     const profileById = new Map(profiles.map(p => [p.id, p]));
-    const showFrom = this.daysAgo(FEED_SHOW_DAYS);
 
     // Redoslijed je bitan: zapis je rekord samo u odnosu na ono što mu prethodi.
     const sorted = [...logs].sort((a, b) =>
@@ -282,8 +283,6 @@ export class LeaderboardService {
       if (weight <= prev) continue;
       bestSoFar.set(key, weight);
 
-      if (row.date < showFrom) continue;
-
       const profile = profileById.get(row.user_id);
       if (!profile) continue;
 
@@ -301,7 +300,10 @@ export class LeaderboardService {
       });
     }
 
-    return events.reverse().slice(0, limit);
+    // Najnoviji prvi. Koliko ih se prikazuje odlučuje komponenta — cijeli spisak
+    // je ionako mali, pa se prekidač „svi / moji" i „učitaj još" rješavaju bez
+    // ijednog novog upita.
+    return events.reverse();
   }
 
   // ---------------------------------------------------------------------------

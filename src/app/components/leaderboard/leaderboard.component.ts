@@ -10,6 +10,9 @@ import {
   PickerGroup, PickerOption, toPickerGroups
 } from '../shared/exercice-picker/exercice-picker.component';
 
+/** Koliko se rekorda prikaže odjednom, i koliko ih doda „Učitaj još". */
+const RECORDS_STEP = 8;
+
 /**
  * Ekran „Ekipa".
  *
@@ -53,6 +56,16 @@ export class LeaderboardComponent implements OnInit {
   // --- Rekordi ---------------------------------------------------------------
   records: RecordEvent[] = [];
   recordsLoading = true;
+
+  /**
+   * Kad trenira samo jedna osoba, cio spisak je njen. Prekidač „moji" je zato
+   * i jedino mjesto u aplikaciji gdje se vide sopstveni oboreni rekordi —
+   * profil to još nema.
+   */
+  recordScope: 'all' | 'me' = 'all';
+  /** Koliko ih je trenutno prikazano. Raste dugmetom, ne novim upitom. */
+  recordsShown = RECORDS_STEP;
+  recordsKey = 0;
 
   // --- Rang po vježbi --------------------------------------------------------
   pickerGroups: PickerGroup[] = [];
@@ -121,7 +134,7 @@ export class LeaderboardComponent implements OnInit {
 
   private async loadRecords() {
     try {
-      this.records = await this.leaderboardService.getRecentRecords();
+      this.records = await this.leaderboardService.getRecords();
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri učitavanju rekorda.');
     } finally {
@@ -146,6 +159,32 @@ export class LeaderboardComponent implements OnInit {
     } finally {
       this.loading = false;
     }
+  }
+
+  setRecordScope(scope: 'all' | 'me') {
+    if (this.recordScope === scope) return;
+    this.recordScope = scope;
+    this.recordsShown = RECORDS_STEP;   // novi opseg kreće od vrha
+    this.recordsKey++;
+  }
+
+  showMoreRecords() {
+    this.recordsShown += RECORDS_STEP;
+  }
+
+  /** Rekordi u izabranom opsegu, prije sječenja. */
+  get scopedRecords(): RecordEvent[] {
+    return this.recordScope === 'me'
+      ? this.records.filter(r => r.userId === this.currentUserId)
+      : this.records;
+  }
+
+  get visibleRecords(): RecordEvent[] {
+    return this.scopedRecords.slice(0, this.recordsShown);
+  }
+
+  get moreRecords(): number {
+    return Math.max(0, this.scopedRecords.length - this.recordsShown);
   }
 
   onPick(option: PickerOption) {
@@ -243,5 +282,6 @@ export class LeaderboardComponent implements OnInit {
   // animacija pusti ponovo pri svakoj promjeni vježbe ili perioda.
   trackEntry = (_: number, e: LeaderEntry) => `${this.renderKey}|${e.userId}`;
   trackMember = (_: number, m: WeekMember) => m.userId;
-  trackRecord = (_: number, r: RecordEvent) => `${r.userId}|${r.exerciceId}|${r.date}|${r.weight}`;
+  trackRecord = (_: number, r: RecordEvent) =>
+    `${this.recordsKey}|${r.userId}|${r.exerciceId}|${r.date}|${r.weight}`;
 }

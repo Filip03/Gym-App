@@ -1,77 +1,5 @@
-<!-- SEKCIJA 1 — sedmica ekipe -->
-<section class="sec sec-week">
-  <div class="sec-head">
-    <h2 class="eyebrow">Ekipa · ova sedmica</h2>
-  </div>
-
-  <p *ngIf="weekLoading" class="empty">Učitavanje...</p>
-
-  <div class="week-list" *ngIf="!weekLoading">
-    <div class="week-row" *ngFor="let m of week; let i = index; trackBy: trackMember"
-         [class.me]="m.userId === currentUserId"
-         [style.animation-delay.ms]="i * 60">
-
-      <div class="avatar">
-        <img *ngIf="m.avatarUrl" [src]="m.avatarUrl" alt="">
-        <i class="material-icons" *ngIf="!m.avatarUrl">person</i>
-      </div>
-
-      <div class="week-who">
-        <span class="week-name">{{ m.username }}</span>
-        <span class="week-last">{{ m.lastLabel }}</span>
-      </div>
-
-      <div class="dots">
-        <span class="dot" *ngFor="let on of m.days; let d = index"
-              [class.on]="on" [class.today]="d === todayIndex"
-              [style.animation-delay.ms]="i * 60 + d * 40">
-          <em>{{ dayLabels[d] }}</em>
-        </span>
-      </div>
-
-      <span class="week-count num" [class.zero]="m.count === 0">{{ m.count }}</span>
-    </div>
-
-    <p *ngIf="week.length === 0" class="empty">Nema članova.</p>
-  </div>
-</section>
-
-<!-- SEKCIJA 2 — oborene kilaže -->
-<section class="sec sec-records" *ngIf="recordsLoading || records.length > 0">
-  <div class="sec-head">
-    <h2 class="eyebrow">Novi rekordi</h2>
-    <span class="sec-note">zadnje dvije sedmice</span>
-  </div>
-
-  <p *ngIf="recordsLoading" class="empty">Učitavanje...</p>
-
-  <div class="rec-list" *ngIf="!recordsLoading">
-    <div class="rec" *ngFor="let r of records; let i = index; trackBy: trackRecord"
-         [class.me]="r.userId === currentUserId"
-         [style.animation-delay.ms]="i * 70">
-
-      <div class="avatar sm">
-        <img *ngIf="r.avatarUrl" [src]="r.avatarUrl" alt="">
-        <i class="material-icons" *ngIf="!r.avatarUrl">person</i>
-      </div>
-
-      <div class="rec-body">
-        <div class="rec-top">
-          <span class="rec-name">{{ r.username }}</span>
-          <span class="rec-when">{{ r.dayLabel }}</span>
-        </div>
-        <div class="rec-what">{{ r.exerciceName }}</div>
-      </div>
-
-      <div class="rec-num">
-        <span class="rec-kg num">{{ r.weight }}<em>kg</em></span>
-        <span class="rec-delta num">+{{ r.weight - r.prevWeight }}</span>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- SEKCIJA 3 — rang po vježbi -->
+<!-- SEKCIJA 1 — rang po vježbi
+     Prva je zato što je zbog nje ekran i otvoren; sedmica i rekordi su kontekst. -->
 <section class="sec sec-board">
   <div class="sec-head">
     <h2 class="eyebrow">Rang po vježbi</h2>
@@ -180,6 +108,102 @@
       </div>
 
     </ng-container>
+  </ng-container>
+</section>
+
+<!-- SEKCIJA 2 — sedmica ekipe -->
+<section class="sec sec-week">
+  <div class="sec-head">
+    <h2 class="eyebrow">Ekipa · ova sedmica</h2>
+  </div>
+
+  <p *ngIf="weekLoading" class="empty">Učitavanje...</p>
+
+  <div class="week-list" *ngIf="!weekLoading">
+    <div class="week-row" *ngFor="let m of week; let i = index; trackBy: trackMember"
+         [class.me]="m.userId === currentUserId"
+         [style.animation-delay.ms]="i * 60">
+
+      <div class="avatar">
+        <img *ngIf="m.avatarUrl" [src]="m.avatarUrl" alt="">
+        <i class="material-icons" *ngIf="!m.avatarUrl">person</i>
+      </div>
+
+      <div class="week-who">
+        <span class="week-name">{{ m.username }}</span>
+        <span class="week-last">{{ m.lastLabel }}</span>
+      </div>
+
+      <div class="dots">
+        <span class="dot" *ngFor="let on of m.days; let d = index"
+              [class.on]="on" [class.today]="d === todayIndex"
+              [style.animation-delay.ms]="i * 60 + d * 40">
+          <em>{{ dayLabels[d] }}</em>
+        </span>
+      </div>
+
+      <span class="week-count num" [class.zero]="m.count === 0">{{ m.count }}</span>
+    </div>
+
+    <p *ngIf="week.length === 0" class="empty">Nema članova.</p>
+  </div>
+</section>
+
+<!-- SEKCIJA 3 — oborene kilaže -->
+<section class="sec sec-records" *ngIf="recordsLoading || records.length > 0">
+  <div class="sec-head">
+    <h2 class="eyebrow">Oboreni rekordi</h2>
+    <span class="sec-note">zadnja 3 mjeseca</span>
+  </div>
+
+  <p *ngIf="recordsLoading" class="empty">Učitavanje...</p>
+
+  <ng-container *ngIf="!recordsLoading">
+
+    <div class="scope-switch">
+      <button type="button" [class.on]="recordScope === 'all'" (click)="setRecordScope('all')">
+        Svi
+      </button>
+      <button type="button" [class.on]="recordScope === 'me'" (click)="setRecordScope('me')">
+        Moji
+      </button>
+    </div>
+
+    <p *ngIf="scopedRecords.length === 0" class="empty">
+      {{ recordScope === 'me'
+          ? 'Još nemaš oboren rekord u zadnja tri mjeseca.'
+          : 'Nema oborenih rekorda u zadnja tri mjeseca.' }}
+    </p>
+
+    <div class="rec-list">
+      <div class="rec" *ngFor="let r of visibleRecords; let i = index; trackBy: trackRecord"
+           [class.me]="r.userId === currentUserId"
+           [style.animation-delay.ms]="(i % 8) * 70">
+
+        <div class="avatar sm">
+          <img *ngIf="r.avatarUrl" [src]="r.avatarUrl" alt="">
+          <i class="material-icons" *ngIf="!r.avatarUrl">person</i>
+        </div>
+
+        <div class="rec-body">
+          <div class="rec-top">
+            <span class="rec-name">{{ r.username }}</span>
+            <span class="rec-when">{{ r.dayLabel }}</span>
+          </div>
+          <div class="rec-what">{{ r.exerciceName }}</div>
+        </div>
+
+        <div class="rec-num">
+          <span class="rec-kg num">{{ r.weight }}<em>kg</em></span>
+          <span class="rec-delta num">+{{ r.weight - r.prevWeight }}</span>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" class="more" *ngIf="moreRecords > 0" (click)="showMoreRecords()">
+      Učitaj još <span class="num">({{ moreRecords }})</span>
+    </button>
+
   </ng-container>
 </section>
 
