@@ -567,3 +567,76 @@ pregledaču na sva četiri mjesta.
 - Uži izbor zna biti prazan (vježba bez upisane mišićne grupe); tada se odmah
   otvara katalog, jer prazan ekran sa prekidačem izgleda kao kvar.
 - Escape zatvara birač.
+
+---
+
+## [2026-07-26] Rang lista postaje ekran „Ekipa"
+**Tip:** funkcionalnost / popravka / redizajn
+**Ref:** A3, Roadmap 1.3 i 1.13
+
+**Problem:** Ekran je bio suv, i to iz tri odvojena razloga.
+
+1. **Pogrešna metrika.** Upit je imao `.eq('set_number', 1)` i uzimao
+   **posljednji** zapis po datumu. Najteža serija se nije vidjela ako nije bila
+   prva u vježbi, a lakši trenažni dan te je prikazivao kao slabijeg nego
+   prošle sedmice.
+2. **Pogrešan oblik.** Mjereno na zatečenim podacima: **od 37 vježbi samo 3
+   imaju upise od više od jedne osobe.** Podijum je zato u većini slučajeva
+   prikazivao jednog čovjeka i dva prazna bloka.
+3. **Zatečeni stil.** Posljednji ekran sa zelenim sjajem oko kartice i
+   `greenyellow` obrubom.
+
+**Rješenje:**
+
+*Metrika* — rangira se po **najvećoj kilaži podignutoj u periodu**. Neriješeno
+se lomi brojem puta koliko je ta kilaža podignuta, pa brojem ponavljanja.
+Ponavljanja ne ulaze u rang, samo se prikazuju. Odbačeni su procijenjeni 1RM
+(izveden broj koji niko ne prepoznaje kao svoj rezultat) i ukupna kilaža (mjeri
+raspored, ne čovjeka).
+
+*Period je dio metrike, ne filter* — podrazumijevano zadnjih **30 dana**, uz
+prekidač 2 / 6 / 12 mjeseci. Poenta: ko jednom digne 140 kg i prestane da
+dolazi, za mjesec dana ispada sa liste. Rekord se brani.
+
+*Oblik* — dvije nove sekcije iznad rang liste, obje iz postojećih podataka,
+**bez migracije**:
+
+| Sekcija | Izvor | Zašto |
+|---|---|---|
+| Ekipa · ova sedmica | `workout_sessions` | jedina sekcija koja ima sadržaj i za onoga ko još nije upisao nijednu seriju |
+| Novi rekordi | `exercice_logs` | pretvara usamljeni upis serije u nešto što ekipa vidi |
+
+*Podijum* je zadržan, ali sada prikazuje samo popunjena mjesta (jedno, dva ili
+tri) — prazna postolja izgledaju kao kvar. Ispod njega ide **puna lista** u
+kojoj su prva tri mjesta naglašena bojom, a ostali prigušeni, pa ekran radi i
+kad nas bude pet-šest.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/leaderboard.service.ts` — prepisan: `getLeaderboard(exerciceId, days)`,
+  `getTeamWeek()`, `getRecentRecords()`; keš profila; računanje datuma u lokalnoj
+  zoni (`toISOString()` uveče vraća sjutrašnji dan)
+- `src/app/components/leaderboard/*` — tri sekcije, podijum, puna lista,
+  prekidač perioda, ulazne animacije
+- `src/app/components/header/header.component.ts:20` — naslov „Rang lista" → „Ekipa"
+- `src/app/components/footer/footer.component.html:8` — `aria-label`
+
+**Efekat:** Ekran ima sadržaj i prvog dana, i za člana bez ijednog upisa.
+Provjereno u pregledaču na stvarnim podacima, uključujući i podijum sa tri
+mjesta (privremeni red u lokalnoj bazi, obrisan poslije provjere).
+
+**Napomene:**
+- **Neriješeno dijeli mjesto.** Dvoje sa istim rezultatom su oboje prvi, sljedeći
+  je treći. Otkriveno tek na stvarnim podacima — Ćofi i marko oboje 95 kg × 11.
+- Poruka o zaostatku **ne pominje ime** vodećeg: „za Ćofi" je pogrešan padež, a
+  nadimci se ne mogu pouzdano deklinirati. Piše „Do prvog mjesta ti fali X kg",
+  i ne prikazuje se kad si izjednačen na vrhu.
+- „bez upisa" umjesto „nije radio" — drugo je rodno određeno.
+- Animacije se ponovo puštaju pri promjeni vježbe ili perioda tako što
+  `renderKey` ulazi u `trackBy`. Bez `@angular/animations`, koji projekat ne
+  koristi. Isključene su za `prefers-reduced-motion`.
+- Feed povlači 90 dana zapisa a prikazuje 14 — stariji dani služe kao mjerilo da
+  se „rekord" ne prijavi za nešto što je odavno urađeno teže. Prozor je
+  ograničen namjerno; bez toga bi se povlačila cijela istorija pri svakom
+  otvaranju ekrana.
+- Nije rađeno, javljeno kao ideja: relativna snaga (kg / tjelesna težina) i zid
+  rekorda po mišićnim grupama.

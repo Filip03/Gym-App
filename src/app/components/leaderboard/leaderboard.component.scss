@@ -1,335 +1,535 @@
-.leaderboard-wrapper {
+// ---------------------------------------------------------------------------
+// EKRAN „EKIPA"
+//
+// Posljednji ekran koji je nosio zatečeni stil (zeleni sjaj oko kartice,
+// `greenyellow`, bijela sjenka). Sada koristi iste tokene kao trening i
+// dashboard, uz jedan dodatak specifičan za ovaj ekran: uglovne zagrade i
+// tanka linija sa volt segmentom, koje panel čine instrumentom a ne karticom.
+//
+// Sve animacije su ulazne, kratke i sa kašnjenjem po indeksu reda. Kašnjenje
+// se postavlja iz predloška (`[style.animation-delay.ms]`), a pseudo-elementi
+// ga preuzimaju sa `animation-delay: inherit` da bi traka i postolje krenuli
+// istovremeno sa redom kojem pripadaju.
+// ---------------------------------------------------------------------------
+
+:host { display: block; }
+
+// --- Sekcija ---------------------------------------------------------------
+
+.sec {
+  position: relative;
+  margin-bottom: var(--s-6);
+  padding: var(--s-5) var(--s-4) var(--s-5);
+
+  background: color-mix(in srgb, var(--carbon) 92%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+
+// Tanka linija na vrhu panela, sa kratkim volt segmentom lijevo. Jeftin način
+// da panel dobije „uređaj" karakter bez ijedne slike.
+.sec::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: var(--s-5);
+  width: 44px;
+  height: 2px;
+  background: var(--volt);
+  border-radius: var(--r-full);
+  box-shadow: 0 0 12px -2px var(--volt);
+}
+
+.sec-head {
   display: flex;
-  justify-content: center;
-  padding: 40px 20px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
 }
 
-.leaderboard-container {
-  box-sizing: border-box;
-  width: 80%;
-  max-width: 800px;
-  border: 2px solid greenyellow;
-  border-radius: 30px;
-  box-shadow: 0 3px 10px white;
-  backdrop-filter: blur(5px);
-  padding: 2rem;
-  color: white;
+.sec-note {
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  color: var(--dust);
 }
 
-h2 {
-  margin: 0 0 1.5rem;
-  text-align: center;
-  font-size: 1.9rem;
-  color: greenyellow;
+// --- Avatar ----------------------------------------------------------------
+
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  color: var(--dust);
 }
 
-.exercice-select {
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar .material-icons { font-size: 20px; }
+
+.avatar.sm { width: 32px; height: 32px; }
+.avatar.sm .material-icons { font-size: 18px; }
+
+.avatar.lg { width: 54px; height: 54px; }
+.avatar.lg .material-icons { font-size: 26px; }
+
+// --- 1. Sedmica ------------------------------------------------------------
+
+.week-list { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.week-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 2rem;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+
+  animation: row-in 420ms var(--ease-spring) both;
 }
 
-.exercice-select label {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
+.week-row.me { border-color: var(--volt-a20); background: var(--volt-a10); }
+
+.week-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.week-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ice);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.exercice-select select {
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 0.6rem 0.8rem;
-  color: white;
-  font-size: 1rem;
+.week-last { font-size: var(--t-2xs); color: var(--dust); }
+
+.dots { display: flex; gap: 3px; }
+
+// Kvadratić po danu. Popunjen = trenirano. Verzal iznutra je prigušen do
+// nečitljivosti kad je dan prazan — nosi ga oblik, ne slovo.
+.dot {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 20px;
+
+  background: var(--steel);
+  border: 1px solid transparent;
+  border-radius: 3px;
+
+  animation: dot-in 300ms var(--ease-out) both;
 }
 
-.error {
-  color: #ff6b6b;
+.dot em {
+  font-family: var(--font-data);
+  font-size: 9px;
+  font-style: normal;
+  color: var(--dust);
 }
 
-.no-entries {
+.dot.on {
+  background: var(--volt);
+  box-shadow: 0 0 10px -3px var(--volt);
+}
+.dot.on em { color: var(--volt-ink); font-weight: 700; }
+
+.dot.today { border-color: var(--line-strong); }
+.dot.on.today { border-color: var(--ice); }
+
+.week-count {
+  flex: none;
+  min-width: 22px;
+  text-align: right;
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--volt);
+}
+
+.week-count.zero { color: var(--echo); }
+
+// --- 2. Novi rekordi -------------------------------------------------------
+
+.rec-list { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.rec {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px solid transparent;
+  border-left: 2px solid var(--gold);
+  border-radius: var(--r-sm);
+
+  animation: row-in 420ms var(--ease-spring) both;
+}
+
+.rec.me { border-color: var(--volt-a20); border-left-color: var(--volt); }
+
+.rec-body { flex: 1; min-width: 0; }
+
+.rec-top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.rec-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--t-sm);
+  color: var(--ice);
+}
+
+.rec-when {
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  color: var(--dust);
+}
+
+.rec-what {
+  font-size: var(--t-xs);
+  color: var(--mist);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rec-num { flex: none; text-align: right; }
+
+.rec-kg {
+  display: block;
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--gold);
+}
+.rec-kg em { font-size: var(--t-2xs); font-style: normal; opacity: .7; margin-left: 1px; }
+
+.rec-delta { font-size: var(--t-2xs); color: var(--volt-soft); }
+
+// --- 3. Rang po vježbi -----------------------------------------------------
+
+.period-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin-top: var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.period-switch button {
+  flex: 1;
+  min-height: 34px;
+  border-radius: calc(var(--r-sm) - 2px);
+  color: var(--mist);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+}
+
+.period-switch button:hover { color: var(--ice); }
+.period-switch button.on { background: var(--volt); color: var(--volt-ink); }
+
+.gap {
+  margin: var(--s-4) 0 0;
+  padding: var(--s-3);
+  background: var(--volt-a10);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  color: var(--mist);
   text-align: center;
-  color: rgba(255, 255, 255, 0.6);
+  animation: row-in 420ms var(--ease-out) 520ms both;
 }
+
+.gap strong { color: var(--volt); font-weight: 700; }
+
+// --- Podijum ---------------------------------------------------------------
+//
+// Postolja rastu odozdo. Raste `::before`, ne sam blok — da broj mjesta ne
+// bude razvučen dok animacija traje.
 
 .podium {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: end;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+  padding-top: var(--s-6);
 }
 
-.podium-spot {
+.podium.duo  { grid-template-columns: repeat(2, minmax(0, 140px)); justify-content: center; }
+.podium.solo { grid-template-columns: minmax(0, 160px); justify-content: center; }
+
+.spot {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  width: 140px;
+  gap: var(--s-1);
   min-width: 0;
-  flex: 1 1 0;
-  max-width: 140px;
+
+  animation: spot-in 560ms var(--ease-spring) both;
 }
 
-.podium-spot.first { order: 2; }
-.podium-spot.second { order: 1; }
-.podium-spot.third { order: 3; }
-
-.podium-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.crown {
+  position: absolute;
+  top: -26px;
+  font-size: 22px;
+  color: var(--gold);
+  filter: drop-shadow(0 0 8px rgba(255, 201, 74, .5));
+  animation: crown-in 600ms var(--ease-spring) 480ms both;
 }
 
-.podium-spot.first .podium-avatar {
-  width: 60px;
-  height: 60px;
-  border-color: greenyellow;
-}
-
-.podium-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.podium-avatar .material-icons {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 1.6rem;
-}
-
-.podium-username {
-  font-weight: 700;
-  color: white;
-  font-size: 1.05rem;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.spot-name {
   max-width: 100%;
-}
-
-.podium-stats {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
-}
-
-.podium-block {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px 10px 0 0;
-  font-weight: 800;
-  font-size: 1.6rem;
-  color: black;
-}
-
-.podium-spot.first .podium-block {
-  height: 140px;
-  background: greenyellow;
-}
-
-.podium-spot.second .podium-block {
-  height: 100px;
-  background: silver;
-}
-
-.podium-spot.third .podium-block {
-  height: 70px;
-  background: #cd7f32;
-}
-
-.table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.results-table {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: collapse;
-}
-
-.results-table th:nth-child(1),
-.results-table td:nth-child(1) {
-  width: 10%;
-}
-
-.results-table th:nth-child(2),
-.results-table td:nth-child(2) {
-  width: 30%;
-}
-
-.results-table th:nth-child(3),
-.results-table td:nth-child(3) {
-  width: 30%;
-}
-
-.results-table th:nth-child(4),
-.results-table td:nth-child(4) {
-  width: 30%;
-}
-
-.results-table th,
-.results-table td {
-  padding: 0.6rem 0.8rem;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  white-space: nowrap;
+  margin-top: var(--s-1);
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ice);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.results-table th {
-  color: greenyellow;
-  font-size: 0.85rem;
+.spot-kg {
+  font-size: var(--t-lg);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ice);
+}
+.spot-kg em { font-size: var(--t-2xs); font-style: normal; opacity: .6; margin-left: 1px; }
+
+.spot-sub { font-size: var(--t-2xs); color: var(--dust); }
+
+.block {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  margin-top: var(--s-2);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  overflow: hidden;
+}
+
+.block::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: scaleY(0);
+  transform-origin: bottom;
+  animation: block-grow 640ms var(--ease-spring) both;
+  animation-delay: inherit;
+}
+
+.block .place {
+  position: relative;
+  z-index: 1;
+  font-size: var(--t-xl);
+  font-weight: 700;
+  line-height: 1;
+}
+
+// Boje po mjestu. Prvo mjesto nosi volt jer je to boja aplikacije — zlato bi
+// se tuklo sa akcentom svuda okolo, pa je ostavljeno kruni i rekordima.
+.spot[data-rank="1"] .avatar { border-color: var(--volt); box-shadow: 0 0 20px -6px var(--volt); }
+.spot[data-rank="1"] .spot-kg { color: var(--volt); }
+.spot[data-rank="1"] .block::before {
+  background: linear-gradient(180deg, var(--volt) 0%, var(--volt-soft) 100%);
+}
+.spot[data-rank="1"] .place { color: var(--volt-ink); }
+
+.spot[data-rank="2"] .avatar { border-color: var(--silver); }
+.spot[data-rank="2"] .block::before {
+  background: linear-gradient(180deg, var(--silver) 0%, #7C8894 100%);
+}
+.spot[data-rank="2"] .place { color: var(--void); }
+
+.spot[data-rank="3"] .avatar { border-color: var(--bronze); }
+.spot[data-rank="3"] .block::before {
+  background: linear-gradient(180deg, var(--bronze) 0%, #8A5934 100%);
+}
+.spot[data-rank="3"] .place { color: var(--void); }
+
+// --- Puna lista ------------------------------------------------------------
+//
+// Prva tri mjesta se ponavljaju i ovdje, naglašena; od četvrtog naniže su
+// prigušena. Tako lista radi i kad nas bude pet-šest, a ne samo troje.
+
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-5);
+}
+
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+
+  animation: row-in 420ms var(--ease-spring) both;
+}
+
+.rank-row .place {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--dust);
+}
+
+.rank-body { flex: 1; min-width: 0; }
+
+.rank-top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: 5px;
+}
+
+.rank-name {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--mist);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-you {
+  flex: none;
+  padding: 1px 6px;
+  background: var(--volt-a20);
+  border-radius: var(--r-full);
+  font-family: var(--font-data);
+  font-size: 9px;
+  letter-spacing: var(--ls-wide);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--volt);
 }
 
-.results-table td {
-  color: white;
-  font-size: 0.95rem;
+.bar-track {
+  height: 4px;
+  background: var(--steel);
+  border-radius: var(--r-full);
+  overflow: hidden;
 }
 
-@media (max-width: 768px) {
-  .leaderboard-wrapper {
-    padding: 20px 16px;
-  }
+.bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--dust);
+  transform-origin: left;
+  animation: bar-in 620ms var(--ease-out) both;
+  animation-delay: inherit;
+}
 
-  .leaderboard-container {
-    width: 100%;
-    padding: 1.25rem;
-    border-radius: 20px;
-  }
+.rank-num { flex: none; text-align: right; }
 
-  h2 {
-    font-size: 1.5rem;
-  }
+.rank-kg {
+  display: block;
+  font-size: var(--t-base);
+  font-weight: 700;
+  color: var(--mist);
+}
+.rank-kg em { font-size: 9px; font-style: normal; opacity: .6; margin-left: 1px; }
+.rank-kg.none { color: var(--echo); }
 
-  .podium {
-    gap: 0.6rem;
-  }
+.rank-sub { font-size: var(--t-2xs); color: var(--dust); }
 
-  .podium-spot {
-    width: 90px;
-    max-width: 90px;
-  }
+// Naglašena prva tri
+.rank-row[data-rank="1"] { background: var(--volt-a10); border-color: var(--volt-a20); }
+.rank-row[data-rank="1"] .place,
+.rank-row[data-rank="1"] .rank-name,
+.rank-row[data-rank="1"] .rank-kg { color: var(--volt); }
+.rank-row[data-rank="1"] .bar { background: var(--volt); }
 
-  .podium-spot.first .podium-block {
-    height: 100px;
-    font-size: 1.3rem;
-  }
+.rank-row[data-rank="2"] .place,
+.rank-row[data-rank="2"] .rank-name,
+.rank-row[data-rank="2"] .rank-kg { color: var(--silver); }
+.rank-row[data-rank="2"] .bar { background: var(--silver); }
 
-  .podium-spot.second .podium-block {
-    height: 75px;
-    font-size: 1.2rem;
-  }
+.rank-row[data-rank="3"] .place,
+.rank-row[data-rank="3"] .rank-name,
+.rank-row[data-rank="3"] .rank-kg { color: var(--bronze); }
+.rank-row[data-rank="3"] .bar { background: var(--bronze); }
 
-  .podium-spot.third .podium-block {
-    height: 55px;
-    font-size: 1.2rem;
-  }
+// Ti — obrub bez obzira na mjesto, da se svoj red nađe bez čitanja
+.rank-row.me { border-color: var(--volt-a40); }
 
-  .podium-avatar {
-    width: 40px;
-    height: 40px;
-  }
+// Bez rezultata u periodu
+.rank-row.blank { opacity: .55; }
+.rank-row.blank .bar-track { visibility: hidden; }
 
-  .podium-spot.first .podium-avatar {
-    width: 48px;
-    height: 48px;
-  }
+// --- Pokret ----------------------------------------------------------------
 
-  .podium-username {
-    font-size: 0.85rem;
-  }
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
 
-  .podium-stats {
-    font-size: 0.75rem;
-  }
+@keyframes dot-in {
+  from { opacity: 0; transform: scale(.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
 
-  .results-table th,
-  .results-table td {
-    padding: 0.5rem 0.4rem;
-  }
+@keyframes spot-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-  .results-table th {
-    font-size: 0.7rem;
-    letter-spacing: 0;
-    white-space: normal;
-    line-height: 1.2;
-  }
+@keyframes crown-in {
+  from { opacity: 0; transform: translateY(6px) scale(.6); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
 
-  .results-table td {
-    font-size: 0.85rem;
+@keyframes block-grow {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+@keyframes bar-in {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+// Animacije su ukras. Ko ih je isključio u sistemu, dobija isti ekran odmah.
+@media (prefers-reduced-motion: reduce) {
+  .week-row, .dot, .rec, .spot, .crown, .rank-row, .gap,
+  .block::before, .bar {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 
-@media (max-width: 420px) {
-  .podium {
-    gap: 0.4rem;
-  }
+// --- Uski ekran ------------------------------------------------------------
 
-  .podium-spot {
-    width: 72px;
-    max-width: 72px;
-  }
-
-  .podium-spot.first .podium-block {
-    height: 80px;
-    font-size: 1.1rem;
-  }
-
-  .podium-spot.second .podium-block {
-    height: 60px;
-    font-size: 1rem;
-  }
-
-  .podium-spot.third .podium-block {
-    height: 45px;
-    font-size: 1rem;
-  }
-
-  .podium-avatar {
-    width: 34px;
-    height: 34px;
-  }
-
-  .podium-spot.first .podium-avatar {
-    width: 40px;
-    height: 40px;
-  }
-
-  .podium-username {
-    font-size: 0.75rem;
-  }
-
-  .podium-stats {
-    font-size: 0.68rem;
-  }
-
-  .results-table th,
-  .results-table td {
-    padding: 0.45rem 0.35rem;
-  }
-
-  .results-table td {
-    font-size: 0.8rem;
-  }
-
-  .results-table th {
-    font-size: 0.65rem;
-  }
+@media (max-width: 400px) {
+  .sec { padding-inline: var(--s-3); }
+  .dot { width: 14px; height: 18px; }
+  .avatar { width: 34px; height: 34px; }
+  .period-switch button { font-size: 10px; letter-spacing: 0.04em; }
 }

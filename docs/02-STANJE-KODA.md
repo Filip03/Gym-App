@@ -45,7 +45,7 @@ Sve rute su otvorene. Zaštita je „komponenta ispiše poruku". Nema ni redirec
 
 ---
 
-### A3 — Leaderboard rangira po posljednjem, ne po najboljem rezultatu `OTVORENO`
+### A3 — Leaderboard rangira po posljednjem, ne po najboljem rezultatu `RIJEŠENO 26.07.2026`
 **Gdje:** `services/leaderboard.service.ts:32-69`
 
 ```ts

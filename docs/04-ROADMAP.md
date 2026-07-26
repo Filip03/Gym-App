@@ -40,7 +40,7 @@ baze, pa može ići paralelno sa Fazom 0.
 |---|---|---|---|
 | 1.1 | Auth race na refreshu — sesija se čeka prije renderovanja | A1 | ☑ GOTOVO |
 | 1.2 | `AuthGuard` + redirect na `/login` + `**` wildcard ruta | A2 | ☑ GOTOVO |
-| 1.3 | Leaderboard: rangiranje po najboljem rezultatu / procijenjenom 1RM | A3 | ☐ ČEKA |
+| 1.3 | Rang po najvećoj kilaži u periodu (ne po posljednjem rezultatu) | A3 | ☑ GOTOVO |
 | 1.4 | Izbor dana treninga — odvezati trening od dana u sedmici | A4 | ☐ ČEKA |
 | 1.5 | Rest day po `day_type`, ne po broju vježbi | A5 | ☐ ČEKA |
 | 1.6 | Brisanje upisane serije + preračunavanje `set_number` | A6 | ☑ GOTOVO |
@@ -51,6 +51,7 @@ baze, pa može ići paralelno sa Fazom 0.
 | 1.10 | Avatar prima video (`avatar.mp4` u `<img>`) — validacija tipa fajla | A10 | ☐ ČEKA |
 | 1.11 | Nalog bez profila ruši svaki ekran — `handle_new_user()` bez zaštite | A11, S8 | ☐ ČEKA |
 | 1.12 | Jedinstven birač vježbe na sva četiri mjesta (trening, rang lista, napredak) | — | ☑ GOTOVO |
+| 1.13 | Ekran „Ekipa" — sedmica, feed rekorda, podijum i rang po vježbi | — | ☑ GOTOVO |
 
 ---
 

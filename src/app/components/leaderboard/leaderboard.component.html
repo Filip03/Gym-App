@@ -1,101 +1,192 @@
-<div class="leaderboard-wrapper">
-  <div class="leaderboard-container">
+<!-- SEKCIJA 1 — sedmica ekipe -->
+<section class="sec sec-week">
+  <div class="sec-head">
+    <h2 class="eyebrow">Ekipa · ova sedmica</h2>
+  </div>
 
-    <h2>Leaderboard</h2>
+  <p *ngIf="weekLoading" class="empty">Učitavanje...</p>
 
-    <div class="exercice-select">
-      <label>Izaberi vježbu</label>
-      <button type="button" class="pick-field" [disabled]="loadingExercices"
-              (click)="showPicker = true">
-        <img *ngIf="selectedExercice?.picture"
-             [src]="pictureUrl(selectedExercice!.picture)" [alt]="selectedExercice!.name">
-        <span class="pf-ph" *ngIf="!selectedExercice?.picture">
-          <i class="material-icons">fitness_center</i>
-        </span>
-        <span class="pf-name" [class.empty-choice]="!selectedExercice">
-          {{ selectedExercice ? selectedExercice.name : 'Izaberi vježbu' }}
-        </span>
-        <i class="material-icons">expand_more</i>
-      </button>
-    </div>
+  <div class="week-list" *ngIf="!weekLoading">
+    <div class="week-row" *ngFor="let m of week; let i = index; trackBy: trackMember"
+         [class.me]="m.userId === currentUserId"
+         [style.animation-delay.ms]="i * 60">
 
-    <p *ngIf="loadingExercices || loading">Učitavanje...</p>
-    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
-
-    <ng-container *ngIf="selectedExerciceId && !loading && !errorMessage">
-
-      <p *ngIf="entries.length === 0" class="no-entries">Još nema upisanih rezultata za ovu vježbu.</p>
-
-      <div class="podium" *ngIf="entries.length > 0">
-
-        <div class="podium-spot second">
-          <ng-container *ngIf="entries[1] as e">
-            <div class="podium-avatar">
-              <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
-              <span *ngIf="!e.avatarUrl" class="material-icons">person</span>
-            </div>
-            <span class="podium-username">{{ e.username }}</span>
-            <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
-          </ng-container>
-          <div class="podium-block">2</div>
-        </div>
-
-        <div class="podium-spot first">
-          <ng-container *ngIf="entries[0] as e">
-            <div class="podium-avatar">
-              <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
-              <span *ngIf="!e.avatarUrl" class="material-icons">person</span>
-            </div>
-            <span class="podium-username">{{ e.username }}</span>
-            <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
-          </ng-container>
-          <div class="podium-block">1</div>
-        </div>
-
-        <div class="podium-spot third">
-          <ng-container *ngIf="entries[2] as e">
-            <div class="podium-avatar">
-              <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
-              <span *ngIf="!e.avatarUrl" class="material-icons">person</span>
-            </div>
-            <span class="podium-username">{{ e.username }}</span>
-            <span class="podium-stats">{{ e.weight }}kg x {{ e.reps }}</span>
-          </ng-container>
-          <div class="podium-block">3</div>
-        </div>
-
+      <div class="avatar">
+        <img *ngIf="m.avatarUrl" [src]="m.avatarUrl" alt="">
+        <i class="material-icons" *ngIf="!m.avatarUrl">person</i>
       </div>
 
-      <div class="table-wrapper" *ngIf="entries.length > 0">
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Korisnik</th>
-              <th>Kilaža</th>
-              <th>Ponavljanja</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let e of entries; let i = index">
-              <td>{{ i + 1 }}</td>
-              <td>{{ e.username }}</td>
-              <td>{{ e.weight }}kg</td>
-              <td>{{ e.reps }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="week-who">
+        <span class="week-name">{{ m.username }}</span>
+        <span class="week-last">{{ m.lastLabel }}</span>
+      </div>
+
+      <div class="dots">
+        <span class="dot" *ngFor="let on of m.days; let d = index"
+              [class.on]="on" [class.today]="d === todayIndex"
+              [style.animation-delay.ms]="i * 60 + d * 40">
+          <em>{{ dayLabels[d] }}</em>
+        </span>
+      </div>
+
+      <span class="week-count num" [class.zero]="m.count === 0">{{ m.count }}</span>
+    </div>
+
+    <p *ngIf="week.length === 0" class="empty">Nema članova.</p>
+  </div>
+</section>
+
+<!-- SEKCIJA 2 — oborene kilaže -->
+<section class="sec sec-records" *ngIf="recordsLoading || records.length > 0">
+  <div class="sec-head">
+    <h2 class="eyebrow">Novi rekordi</h2>
+    <span class="sec-note">zadnje dvije sedmice</span>
+  </div>
+
+  <p *ngIf="recordsLoading" class="empty">Učitavanje...</p>
+
+  <div class="rec-list" *ngIf="!recordsLoading">
+    <div class="rec" *ngFor="let r of records; let i = index; trackBy: trackRecord"
+         [class.me]="r.userId === currentUserId"
+         [style.animation-delay.ms]="i * 70">
+
+      <div class="avatar sm">
+        <img *ngIf="r.avatarUrl" [src]="r.avatarUrl" alt="">
+        <i class="material-icons" *ngIf="!r.avatarUrl">person</i>
+      </div>
+
+      <div class="rec-body">
+        <div class="rec-top">
+          <span class="rec-name">{{ r.username }}</span>
+          <span class="rec-when">{{ r.dayLabel }}</span>
+        </div>
+        <div class="rec-what">{{ r.exerciceName }}</div>
+      </div>
+
+      <div class="rec-num">
+        <span class="rec-kg num">{{ r.weight }}<em>kg</em></span>
+        <span class="rec-delta num">+{{ r.weight - r.prevWeight }}</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SEKCIJA 3 — rang po vježbi -->
+<section class="sec sec-board">
+  <div class="sec-head">
+    <h2 class="eyebrow">Rang po vježbi</h2>
+  </div>
+
+  <button type="button" class="pick-field" [disabled]="loadingExercices"
+          (click)="showPicker = true">
+    <img *ngIf="selectedExercice?.picture"
+         [src]="pictureUrl(selectedExercice!.picture)" [alt]="selectedExercice!.name">
+    <span class="pf-ph" *ngIf="!selectedExercice?.picture">
+      <i class="material-icons">fitness_center</i>
+    </span>
+    <span class="pf-name" [class.empty-choice]="!selectedExercice">
+      {{ selectedExercice ? selectedExercice.name : 'Izaberi vježbu' }}
+    </span>
+    <i class="material-icons">expand_more</i>
+  </button>
+
+  <div class="period-switch" *ngIf="selectedExerciceId">
+    <button type="button" *ngFor="let p of periods"
+            [class.on]="period === p.days" (click)="setPeriod(p.days)">
+      {{ p.label }}
+    </button>
+  </div>
+
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+  <p *ngIf="!selectedExerciceId && !loadingExercices" class="empty">
+    Izaberi vježbu da vidiš ko vodi.
+  </p>
+
+  <p *ngIf="loading" class="empty">Učitavanje...</p>
+
+  <ng-container *ngIf="selectedExerciceId && !loading && !errorMessage">
+
+    <p *ngIf="!hasResults" class="empty">
+      Niko nije radio ovu vježbu u izabranom periodu.
+    </p>
+
+    <ng-container *ngIf="hasResults">
+
+      <!-- Podijum -->
+      <div class="podium" [class.duo]="podiumOrder.length === 2"
+           [class.solo]="podiumOrder.length === 1">
+        <div class="spot" *ngFor="let e of podiumOrder; trackBy: trackEntry"
+             [attr.data-rank]="e.rank"
+             [class.me]="e.userId === currentUserId"
+             [style.animation-delay.ms]="e.rank === 1 ? 120 : e.rank === 2 ? 0 : 240">
+
+          <i class="crown material-icons" *ngIf="e.rank === 1">workspace_premium</i>
+
+          <div class="avatar lg">
+            <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
+            <i class="material-icons" *ngIf="!e.avatarUrl">person</i>
+          </div>
+
+          <span class="spot-name">{{ e.username }}</span>
+          <span class="spot-kg num">{{ e.weight }}<em>kg</em></span>
+          <span class="spot-sub num">×{{ e.reps }} · {{ e.times }}×</span>
+
+          <div class="block" [style.height.px]="blockHeight(e)">
+            <span class="place num">{{ e.rank }}</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="gap" *ngIf="myGap">
+        Do prvog mjesta ti fali <strong class="num">{{ myGap.behind }} kg</strong>.
+      </p>
+
+      <!-- Puna lista -->
+      <div class="rank-list">
+        <div class="rank-row" *ngFor="let e of entries; let i = index; trackBy: trackEntry"
+             [attr.data-rank]="e.rank"
+             [class.me]="e.userId === currentUserId"
+             [class.blank]="e.weight === null"
+             [style.animation-delay.ms]="360 + i * 55">
+
+          <span class="place num">{{ e.rank ?? '–' }}</span>
+
+          <div class="avatar sm">
+            <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
+            <i class="material-icons" *ngIf="!e.avatarUrl">person</i>
+          </div>
+
+          <div class="rank-body">
+            <div class="rank-top">
+              <span class="rank-name">{{ e.username }}</span>
+              <span class="rank-you" *ngIf="e.userId === currentUserId">ti</span>
+            </div>
+            <div class="bar-track">
+              <span class="bar" [style.width.%]="barWidth(e)"></span>
+            </div>
+          </div>
+
+          <div class="rank-num" *ngIf="e.weight !== null">
+            <span class="rank-kg num">{{ e.weight }}<em>kg</em></span>
+            <span class="rank-sub num">×{{ e.reps }} · {{ e.times }}×</span>
+          </div>
+
+          <div class="rank-num" *ngIf="e.weight === null">
+            <span class="rank-kg none">—</span>
+            <span class="rank-sub">bez upisa</span>
+          </div>
+        </div>
       </div>
 
     </ng-container>
-
-  </div>
-</div>
+  </ng-container>
+</section>
 
 <app-exercice-picker
   *ngIf="showPicker"
   title="Izaberi vježbu"
-  note="Rang lista se računa za izabranu vježbu."
+  note="Rang se računa po najvećoj podignutoj kilaži u izabranom periodu."
   [groups]="pickerGroups"
   [selectedId]="selectedExerciceId"
   (pick)="onPick($event)"
