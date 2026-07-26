@@ -1,124 +1,343 @@
-<div class="training-wrapper">
-  <div class="training-container">
+<p *ngIf="loading" class="empty">Učitavanje...</p>
+<p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 
-    <p *ngIf="loading">Učitavanje...</p>
-    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+<ng-container *ngIf="!loading && session">
 
-    <ng-container *ngIf="!loading && !errorMessage">
+  <div class="training-header">
+    <div class="day-id">
+      <span class="day-name">{{ session.dayLabel }}</span>
+      <span class="day-sep" *ngIf="session.dayTypeName">·</span>
+      <span class="day-type" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
+      <span class="plan-name">{{ session.planName }}</span>
+    </div>
+    <div class="header-right">
+      <button type="button" class="reorder-btn" *ngIf="!reordering"
+              (click)="openAdd()" title="Dodaj vježbu za danas">
+        <i class="material-icons">add</i>
+        Dodaj
+      </button>
+      <button type="button" class="reorder-btn" [class.on]="reordering"
+              *ngIf="!isRestDay" (click)="toggleReorder()">
+        <i class="material-icons">{{ reordering ? 'done' : 'swap_vert' }}</i>
+        {{ reordering ? 'Gotovo' : 'Preuredi' }}
+      </button>
+    </div>
+  </div>
 
-      <div class="training-header">
-        <h2>{{ plan.name }}</h2>
-        <div class="day-badges">
-          <span class="day-badge">{{ todayDayName }}</span>
-          <span class="day-type-badge" *ngIf="todayWorkoutDay?.day_type?.name">{{ todayWorkoutDay.day_type.name }}</span>
+  <div class="reorder-hint" *ngIf="reordering">
+    <p>
+      Vrijedi samo za današnji trening. Ako ti se novi raspored svidi, promijeni ga
+      u planu (Planovi → Izmijeni) pa vrijedi za svaki sljedeći put.
+    </p>
+    <button type="button" class="reset-order" [disabled]="reorderSaving" (click)="resetOrder()">
+      <i class="material-icons">restart_alt</i>
+      Vrati po planu
+    </button>
+  </div>
+
+  <div class="finished-bar" *ngIf="isFinished">
+    <i class="material-icons">check_circle</i>
+    <span class="fb-text">
+      Trening završen
+      <small *ngIf="totalSets">· {{ totalSets }} {{ totalSets === 1 ? 'serija' : 'serija' }}</small>
+    </span>
+    <button type="button" class="fb-reopen" [disabled]="finishing" (click)="reopenTraining()">
+      Otvori ponovo
+    </button>
+  </div>
+
+  <div class="rest-day" *ngIf="isRestDay">
+    <p>Danas je rest day.</p>
+    <button type="button" class="btn-ghost" (click)="openAdd()">Ipak treniram</button>
+  </div>
+
+  <div class="exercice-list" *ngIf="!isRestDay">
+    <div class="exercice-row" #exRow
+         *ngFor="let ex of exercices; trackBy: trackById"
+         [class.done]="isComplete(ex)"
+         [class.moved]="selectedId === ex.id"
+         (click)="onRowClick(ex)">
+
+      <div class="exercice-main">
+        <div class="exercice-info">
+          <div class="exercice-name-row">
+            <span class="pos num" *ngIf="reordering">{{ ex.orderNum }}</span>
+            <span class="exercice-name">{{ ex.name }}</span>
+
+            <!-- Lični rekord: jedan po vježbi, ne po seriji -->
+            <span class="pr" *ngIf="ex.isPr" [class.celebrate]="ex.celebrating"
+                  [title]="'Novi lični rekord — prošli najbolji ' + ex.previousBest + 'kg'">
+              <!-- Query parametar tjera pregledač da animaciju odsvira ispočetka;
+                   bez njega bi drugi rekord u istom treningu zatekao već
+                   odvrćen snimak i ništa se ne bi vidjelo. -->
+              <img class="pr-burst" *ngIf="ex.celebrating" alt=""
+                   [src]="'assets/animation/flame-burst.webp?v=' + ex.celebrateKey">
+              <i class="material-icons">local_fire_department</i>
+              <span class="pr-text num">{{ todayBest(ex) }}<small>kg</small></span>
+            </span>
+
+            <span class="tag swapped" *ngIf="ex.replacedName" [title]="'Umjesto: ' + ex.replacedName">
+              umjesto {{ ex.replacedName }}
+            </span>
+            <span class="tag extra" *ngIf="ex.isExtra">dodano</span>
+          </div>
+
+          <div class="exercice-meta" *ngIf="!reordering">
+            <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
+            <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
+          </div>
+        </div>
+
+        <div class="exercice-actions" *ngIf="!reordering && !isFinished">
+          <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
+            {{ ex.showLogForm ? 'Otkaži' : 'Upiši' }}
+          </button>
+
+          <button type="button" class="icon-btn" (click)="toggleMenu(ex)" aria-label="Opcije">
+            <i class="material-icons">more_vert</i>
+          </button>
+        </div>
+
+        <div class="move-actions" *ngIf="reordering">
+          <button type="button" class="icon-btn" [disabled]="isFirst(ex)"
+                  (click)="move(ex, -1); $event.stopPropagation()" aria-label="Pomjeri gore">
+            <i class="material-icons">keyboard_arrow_up</i>
+          </button>
+          <button type="button" class="icon-btn" [disabled]="isLast(ex)"
+                  (click)="move(ex, 1); $event.stopPropagation()" aria-label="Pomjeri dolje">
+            <i class="material-icons">keyboard_arrow_down</i>
+          </button>
         </div>
       </div>
 
-      <div class="rest-day" *ngIf="isRestDay">
-        <p>Danas je rest day. Odmori se!</p>
+      <!-- Meni vježbe: sve što se odnosi SAMO na današnji trening.
+           Uvijek u DOM-u, otvara se prelazom visine — zato se ne "trza". -->
+      <div class="ex-menu-wrap" [class.open]="ex.menuOpen">
+        <div class="ex-menu">
+          <button type="button" (click)="openSwap(ex, 'replace')">
+            <i class="material-icons">swap_horiz</i> Zamijeni za danas
+          </button>
+          <button type="button" (click)="openTargets(ex)">
+            <i class="material-icons">tune</i> Serije i ponavljanja
+          </button>
+          <button type="button" (click)="goToLeaderboard(ex)">
+            <i class="material-icons">leaderboard</i> Rang lista
+          </button>
+          <button type="button" (click)="goToProgress(ex)">
+            <i class="material-icons">trending_up</i> Progres
+          </button>
+          <button type="button" class="danger" (click)="removeExercice(ex)">
+            <i class="material-icons">remove_circle_outline</i> Ukloni iz treninga
+          </button>
+        </div>
       </div>
 
-      <div class="exercice-list" *ngIf="!isRestDay">
-        <div class="exercice-row" *ngFor="let ex of todayExercices">
+      <!-- Serije: današnje pune, prošle kao duh -->
+      <div class="sets" *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
+        <ng-container *ngFor="let set of ex.loggedSets">
 
-          <div class="exercice-main">
-            <div class="exercice-info">
-              <div class="exercice-name-row">
-                <span class="exercice-name">{{ ex.name }}</span>
-                <i
-                  class="material-icons history-icon"
-                  title="Prošli rezultati"
-                  (click)="openPreviousModal(ex)"
-                >history</i>
-              </div>
-              <span class="exercice-target">{{ ex.targetSets }} x {{ ex.targetReps }}</span>
-            </div>
-            <div class="exercice-actions">
-              <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
-                {{ ex.showLogForm ? 'Otkaži' : 'Upiši rezultat' }}
-              </button>
-              <i
-                class="material-icons leaderboard-icon"
-                title="Leaderboard"
-                (click)="goToLeaderboard(ex)"
-              >leaderboard</i>
-              <i
-                class="material-icons leaderboard-icon"
-                title="Progres"
-                (click)="goToProgress(ex)"
-              >moving</i>
-            </div>
-          </div>
+          <button type="button" class="set" *ngIf="!set.editing" [disabled]="isFinished"
+                  [class.up]="set.delta === 'up'"
+                  [class.down]="set.delta === 'down'"
+                  [title]="set.prevLabel ?? 'Prvi put ova serija'"
+                  (click)="startEditSet(set)">
+            <span class="set-n num">{{ set.setNumber }}</span>
 
-          <div class="logged-sets" *ngIf="ex.loggedSets.length > 0">
-            <ng-container *ngFor="let set of ex.loggedSets">
+            <!-- Naglašava se BAŠ ono što se promijenilo, da se iz "95kg × 11"
+                 vidi je li porasla kilaža ili broj ponavljanja. -->
+            <span class="set-v num">
+              <span class="part"
+                    [class.up]="set.weightDelta === 'up'"
+                    [class.down]="set.weightDelta === 'down'">{{ set.weight }}<small>kg</small></span><span
+                    class="times">×</span><span class="part"
+                    [class.up]="set.repsDelta === 'up'"
+                    [class.down]="set.repsDelta === 'down'">{{ set.reps }}</span>
+            </span>
 
-              <button type="button" class="logged-set" *ngIf="!set.editing" (click)="startEditSet(set)">
-                Set {{ set.setNumber }}: {{ set.reps }} x {{ set.weight }}kg
-              </button>
+            <i class="material-icons arrow" *ngIf="set.delta === 'up'"
+               title="Bolje nego prošli put">arrow_upward</i>
+            <i class="material-icons arrow" *ngIf="set.delta === 'down'"
+               title="Slabije nego prošli put">arrow_downward</i>
+          </button>
 
-              <div class="edit-set-form" *ngIf="set.editing">
-                <span class="set-label">Set {{ set.setNumber }}</span>
-                <input type="number" [(ngModel)]="set.editReps" min="1" placeholder="Ponavljanja" />
-                <input type="number" [(ngModel)]="set.editWeight" min="2.5" max="500" step="0.5" placeholder="Kilaža (kg)" />
-                <button
-                  type="button"
-                  class="save-log-btn"
-                  [disabled]="set.saving || set.editReps == null || set.editWeight == null || set.editWeight < 2.5 || set.editWeight > 500"
-                  (click)="saveEditSet(set)"
-                >
-                  {{ set.saving ? 'Čuvam...' : 'Sačuvaj' }}
-                </button>
-                <button type="button" class="cancel-edit-btn" (click)="cancelEditSet(set)">Otkaži</button>
-              </div>
-
-            </ng-container>
-          </div>
-
-          <div class="log-form" *ngIf="ex.showLogForm">
-            <span class="set-label">Set {{ ex.loggedSets.length + 1 }}</span>
-            <input type="number" [(ngModel)]="ex.repsInput" min="1" placeholder="Ponavljanja" />
-            <input type="number" [(ngModel)]="ex.weightInput" min="2.5" max="500" step="0.5" placeholder="Kilaža (kg)" />
-            <button
-              type="button"
-              class="save-log-btn"
-              [disabled]="ex.saving || ex.repsInput == null || ex.weightInput == null || ex.weightInput < 2.5 || ex.weightInput > 500"
-              (click)="saveLog(ex)"
-            >
-              {{ ex.saving ? 'Čuvam...' : 'Sačuvaj' }}
+          <div class="set-edit" *ngIf="set.editing">
+            <span class="set-n num">{{ set.setNumber }}</span>
+            <input type="number" [(ngModel)]="set.editWeight" step="0.5" placeholder="kg" />
+            <input type="number" [(ngModel)]="set.editReps" min="1" placeholder="pon." />
+            <button type="button" class="mini save" [disabled]="set.saving" (click)="saveEditSet(ex, set)">
+              <i class="material-icons">check</i>
+            </button>
+            <button type="button" class="mini" (click)="cancelEditSet(set)">
+              <i class="material-icons">close</i>
+            </button>
+            <button type="button" class="mini danger" [disabled]="set.saving" (click)="deleteSet(ex, set)">
+              <i class="material-icons">delete_outline</i>
             </button>
           </div>
 
+        </ng-container>
+
+        <!-- Duh: serije prošlog treninga koje danas još nisu odrađene -->
+        <span class="set ghost" *ngFor="let g of ex.echo?.sets"
+              [class.hidden]="g.setNumber <= ex.loggedSets.length">
+          <span class="set-n num">{{ g.setNumber }}</span>
+          <span class="set-v num">{{ g.weight }}<small>kg</small> × {{ g.reps }}</span>
+        </span>
+      </div>
+
+      <!-- Upis: polja su predpunjena prošlim rezultatom -->
+      <div class="log-form" *ngIf="ex.showLogForm && !isFinished">
+        <span class="set-label">Serija {{ nextSetNumber(ex) }}</span>
+
+        <label class="field">
+          <input type="number" [(ngModel)]="ex.weightInput" step="0.5"
+                 [placeholder]="echoPlaceholder(ex, 'weight')" />
+          <span class="unit">kg</span>
+        </label>
+
+        <label class="field">
+          <input type="number" [(ngModel)]="ex.repsInput" min="1"
+                 [placeholder]="echoPlaceholder(ex, 'reps')" />
+          <span class="unit">pon.</span>
+        </label>
+
+        <button type="button" class="save-log-btn"
+                [disabled]="ex.saving || ex.repsInput == null || ex.weightInput == null"
+                (click)="saveLog(ex)">
+          {{ ex.saving ? '...' : 'Sačuvaj' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <button type="button" class="finish-btn"
+          *ngIf="!isRestDay && !isFinished && !reordering"
+          [disabled]="finishing || totalSets === 0"
+          (click)="finishTraining()">
+    <i class="material-icons">check</i>
+    {{ totalSets === 0 ? 'Upiši bar jednu seriju' : 'Trening gotov' }}
+  </button>
+
+</ng-container>
+
+<!-- Zamjena vježbe -->
+<div class="modal-overlay" *ngIf="showSwapModal" (click)="closeSwap()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <h3>{{ swapMode === 'replace' ? 'Zamijeni ' + swapTarget?.name : 'Dodaj vježbu' }}</h3>
+    <p class="modal-note">
+      {{ swapMode === 'replace'
+          ? 'Mijenja se samo današnji trening. Plan ostaje isti.'
+          : 'Vježba se dodaje samo u današnji trening. Plan ostaje isti.' }}
+    </p>
+
+    <div class="scope-switch" *ngIf="swapMode === 'add'">
+      <button type="button" [class.on]="swapScope === 'day'" (click)="setSwapScope('day')">
+        Za današnji dan
+      </button>
+      <button type="button" [class.on]="swapScope === 'all'" (click)="setSwapScope('all')">
+        Sve vježbe
+      </button>
+    </div>
+
+    <input type="text" [(ngModel)]="swapFilter" placeholder="Traži vježbu..." class="swap-search" />
+
+    <p *ngIf="swapLoading" class="empty">Učitavanje...</p>
+
+    <!-- Za današnji dan, ili zamjena: ravna lista, kratka je -->
+    <div class="swap-grid" *ngIf="!swapLoading && !(swapMode === 'add' && swapScope === 'all')">
+      <button type="button" class="swap-option" *ngFor="let o of filteredSwapOptions"
+              [disabled]="swapSaving" (click)="confirmSwap(o)">
+        <img *ngIf="o.picture" [src]="getPictureUrl(o.picture)" [alt]="o.name">
+        <span class="ph" *ngIf="!o.picture"><i class="material-icons">fitness_center</i></span>
+        <span class="swap-name">{{ o.name }}</span>
+      </button>
+
+      <p *ngIf="filteredSwapOptions.length === 0" class="empty">Nema vježbi za prikaz.</p>
+    </div>
+
+    <!-- Cijeli katalog: grupisan po mišićnim grupama -->
+    <div class="swap-groups" *ngIf="!swapLoading && swapMode === 'add' && swapScope === 'all'">
+      <div class="swap-group" *ngFor="let g of visibleGroups">
+        <h4 class="sg-name">{{ g.name }}</h4>
+        <div class="swap-grid">
+          <button type="button" class="swap-option" *ngFor="let o of g.items"
+                  [disabled]="swapSaving" (click)="confirmSwap(o)">
+            <img *ngIf="o.picture" [src]="getPictureUrl(o.picture)" [alt]="o.name">
+            <span class="ph" *ngIf="!o.picture"><i class="material-icons">fitness_center</i></span>
+            <span class="swap-name">{{ o.name }}</span>
+          </button>
         </div>
       </div>
 
-    </ng-container>
-
-    <button type="button" class="back-btn" (click)="goBack()">Nazad na dashboard</button>
-
+      <p *ngIf="visibleGroups.length === 0" class="empty">Nema vježbe s tim nazivom.</p>
+    </div>
   </div>
 </div>
 
-<div class="modal-overlay" *ngIf="showPreviousModal" (click)="closePreviousModal()">
-  <div class="modal-card" (click)="$event.stopPropagation()">
-    <h3>{{ previousModalExerciceName }}</h3>
+<!-- Serije i ponavljanja za ovaj trening -->
+<div class="modal-overlay" *ngIf="showTargetModal" (click)="closeTargets()">
+  <div class="modal-card target-modal" (click)="$event.stopPropagation()">
+    <h3>{{ targetTarget?.name }}</h3>
+    <p class="modal-note">Vrijedi samo za današnji trening.</p>
 
-    <p *ngIf="previousModalLoading">Učitavanje...</p>
-    <p *ngIf="previousModalError" class="error">{{ previousModalError }}</p>
+    <div class="target-fields">
+      <label>
+        Serije
+        <input type="number" [(ngModel)]="targetSetsInput" min="1" />
+      </label>
+      <label>
+        Ponavljanja
+        <input type="number" [(ngModel)]="targetRepsInput" min="1" />
+      </label>
+    </div>
 
-    <ng-container *ngIf="!previousModalLoading && !previousModalError">
-      <p *ngIf="!previousModalDate" class="previous-empty">Nema ranijih rezultata za ovu vežbu.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" (click)="closeTargets()">Otkaži</button>
+      <button type="button" class="btn-primary" (click)="saveTargets()">Sačuvaj</button>
+    </div>
+  </div>
+</div>
 
-      <ng-container *ngIf="previousModalDate">
-        <p class="previous-date">{{ previousModalDate | date:'dd.MM.yyyy' }}</p>
-        <div class="previous-sets">
-          <span class="previous-set-badge" *ngFor="let s of previousModalSets">
-            Set {{ s.setNumber }}: {{ s.reps }} x {{ s.weight }}kg
-          </span>
-        </div>
-      </ng-container>
-    </ng-container>
+<!-- Sažetak po završetku treninga -->
+<div class="modal-overlay summary-overlay" *ngIf="showSummary && summary" (click)="closeSummary()">
+  <div class="summary-card" [attr.data-tone]="summary.tone" (click)="$event.stopPropagation()">
 
-    <button type="button" class="cancel-edit-btn" (click)="closePreviousModal()">Zatvori</button>
+    <div class="sum-icon">
+      <i class="material-icons">
+        {{ summary.tone === 'record' ? 'local_fire_department'
+         : summary.tone === 'progress' ? 'trending_up'
+         : summary.tone === 'steady' ? 'check_circle'
+         : summary.tone === 'down' ? 'trending_down' : 'done' }}
+      </i>
+    </div>
+
+    <h2 class="sum-headline">{{ summary.headline }}</h2>
+    <p class="sum-line">{{ summary.line }}</p>
+
+    <!-- Oboreni rekordi -->
+    <div class="sum-records" *ngIf="summary.records.length">
+      <div class="sum-record" *ngFor="let r of summary.records">
+        <i class="material-icons">local_fire_department</i>
+        <span class="rn">{{ r.name }}</span>
+        <span class="rw num">
+          <span class="prev" *ngIf="r.previous !== null">{{ r.previous }} →</span>
+          {{ r.weight }}<small>kg</small>
+        </span>
+      </div>
+    </div>
+
+    <!-- Ishod po vježbama -->
+    <div class="sum-rows" *ngIf="summary.rows.length">
+      <div class="sum-row" *ngFor="let r of summary.rows" [attr.data-outcome]="r.outcome">
+        <i class="material-icons">
+          {{ r.outcome === 'up' ? 'arrow_upward' : r.outcome === 'down' ? 'arrow_downward' : 'remove' }}
+        </i>
+        <span class="rn">{{ r.name }}</span>
+        <span class="rd">{{ r.detail }}</span>
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary sum-close" (click)="closeSummary()">Zatvori</button>
   </div>
 </div>

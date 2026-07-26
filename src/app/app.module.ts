@@ -16,6 +16,7 @@ import { LeaderboardComponent } from './components/leaderboard/leaderboard.compo
 import { ProfileComponent } from './components/profile/profile.component';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { BlogComponent } from './components/blog/blog.component';
+import { HeaderComponent } from './components/header/header.component';
 
 @NgModule({
   declarations: [
@@ -23,6 +24,7 @@ import { BlogComponent } from './components/blog/blog.component';
     DashboardComponent,
     LandingComponent,
     FooterComponent,
+    HeaderComponent,
     TrainingComponent,
     ExercicesComponent,
     LeaderboardComponent,

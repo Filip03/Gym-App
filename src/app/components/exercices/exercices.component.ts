@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
-import { MuscleGroup } from '../../models/models';
+import { Exercice, MuscleGroup } from '../../models/models';
 
 @Component({
   selector: 'app-exercices',
@@ -13,6 +13,11 @@ export class ExercicesComponent implements OnInit {
 
   groups: MuscleGroupWithExercices[] = [];
   muscleGroups: MuscleGroup[] = [];
+
+  // Detaljan prikaz jedne vježbe. Kartice u mreži su nužno tijesne — slika je
+  // mala a opis se odsijeca na tri reda — pa se puni sadržaj vidi tek ovdje.
+  detail: Exercice | null = null;
+  detailGroups: string[] = [];
 
   showCreateModal = false;
   creating = false;
@@ -42,6 +47,20 @@ export class ExercicesComponent implements OnInit {
     } finally {
       this.loading = false;
     }
+  }
+
+  openDetail(ex: Exercice) {
+    this.detail = ex;
+    // Vježba može pripadati većem broju grupa; skupljaju se iz već učitanih
+    // grupa umjesto novog upita.
+    this.detailGroups = this.groups
+      .filter(g => g.exercices.some(e => e.id === ex.id))
+      .map(g => g.name);
+  }
+
+  closeDetail() {
+    this.detail = null;
+    this.detailGroups = [];
   }
 
   openCreateModal() {

@@ -8,9 +8,16 @@ import { filter } from 'rxjs'
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent{
-  
+
  showLayout = true;
  showFooter = true;
+
+ // Ekrani sa mrežom (kartice jedna pored druge) traže više prostora na laptopu.
+ // Ekrani sa listom se čitaju bolje u uskoj koloni — red od 1100px je predaleko
+ // da oko prati od naziva vježbe do dugmeta.
+ wide = false;
+
+ private readonly wideRoutes = ['/dashboard', '/exercices', '/blog'];
 
   constructor(private router: Router) {
     this.router.events
@@ -27,8 +34,14 @@ export class AppComponent{
           '/register'
         ]
 
-        this.showLayout = !hiddenRoutes.includes(this.router.url);
-        this.showFooter = !hiddenRoutesFooter.includes(this.router.url);
+        // Poredi se samo putanja, bez query parametara i fragmenta. Otkad guard
+        // preusmjerava na "/login?redirect=...", puni router.url se više ne
+        // poklapa sa "/login" i footer bi se pojavio na ekranu za prijavu.
+        const path = this.router.url.split(/[?#]/)[0];
+
+        this.showLayout = !hiddenRoutes.includes(path);
+        this.showFooter = !hiddenRoutesFooter.includes(path);
+        this.wide = this.wideRoutes.includes(path);
       });
   }
 }

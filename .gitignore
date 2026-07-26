@@ -40,3 +40,21 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Claude Code — agenti i CLAUDE.md se commit-uju, lokalne dozvole ne
+.claude/settings.local.json
+
+# Supabase — migracije, seed i config.toml SE commit-uju (to je cijela poenta);
+# ignoriše se samo lokalno stanje CLI-ja
+supabase/.temp/
+supabase/.branches/
+
+# Produkcijski dump baze NIKAD ne ide u git (emailovi + hashevi lozinki,
+# a repo je javan). Vidi docs/03-SIGURNOST.md
+*dump.sql
+database/
+
+# Registar sigurnosnih rupa — NE objavljivati dok su rupe otvorene.
+# Repo je javan, a sistem koji dokument opisuje je živ i nezaštićen.
+# Dijeli se direktno između saradnika. Vidi docs/03-SIGURNOST.PROCITAJ.md
+docs/03-SIGURNOST.md

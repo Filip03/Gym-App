@@ -1,18 +1,7 @@
-*, *::before, *::after {
-    box-sizing: border-box;
-}
+// Globalni stilovi. Redoslijed je bitan: fontovi → tokeni → osnova.
+// Komponente ne smiju pisati sirove boje ni font-family — sve ide kroz
+// varijable iz styles/_tokens.scss. Vidi docs/08-KONVENCIJE.md.
 
-html, body, app-root{
-    margin:0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-}
-
-body {
-  background-image: url('/assets/background.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
-}
+@use 'styles/fonts';
+@use 'styles/tokens';
+@use 'styles/base';

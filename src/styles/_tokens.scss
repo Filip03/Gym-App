@@ -1,0 +1,140 @@
+// ---------------------------------------------------------------------------
+// DIZAJN TOKENI
+//
+// Jedini izvor istine za boje, tipografiju, razmake i pokret.
+// Nijedna komponenta ne smije pisati sirovu hex vrijednost ni "greenyellow" —
+// sve ide kroz ove varijable.
+//
+// Koncept: aplikacija se koristi u teretani, jednom rukom, između serija, sa
+// telefonom u znojavoj ruci i lošim svjetlom. Zato je izgled instrumentalna
+// tabla, a ne obrazac: brojevi su glavni, kontrole su krupne, kontrast je visok.
+// ---------------------------------------------------------------------------
+
+:root {
+
+  // --- Boje: površine -------------------------------------------------------
+  // Nisu čisto crne. Čisto crno uz bijeli tekst pravi treperenje na OLED-u i
+  // "vibrira" pri skrolu; hladno tamnoplava podloga je mirnija.
+  --void:        #06080B;   // podloga stranice
+  --carbon:      #0C1117;   // kartica, panel
+  --carbon-high: #131A22;   // podignuta površina (modal, aktivno stanje)
+  --steel:       #1B242E;   // ivica, razdjelnik
+
+  // --- Boje: akcenat --------------------------------------------------------
+  // Naslijeđeni greenyellow (#ADFF2F) je zadržan kao identitet, ali smiren:
+  // spušten u zeleno i pojačan u zasićenju da bi bio čitljiv na tamnom i da ne
+  // "gori" pored bijelog teksta.
+  --volt:        #C6FF3B;
+  --volt-soft:   #9BD22E;   // hover / manje bitna stanja
+  --volt-ink:    #080D02;   // tekst NA volt podlozi
+  --volt-a10:    rgba(198, 255, 59, 0.10);
+  --volt-a20:    rgba(198, 255, 59, 0.20);
+  --volt-a40:    rgba(198, 255, 59, 0.40);
+
+  // --- Boje: tekst ----------------------------------------------------------
+  --ice:         #E9F1F8;   // primarni tekst (hladno bijela, ne #FFF)
+  --mist:        #8B9AAB;   // sekundarni
+  --dust:        #566575;   // tercijarni, onemogućeno
+  --echo:        #3A4652;   // "duh" prošlog treninga — vidi potpis dizajna
+
+  // --- Boje: značenje -------------------------------------------------------
+  --ember:       #FF6B5C;   // greška, destruktivno
+  --ember-a15:   rgba(255, 107, 92, 0.15);
+  --gold:        #FFC94A;   // rekord, prvo mjesto
+  --silver:      #C4D0DC;
+  --bronze:      #D08B5B;
+
+  // --- Ivice ----------------------------------------------------------------
+  --line:        rgba(233, 241, 248, 0.09);
+  --line-strong: rgba(233, 241, 248, 0.16);
+
+  // --- Tipografija ----------------------------------------------------------
+  // Chakra Petch: uglat, tehnički — naslovi i brojevi u fokusu.
+  // IBM Plex Sans: mirna radna površina za tekst.
+  // IBM Plex Mono: podaci u tabelama i serijama, tabularne cifre da se kolone
+  // ne pomjeraju dok se brojevi mijenjaju.
+  --font-display: 'Chakra Petch', 'IBM Plex Sans', system-ui, sans-serif;
+  --font-body:    'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-data:    'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  // Skala: 1.25 (velika terca). Naslovi se skaliraju sa širinom ekrana.
+  --t-2xs:  0.6875rem;  // 11px — oznake, mjerne jedinice
+  --t-xs:   0.75rem;    // 12px
+  --t-sm:   0.8125rem;  // 13px
+  --t-base: 0.9375rem;  // 15px — osnovni tekst
+  --t-md:   1.0625rem;  // 17px
+  --t-lg:   clamp(1.25rem, 1rem + 1.2vw, 1.5rem);
+  --t-xl:   clamp(1.5rem, 1.1rem + 2vw, 2rem);
+  --t-2xl:  clamp(1.875rem, 1.3rem + 2.8vw, 2.75rem);
+
+  --lh-tight: 1.15;
+  --lh-snug:  1.35;
+  --lh-body:  1.55;
+
+  --ls-tight: -0.015em;
+  --ls-wide:   0.08em;   // za oznake u verzalu
+  --ls-wider:  0.14em;
+
+  // --- Razmaci: skala od 4px ------------------------------------------------
+  --s-1:  0.25rem;
+  --s-2:  0.5rem;
+  --s-3:  0.75rem;
+  --s-4:  1rem;
+  --s-5:  1.25rem;
+  --s-6:  1.5rem;
+  --s-8:  2rem;
+  --s-10: 2.5rem;
+  --s-12: 3rem;
+  --s-16: 4rem;
+
+  // --- Radijusi -------------------------------------------------------------
+  --r-sm:   8px;
+  --r-md:   14px;
+  --r-lg:   20px;
+  --r-xl:   28px;
+  --r-full: 999px;
+
+  // --- Visina slojeva -------------------------------------------------------
+  // Sjenke su tamne i meke; "podignutost" nose obrub i unutrašnji odsjaj,
+  // ne bijela sjenka (naslijeđeni `box-shadow: 0 3px 10px white` je pravio
+  // efekat izgorjelog ekrana).
+  --lift-1: 0 1px 2px rgba(0,0,0,.4), inset 0 1px 0 rgba(233,241,248,.04);
+  --lift-2: 0 8px 24px -8px rgba(0,0,0,.6), inset 0 1px 0 rgba(233,241,248,.05);
+  --lift-3: 0 24px 64px -16px rgba(0,0,0,.75), inset 0 1px 0 rgba(233,241,248,.06);
+  --glow:   0 0 0 1px var(--volt-a40), 0 0 24px -4px var(--volt-a20);
+
+  // --- Pokret ---------------------------------------------------------------
+  // Jedan skup krivih kroz cijelu aplikaciju. `spring` ima blagi prebačaj —
+  // koristi se samo tamo gdje se nešto "otvara u mjestu" (Dynamic Island
+  // osjećaj), nikad na bojama i nikad na više elemenata odjednom.
+  --ease:        cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+
+  --d-fast:  120ms;
+  --d-base:  200ms;
+  --d-slow:  320ms;
+  --d-slower: 520ms;
+
+  // --- Raspored -------------------------------------------------------------
+  --header-h: 86px;
+  --footer-h: 64px;
+  // Aplikacija je prvenstveno za telefon. Na laptopu se lista drži uske kolone
+  // (oko ne prati red od 1100px), a mreža kartica dobija više prostora.
+  --page-max:  720px;
+  --page-wide: 1120px;
+
+  // Sigurna zona iPhone-a — bez ovoga footer upada u traku za gestove.
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+// Poštuj sistemsku postavku za smanjen pokret.
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-fast: 1ms;
+    --d-base: 1ms;
+    --d-slow: 1ms;
+    --d-slower: 1ms;
+  }
+}
