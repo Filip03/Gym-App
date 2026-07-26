@@ -12,6 +12,7 @@ kako sistem radi, bez čitanja diffova.
 | Došao da pokreneš app | `07-LOCAL-SETUP.md` |
 | Autor originalnog koda | `06-CHANGELOG.md` → `04-ROADMAP.md` |
 | Došao da pišeš kod | `08-KONVENCIJE.md` → `02-STANJE-KODA.md` |
+| Ne znaš koju komandu pokrenuti | `09-KOJU-KOMANDU-KADA.md` |
 
 ## Sadržaj
 
@@ -26,6 +27,7 @@ kako sistem radi, bez čitanja diffova.
 | `06-CHANGELOG.md` | Svaka izmjena: šta / gdje / zašto / efekat |
 | `07-LOCAL-SETUP.md` | Pokretanje lokalno, korak po korak |
 | `08-KONVENCIJE.md` | Kodni standardi, dizajn tokeni, pravila imenovanja |
+| `09-KOJU-KOMANDU-KADA.md` | Koju komandu kada — lokalno, cloud, deploy, migracije |
 
 ## Kako se dokumentacija održava
 
