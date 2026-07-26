@@ -31,7 +31,10 @@
           </div>
           <div class="stat">
             <span class="stat-label">Težina</span>
-            <span class="stat-value">{{ profile.weight ?? '-' }} kg</span>
+            <span class="stat-value-row">
+              <span class="stat-value">{{ profile.weight ?? '-' }} kg</span>
+              <i class="material-icons chart-icon" title="Progres težine" (click)="openWeightModal()">insights</i>
+            </span>
           </div>
         </div>
       </div>
@@ -266,3 +269,78 @@
   (pick)="onPick($event)"
   (dismiss)="showPicker = false">
 </app-exercice-picker>
+
+<!-- Tjelesna težina — Filipova funkcija sa `main` grane.
+     Zadržana pri spajanju; prilagođen samo izgled, logika je njegova. -->
+<div class="modal-overlay" *ngIf="showWeightModal" (click)="closeWeightModal()">
+  <div class="modal-card weight-card" (click)="$event.stopPropagation()">
+
+    <header class="wm-head">
+      <div>
+        <h3>Težina</h3>
+        <p class="wm-note">Upiši povremeno da vidiš kretanje kroz vrijeme.</p>
+      </div>
+      <button type="button" class="wm-close" (click)="closeWeightModal()" aria-label="Zatvori">
+        <i class="material-icons">close</i>
+      </button>
+    </header>
+
+    <form class="wm-form" (ngSubmit)="submitWeightLog()">
+      <div class="wm-field">
+        <label for="weightDate">Datum</label>
+        <input id="weightDate" type="date" name="weightDate" [(ngModel)]="newWeightDate" required>
+      </div>
+      <div class="wm-field">
+        <label for="weightValue">Težina (kg)</label>
+        <input id="weightValue" type="number" name="weightValue" [(ngModel)]="newWeightValue"
+               min="0" step="0.1" required>
+      </div>
+      <button type="submit" class="btn-primary wm-submit" [disabled]="loggingWeight">
+        {{ loggingWeight ? 'Čuvam...' : 'Upiši' }}
+      </button>
+    </form>
+
+    <p *ngIf="logWeightError" class="error">{{ logWeightError }}</p>
+    <p *ngIf="weightLoading" class="empty">Učitavanje...</p>
+    <p *ngIf="weightError" class="error">{{ weightError }}</p>
+    <p *ngIf="!weightLoading && !weightError && weightHistory.length === 0" class="empty">
+      Još nema upisane težine.
+    </p>
+
+    <div class="chart-wrapper" *ngIf="weightChartPoints.length > 0">
+      <svg [attr.width]="weightChartWidth" [attr.height]="chartHeight"
+           [attr.viewBox]="'0 0 ' + weightChartWidth + ' ' + chartHeight"
+           class="progress-chart">
+        <defs>
+          <linearGradient id="weightAreaGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#C6FF3B" stop-opacity="0.30" />
+            <stop offset="100%" stop-color="#C6FF3B" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+
+        <g *ngFor="let grid of weightYGridLines">
+          <line [attr.x1]="chartPaddingLeft" [attr.x2]="weightChartWidth - chartPaddingRight"
+                [attr.y1]="grid.y" [attr.y2]="grid.y" class="grid-line" />
+          <text [attr.x]="chartPaddingLeft - 8" [attr.y]="grid.y + 4"
+                text-anchor="end" class="grid-label">{{ grid.label }}</text>
+        </g>
+
+        <path [attr.d]="weightAreaPath" fill="url(#weightAreaGradient)" stroke="none" />
+        <polyline [attr.points]="weightChartLinePoints" class="progress-line me" />
+
+        <g *ngFor="let point of weightChartPoints">
+          <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
+            {{ point.weight }} kg
+          </text>
+          <circle [attr.cx]="point.x" [attr.cy]="point.y" r="5" class="progress-point me">
+            <title>{{ point.dateLabel }} — {{ point.weight }}kg</title>
+          </circle>
+        </g>
+
+        <text *ngFor="let tick of weightXAxisLabels"
+              [attr.x]="tick.x" [attr.y]="chartHeight - chartPaddingBottom + 18"
+              text-anchor="middle" class="date-label">{{ tick.label }}</text>
+      </svg>
+    </div>
+  </div>
+</div>

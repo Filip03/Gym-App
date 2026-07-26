@@ -1,427 +1,358 @@
-.profile-wrapper {
-  display: flex;
-  justify-content: center;
-  padding: 40px 20px;
-}
+// ---------------------------------------------------------------------------
+// PROFIL
+//
+// Posljednji ekran koji je nosio zatečeni stil: obrub `2px solid greenyellow`,
+// `box-shadow: 0 3px 10px white` i fiksna širina od 600px. Bijela sjenka je na
+// tamnoj podlozi davala efekat izgorjelog ekrana, a zeleni obrub je bio jedina
+// stvar koja je vikala na ekranu.
+//
+// Sada isti tokeni kao ostatak aplikacije: panel bez obruba u boji, brojevi u
+// monospace-u, akcenat samo tamo gdje nešto znači.
+// ---------------------------------------------------------------------------
+
+:host { display: block; }
+
+.profile-wrapper { display: block; }
 
 .profile-container {
   position: relative;
-  box-sizing: border-box;
-  width: 600px;
-  max-width: 100%;
-  border: 2px solid greenyellow;
-  border-radius: 30px;
-  box-shadow: 0 3px 10px white;
-  backdrop-filter: blur(5px);
-  padding: 2rem;
-  color: white;
+  width: 100%;
+  padding: var(--s-5) var(--s-5) var(--s-6);
+
+  background: color-mix(in srgb, var(--carbon) 92%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
 }
+
+// Ista linija sa volt segmentom kao na ekranu „Ekipa" — panel se time čita kao
+// instrument, a ne kao kartica.
+.profile-container::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: var(--s-5);
+  width: 44px;
+  height: 2px;
+  background: var(--volt);
+  border-radius: var(--r-full);
+  box-shadow: 0 0 12px -2px var(--volt);
+}
+
+// --- Avatar ----------------------------------------------------------------
 
 .avatar-circle {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
+  top: var(--s-5);
+  right: var(--s-5);
+
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  color: var(--dust);
+
+  transition: border-color var(--d-base) var(--ease);
 }
 
-.avatar-circle.clickable {
-  cursor: pointer;
-  border-color: greenyellow;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
+.avatar-circle.clickable { cursor: pointer; }
+.avatar-circle:hover { border-color: var(--volt-a40); }
 
-.avatar-circle.clickable:hover {
-  transform: scale(1.05);
-  background: rgba(173, 255, 47, 0.1);
-}
+.avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-placeholder { font-size: 26px; }
 
-.avatar-circle img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-placeholder {
-  color: greenyellow;
-  font-size: 2rem;
-}
-
+// Olovka preko slike, vidljiva tek na dodir/hover — inače stalno stoji preko
+// lica na profilnoj.
 .avatar-overlay {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  color: greenyellow;
+  display: grid;
+  place-items: center;
+  background: rgba(6, 8, 11, .6);
+  color: var(--ice);
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--d-base) var(--ease);
 }
 
-.avatar-circle:hover .avatar-overlay {
-  opacity: 1;
-}
+.avatar-circle:hover .avatar-overlay { opacity: 1; }
+.avatar-overlay .material-icons { font-size: 20px; }
 
-.profile-info {
-  padding-right: 110px;
-}
+// --- Zaglavlje -------------------------------------------------------------
+
+.profile-info { padding-right: 88px; }   // mjesto za avatar
 
 .username-row {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.3rem;
+  gap: var(--s-2);
 }
 
-.profile-info h2 {
-  margin: 0;
-  color: greenyellow;
-  font-size: 1.9rem;
+.username-row h2 {
+  font-size: var(--t-xl);
+  color: var(--ice);
 }
 
 .edit-icon {
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  color: var(--dust);
   cursor: pointer;
-  font-size: 1.3rem;
-  transition: color 0.2s ease;
+  transition: color var(--d-fast) var(--ease);
 }
 
-.edit-icon:hover {
-  color: greenyellow;
-}
+.edit-icon:hover { color: var(--volt); }
 
 .email {
-  color: rgba(255, 255, 255, 0.7);
-  margin: 0 0 1.5rem;
-  font-size: 1rem;
+  margin-top: 2px;
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  color: var(--mist);
 }
 
 .stats-row {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--s-8);
+  margin-top: var(--s-5);
 }
 
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
+.stat { display: flex; flex-direction: column; gap: 2px; }
 
 .stat-label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color: var(--dust);
 }
 
 .stat-value {
-  font-size: 1.3rem;
+  font-family: var(--font-data);
+  font-size: var(--t-md);
   font-weight: 700;
-  color: white;
+  color: var(--ice);
 }
 
-.error {
-  color: #ff6b6b;
-}
-
-.edit-form {
-  padding-right: 110px;
+.stat-value-row {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  gap: var(--s-2);
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  flex: 1;
+// Otvara grafikon težine. Ikona, ne dugme — stoji uz sam broj na koji se odnosi.
+.chart-icon {
+  font-size: 18px;
+  color: var(--volt-soft);
+  cursor: pointer;
+  transition: color var(--d-fast) var(--ease), transform var(--d-fast) var(--ease);
 }
 
-.form-group label {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-}
+.chart-icon:hover { color: var(--volt); transform: scale(1.12); }
 
-.form-group input {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 0.6rem 0.8rem;
-  color: white;
-  font-size: 0.95rem;
-}
+// --- Izmjena profila -------------------------------------------------------
 
-.form-group input:focus {
-  outline: none;
-  border-color: greenyellow;
-}
+.edit-form { padding-right: 88px; }
+
+.form-group { margin-bottom: var(--s-4); }
 
 .form-group-row {
   display: flex;
-  gap: 1rem;
+  gap: var(--s-3);
 }
+
+.form-group-row .form-group { flex: 1; }
 
 .edit-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.edit-actions button {
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-weight: 600;
+  gap: var(--s-3);
 }
 
 .save-btn {
-  background: greenyellow;
-  color: black;
-}
-
-.save-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.cancel-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-}
-
-.progress-section {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.progress-section h3 {
-  color: greenyellow;
-  margin: 0 0 1rem;
-}
-
-.progress-section .exercice-select {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 1.25rem;
-}
-
-.progress-section .exercice-select label {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.progress-section .exercice-select select {
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 0.6rem 0.8rem;
-  color: white;
-  font-size: 0.95rem;
-}
-
-.no-entries {
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.chart-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(173, 255, 47, 0.2);
-  border-radius: 16px;
-  padding: 1.25rem 1rem;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.3), 0 4px 24px rgba(0, 0, 0, 0.35);
-}
-
-.progress-chart {
-  display: block;
-}
-
-.grid-line {
-  stroke: rgba(255, 255, 255, 0.25);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-}
-
-.grid-label {
-  fill: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
+  min-height: 42px;
+  padding: 0 var(--s-5);
+  background: var(--volt);
+  color: var(--volt-ink);
+  border-radius: var(--r-sm);
+  font-family: var(--font-display);
   font-weight: 700;
 }
 
-.progress-area.me {
-  fill: url(#progressAreaGradientMe);
-  stroke: none;
+.cancel-btn {
+  min-height: 42px;
+  padding: 0 var(--s-5);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--ice);
 }
 
-.progress-area.compare {
-  fill: url(#progressAreaGradientCompare);
-  stroke: none;
+.cancel-btn:hover { background: var(--carbon-high); }
+
+// --- Progres po vježbi -----------------------------------------------------
+
+.progress-section {
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
 }
+
+.progress-section h3,
+.cal-head h3 {
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  color: var(--volt);
+}
+
+.exercice-select { margin-top: var(--s-4); }
+
+.chart-wrapper {
+  margin-top: var(--s-4);
+  padding: var(--s-3) 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.progress-chart { display: block; }
+
+.grid-line { stroke: var(--line); stroke-width: 1; }
+
+.grid-label,
+.date-label,
+.reps-label {
+  font-family: var(--font-data);
+  font-size: 10px;
+  fill: var(--dust);
+}
+
+.reps-label { fill: var(--mist); }
 
 .progress-line {
   fill: none;
-  stroke-width: 2.5;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.progress-line.me {
-  stroke: #199e70;
-}
+.progress-line.me { stroke: var(--volt); }
+.progress-line.compare { stroke: var(--gold); stroke-dasharray: 5 4; }
 
-.progress-line.compare {
-  stroke: #e66767;
-  stroke-dasharray: 6 4;
-}
-
-.progress-point {
-  stroke: rgba(20, 20, 20, 0.9);
-  stroke-width: 1.5;
-  cursor: pointer;
-  transition: r 0.15s ease;
-}
-
-.progress-point.me {
-  fill: #199e70;
-  filter: drop-shadow(0 0 6px rgba(25, 158, 112, 0.85));
-}
-
-.progress-point.compare {
-  fill: #e66767;
-  filter: drop-shadow(0 0 6px rgba(230, 103, 103, 0.85));
-}
-
-.progress-point:hover {
-  r: 7;
-}
+.progress-point.me { fill: var(--volt); stroke: var(--void); stroke-width: 2; }
+.progress-point.compare { fill: var(--gold); stroke: var(--void); stroke-width: 2; }
 
 .chart-legend {
   display: flex;
-  gap: 1.25rem;
-  margin-bottom: 0.75rem;
+  gap: var(--s-4);
+  margin-top: var(--s-3);
+  font-size: var(--t-xs);
+  color: var(--mist);
 }
 
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.75);
-}
+.legend-item { display: flex; align-items: center; gap: var(--s-2); }
 
 .legend-dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
-  display: inline-block;
+  border-radius: var(--r-full);
 }
 
-.legend-dot.me {
-  background: #199e70;
-}
-
-.legend-dot.compare {
-  background: #e66767;
-}
-
-.reps-label {
-  fill: rgba(255, 255, 255, 0.85);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.date-label {
-  fill: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-  font-weight: 700;
-}
+.legend-dot.me { background: var(--volt); }
+.legend-dot.compare { background: var(--gold); }
 
 .set-filter {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
 }
 
 .set-filter-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.7);
-  border-radius: 8px;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  min-height: 34px;
+  padding: 0 var(--s-4);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  color: var(--mist);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
 }
 
-.set-filter-btn:hover {
-  border-color: greenyellow;
-  color: greenyellow;
-}
+.set-filter-btn:hover { border-color: var(--line-strong); color: var(--ice); }
 
 .set-filter-btn.active {
-  background: rgba(173, 255, 47, 0.15);
-  border-color: greenyellow;
-  color: greenyellow;
+  background: var(--volt-a20);
+  border-color: var(--volt);
+  color: var(--volt);
 }
 
-@media (max-width: 768px) {
-  .profile-container {
-    width: 95%;
-    padding: 1.25rem;
-    border-radius: 20px;
-  }
+.no-entries {
+  padding: var(--s-6) 0;
+  text-align: center;
+  font-size: var(--t-sm);
+  color: var(--dust);
+}
 
-  .avatar-circle {
-    width: 64px;
-    height: 64px;
-    top: 1rem;
-    right: 1rem;
-  }
+// --- Modal: težina ---------------------------------------------------------
 
-  .avatar-placeholder {
-    font-size: 1.4rem;
-  }
+.weight-card { max-width: 620px; }
 
-  .profile-info,
-  .edit-form {
-    padding-right: 80px;
-  }
+.wm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
 
-  .form-group-row {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
+.wm-head h3 { font-size: var(--t-lg); }
 
-  .profile-info h2 {
-    font-size: 1.4rem;
-  }
+.wm-note {
+  margin-top: var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--mist);
+}
 
-  .stats-row {
-    gap: 1rem;
-  }
+.wm-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-full);
+  background: var(--carbon-high);
+  color: var(--mist);
+}
 
-  .stat-value {
-    font-size: 1.1rem;
-  }
+.wm-close:hover { background: var(--steel); color: var(--ice); }
+
+.wm-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: var(--s-3);
+}
+
+.wm-submit { min-height: 46px; }
+
+// Na telefonu tri kolone daju polja od šezdesetak piksela; dugme ide u svoj red.
+@media (max-width: 520px) {
+  .wm-form { grid-template-columns: 1fr 1fr; }
+  .wm-submit { grid-column: 1 / -1; }
+}
+
+// --- Uski ekran ------------------------------------------------------------
+
+@media (max-width: 480px) {
+  .profile-container { padding-inline: var(--s-4); }
+
+  .avatar-circle { width: 58px; height: 58px; top: var(--s-4); right: var(--s-4); }
+  .profile-info, .edit-form { padding-right: 72px; }
+
+  .stats-row { gap: var(--s-6); }
+  .form-group-row { flex-direction: column; gap: 0; }
 }
 
 // ---------------------------------------------------------------------------

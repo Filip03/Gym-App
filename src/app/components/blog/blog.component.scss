@@ -56,6 +56,7 @@
 }
 
 .media-card {
+  position: relative;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 16px;
   overflow: hidden;
@@ -64,6 +65,19 @@
   line-height: 0; // sprečava sitan razmak ispod img/video zbog inline default-a
   cursor: pointer;
   transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.media-date {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  line-height: normal;
+  pointer-events: none;
 }
 
 .media-card:hover {
@@ -131,4 +145,12 @@
 .lightbox-close:hover {
   transform: scale(1.15);
   color: greenyellow;
+}
+
+.lightbox-date {
+  position: fixed;
+  top: 24px;
+  left: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
 }

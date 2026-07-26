@@ -14,7 +14,14 @@ html, body, app-root {
   min-height: 100%;
 }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+
+  // Nativne kontrole (birač datuma, klizači, trake za skrol) crtaju se po
+  // sistemskoj šemi. Bez ovoga polje `type="date"` ostaje bijelo usred tamnog
+  // modala, sa vlastitim tekstom koji se ne može obojiti CSS-om.
+  color-scheme: dark;
+}
 
 body {
   background-color: var(--void);

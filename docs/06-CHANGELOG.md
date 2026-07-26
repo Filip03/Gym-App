@@ -782,3 +782,81 @@ komponenta, što je i ranije zapisano kao dug.
 
 Datumi se svuda računaju u lokalnoj zoni pa pretvaraju u `YYYY-MM-DD`;
 `toISOString()` se ne koristi jer uveče vraća sjutrašnji dan.
+## [2026-07-26] Blog — prikazan datum postavljanja fajla
+**Tip:** funkcionalnost
+**Ref:** korisnički zahtjev
+
+**Problem:** Na blog stranici nije se vidjelo kad je neka slika/gif/video
+postavljen(a).
+
+**Rješenje:** Supabase Storage već sam bilježi `created_at` za svaki fajl u
+bucket-u, i `BlogService.listMedia()` ga je već čitao i sortirao po njemu
+(`blog.service.ts:23,37`) — samo se nikad nije prikazivao. Dodata oznaka datuma
+preko svake kartice u galeriji (donji lijevi ugao, kao mala pilula), i u
+fullscreen prikazu (lightbox) uz vrijeme.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/blog/blog.component.html:23,32` — dodat `.media-date`/
+  `.lightbox-date` span sa `date` pipe-om
+- `src/app/components/blog/blog.component.scss` — stilovi za oba
+
+**Efekat:** Svaka objava na blogu sad pokazuje datum kad je postavljena, i u
+galeriji i u fullscreen prikazu.
+
+**Napomene:** Datum je datum upload-a u Storage (`created_at` samog fajla), ne
+neko posebno polje koje bi korisnik mogao izmijeniti — nema tabele u bazi za
+blog objave, sve dolazi direktno iz bucket-a.
+
+---
+
+## [2026-07-26] Spajanje `main` grane — kompresija zadržana, rang lista naša
+**Tip:** infrastruktura
+**Ref:** —
+
+**Problem:** Filip je paralelno radio na `main` grani, ne znajući da je rang
+lista u toku i kod nas. Njegova grana je donijela četiri stvari, od kojih se
+dvije sudaraju sa našim radom:
+
+| Njegov commit | Šta donosi | Odluka |
+|---|---|---|
+| `5c91bd4 kompresija` | kompresija slika i videa za blog | **uzeto** |
+| `be1d765` — praćenje težine | `weight_logs` tabela + grafikon | **uzeto** |
+| `be1d765` — birač vježbe | sopstveni modal sa katalogom | odbačeno, naš `<app-exercice-picker>` ostaje |
+| `be1d765` — rang lista | njegova verzija | odbačeno, naš ekran „Ekipa" ostaje |
+| `f538f78 env` | `env.ts` prebačen na cloud | odbačeno, naš ostaje lokalni |
+
+**Rješenje:** `git merge origin/main` na grani `XFactor`, uz ručno razrješavanje.
+Prije spajanja napravljeni `backup/XFactor-prije-merge-main` i tag
+`backup-prije-merge-2026-07-26`.
+
+Kompresija se spojila **bez ijednog konflikta** — dodaje `@ffmpeg/*` zavisnosti,
+`tsconfig.worker.json`, `src/app/shared/{image,video}-compress.ts` i
+`dummy.worker.ts`, plus izmjene u blogu i `angular.json` (web worker).
+
+Praćenje težine je **zadržano iako je bilo u istom commitu kao odbačeni birač**.
+To je zasebna funkcija, ne sudar: `weight_logs` migracija i metode u
+`ProfileService` spojile su se čisto, a logika grafikona je prenesena u našu
+verziju komponente. Da je uzeto „naše" po cijelom fajlu, Filipova funkcija bi
+nestala i sa `main` grane kad on spoji nazad.
+
+**Dodirnuti fajlovi (razriješeni ručno):**
+- `leaderboard.component.{html,scss,ts}` — naša verzija
+- `profile.component.ts` — naša verzija + prenesen Filipov kod za težinu
+  (`loadWeightHistory`, `submitWeightLog`, `buildWeightChart`)
+- `profile.component.html` — naša verzija + njegov modal za težinu, prestilizovan
+- `env.ts` — naša verzija (lokalni Supabase)
+- `docs/06-CHANGELOG.md` — zadržana oba unosa
+- `buildAreaPath` — potpis proširen na `{x, y}[]` da prima i tačke težine
+
+**Efekat:** Produkcijski build prolazi. Migracija `20260726010000_weight_logs`
+primijenjena na lokalnu bazu (`supabase migration up`), podaci netaknuti.
+
+**Napomene:**
+- **Filip ne treba da mijenja `env.ts`.** Za rad protiv cloud baze već postoji
+  `npm run start:cloud` (konfiguracija `cloud` u `angular.json`). Ako nastavi da
+  prepravlja `env.ts`, isti konflikt će se ponavljati pri svakom spajanju.
+- Nakon `git pull` obavezno `npm install` **pa restart `ng serve`** — webpack
+  razrješava module pri pokretanju, pa server pokrenut prije instalacije javlja
+  `Cannot find module '@ffmpeg/ffmpeg'` iako su paketi na disku.
+- `color-scheme: dark` dodat na `html` — bez toga je nativno polje `type="date"`
+  u modalu za težinu bijelo usred tamnog ekrana.

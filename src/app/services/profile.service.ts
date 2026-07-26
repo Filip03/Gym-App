@@ -18,6 +18,11 @@ export interface ProgressPoint {
   set_number: number;
 }
 
+export interface WeightPoint {
+  date: string;
+  weight: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -63,6 +68,41 @@ export class ProfileService {
 
     if (error) throw error;
     return (data ?? []) as ProgressPoint[];
+  }
+
+  // Istorija tjelesne težine, sortirano hronološki.
+  async getWeightHistory(profileId: string): Promise<WeightPoint[]> {
+    const { data, error } = await this.supabase.client
+      .from('weight_logs')
+      .select('date, weight')
+      .eq('profile_id', profileId)
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as WeightPoint[];
+  }
+
+  // Upisuje/ažurira težinu za dati datum (jedan upis po danu), pa profiles.weight
+  // postavlja na vrijednost NAJNOVIJEG upisa — ne nužno onog koji je upravo upisan,
+  // jer korisnik može naknadno upisati stariji datum.
+  async logWeight(profileId: string, date: string, weight: number): Promise<Profile> {
+    const { error: upsertError } = await this.supabase.client
+      .from('weight_logs')
+      .upsert({ profile_id: profileId, date, weight }, { onConflict: 'profile_id,date' });
+
+    if (upsertError) throw upsertError;
+
+    const { data: latest, error: latestError } = await this.supabase.client
+      .from('weight_logs')
+      .select('weight')
+      .eq('profile_id', profileId)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (latestError) throw latestError;
+
+    return this.updateProfile(profileId, { weight: latest.weight });
   }
 
   async getOtherProfiles(excludeUserId: string): Promise<{ id: string; username: string }[]> {

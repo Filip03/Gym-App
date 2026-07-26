@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ProfileService, ProgressPoint, TrainingDay } from '../../services/profile.service';
+import { ProfileService, ProgressPoint, TrainingDay, WeightPoint } from '../../services/profile.service';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { Profile } from '../../models/models';
 import {
@@ -17,6 +17,14 @@ interface CalCell {
   sets: number;
   today: boolean;
   future: boolean;
+}
+
+/** Tačka na grafikonu tjelesne težine (Filipova funkcija, zadržana pri spajanju). */
+interface WeightChartPoint {
+  x: number;
+  y: number;
+  weight: number;
+  dateLabel: string;
 }
 
 const MONTHS = [
@@ -77,6 +85,26 @@ export class ProfileComponent implements OnInit {
   readonly weekLabels = ['P', 'U', 'S', 'Č', 'P', 'S', 'N'];
   private calCursor = new Date();
 
+  // --- Tjelesna težina --------------------------------------------------------
+  //
+  // Filipova funkcija sa `main` grane, zadržana pri spajanju. `profiles.weight`
+  // i dalje drži trenutnu vrijednost, a `weight_logs` istoriju — vidi migraciju
+  // `20260726010000_weight_logs.sql`.
+  showWeightModal = false;
+  weightLoading = false;
+  weightError = '';
+  weightHistory: WeightPoint[] = [];
+  loggingWeight = false;
+  logWeightError = '';
+  newWeightDate = this.iso(new Date());
+  newWeightValue: number | null = null;
+  weightChartPoints: WeightChartPoint[] = [];
+  weightChartLinePoints = '';
+  weightAreaPath = '';
+  weightYGridLines: { y: number; label: string }[] = [];
+  weightXAxisLabels: { x: number; label: string }[] = [];
+  weightChartWidth = 400;
+
   exerciceGroups: MuscleGroupWithExercices[] = [];
   loadingExerciceGroups = true;
   selectedExerciceId = '';
@@ -135,6 +163,7 @@ export class ProfileComponent implements OnInit {
     try {
       this.profile = await this.profileService.getProfile(user.id);
       this.updateAvatarUrl();
+      void this.loadWeightHistory();
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju profila.';
     } finally {
@@ -164,6 +193,120 @@ export class ProfileComponent implements OnInit {
       this.selectedExercice = this.findOption(preselectedExerciceId);
       await this.onProgressExerciceChange();
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tjelesna težina
+
+  openWeightModal() { this.showWeightModal = true; }
+  closeWeightModal() { this.showWeightModal = false; }
+
+  async loadWeightHistory() {
+    if (!this.profile) return;
+
+    this.weightLoading = true;
+    this.weightError = '';
+
+    try {
+      this.weightHistory = await this.profileService.getWeightHistory(this.profile.id);
+      this.buildWeightChart();
+    } catch (err: any) {
+      this.weightError = err.message ?? 'Greška pri učitavanju težine.';
+    } finally {
+      this.weightLoading = false;
+    }
+  }
+
+  async submitWeightLog() {
+    if (!this.profile || this.loggingWeight) return;
+
+    if (!this.newWeightDate || !this.newWeightValue || this.newWeightValue <= 0) {
+      this.logWeightError = 'Unesi datum i validnu težinu.';
+      return;
+    }
+
+    this.loggingWeight = true;
+    this.logWeightError = '';
+
+    try {
+      this.profile = await this.profileService.logWeight(
+        this.profile.id, this.newWeightDate, this.newWeightValue
+      );
+      this.newWeightValue = null;
+      await this.loadWeightHistory();
+    } catch (err: any) {
+      this.logWeightError = err.message ?? 'Greška prilikom upisa težine.';
+    } finally {
+      this.loggingWeight = false;
+    }
+  }
+
+  private buildWeightChart() {
+    this.weightChartPoints = [];
+    this.weightChartLinePoints = '';
+    this.weightAreaPath = '';
+    this.weightYGridLines = [];
+    this.weightXAxisLabels = [];
+
+    if (this.weightHistory.length === 0) return;
+
+    this.weightChartWidth = this.chartPaddingLeft + this.chartPaddingRight
+      + Math.max(1, this.weightHistory.length - 1) * this.pointSpacing;
+
+    const weights = this.weightHistory.map(p => p.weight);
+    let minWeight = Math.min(...weights);
+    let maxWeight = Math.max(...weights);
+
+    // Tjelesna težina se mijenja u uskom rasponu; bez ovog razmaka bi grafikon
+    // od 73 do 74 kg izgledao kao vertikalni skok.
+    if (minWeight === maxWeight) {
+      const pad = Math.max(minWeight * 0.1, 0.5);
+      minWeight -= pad;
+      maxWeight += pad;
+    } else {
+      const pad = (maxWeight - minWeight) * 0.15;
+      minWeight -= pad;
+      maxWeight += pad;
+    }
+    minWeight = Math.max(0, minWeight);
+
+    const step = this.computeNiceStep(maxWeight - minWeight);
+    minWeight = Math.floor(minWeight / step) * step;
+    maxWeight = Math.ceil(maxWeight / step) * step;
+    if (maxWeight === minWeight) maxWeight += step;
+
+    const innerWidth = this.weightChartWidth - this.chartPaddingLeft - this.chartPaddingRight;
+    const innerHeight = this.chartHeight - this.chartPaddingTop - this.chartPaddingBottom;
+    const xStep = this.weightHistory.length > 1 ? innerWidth / (this.weightHistory.length - 1) : 0;
+
+    const xForIndex = (i: number) => this.chartPaddingLeft
+      + (this.weightHistory.length > 1 ? i * xStep : innerWidth / 2);
+    const yForWeight = (weight: number) => this.chartPaddingTop + innerHeight
+      - ((weight - minWeight) / (maxWeight - minWeight)) * innerHeight;
+
+    this.weightChartPoints = this.weightHistory.map((p, i) => ({
+      x: xForIndex(i),
+      y: yForWeight(p.weight),
+      weight: p.weight,
+      dateLabel: this.formatDateLabel(p.date)
+    }));
+
+    this.weightChartLinePoints = this.weightChartPoints.map(p => `${p.x},${p.y}`).join(' ');
+    this.weightAreaPath = this.buildAreaPath(
+      this.weightChartPoints, this.chartHeight - this.chartPaddingBottom
+    );
+
+    const tickCount = Math.round((maxWeight - minWeight) / step);
+    for (let i = 0; i <= tickCount; i++) {
+      const value = minWeight + i * step;
+      const y = this.chartPaddingTop + innerHeight - (i / tickCount) * innerHeight;
+      const label = Number.isInteger(value) ? value.toString() : value.toFixed(1);
+      this.weightYGridLines.push({ y, label: `${label} kg` });
+    }
+
+    this.weightXAxisLabels = this.weightHistory.map((p, i) => ({
+      x: xForIndex(i), label: this.formatDateLabel(p.date)
+    }));
   }
 
   // ---------------------------------------------------------------------------
@@ -309,7 +452,7 @@ export class ProfileComponent implements OnInit {
   }
 
   /** Lokalni datum kao `YYYY-MM-DD`. `toISOString()` uveče vraća sjutrašnji dan. */
-  private iso(d: Date): string {
+  iso(d: Date): string {
     const mm = `${d.getMonth() + 1}`.padStart(2, '0');
     const dd = `${d.getDate()}`.padStart(2, '0');
     return `${d.getFullYear()}-${mm}-${dd}`;
@@ -501,7 +644,8 @@ export class ProfileComponent implements OnInit {
     return Math.ceil(range / maxTicks / 500) * 500;
   }
 
-  private buildAreaPath(points: ChartPoint[], baselineY: number): string {
+  // Traži samo koordinate, pa prima i tačke grafikona vježbe i tačke težine.
+  private buildAreaPath(points: { x: number; y: number }[], baselineY: number): string {
     if (points.length === 0) return '';
 
     const first = points[0];
