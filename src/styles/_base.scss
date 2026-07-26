@@ -51,12 +51,10 @@ body::before {
   background-repeat: no-repeat, no-repeat;
 }
 
-// Sadržaj ne smije zalaziti pod fiksni footer ni pod sigurnu zonu telefona.
-// Ranije je rezerva bila tačno 70px, bez tolerancije, pa je svako polje pri dnu
-// završavalo ispod trake sa ikonama.
-.app-scroll {
-  padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-6));
-}
+// Rezervu za footer nosi `.content.app-scroll` u app.component.scss — stil
+// komponente, jer se samo tamo može nadjačati `padding` koji `.content` već
+// postavlja. Ovdje ostaje samo osiguranje da posljednji element ima zraka.
+.app-scroll > *:last-child { margin-bottom: var(--s-4); }
 
 // --- Tipografija -----------------------------------------------------------
 

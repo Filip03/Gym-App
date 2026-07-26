@@ -12,7 +12,18 @@
   width: 100%;
   max-width: var(--page-max);
   margin: 0 auto;
-  padding: var(--s-5) var(--s-4) 0;
+  padding-top: var(--s-5);
+  padding-inline: var(--s-5);
+}
+
+// Rezerva za fiksni footer i sigurnu zonu telefona.
+//
+// MORA stajati ovdje, u stilu komponente. Ranije je bila u globalnom
+// _base.scss, ali `.content` je istovremeno postavljao `padding: ... 0` —
+// a Angular ubacuje stilove komponente POSLIJE globalnih, pa je nula
+// pobjeđivala. Posljedica: footer je prekrivao zadnju vježbu i njen upis.
+.content.app-scroll {
+  padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-10));
 }
 
 // Ekrani sa mrežom kartica (planovi, vježbe, ekipa) — na telefonu isto,
@@ -22,3 +33,6 @@
 @media (min-width: 900px) {
   .content { padding-inline: var(--s-6); }
 }
+
+// Na uskom ekranu razmak od ivice OSTAJE isti (20px). Smanjivanje bi kartice
+// zalijepilo za ivice ekrana, a upravo to je smetalo.

@@ -62,6 +62,17 @@
   gap: var(--s-3);
 }
 
+// Na telefonu dvije kolone sa više razmaka. Tri kolone bi dale kartice od
+// stotinjak piksela, gdje se naziv vježbe lomi u tri reda.
+@media (max-width: 560px) {
+  .exercice-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--s-3);
+  }
+  .exercice-card { padding: var(--s-3); border-radius: var(--r-lg); }
+  .muscle-group-section { margin-bottom: var(--s-6); }
+}
+
 .exercice-card {
   display: flex;
   flex-direction: column;

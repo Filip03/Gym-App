@@ -98,8 +98,13 @@
 
 .st-type.rest { color: var(--mist); }
 
-@media (max-width: 480px) {
-  .start-block { --start-w: 100%; }
+// Na telefonu dugme NE ide preko cijele širine — puna širina ga čini teškim i
+// guta ekran. Ostaje uže i centrirano, kao dugme a ne kao traka.
+@media (max-width: 560px) {
+  .start-block { --start-w: min(260px, 100%); }
+  .start-btn   { min-height: 50px; font-size: var(--t-base); }
+  .start-today { padding-inline: var(--s-3); }
+  .st-day, .st-type { font-size: var(--t-sm); }
 }
 
 .dashboard-container { width: 100%; }
