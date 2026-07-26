@@ -1404,3 +1404,62 @@ okvir 490).
 **Dodirnuti fajlovi:**
 - `src/styles/_base.scss` — `.modal-overlay`, `.modal-card`
 - `src/app/components/shared/exercice-picker/exercice-picker.component.scss`
+
+---
+
+## [2026-07-26] Sistemska popravka: sve preko ekrana staje u polje između zaglavlja i futera
+**Tip:** popravka
+**Ref:** —
+
+**Povod:** iz pregleda slike u blogu se nije moglo izaći na telefonu. Marko je
+pretpostavio da je uzrok isti kao ranije sa zaglavljem i futerom — i bio je u
+pravu. Zatraženo je da se **provjeri svuda**.
+
+### Nalazi audita
+
+`grep` po svim `position: fixed` slojevima i svim visinama vezanim za ekran:
+
+| Mjesto | Problem |
+|---|---|
+| `blog` `.lb` | `inset: 0` — dugme za izlaz uz samu ivicu, ispod pregledačeve trake |
+| **`dashboard` `.modal-overlay`** | **naslijeđeno lokalno pravilo** (`inset: 0`, `z-index: 1000`, stara pozadina) koje je poništavalo globalno |
+| `dashboard` `.modal-card` | isto — `rgba(20,20,20,.9)`, `backdrop-filter`, `width: 400px` |
+| `dashboard` `.modal-card-large` | `85vh` / `90vh` |
+| `exercices` `.detail-card` | `88vh`, slika `46vh` |
+| `landing` | `100vh` |
+
+Zbog lokalnih pravila na dashboardu **modal plana nije pratio nijednu raniju
+popravku** — ni prelazak na dizajn sistem, ni ograničavanje na vidljivo polje.
+
+### Urađeno
+
+Sve fiksirano sada koristi isto polje kao modali:
+`top: header-h + safe-t`, `bottom: footer-h + safe-b`. Lokalna pravila na
+dashboardu su obrisana; izgled dolazi iz globalnog sloja.
+
+**U projektu više nema nijednog golog `vh`** — provjereno `grep`-om.
+
+### Tri zamke sa procentualnom visinom (redom kako su otkrivane)
+
+Slika u pregledu je i dalje prelijevala ekran, u tri koraka:
+
+1. `align-items: center` na `.lb` → red se mjeri po sadržaju, pa `max-height:
+   100%` nema prema čemu da se izračuna. → `stretch`.
+2. `grid-template-rows` nije bio zadat → implicitni red je `auto`, pa ga slika
+   od 1920px razvuče. → `minmax(0, 1fr)`.
+3. **`.lb-stage` je i sam bio grid** sa `auto` redom — ista zamka jedan nivo
+   niže. → običan blok.
+
+Tek sa sva tri: polje 1008px, slika **1644×928**, staje.
+
+Pravilo koje iz ovoga slijedi: `height: 100%` na djetetu traži **određenu**
+visinu roditelja. U gridu to znači i zadan red, ne samo zadanu visinu kontejnera.
+
+### Izlaz iz pregleda
+
+- Dugme X sa 38 na **44px**, sa obrubom i punom podlogom, pomjereno od ivice
+- **Povlačenje nadolje zatvara** — jedini izlaz koji ne traži pogađanje dugmeta
+- Uputstvo u dnu to i kaže
+
+**Dodirnuti fajlovi:** `blog`, `dashboard`, `exercices`, `landing` (scss),
+`blog.component.ts` (pokret nadolje)
