@@ -1,12 +1,10 @@
-<div class="wrapper">
+<div class="shell">
 
-    <div class="logo" *ngIf="showLayout">
-        <img src="assets/logo.png" alt="logo">
-    </div>
+    <app-header *ngIf="showLayout"></app-header>
 
-    <div class="content">
+    <main class="content" [class.app-scroll]="showFooter" [class.wide]="wide">
         <router-outlet></router-outlet>
-    </div>
+    </main>
 
     <app-footer *ngIf="showFooter"></app-footer>
 

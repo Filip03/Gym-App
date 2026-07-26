@@ -1,0 +1,369 @@
+// ---------------------------------------------------------------------------
+// OSNOVA I PRIMITIVE
+//
+// Globalni sloj koji važi za sve ekrane. Komponente ovdje nasljeđuju izgled
+// polja, dugmadi, kartica i modala umjesto da ga svaka ponovo definiše.
+// ---------------------------------------------------------------------------
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, app-root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  background-color: var(--void);
+  color: var(--ice);
+
+  font-family: var(--font-body);
+  font-size: var(--t-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Pozadinska fotografija ide u ZASEBAN FIKSNI SLOJ, ne na <body>.
+//
+// Na <body> sa `background-size: cover` slika se ponovo skalira svaki put kad
+// se promijeni visina stranice — a to se dešava pri svakom otvaranju menija ili
+// obrasca. Efekat je da pozadina "poskoči" ili se "zumira" na svaki klik.
+// Fiksni sloj visine ekrana nema tu vezu sa sadržajem.
+//
+// `position: fixed` umjesto `background-attachment: fixed` — potonje na iOS-u
+// pravi trzanje pri skrolu.
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+
+  background-image:
+    linear-gradient(180deg, rgba(6,8,11,.80) 0%, rgba(6,8,11,.93) 55%, var(--void) 100%),
+    url('/assets/background.jpg');
+  background-size: cover, cover;
+  background-position: center, center top;
+  background-repeat: no-repeat, no-repeat;
+}
+
+// Sadržaj ne smije zalaziti pod fiksni footer ni pod sigurnu zonu telefona.
+// Ranije je rezerva bila tačno 70px, bez tolerancije, pa je svako polje pri dnu
+// završavalo ispod trake sa ikonama.
+.app-scroll {
+  padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-6));
+}
+
+// --- Tipografija -----------------------------------------------------------
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  margin: 0;
+  color: var(--ice);
+}
+
+h1 { font-size: var(--t-2xl); }
+h2 { font-size: var(--t-xl); }
+h3 { font-size: var(--t-lg); }
+h4 { font-size: var(--t-md); }
+
+p { margin: 0; }
+
+// Oznaka iznad grupe — verzal, razmaknuto, prigušeno.
+.eyebrow {
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--mist);
+}
+
+// Svaki broj koji nešto mjeri. Tabularne cifre da se kolone ne pomjeraju.
+.num {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+// --- Fokus -----------------------------------------------------------------
+// Vidljiv za tastaturu, nevidljiv za miš i dodir.
+
+:focus { outline: none; }
+
+:focus-visible {
+  outline: 2px solid var(--volt);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+// --- Polja -----------------------------------------------------------------
+
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: var(--t-base);
+  color: inherit;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  min-height: 46px;              // pogodno za palac
+  padding: var(--s-3) var(--s-4);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--ice);
+
+  transition: border-color var(--d-fast) var(--ease),
+              box-shadow var(--d-fast) var(--ease),
+              background-color var(--d-fast) var(--ease);
+}
+
+input::placeholder, textarea::placeholder { color: var(--dust); }
+
+input:hover, textarea:hover, select:hover { border-color: var(--line-strong); }
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--volt);
+  background: var(--carbon);
+  box-shadow: 0 0 0 3px var(--volt-a10);
+}
+
+textarea { min-height: 88px; resize: vertical; line-height: var(--lh-snug); }
+
+// Brojčana polja: krupna, monospace, centrirana — kucaju se u teretani.
+input[type="number"] {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+// Native select je bio odsječen ("-- Izaberi tip dan∨") jer nije imao mjesta za
+// strelicu. Sopstvena strelica + rezervisan prostor desno to rješava.
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--s-10);
+  cursor: pointer;
+
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--mist) 50%),
+    linear-gradient(135deg, var(--mist) 50%, transparent 50%);
+  background-position:
+    calc(100% - 20px) calc(50% + 2px),
+    calc(100% - 14px) calc(50% + 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  background-color: var(--carbon-high);
+
+  text-overflow: ellipsis;
+}
+
+select option { background: var(--carbon-high); color: var(--ice); }
+
+label {
+  display: block;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--mist);
+  margin-bottom: var(--s-2);
+}
+
+// --- Dugmad ----------------------------------------------------------------
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: transform var(--d-fast) var(--ease),
+              background-color var(--d-fast) var(--ease),
+              border-color var(--d-fast) var(--ease),
+              opacity var(--d-fast) var(--ease);
+}
+
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:not(:disabled):active { transform: scale(0.97); }
+
+// Osnovna: puna volt podloga. Koristi se najviše jednom po ekranu.
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 46px;
+  padding: 0 var(--s-6);
+
+  background: var(--volt);
+  color: var(--volt-ink);
+  border-radius: var(--r-sm);
+  font-family: var(--font-display);
+  font-size: var(--t-base);
+  font-weight: 700;
+}
+
+.btn-primary:not(:disabled):hover {
+  background: #D4FF5E;
+  box-shadow: 0 0 20px -4px var(--volt-a40);
+}
+
+// Sporedna: obris.
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 46px;
+  padding: 0 var(--s-5);
+
+  background: transparent;
+  color: var(--ice);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+}
+
+.btn-ghost:not(:disabled):hover {
+  background: var(--carbon-high);
+  border-color: var(--volt-a40);
+}
+
+.btn-danger {
+  @extend .btn-ghost;
+  color: var(--ember);
+  border-color: var(--ember-a15);
+}
+.btn-danger:not(:disabled):hover {
+  background: var(--ember-a15);
+  border-color: var(--ember);
+}
+
+// --- Površine --------------------------------------------------------------
+
+.panel {
+  background: color-mix(in srgb, var(--carbon) 88%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--lift-2);
+}
+
+.card {
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--lift-1);
+  transition: border-color var(--d-base) var(--ease),
+              transform var(--d-base) var(--ease-out),
+              box-shadow var(--d-base) var(--ease);
+}
+
+// --- Modali ----------------------------------------------------------------
+// Na telefonu izlaze odozdo kao ploča (nema smisla centrirati na 5" ekranu),
+// na širem ekranu su centrirani.
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  background: rgba(3, 5, 7, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  animation: overlay-in var(--d-base) var(--ease-out) both;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: var(--page-max);
+  max-height: min(88vh, 900px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  padding: var(--s-6) var(--s-5) calc(var(--s-6) + var(--safe-b));
+  background: var(--carbon);
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: var(--lift-3);
+
+  animation: sheet-in var(--d-slow) var(--ease-spring) both;
+}
+
+@media (min-width: 640px) {
+  .modal-overlay { align-items: center; padding: var(--s-6); }
+  .modal-card {
+    border-radius: var(--r-xl);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: var(--s-6);
+    animation: dialog-in var(--d-slow) var(--ease-spring) both;
+  }
+}
+
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-in   { from { transform: translateY(16px); opacity: 0; }
+                        to   { transform: translateY(0);    opacity: 1; } }
+@keyframes dialog-in  { from { transform: scale(.97); opacity: 0; }
+                        to   { transform: scale(1);   opacity: 1; } }
+
+// --- Poruke ----------------------------------------------------------------
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  background: var(--ember-a15);
+  border: 1px solid rgba(255, 107, 92, .3);
+  border-radius: var(--r-sm);
+  color: var(--ember);
+  font-size: var(--t-sm);
+}
+
+.empty {
+  padding: var(--s-8) var(--s-4);
+  text-align: center;
+  color: var(--mist);
+  font-size: var(--t-sm);
+}
+
+// --- Ostalo ----------------------------------------------------------------
+
+.material-icons { user-select: none; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--steel);
+  border-radius: var(--r-full);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--dust); background-clip: content-box; }
+
+::selection { background: var(--volt-a40); color: var(--ice); }

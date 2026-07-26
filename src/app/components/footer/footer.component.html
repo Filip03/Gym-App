@@ -1,8 +1,20 @@
-<div class="footer">
-    <a routerLink="/dashboard"><span class="material-icons">home</span></a>
-    <a routerLink="/exercices"><i class="material-icons">fitness_center</i></a>
-    <a routerLink="/leaderboard"><i class="material-icons">leaderboard</i></a>
-    <a routerLink="/profiles"><i class="material-icons">account_circle</i></a>
-    <span routerLink="/blog" class="material-icons">diversity_1</span>
-    <span (click)="signOut()"><i class="material-icons">logout</i></span>
-</div>
+<nav class="footer">
+    <a routerLink="/dashboard" routerLinkActive="on" aria-label="Planovi">
+        <i class="material-icons">home</i>
+    </a>
+    <a routerLink="/exercices" routerLinkActive="on" aria-label="Vježbe">
+        <i class="material-icons">fitness_center</i>
+    </a>
+    <a routerLink="/leaderboard" routerLinkActive="on" aria-label="Rang lista">
+        <i class="material-icons">leaderboard</i>
+    </a>
+    <a routerLink="/profiles" routerLinkActive="on" aria-label="Profil">
+        <i class="material-icons">account_circle</i>
+    </a>
+    <a routerLink="/blog" routerLinkActive="on" aria-label="Ekipa">
+        <i class="material-icons">diversity_1</i>
+    </a>
+    <button type="button" (click)="signOut()" aria-label="Odjava">
+        <i class="material-icons">logout</i>
+    </button>
+</nav>

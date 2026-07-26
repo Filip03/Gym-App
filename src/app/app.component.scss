@@ -1,19 +1,24 @@
-.logo img{
-    width: 150px;
-    height: 150px;
+.shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100dvh;   // dvh, ne vh — vh na mobilnom Safariju uračunava i
+                        // traku adresne linije, pa dno sadržaja ispadne ispod
+                        // vidljivog dijela ekrana
 }
 
-.wrapper{
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) 0;
 }
 
-.content{
-    flex: 1;
-    width: 100%;
-    padding-bottom: 70px; // rezerviše prostor za fiksni footer (visina 70px)
+// Ekrani sa mrežom kartica (planovi, vježbe, ekipa) — na telefonu isto,
+// na laptopu širi da kartice ne budu stisnute u jednu kolonu.
+.content.wide { max-width: var(--page-wide); }
+
+@media (min-width: 900px) {
+  .content { padding-inline: var(--s-6); }
 }
