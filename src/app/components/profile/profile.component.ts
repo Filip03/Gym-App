@@ -368,8 +368,13 @@ export class ProfileComponent implements OnInit {
 
     if (this.weightHistory.length === 0) return;
 
-    this.weightChartWidth = this.chartPaddingLeft + this.chartPaddingRight
-      + Math.max(1, this.weightHistory.length - 1) * this.pointSpacing;
+    // Ista STALNA širina kao grafikon vježbe.
+    //
+    // Ranije se računala iz broja upisa (`62 + 34 + (n-1)*70`), pa je za dva
+    // upisa ispadala 166px. Pošto se SVG u CSS-u razvlači na širinu kartice
+    // (`width: 100%`), taj crtež se uvećavao trostruko — a sa njim i visina,
+    // pa je grafikon težine bio ogroman u odnosu na sve ostalo.
+    this.weightChartWidth = this.chartSpan;
 
     const weights = this.weightHistory.map(p => p.weight);
     let minWeight = Math.min(...weights);

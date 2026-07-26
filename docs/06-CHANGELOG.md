@@ -1290,3 +1290,32 @@ vraćena → red = 0, red u bazi potvrđen SQL-om.
 - `src/app/components/dashboard/*` — sekcija „Trenira sada"
 - `src/app/components/training/*` — bilješka, traka odloženih upisa, `pending`
 - `src/app/components/profile/*` — broj treninga uz naslov mjeseca
+
+---
+
+## [2026-07-26] Popravka: grafikon težine bio uvećan tri puta
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Poslije prelaska grafikona napretka na stalnu širinu, grafikon
+**težine** je postao ogroman — visok skoro kao cijela stranica.
+
+**Uzrok:** pravilo `.progress-chart { width: 100%; height: auto; }` razvlači SVG
+na širinu kartice. Grafikon vježbe ima stalnu širinu crteža (`chartSpan = 560`),
+pa se skalira otprilike 1:1. Grafikon težine je zadržao **računatu** širinu:
+
+```
+weightChartWidth = 62 + 34 + (n − 1) × 70     // za dva upisa = 166 px
+```
+
+166 px razvučeno na ~490 px je uvećanje od tri puta — a `height: auto` je isto
+toliko uvećalo i visinu, sa 260 na ~770 px.
+
+Nije se primijetilo odmah jer su oba grafikona dijelila isto CSS pravilo, ali
+samo je jedan dobio stalnu širinu.
+
+**Rješenje:** i grafikon težine koristi `chartSpan`. Tačke se raspoređuju po
+cijeloj širini, skaliranje je 1:1.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/profile/profile.component.ts` — `weightChartWidth = this.chartSpan`
