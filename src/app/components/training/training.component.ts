@@ -74,6 +74,9 @@ export class TrainingComponent implements OnInit, OnDestroy {
   swapLoading = false;
   swapFilter = '';
   swapSaving = false;
+  /** U modalu za dodavanje: samo vježbe za današnji tip, ili cijeli katalog. */
+  swapScope: 'day' | 'all' = 'day';
+  private swapDayIds = new Set<string>();
 
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
   reordering = false;
@@ -90,6 +93,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
   @ViewChildren('exRow') rowEls!: QueryList<ElementRef<HTMLElement>>;
 
   private saveTimer: any = null;
+  finishing = false;
   private readonly flipCleanup = new WeakMap<HTMLElement, (e: TransitionEvent) => void>();
 
   // Izmjena cilja za ovaj trening
@@ -447,6 +451,42 @@ export class TrainingComponent implements OnInit, OnDestroy {
     this.selectedId = null;
   }
 
+  get isFinished(): boolean { return !!this.session?.finishedAt; }
+
+  /** Ukupno upisanih serija danas — prikazuje se uz oznaku da je trening gotov. */
+  get totalSets(): number {
+    return this.exercices.reduce((n, e) => n + e.loggedSets.length, 0);
+  }
+
+  async finishTraining() {
+    if (!this.session || this.finishing) return;
+    this.finishing = true;
+
+    try {
+      await this.trainingService.finishSession(this.session.id);
+      this.session.finishedAt = new Date().toISOString();
+      this.audio.play('record');
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom završetka treninga.');
+    } finally {
+      this.finishing = false;
+    }
+  }
+
+  async reopenTraining() {
+    if (!this.session || this.finishing) return;
+    this.finishing = true;
+
+    try {
+      await this.trainingService.reopenSession(this.session.id);
+      this.session.finishedAt = null;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom otvaranja treninga.');
+    } finally {
+      this.finishing = false;
+    }
+  }
+
   toggleReorder() {
     this.reordering = !this.reordering;
     this.selectedId = null;
@@ -588,9 +628,20 @@ export class TrainingComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     this.exercices.forEach(e => e.menuOpen = false);
 
+    this.swapScope = 'day';
+
     try {
-      const all = await this.trainingService.getAllExercices();
       const already = new Set(this.exercices.map(e => e.exerciceId));
+
+      // "Za današnji dan" = vježbe koje dijele mišićnu grupu sa nečim što je
+      // već u treningu. Izvedeno iz same sesije, pa radi i kad je vježba
+      // zamijenjena ili ručno dodana.
+      const [all, related] = await Promise.all([
+        this.trainingService.getAllExercices(),
+        this.trainingService.getRelatedToAll([...already])
+      ]);
+
+      this.swapDayIds = related;
       this.swapOptions = all.filter(o => !already.has(o.id));
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri učitavanju vježbi.');
@@ -634,10 +685,19 @@ export class TrainingComponent implements OnInit, OnDestroy {
   }
 
   get filteredSwapOptions() {
+    let list = this.swapOptions;
+
+    if (this.swapMode === 'add' && this.swapScope === 'day' && this.swapDayIds.size > 0) {
+      list = list.filter(o => this.swapDayIds.has(o.id));
+    }
+
     const q = this.swapFilter.trim().toLowerCase();
-    if (!q) return this.swapOptions;
-    return this.swapOptions.filter(o => o.name.toLowerCase().includes(q));
+    if (q) list = list.filter(o => o.name.toLowerCase().includes(q));
+
+    return list;
   }
+
+  setSwapScope(scope: 'day' | 'all') { this.swapScope = scope; }
 
   async confirmSwap(option: { id: string; name: string; picture: string | null }) {
     if (!this.session || this.swapSaving) return;

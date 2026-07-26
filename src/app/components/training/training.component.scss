@@ -671,3 +671,118 @@
 @media (prefers-reduced-motion: reduce) {
   .exercice-row { will-change: auto; }
 }
+
+// --- Završetak treninga ----------------------------------------------------
+
+.finish-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 54px;
+  margin-top: var(--s-6);
+
+  background: var(--volt);
+  color: var(--volt-ink);
+  border-radius: var(--r-md);
+
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 700;
+}
+
+.finish-btn:not(:disabled):hover {
+  background: #D4FF5E;
+  box-shadow: 0 0 26px -6px var(--volt-a40);
+}
+
+// Dok nema nijedne upisane serije nema šta ni završiti.
+.finish-btn:disabled {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  color: var(--dust);
+  opacity: 1;
+}
+
+.finish-btn .material-icons { font-size: 20px; }
+
+.finished-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+
+  background: linear-gradient(90deg, var(--volt-a10), transparent);
+  border: 1px solid var(--volt-a20);
+  border-radius: var(--r-md);
+
+  animation: finished-in var(--d-slower) var(--ease-spring) both;
+}
+
+@keyframes finished-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.finished-bar .material-icons { font-size: 22px; color: var(--volt); }
+
+.fb-text {
+  flex: 1;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--ice);
+}
+
+.fb-text small {
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  font-weight: 400;
+  color: var(--mist);
+}
+
+// Namjerno tiho — završetak nije brava, ali ni radnja koju treba isticati.
+.fb-reopen {
+  flex-shrink: 0;
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-size: var(--t-xs);
+}
+
+.fb-reopen:hover { color: var(--ice); border-color: var(--volt-a40); }
+
+// --- Opseg pri dodavanju vježbe --------------------------------------------
+//
+// Podrazumijevano se nudi ono što odgovara današnjem treningu, ali se jednim
+// dodirom vidi cijeli katalog — da se biceps može ubaciti u leg day ako se
+// tako odluči.
+
+.scope-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.scope-switch button {
+  flex: 1;
+  min-height: 36px;
+  border-radius: calc(var(--r-sm) - 2px);
+  color: var(--mist);
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+
+.scope-switch button:hover { color: var(--ice); }
+
+.scope-switch button.on {
+  background: var(--volt);
+  color: var(--volt-ink);
+}

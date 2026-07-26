@@ -276,6 +276,34 @@ export class TrainingService {
     if (error) throw error;
   }
 
+  /**
+   * Ponovno otvaranje završenog treninga.
+   *
+   * Namjerno NIJE zaključavanje: trening se zatvori i greškom, a i normalno je
+   * sjetiti se serije poslije. Oznaka "gotovo" je izjava namjere, ne brava.
+   */
+  async reopenSession(sessionId: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('workout_sessions')
+      .update({ finished_at: null })
+      .eq('id', sessionId);
+
+    if (error) throw error;
+  }
+
+  /** Da li je korisnik danas označio trening kao gotov. */
+  async getFinishedAt(userId: string, date: string): Promise<string | null> {
+    const { data, error } = await this.supabase.client
+      .from('workout_sessions')
+      .select('finished_at')
+      .eq('user_id', userId)
+      .eq('date', date)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.finished_at ?? null;
+  }
+
   // -------------------------------------------------------------------------
   // Upisi
   // -------------------------------------------------------------------------
@@ -443,6 +471,36 @@ export class TrainingService {
    * Ako vježba nije ni u jednoj grupi, vraća se cijeli katalog, jer je bolje
    * ponuditi previše nego ništa.
    */
+  /**
+   * Vježbe koje dijele bar jednu mišićnu grupu sa BILO KOJOM iz datog skupa.
+   *
+   * Služi da se pri dodavanju podrazumijevano ponudi ono što odgovara današnjem
+   * treningu, bez potrebe da se zna day_type — izvodi se iz vježbi koje su već
+   * u sesiji, pa radi i nakon zamjena i ručnih dodavanja.
+   */
+  async getRelatedToAll(exerciceIds: string[]): Promise<Set<string>> {
+    const result = new Set<string>();
+    if (exerciceIds.length === 0) return result;
+
+    const { data: groups, error: gErr } = await this.supabase.client
+      .from('exercice_muscle')
+      .select('muscle_group_id')
+      .in('exercice_id', exerciceIds);
+
+    if (gErr) throw gErr;
+    const groupIds = [...new Set((groups ?? []).map(g => g.muscle_group_id))];
+    if (groupIds.length === 0) return result;
+
+    const { data: siblings, error: sErr } = await this.supabase.client
+      .from('exercice_muscle')
+      .select('exercice_id')
+      .in('muscle_group_id', groupIds);
+
+    if (sErr) throw sErr;
+    (siblings ?? []).forEach(s => result.add(s.exercice_id));
+    return result;
+  }
+
   /** Cijeli katalog — za dodavanje vježbe koje nema u planu za taj dan. */
   async getAllExercices(): Promise<{ id: string; name: string; picture: string | null }[]> {
     const { data, error } = await this.supabase.client

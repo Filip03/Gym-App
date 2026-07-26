@@ -901,3 +901,23 @@
 
 .ord-actions button:not(:disabled):hover { color: var(--volt); background: var(--volt-a10); }
 .ord-actions .material-icons { font-size: 17px; }
+
+// Trening je danas označen kao gotov. Dugme ostaje klikabilno — trening se može
+// ponovo otvoriti, jer je "gotovo" izjava namjere a ne brava.
+.start-btn.done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+
+  background: transparent;
+  border: 1px solid var(--volt);
+  color: var(--volt);
+}
+
+.start-btn.done:hover {
+  background: var(--volt-a10);
+  box-shadow: none;
+}
+
+.start-btn.done .material-icons { font-size: 20px; }

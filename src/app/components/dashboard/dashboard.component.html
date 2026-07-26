@@ -1,5 +1,8 @@
 <div class="start-block">
-    <button type="button" class="start-btn" (click)="goToTraining()">Započni trening</button>
+    <button type="button" class="start-btn" [class.done]="todayFinished" (click)="goToTraining()">
+        <i class="material-icons" *ngIf="todayFinished">check_circle</i>
+        {{ todayFinished ? 'Trening završen' : 'Započni trening' }}
+    </button>
 
     <div class="start-today" *ngIf="todayName">
         <span class="st-day">{{ todayName }}</span>

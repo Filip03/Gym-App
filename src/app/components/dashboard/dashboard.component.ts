@@ -69,6 +69,7 @@ export class DashboardComponent implements OnInit {
   todayName = '';
   todayType: string | null = null;
   todayCount = 0;
+  todayFinished = false;
 
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
     'PPL (PUSHPULLLEGS)': ['PUSH', 'PULL', 'LEGS', 'REST'],
@@ -128,6 +129,9 @@ export class DashboardComponent implements OnInit {
       const day = (plan?.workout_days ?? []).find((d: any) => d.name === this.todayName);
       this.todayType = day?.day_type?.name ?? null;
       this.todayCount = (day?.day_exercice ?? []).length;
+
+      const finishedAt = await this.trainingService.getFinishedAt(userId, this.todayDateString());
+      this.todayFinished = !!finishedAt;
     } catch {
       // Traka je informativna — ako plan ne može da se učita, ostaje samo dan.
     }
@@ -135,6 +139,11 @@ export class DashboardComponent implements OnInit {
 
   goToTraining() {
     this.router.navigate(['/training']);
+  }
+
+  private todayDateString(): string {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
   }
 
   /**

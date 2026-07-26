@@ -29,6 +29,17 @@
     u planu (Planovi → Izmijeni) pa vrijedi za svaki sljedeći put.
   </p>
 
+  <div class="finished-bar" *ngIf="isFinished">
+    <i class="material-icons">check_circle</i>
+    <span class="fb-text">
+      Trening završen
+      <small *ngIf="totalSets">· {{ totalSets }} {{ totalSets === 1 ? 'serija' : 'serija' }}</small>
+    </span>
+    <button type="button" class="fb-reopen" [disabled]="finishing" (click)="reopenTraining()">
+      Otvori ponovo
+    </button>
+  </div>
+
   <div class="rest-day" *ngIf="isRestDay">
     <p>Danas je rest day.</p>
     <button type="button" class="btn-ghost" (click)="openAdd()">Ipak treniram</button>
@@ -194,6 +205,14 @@
     </div>
   </div>
 
+  <button type="button" class="finish-btn"
+          *ngIf="!isRestDay && !isFinished && !reordering"
+          [disabled]="finishing || totalSets === 0"
+          (click)="finishTraining()">
+    <i class="material-icons">check</i>
+    {{ totalSets === 0 ? 'Upiši bar jednu seriju' : 'Trening gotov' }}
+  </button>
+
 </ng-container>
 
 <!-- Zamjena vježbe -->
@@ -205,6 +224,15 @@
           ? 'Mijenja se samo današnji trening. Plan ostaje isti.'
           : 'Vježba se dodaje samo u današnji trening. Plan ostaje isti.' }}
     </p>
+
+    <div class="scope-switch" *ngIf="swapMode === 'add'">
+      <button type="button" [class.on]="swapScope === 'day'" (click)="setSwapScope('day')">
+        Za današnji dan
+      </button>
+      <button type="button" [class.on]="swapScope === 'all'" (click)="setSwapScope('all')">
+        Sve vježbe
+      </button>
+    </div>
 
     <input type="text" [(ngModel)]="swapFilter" placeholder="Traži vježbu..." class="swap-search" />
 
