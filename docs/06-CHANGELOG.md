@@ -860,3 +860,462 @@ primijenjena na lokalnu bazu (`supabase migration up`), podaci netaknuti.
   `Cannot find module '@ffmpeg/ffmpeg'` iako su paketi na disku.
 - `color-scheme: dark` dodat na `html` — bez toga je nativno polje `type="date"`
   u modalu za težinu bijelo usred tamnog ekrana.
+
+---
+
+## [2026-07-26] Statistika treninga: šta se broji kao trening i prekidač opsega
+**Tip:** popravka / funkcionalnost
+**Ref:** Roadmap 1.15
+
+**Problem:** Marko je primijetio da Filipu ispada prosjek **7,0 treninga
+sedmično**, iako trenira šest dana i ima rest day. Dva odvojena kvara.
+
+### 1. Rest day se brojao kao trening
+
+`getOrCreateSession()` pravi red u `workout_sessions` već pri **otvaranju**
+ekrana treninga — ne pri upisu serije. Na rest dayu se to dešava uvijek: dan
+nema nijednu vježbu, ekran se otvori, sesija nastane. Kalendar i sedmica ekipe
+su brojali svaki takav red kao odrađen trening.
+
+Nije stvar rest daya nego **svakog dana kad se ekran samo otvori**. Vidjelo se i
+u lokalnim podacima: `marko 2026-07-25` — nula serija, nije završen, a brojao se.
+
+**Rješenje:** dan se broji kao trening samo ako ima **bar jednu upisanu seriju**
+ili je sesija **izričito završena** dugmetom „Trening gotov" (`finished_at`).
+Isto pravilo na oba mjesta — `ProfileService.getTrainingCalendar` i
+`LeaderboardService.getTeamWeek`.
+
+Efekat na zatečenim podacima: marko je pao sa 2 na 1 trening u julu.
+
+### 2. Prosjek se dijelio sa proteklim vremenom, ne sa opsegom
+
+`broj treninga ÷ ((danas − prvi trening) / 7)`. Ko u ponedjeljak i utorak odradi
+dva treninga, dijeli 2 sa 2/7 sedmice → **7,0**. To je projekcija, ne mjerenje.
+
+Prva popravka („broji samo pune sedmice") je riješila 7,0 ali uvela goru zbrku:
+„7 dana" je znalo pokazati **0 treninga a prosjek 2,0**, jer je brojač gledao
+zadnjih 7 dana a prosjek prošlu punu sedmicu — dva različita prozora u istom
+redu brojki.
+
+**Konačno rješenje:** `broj treninga u opsegu ÷ broj sedmica u opsegu`, uz donju
+granicu od jedne sedmice (da prva tri dana ne daju 7,0) i gornju granicu na
+dužinu istorije (da mjesec dana korišćenja uz opseg „Godina" ne da 0,1).
+
+Provjereno na sintetičkoj istoriji od 6 mjeseci sa ritmom 3×sedmično:
+
+| Opseg | Treninga | Sedmično |
+|---|---|---|
+| 7 dana | 0 (pauza) | 0,0 |
+| 30 dana | 9 | 2,1 |
+| 90 dana | 35 | 2,7 |
+| Godina | 78 | 2,9 |
+
+### 3. Prekidač opsega
+
+Statistika više nije fiksna na 12 mjeseci — `.seg` prekidač bira
+**7 / 30 / 90 dana / godina**, i pet brojki prati izbor: treninga, serija,
+sedmično, serija po treningu, najbolji dan. Šesta (niz sedmica) namjerno **ne**
+prati opseg — niz teče od danas unazad bez obzira šta je izabrano — pa ima
+isprekidan obrub da se to vidi bez dodatnog teksta.
+
+Sve se računa iz već učitanih dana, bez novog upita pri promjeni opsega.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/profile.service.ts` — `getTrainingCalendar` filtrira
+  `.not('finished_at', 'is', null)`
+- `src/app/services/leaderboard.service.ts` — `sessionsSince` isto + nova
+  `logDatesSince`, unija u `getTeamWeek`
+- `src/app/components/profile/*` — `statRange`, `computeRangeStats`,
+  prepisan `computeWeekAvg`, uklonjen `computeBestMonth`
+
+**Napomene:** Prazne sesije i dalje nastaju u bazi pri otvaranju ekrana; sada se
+samo ne broje. Da se ne prave uopšte, `getOrCreateSession` bi morao da odloži
+upis dok se nešto ne upiše — veći zahvat, i te redove je korisno imati kao trag.
+
+---
+
+## [2026-07-26] Opsezi u cijelim sedmicama + unos težine u našem stilu
+**Tip:** popravka / redizajn
+**Ref:** Roadmap 1.15
+
+### 1. „Sedmično" je konačno tačno
+
+Marko: *„ne može da bude 6 puta nedeljno na 30 dana ako je u 30 dana bio samo
+jednu nedelju 6 puta"* — i bio je u pravu. Peta verzija formule, i svaka je
+prethodna griješila na isti način: dijelila je **nečim drugim umjesto dužinom
+opsega**.
+
+| # | Djelilac | Šta je davalo |
+|---|---|---|
+| 1 | `(danas − prvi trening) / 7` | 2 treninga pon+uto → **7,0** |
+| 2 | broj punih sedmica od početka | „7 dana": 0 treninga, prosjek 2,0 |
+| 3 | `min(opseg, istorija) / 7` | 6 treninga u 1 sedmici, opseg 30 dana → **6,0** |
+| 4 | `30 / 7 = 4,3` | tačno, ali opseg nije cio broj sedmica |
+| **5** | **broj sedmica u opsegu (1, 4, 13, 52)** | **tačno i bez razlomka** |
+
+Ključna izmjena: **opsezi su sada zadati u cijelim sedmicama**, ne u danima. U
+30 dana stane 4,3 sedmice, pa se broj razvodni; u 4 sedmice stane tačno 4.
+Natpisi su zaokruženi na govorni jezik — `Sedmica · Mjesec · 3 mjeseca · Godina`
+= 1 / 4 / 13 / 52 sedmice.
+
+Provjereno na poznatim ritmovima:
+
+| Stvarni ritam | Sedmica | Mjesec | 3 mjeseca | Godina |
+|---|---|---|---|---|
+| 6 treninga, sve u jednoj sedmici | 6,0 | **1,5** | 0,5 | 0,1 |
+| stabilno 3× sedmično | 3,0 | 3,0 | 3,0 | 3,0 |
+| stabilno 6× sedmično (rest četvrtak) | 6,0 | 6,0 | 6,0 | 5,9 |
+
+### 2. Unos težine prešao na naš dizajn
+
+Filipova funkcija je zadržana u cjelini, promijenjen je samo izgled — koristila
+je podrazumijevana polja i dugmad.
+
+- **Trenutna težina krupno** + ukupna promjena od prvog upisa
+- **Prečica „danas"** u polju za datum — u praksi se upisuje današnji dan
+- **Polje za kilograme** sa `kg` sufiksom i `inputmode="decimal"`
+- **Spisak upisa** sa razlikom u odnosu na prethodni (`+1,2` / `−0,8`)
+
+Razlika je namjerno **bez boje koja sudi**: neko se goji namjerno, neko mršavi,
+pa „+1,2" nije ni dobro ni loše dok se ne zna cilj.
+
+### 3. Dvije zatečene greške usput
+
+**`input[type="date"]` nije bio u globalnom pravilu za polja.** Zbog toga je
+birač datuma zadržavao pregledačev izgled — siva podloga i visina od 25px usred
+obrasca gdje su sva ostala polja 46px. Dodat u `_base.scss`, uz obrtanje boje
+ikone kalendara.
+
+**Oznake ose grafikona su se odsijecale.** `chartPaddingLeft = 46`, a oznaka se
+crta od `chartPaddingLeft − 8` unalijevo — „82.5 kg" nije stalo, pa je pisalo
+„l2.5 kg". Povećano na 62 lijevo i 34 desno (posljednja tačka nosi centriranu
+oznaku iznad sebe). Popravlja i grafikon napretka po vježbi, koji dijeli iste
+konstante.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/profile/profile.component.ts` — `STAT_RANGES` u sedmicama,
+  prepisan `computeWeekAvg`, `buildWeightRows`, `weightCurrent`,
+  `weightTotalChange`, `formatDelta`, `setWeightDateToday`, veći padding grafikona
+- `src/app/components/profile/profile.component.{html,scss}` — modal težine
+- `src/styles/_base.scss` — `input[type="date"]`
+
+---
+
+## [2026-07-26] Sopstveni birač datuma, birač za poređenje, animiran grafikon, futer na telefonu
+**Tip:** funkcionalnost / popravka / redizajn
+**Ref:** Roadmap 1.15
+
+### 1. Sopstveni birač datuma (`<app-date-picker>`)
+
+Nativni `<input type="date">` se **ne može** stilizovati. CSS dohvata samo okvir
+polja; kalendar koji iskoči na klik crta pregledač po sistemskoj temi, i nijedan
+selektor ga ne dosegne — usred tamnog ekrana se otvarao bijeli Chrome-ov
+kalendar sa plavim dugmadima.
+
+Nova komponenta koristi istu mrežu i iste tokene kao kalendar treninga u
+profilu, pa se dva kalendara u aplikaciji ne razlikuju. Radi sa `YYYY-MM-DD`
+nizom, ne sa `Date` — baza čuva dan bez vremena, a `Date` uvodi zonu u nešto što
+je samo dan u mjesecu. Budući datumi su onemogućeni (`max`), otvara se na
+mjesecu već izabranog datuma, Escape zatvara.
+
+### 2. „Uporedi sa" više nije `<select>`
+
+Posljednji `<select>` u aplikaciji. Zamijenjen poljem `.pick-field` i modalom sa
+spiskom članova, kvačicom na izabranom i opcijom „Niko".
+
+### 3. Grafikon napretka
+
+- **Linija se crta**, ne pojavljuje. `pathLength="1"` u predlošku normalizuje
+  dužinu putanje, pa `stroke-dasharray`/`dashoffset` rade iz CSS-a — bez
+  `getTotalLength()` u JavaScriptu i bez ponovnog računanja pri promjeni podataka.
+- **Tačke i natpisi** ulaze stepenasto, poslije linije.
+- **Tuđa linija** je isprekidana i bez sjaja, naša puna sa `drop-shadow` — vidi
+  se čija je koja i bez legende.
+- `transform-box: fill-box` na grupama tačaka: bez toga se `transform` na SVG
+  grupi računa od koordinatnog početka crteža, pa tačke ulijeću iz ugla.
+
+**Zatečena greška:** površina ispod linije bila je **crna mrlja**. Gradijenti
+`progressAreaGradientMe/Compare` su bili definisani u `<defs>`, ali ih putanje
+nisu koristile — nedostajao je `fill`, a SVG bez njega podrazumijeva crno. Uz
+popravku, boje gradijenta su usklađene sa linijama (volt / zlatna) umjesto
+zatečenih tirkizne i crvene.
+
+### 4. Futer na telefonu bježao pri skrolu
+
+`.shell` je imao `min-height: 100dvh`. `dvh` prati traku adresne linije **uživo**
+— visina stranice se mijenja usred skrola, pa se fiksirani futer vidljivo otme,
+smiri, pa opet skoči. Prebačeno na `100svh` (najmanja moguća visina, ne mijenja
+se pri skrolu). Isto u prijavi i registraciji.
+
+Dodato i `overscroll-behavior-y: none` na `body` — na iOS-u se pri „rubber band"
+povlačenju fiksirani futer odvaja od ivice ekrana.
+
+**Napomena:** ovo su dva uzroka koja se mogu ukloniti CSS-om. Ako na iPhoneu i
+dalje bude primjetno pri naglom skrolu, preostaje strukturna promjena: `.shell`
+fiksne visine u kojoj skroluje **sadržaj**, a ne stranica. Tada futer nema veze
+sa trakom adresne linije, ali se traka nikad ne sakriva.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/shared/date-picker/*` — nova komponenta + `formatIsoDate`
+- `src/app/components/profile/*` — birač datuma, birač za poređenje, animacije
+- `src/app/app.component.scss`, `login`, `register` — `dvh` → `svh`
+- `src/styles/_base.scss` — `overscroll-behavior-y`
+- `src/app/app.module.ts` — registracija
+
+---
+
+## [2026-07-26] Popravka: birač osobe za poređenje nije imao stilove
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** U prethodnoj izmjeni je napisan markup modala za izbor osobe
+(`.cmp-row`, `.cmp-av`, `.cmp-check`…), ali **nijedno od tih pravila nije
+dodano u SCSS**. Modal se otvarao kao neoblikovan spisak — dugmad bez podloge,
+avatari bez okvira, kvačica u boji teksta.
+
+Greška je moja i tipična za razdvojen predložak i stil: build prolazi, TypeScript
+ne prijavljuje ništa, jer nedostatak CSS klase nije greška ni za koga osim za oko.
+
+**Rješenje:** Dodata pravila u `profile.component.scss` — red visine 52px sa
+avatarom, naglašen izabrani red (volt podloga i obrub), isprekidan krug za
+„Niko", stepenasti ulaz redova.
+
+**Provjera:** Otvoren modal, izabran „marko" — polje se ažurira, legenda se
+pojavljuje sa dvije boje (volt = ti, zlatna = drugi), grafikon povlači i drugu
+liniju.
+
+**Napomena za ubuduće:** kad se doda markup sa novim klasama, provjeriti
+`grep -c "nova-klasa" *.scss` prije commita. Ovdje bi to odmah dalo nulu.
+
+---
+
+## [2026-07-26] Sve vrijeme, lični rekord, vremenska osa grafikona, futer bez rupe
+**Tip:** funkcionalnost / popravka
+**Ref:** Roadmap 1.13, 1.15
+
+### 1. Futer na iPhoneu — strukturna popravka
+
+Simptom: pri skrolu nadolje traka sa adresom se skupi, fiksirani futer ostane
+gdje je bio, i **između njega i donje trake nastane rupa**. Na skrol nagore
+izgleda uredno.
+
+Uzrok: `position: fixed` se pozicionira prema *layout* viewportu, koji se u
+trenutku skupljanja trake još nije proširio. To se **ne može** popraviti CSS-om
+dok stranica skroluje — probano sa `svh` umjesto `dvh` (pomaže kod visine, ne
+kod ovoga) i sa `overscroll-behavior`.
+
+Rješenje: **stranica se više uopšte ne skroluje.** `.shell` je visine ekrana sa
+`overflow: hidden`, zaglavlje i futer su obična djeca u toku (`flex: none`), a
+skroluje samo srednji `.scroll-area`. Traka sa adresom se tada nikad ne skuplja.
+
+Cijena: traka ostaje stalno vidljiva, gubi se tridesetak piksela. Provjereno da
+se ništa ne oslanja na skrol prozora (`window.scrollTo`, `scrollIntoView` — nema
+nijednog poziva), a modali su `position: fixed` u globalnom sloju pa ih
+`overflow: hidden` na pretku ne siječe.
+
+### 2. „Sve vrijeme" na rang listi
+
+`PeriodDays` dobio vrijednost `0` = bez donje granice; upit tada izostavlja
+`.gte('date', …)`. Rekord u tom pogledu ne ističe — vidi se ko je **ikad**
+najviše digao.
+
+### 3. Lični rekord u profilu
+
+Na rang listi se sopstveni maksimum lako izgubi: ko je slabiji od ostalih, nikad
+ne dođe na podijum pa svoj broj ne vidi nigdje — čak ni pod „Sve".
+
+Zato profil, uz izabranu vježbu, prikazuje **Moj rekord · sve vrijeme**: najveća
+kilaža ikad sa najviše ponavljanja na njoj i datumom. Vatra je ista ikona kao
+oznaka rekorda u treningu — ista stvar treba da izgleda isto na oba mjesta.
+
+Računa se iz cijele istorije, ne iz prozora grafikona; `getProgress` ionako
+vraća sve bez vremenskog ograničenja.
+
+### 4. Grafikon dobio vremensku osu
+
+Ranije su tačke stajale po **rednom broju upisa**, ravnomjerno razmaknute — dva
+upisa razmaknuta tri sedmice izgledala su isto kao dva uzastopna dana, a jedan
+jedini upis bio je tačka u praznini. Zato je grafikon „bio čudan na početku".
+
+Sada X osa nosi **vrijeme**, preko cijelog izabranog prozora. Dodat prekidač
+`1m / 3m / 6m / Sve` i strelice za pomjeranje prozora unazad po jednoj dužini
+opsega. Širina crteža je stalna (560), pa se mijenja gustina a ne dužina — nema
+vodoravnog skrola. Oznake na X osi su ravnomjerne po vremenu (5 tačaka), ne po
+upisima, inače bi se pri više upisa u istoj sedmici preklopile.
+
+### 5. Kratki natpisi na prekidačima
+
+`30 dana / 2 mjeseca / 6 mjeseci / Godina / Sve` je bilo preširoko — pet natpisa
+se grčilo u širini telefona. Sada `1m / 2m / 6m / 1g / Sve`, a pun tekst je
+pomjeren u rečenicu ispod liste („Najveća kilaža u posljednjih 30 dana."), gdje
+ima mjesta. Isto u profilu, za oba prekidača.
+
+Mjereno na uskom ekranu: polje 103px, natpis 15–22px.
+
+### 6. Puna lista dobila naslov
+
+Lista ispod podijuma je **oduvijek** prikazivala sve članove, ali je bez naslova
+izgledala kao slučajno ponavljanje podijuma. Dodat naslov „Svi" i napomena šta
+se mjeri, plus dugme „Prikaži još" kad članova bude više od šest.
+
+**Dodirnuti fajlovi:**
+- `src/app/app.component.{html,scss}` — okvir sa unutrašnjim skrolom
+- `src/app/components/footer/footer.component.scss`, `header.component.scss` — bez `fixed`/`sticky`
+- `src/app/services/leaderboard.service.ts` — `PeriodDays = 0`, `full` natpisi
+- `src/app/components/leaderboard/*` — „Svi" naslov, `Prikaži još`
+- `src/app/components/profile/*` — `personalBest`, `CHART_RANGES`, prepisan `buildChart`
+- `src/styles/_base.scss` — `white-space: nowrap` na `.seg button`
+
+---
+
+## [2026-07-26] Blog: iz mreže u feed, sa autorom i grupisanjem
+**Tip:** redizajn / funkcionalnost
+**Ref:** Roadmap 1.17
+
+**Problem:** Posljednji ekran sa zatečenim stilom. Ravna mreža kvadrata bez
+ijednog zaglavlja — nije se vidjelo ni kad je šta objavljeno, ni ko je objavio,
+ni da je nešto novo. Marko: *„nestrukturiran, nema karaktera"*, a poslije prve
+verzije i *„budno za gledanje"*.
+
+**Rješenje:**
+
+*Autor bez ijedne nove tabele.* Supabase sam upisuje `owner` u
+`storage.objects` pri otpremanju, a `.list()` to vraća — treba samo mapiranje
+`id → korisničko ime` iz `profiles`. Dodat `ProfileService.getAllProfiles()`.
+
+> Dvije postojeće objave u lokalnom seedu nemaju autora jer ih je ubacila
+> skripta, bez prijavljenog korisnika. Prikazuju se kao „—"; **nove objave iz
+> aplikacije imaće ime**, jer se otpremaju sa korisnikovom sesijom.
+
+*Grupisanje po periodu* — Danas / Juče / Ove sedmice / pa po mjesecima. Datum
+objave već postoji u metapodacima, pa vremenska os ne košta ništa.
+
+*Feed umjesto mreže.* Prva verzija je bila mreža sa jednom „dvostrukom" pločom
+za ritam, ali je i dalje bila naporna: nekoliko slika različitog sadržaja jedna
+do druge, sve isječene na kvadrat. Sada je **jedna objava po redu** — avatar,
+ime i vrijeme iznad, pa slika. Slika se prikazuje **cijela** (`object-fit:
+contain`), ne isječena; kod nas su i uspravne fotografije s telefona i vodoravni
+snimci, a sjecanje na kvadrat je odsijecalo pola sadržaja. Gornja granica
+`62svh` sprječava da uspravna slika pojede ekran.
+
+*Pregled* dobio traku sa autorom i vremenom, brojač („3 / 12"), strelice,
+tastaturu (←/→/Esc) i prevlačenje prstom. Ranije se otvarala jedna slika bez
+načina da se pređe na sljedeću.
+
+*Kompresija i otprema* — jedna traka napretka umjesto tri odvojena reda teksta.
+Kad se napredak ne može izmjeriti, traka putuje umjesto da stoji na 100%.
+
+**Zatečena greška:** `/blog` je u zaglavlju imao naslov **„Ekipa"**. To je bilo i
+prije, ali se nije primjećivalo dok rang lista nije preimenovana u „Ekipa" — od
+tada su dva ekrana nosila isti naslov.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/blog.service.ts` — `ownerId`, `size` u `BlogMediaItem`
+- `src/app/services/profile.service.ts` — `getAllProfiles()`
+- `src/app/components/blog/*` — grupisanje, feed, pregled sa kretanjem
+- `src/app/components/header/header.component.ts:22` — naslov „Blog"
+
+**Napomene:** provjereno da svih 40 klasa iz predloška ima stil (nakon što je
+isti propust ranije napravljen kod birača osobe). Objave se i dalje ne mogu
+brisati iz aplikacije — to traži i RLS pravilo, pa ide zasebno.
+
+---
+
+## [2026-07-26] Ko trenira sada, bilješka uz trening, offline upis
+**Tip:** funkcionalnost
+**Ref:** Roadmap 1.18, 2.7
+
+Tri stvari, sve **bez ijedne izmjene baze**. Dvije od njih koriste kolone koje
+su postojale otkad je tabela napravljena, a nikad se nisu koristile.
+
+### 1. Ko trenira sada
+
+`workout_sessions.started_at` ima `default now()`, a prazan `finished_at` znači
+da trening traje. Ni jedno ni drugo se nigdje nije čitalo.
+
+**Uslov nije samo otvorena sesija.** Red nastaje već pri otvaranju ekrana
+treninga, pa bi inače pisalo da trenira i onaj ko je samo bacio pogled. Traži se
+i **bar jedna upisana serija danas**, plus granica od 4 sata — `finished_at`
+ostane prazan i kad neko zaboravi da pritisne „Trening gotov".
+
+Stoji na **dnu dashboarda**, poslije planova. Prva verzija je bila uz dugme za
+trening, ali je tamo djelovala nakalemljeno. Prikazuje se i kad nema nikoga
+(„Trenutno niko ne trenira") — nestanak cijelog polja izgledao bi kao kvar.
+Osvježava se na minut, interval se čisti u `ngOnDestroy`.
+
+### 2. Bilješka uz trening
+
+Kolona `note` je stajala neiskorišćena. Ključ je `UNIQUE (user_id, date)`, pa je
+bilješka **po danu treninga** — jedna po treningu, ne po vježbi. Vidi se i kad
+se dan kasnije ponovo otvori; klik na nju je otvara za izmjenu.
+
+### 3. Offline upis serija
+
+Teretane imaju loš signal. Do sada je pad mreže značio crvenu poruku i
+**izgubljenu seriju** — čovjek je odradio set, otkucao brojeve, a aplikacija ih
+nije zapamtila nigdje.
+
+Sada takav upis ide u red u `localStorage` i šalje se čim mreža proradi.
+
+Odluke:
+- **Odlažu se samo upisi serija.** Brisanje, zamjena vježbe i preređivanje se ne
+  odlažu — mijenjaju stanje koje bi se pri kasnijoj sinhronizaciji moglo sudariti
+  sa stvarnim stanjem baze, a nisu hitni.
+- **Samo pad mreže ide u red.** Odbijanje od baze (prekršeno pravilo) bi se pri
+  ponovnom slanju odbilo opet, pa takva greška mora da se vidi odmah.
+- **Šalje se jedan po jedan, redom.** `set_number` zavisi od prethodnih serija,
+  pa bi paralelno slanje umjelo da ih ispremješta.
+- **`localStorage`, ne IndexedDB** — red je mali i piše se jednom po seriji.
+- Serija koja čeka ima **isprekidan obrub** i ne može se mijenjati dok ne prođe
+  (nema je još u bazi). Traka na vrhu kaže koliko ih čeka.
+
+**Provjereno u pregledaču punim ciklusom:** simuliran pad mreže → serija
+upisana, traka se pojavila, obrub isprekidan, red u `localStorage` = 1 → mreža
+vraćena → red = 0, red u bazi potvrđen SQL-om.
+
+### Usput
+
+- **Sedmica na rang listi je kalendarska** (pon–ned preko `mondayOfThisWeek`),
+  ne „zadnjih 7 dana" — provjereno na traženje.
+- **Strelice za mjesec u profilu su radile** (`Jul → Jun → Maj`), ali se to nije
+  vidjelo jer se **nijedna brojka nije mijenjala** — sve prate klizni opseg.
+  Dodat broj treninga za prikazani mjesec uz naslov („JUL 2026 · 6") i vidljiv
+  okvir oko strelica.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/offline-queue.service.ts` — nov servis
+- `src/app/services/training.service.ts` — `saveNote`, `note` u modelu,
+  registracija pošiljaoca za red
+- `src/app/services/leaderboard.service.ts` — `getLiveSessions`
+- `src/app/components/dashboard/*` — sekcija „Trenira sada"
+- `src/app/components/training/*` — bilješka, traka odloženih upisa, `pending`
+- `src/app/components/profile/*` — broj treninga uz naslov mjeseca
+
+---
+
+## [2026-07-26] Popravka: grafikon težine bio uvećan tri puta
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Poslije prelaska grafikona napretka na stalnu širinu, grafikon
+**težine** je postao ogroman — visok skoro kao cijela stranica.
+
+**Uzrok:** pravilo `.progress-chart { width: 100%; height: auto; }` razvlači SVG
+na širinu kartice. Grafikon vježbe ima stalnu širinu crteža (`chartSpan = 560`),
+pa se skalira otprilike 1:1. Grafikon težine je zadržao **računatu** širinu:
+
+```
+weightChartWidth = 62 + 34 + (n − 1) × 70     // za dva upisa = 166 px
+```
+
+166 px razvučeno na ~490 px je uvećanje od tri puta — a `height: auto` je isto
+toliko uvećalo i visinu, sa 260 na ~770 px.
+
+Nije se primijetilo odmah jer su oba grafikona dijelila isto CSS pravilo, ali
+samo je jedan dobio stalnu širinu.
+
+**Rješenje:** i grafikon težine koristi `chartSpan`. Tačke se raspoređuju po
+cijeloj širini, skaliranje je 1:1.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/profile/profile.component.ts` — `weightChartWidth = this.chartSpan`

@@ -1,7 +1,8 @@
-import { Component, ElementRef, HostListener, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { Router } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
+import { LeaderboardService, LiveSession } from '../../services/leaderboard.service';
 import { WorkoutPlan, PlanType, DayType, Exercice } from '../../models/models';
 import { DAY_NAMES } from '../../shared/day-names';
 import { ExerciceService } from '../../services/exercice.service';
@@ -28,7 +29,7 @@ interface DayEntry {
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   myPlans: any[] = [];
   otherPlans: any[] = [];
   planTypes: PlanType[] = [];
@@ -102,6 +103,7 @@ export class DashboardComponent implements OnInit {
     private authService: AuthService,
     private exerciceService: ExerciceService,
     private trainingService: TrainingService,
+    private leaderboardService: LeaderboardService,
     private router: Router
   ) {}
 
@@ -114,6 +116,12 @@ export class DashboardComponent implements OnInit {
     }
 
     this.checkIfMobile();
+    this.currentUserId = user.id;
+
+    void this.loadLive();
+    // Trening traje, pa broj minuta mora da raste sam. Interval se čisti u
+    // `ngOnDestroy` — bez toga bi kucao i poslije napuštanja ekrana.
+    this.liveTimer = setInterval(() => void this.loadLive(), 60_000);
 
     try {
       this.myPlans = await this.dashboardService.getMyPlans(user.id);
@@ -158,6 +166,37 @@ export class DashboardComponent implements OnInit {
   cardDelay(section: number, index: number): number {
     return 260 + section * 90 + Math.min(index * 55, 330);
   }
+
+  // --- Ko trenira sada --------------------------------------------------------
+  //
+  // Stoji na dashboardu, odmah uz dugme „Započni trening" — tu se i staje kad
+  // se aplikacija otvori, pa je to jedino mjesto gdje podatak nešto mijenja:
+  // ako neko već trenira, veća je šansa da i ti kreneš.
+  live: LiveSession[] = [];
+  currentUserId = '';
+  private liveTimer: any = null;
+
+  ngOnDestroy() {
+    if (this.liveTimer) clearInterval(this.liveTimer);
+  }
+
+  private async loadLive() {
+    try {
+      this.live = await this.leaderboardService.getLiveSessions();
+    } catch {
+      this.live = [];   // dodatak, ne smije oboriti ekran
+    }
+  }
+
+  /** „42 min" / „1 h 12 min" — sati tek kad ih ima. */
+  liveTime(minutes: number): string {
+    if (minutes < 60) return `${minutes} min`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  }
+
+  trackLive = (_: number, l: LiveSession) => l.userId;
 
   goToTraining() {
     this.router.navigate(['/training']);

@@ -65,6 +65,33 @@
 
     </div>
 
+    <!-- Ko je BAŠ SAD u teretani.
+         Na dnu, poslije planova — nije to zbog čega se ekran otvara, ali je
+         prijatno vidjeti. Prikazuje se UVIJEK, i kad nema nikoga: prazno polje
+         govori da funkcija postoji, a nestanak bi izgledao kao kvar. -->
+    <div class="live" *ngIf="!loading && !errorMessage">
+        <div class="live-head">
+            <span class="dot-live" [class.off]="live.length === 0"></span>
+            <span class="live-title">Trenira sada</span>
+        </div>
+
+        <p class="live-none" *ngIf="live.length === 0">
+            Trenutno niko ne trenira.
+        </p>
+
+        <div class="live-row" *ngFor="let l of live; let i = index; trackBy: trackLive"
+             [class.me]="l.userId === currentUserId"
+             [style.animation-delay.ms]="i * 80">
+            <div class="live-av">
+                <img *ngIf="l.avatarUrl" [src]="l.avatarUrl" alt="">
+                <i class="material-icons" *ngIf="!l.avatarUrl">person</i>
+            </div>
+            <span class="live-name">{{ l.username }}</span>
+            <span class="live-sets num">{{ l.sets }} serija</span>
+            <span class="live-time num">{{ liveTime(l.minutes) }}</span>
+        </div>
+    </div>
+
     </div>
 </div>
 

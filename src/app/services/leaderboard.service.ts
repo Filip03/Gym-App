@@ -33,13 +33,20 @@ import { ProfileService } from './profile.service';
  * sedmice. (`A3` u `docs/02-STANJE-KODA.md`.)
  */
 
-export type PeriodDays = 30 | 60 | 180 | 365;
+/** Broj dana unazad. `0` = bez vremenskog ograničenja („Sve vrijeme"). */
+export type PeriodDays = 0 | 30 | 60 | 180 | 365;
 
-export const PERIODS: { days: PeriodDays; label: string }[] = [
-  { days: 30,  label: '30 dana' },
-  { days: 60,  label: '2 mjeseca' },
-  { days: 180, label: '6 mjeseci' },
-  { days: 365, label: 'Godina' }
+/**
+ * `label` je ono što stoji NA dugmetu — kratko, jer pet natpisa mora stati u
+ * širinu telefona. Puni tekst („2 mjeseca") se ponavljao i lomio, pa je pomjeren
+ * u `full`, koji se koristi u rečenici ispod liste.
+ */
+export const PERIODS: { days: PeriodDays; label: string; full: string }[] = [
+  { days: 30,  label: '1m',  full: '30 dana' },
+  { days: 60,  label: '2m',  full: '2 mjeseca' },
+  { days: 180, label: '6m',  full: '6 mjeseci' },
+  { days: 365, label: '1g',  full: 'godinu dana' },
+  { days: 0,   label: 'Sve', full: 'sve vrijeme' }
 ];
 
 export interface LeaderEntry {
@@ -67,6 +74,17 @@ export interface WeekMember {
   count: number;
   /** „danas", „juče", „prije 4 dana", „—". */
   lastLabel: string;
+}
+
+/** Neko ko je upravo u teretani. */
+export interface LiveSession {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  /** Minuta od početka treninga. */
+  minutes: number;
+  /** Koliko je serija dosad upisao. */
+  sets: number;
 }
 
 export interface RecordEvent {
@@ -97,6 +115,15 @@ interface TeamProfile {
  * inače bi svaki povratak na vježbu poslije pauze ispao „rekord".
  */
 const RECORD_WINDOW_DAYS = 90;
+
+/**
+ * Poslije koliko sati se prestaje smatrati da neko „trenira sada".
+ *
+ * `finished_at` ostane prazan i kad neko zaboravi da pritisne „Trening gotov",
+ * pa bi bez granice pisalo da trenira i sjutradan. Četiri sata su duža od
+ * svakog stvarnog treninga, a kraća od pola dana.
+ */
+const LIVE_MAX_HOURS = 4;
 
 @Injectable({
   providedIn: 'root'
@@ -130,7 +157,9 @@ export class LeaderboardService {
    * poruka nego da te uopšte nema na spisku.
    */
   async getLeaderboard(exerciceId: string, days: PeriodDays): Promise<LeaderEntry[]> {
-    const since = this.daysAgo(days);
+    // `days === 0` znači „Sve vrijeme" — bez donje granice. Rekord tada ne
+    // ističe, pa se vidi ko je ikad najviše digao, a ne ko trenutno brani mjesto.
+    const since = days === 0 ? null : this.daysAgo(days);
 
     const [profiles, logs] = await Promise.all([
       this.allProfiles(),
@@ -206,22 +235,35 @@ export class LeaderboardService {
   // ---------------------------------------------------------------------------
   // Sedmica ekipe
 
-  /** Ko je trenirao kog dana ove sedmice. Jedina sekcija koja uvijek ima sadržaj. */
+  /**
+   * Ko je trenirao kog dana ove sedmice. Jedina sekcija koja uvijek ima sadržaj.
+   *
+   * Dan se broji isto kao u kalendaru profila: bar jedna upisana serija, ili
+   * izričito završen trening. Sam red u `workout_sessions` nije dovoljan — on
+   * nastane već pri otvaranju ekrana treninga, pa bi rest day svima svijetlio
+   * kao odrađen. Vidi `ProfileService.getTrainingCalendar`.
+   */
   async getTeamWeek(): Promise<WeekMember[]> {
     const monday = this.mondayOfThisWeek();
     const week = Array.from({ length: 7 }, (_, i) => this.isoAfter(monday, i));
 
-    const [profiles, sessions] = await Promise.all([
+    const since = this.isoAfter(monday, -60);   // i ranije, za „posljednji trening"
+
+    const [profiles, sessions, logs] = await Promise.all([
       this.allProfiles(),
-      this.sessionsSince(this.isoAfter(monday, -60))   // i ranije, za „posljednji trening"
+      this.sessionsSince(since),
+      this.logDatesSince(since)
     ]);
 
     const datesByUser = new Map<string, Set<string>>();
-    for (const s of sessions) {
-      const set = datesByUser.get(s.user_id) ?? new Set<string>();
-      set.add(s.date);
-      datesByUser.set(s.user_id, set);
-    }
+    const add = (userId: string, date: string) => {
+      const set = datesByUser.get(userId) ?? new Set<string>();
+      set.add(date);
+      datesByUser.set(userId, set);
+    };
+
+    for (const s of sessions) add(s.user_id, s.date);
+    for (const l of logs) add(l.user_id, l.date);
 
     const today = this.todayIso();
 
@@ -240,6 +282,66 @@ export class LeaderboardService {
         lastLabel: this.agoLabel(last)
       };
     }).sort((a, b) => b.count - a.count || a.username.localeCompare(b.username));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ko trenira sada
+
+  /**
+   * Ko je trenutno u teretani.
+   *
+   * Ne traži nikakvu novu kolonu: `workout_sessions.started_at` se puni sam
+   * (`default now()`), a prazan `finished_at` znači da trening još traje.
+   *
+   * USLOV NIJE SAMO OTVORENA SESIJA. Red nastaje već pri otvaranju ekrana
+   * treninga, pa bi inače pisalo da trenira i onaj ko je samo bacio pogled na
+   * aplikaciju. Zato se traži i **bar jedna upisana serija danas** — tek tada se
+   * zna da neko stvarno radi.
+   */
+  async getLiveSessions(): Promise<LiveSession[]> {
+    const today = this.todayIso();
+
+    const [profiles, sessions, logs] = await Promise.all([
+      this.allProfiles(),
+      this.supabase.client
+        .from('workout_sessions')
+        .select('user_id, started_at')
+        .eq('date', today)
+        .is('finished_at', null),
+      this.supabase.client
+        .from('exercice_logs')
+        .select('user_id')
+        .eq('date', today)
+    ]);
+
+    if (sessions.error) throw sessions.error;
+    if (logs.error) throw logs.error;
+
+    const setsByUser = new Map<string, number>();
+    for (const row of (logs.data ?? []) as any[]) {
+      setsByUser.set(row.user_id, (setsByUser.get(row.user_id) ?? 0) + 1);
+    }
+
+    const profileById = new Map(profiles.map(p => [p.id, p]));
+    const now = Date.now();
+    const live: LiveSession[] = [];
+
+    for (const row of (sessions.data ?? []) as any[]) {
+      const sets = setsByUser.get(row.user_id) ?? 0;
+      if (sets === 0) continue;                       // samo otvorio ekran
+
+      const started = new Date(row.started_at).getTime();
+      const minutes = Math.max(0, Math.round((now - started) / 60000));
+      if (minutes > LIVE_MAX_HOURS * 60) continue;    // zaboravio da završi
+
+      const profile = profileById.get(row.user_id);
+      if (!profile) continue;
+
+      live.push({ userId: row.user_id, username: profile.username,
+                  avatarUrl: profile.avatarUrl, minutes, sets });
+    }
+
+    return live.sort((a, b) => b.sets - a.sets);
   }
 
   // ---------------------------------------------------------------------------
@@ -334,13 +436,15 @@ export class LeaderboardService {
     }));
   }
 
-  private async logsFor(exerciceId: string, since: string) {
-    const { data, error } = await this.supabase.client
+  private async logsFor(exerciceId: string, since: string | null) {
+    let query = this.supabase.client
       .from('exercice_logs')
       .select('user_id, weight, reps, date')
-      .eq('exercice_id', exerciceId)
-      .gte('date', since);
+      .eq('exercice_id', exerciceId);
 
+    if (since) query = query.gte('date', since);
+
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as any[];
   }
@@ -355,9 +459,22 @@ export class LeaderboardService {
     return (data ?? []) as any[];
   }
 
+  /** Samo ZAVRŠENE sesije — vidi objašnjenje u `getTeamWeek`. */
   private async sessionsSince(since: string) {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
+      .select('user_id, date, finished_at')
+      .not('finished_at', 'is', null)
+      .gte('date', since);
+
+    if (error) throw error;
+    return (data ?? []) as any[];
+  }
+
+  /** Dani sa bar jednom upisanom serijom — broje se i bez „Trening gotov". */
+  private async logDatesSince(since: string) {
+    const { data, error } = await this.supabase.client
+      .from('exercice_logs')
       .select('user_id, date')
       .gte('date', since);
 

@@ -2,8 +2,11 @@
 
     <app-header *ngIf="showLayout"></app-header>
 
-    <main class="content" [class.app-scroll]="showFooter" [class.wide]="wide">
-        <router-outlet></router-outlet>
+    <!-- Skroluje OVO, ne stranica. Vidi objašnjenje u app.component.scss. -->
+    <main class="scroll-area">
+        <div class="content" [class.app-scroll]="showFooter" [class.wide]="wide">
+            <router-outlet></router-outlet>
+        </div>
     </main>
 
     <app-footer *ngIf="showFooter"></app-footer>

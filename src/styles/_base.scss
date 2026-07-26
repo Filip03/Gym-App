@@ -27,6 +27,10 @@ body {
   background-color: var(--void);
   color: var(--ice);
 
+  // Bez odskakanja na krajevima. Na iOS-u se pri „rubber band" povlačenju
+  // fiksirani futer vidljivo odvoji od ivice ekrana.
+  overscroll-behavior-y: none;
+
   font-family: var(--font-body);
   font-size: var(--t-base);
   line-height: var(--lh-body);
@@ -121,6 +125,7 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="number"],
+input[type="date"],
 textarea,
 select {
   width: 100%;
@@ -140,6 +145,18 @@ select {
 input::placeholder, textarea::placeholder { color: var(--dust); }
 
 input:hover, textarea:hover, select:hover { border-color: var(--line-strong); }
+
+// Nativni birač datuma. Bez ovoga polje ostaje pregledačevo — siva podloga i
+// visina od 25px usred obrasca gdje su sva ostala polja 46px. `color-scheme:
+// dark` na <html> obojo je tekst, ali ne i okvir.
+input[type="date"] { cursor: pointer; }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(.45);
+  cursor: pointer;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator { filter: invert(1) opacity(.8); }
 
 input:focus, textarea:focus, select:focus {
   border-color: var(--volt);
@@ -374,6 +391,10 @@ button:not(:disabled):active { transform: scale(0.97); }
   font-size: var(--t-2xs);
   font-weight: 600;
   letter-spacing: var(--ls-wide);
+
+  // Natpisi su kratki („1m", „6m", „Sve") baš zato da nikad ne moraju da se
+  // lome ni skupljaju. `nowrap` je osigurač ako neko doda duži.
+  white-space: nowrap;
 
   transition: color var(--d-base) var(--ease);
 }

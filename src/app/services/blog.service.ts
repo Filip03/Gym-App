@@ -13,6 +13,8 @@ interface BlogMediaRow {
   key: string;
   type: 'image' | 'video';
   created_at: string;
+  uploaded_by: string | null;
+  size: number | null;
 }
 
 export interface BlogMediaItem {
@@ -20,6 +22,16 @@ export interface BlogMediaItem {
   url: string;
   type: 'image' | 'video';
   createdAt: string;
+  /**
+   * Ko je postavio. Mapirano na `blog_media.uploaded_by` — servis samo prosljeđuje
+   * id, komponenta ga prevodi u korisničko ime preko ProfileService.getAllProfiles().
+   *
+   * Prazno za fajlove ubačene ručno (npr. direktno preko R2 dashboarda), jer
+   * tada nema prijavljenog korisnika. Prikazuje se kao „—", ne izmišlja se.
+   */
+  ownerId: string | null;
+  /** Veličina u bajtovima — koristi se za prikaz uštede nakon kompresije. */
+  size: number;
 }
 
 @Injectable({
@@ -32,7 +44,7 @@ export class BlogService {
   async listMedia(): Promise<BlogMediaItem[]> {
     const { data, error } = await this.supabase.client
       .from('blog_media')
-      .select('key, type, created_at')
+      .select('key, type, created_at, uploaded_by, size')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -41,7 +53,9 @@ export class BlogService {
       name: row.key,
       url: this.getPublicUrl(row.key),
       type: row.type,
-      createdAt: row.created_at
+      createdAt: row.created_at,
+      ownerId: row.uploaded_by,
+      size: row.size ?? 0
     }));
   }
 
@@ -74,7 +88,7 @@ export class BlogService {
 
     const { error: insertError } = await this.supabase.client
       .from('blog_media')
-      .insert({ key, type: isVideo ? 'video' : 'image', uploaded_by: userId });
+      .insert({ key, type: isVideo ? 'video' : 'image', uploaded_by: userId, size: file.size });
 
     if (insertError) throw insertError;
   }

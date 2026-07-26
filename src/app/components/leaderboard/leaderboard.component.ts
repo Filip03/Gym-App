@@ -10,6 +10,9 @@ import {
   PickerGroup, PickerOption, toPickerGroups
 } from '../shared/exercice-picker/exercice-picker.component';
 
+/** Koliko redova rang liste se prikaže odjednom. */
+const RANK_STEP = 6;
+
 /** Koliko se rekorda prikaže odjednom, i koliko ih doda „Učitaj još". */
 const RECORDS_STEP = 8;
 
@@ -84,6 +87,14 @@ export class LeaderboardComponent implements OnInit {
   /** Mijenja se pri svakoj promjeni izbora — vidi komentar o animacijama. */
   renderKey = 0;
 
+  /**
+   * Koliko redova pune liste je prikazano.
+   *
+   * Sa nas nekoliko cijela lista stane bez skrola, ali ekran je pisan da radi i
+   * kad nas bude više — tada se ispod podijuma ne isplati sipati dvadeset redova.
+   */
+  rankShown = RANK_STEP;
+
   constructor(
     private leaderboardService: LeaderboardService,
     private exerciceService: ExerciceService,
@@ -101,6 +112,7 @@ export class LeaderboardComponent implements OnInit {
     // čim koja bude spremna.
     void this.loadWeek();
     void this.loadRecords();
+
 
     try {
       const groups = await this.leaderboardService.getExerciceGroups();
@@ -142,8 +154,19 @@ export class LeaderboardComponent implements OnInit {
     }
   }
 
+  showMoreRanks() { this.rankShown += RANK_STEP; }
+
+  get visibleEntries(): LeaderEntry[] {
+    return this.entries.slice(0, this.rankShown);
+  }
+
+  get moreRanks(): number {
+    return Math.max(0, this.entries.length - this.rankShown);
+  }
+
   private async loadBoard() {
     this.entries = [];
+    this.rankShown = RANK_STEP;
     this.errorMessage = '';
     if (!this.selectedExerciceId) return;
 
@@ -268,7 +291,14 @@ export class LeaderboardComponent implements OnInit {
   }
 
   get periodLabel(): string {
-    return this.periods.find(p => p.days === this.period)?.label ?? '';
+    return this.periods.find(p => p.days === this.period)?.full ?? '';
+  }
+
+  /** Rečenica ispod liste — nosi PUN tekst opsega, koji na dugmetu ne bi stao. */
+  get boardNote(): string {
+    return this.period === 0
+      ? 'Najveća kilaža ikad, bez vremenskog ograničenja.'
+      : `Najveća kilaža u posljednjih ${this.periodLabel}.`;
   }
 
   pictureUrl(picture: string | null): string | null {

@@ -1,0 +1,38 @@
+<div class="modal-overlay dp-overlay" (click)="dismiss.emit()">
+  <div class="modal-card dp-card" (click)="$event.stopPropagation()">
+
+    <header class="dp-head">
+      <h3>{{ title }}</h3>
+      <button type="button" class="dp-close" (click)="dismiss.emit()" aria-label="Zatvori">
+        <i class="material-icons">close</i>
+      </button>
+    </header>
+
+    <div class="dp-nav">
+      <button type="button" (click)="prev()" aria-label="Prethodni mjesec">
+        <i class="material-icons">chevron_left</i>
+      </button>
+      <span class="dp-month">{{ title$ }}</span>
+      <button type="button" (click)="next()" aria-label="Sljedeći mjesec">
+        <i class="material-icons">chevron_right</i>
+      </button>
+    </div>
+
+    <div class="dp-grid">
+      <span class="dp-wd" *ngFor="let w of weekLabels">{{ w }}</span>
+      <span class="dp-pad" *ngFor="let _ of [].constructor(lead)"></span>
+
+      <button type="button" class="dp-day"
+              *ngFor="let c of cells; let i = index; trackBy: trackCell"
+              [class.selected]="c.iso === value"
+              [class.today]="isToday(c.iso)"
+              [disabled]="c.disabled"
+              [style.animation-delay.ms]="i * 8"
+              (click)="choose(c.iso, c.disabled)">
+        {{ c.day }}
+      </button>
+    </div>
+
+    <button type="button" class="dp-today" (click)="today()">Danas</button>
+  </div>
+</div>

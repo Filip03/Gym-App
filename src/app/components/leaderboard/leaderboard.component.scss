@@ -367,11 +367,27 @@
 // Prva tri mjesta se ponavljaju i ovdje, naglašena; od četvrtog naniže su
 // prigušena. Tako lista radi i kad nas bude pet-šest, a ne samo troje.
 
+// Naslov iznad pune liste — bez njega izgleda kao slučajno ponavljanje
+// podijuma, a ne kao zaseban pregled svih.
+.rank-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+}
+
+.rank-note {
+  font-size: var(--t-2xs);
+  color: var(--dust);
+  text-align: right;
+}
+
 .rank-list {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  margin-top: var(--s-5);
+  margin-top: var(--s-3);
 }
 
 .rank-row {
@@ -529,5 +545,4 @@
   .sec { padding-inline: var(--s-3); }
   .dot { width: 14px; height: 18px; }
   .avatar { width: 34px; height: 34px; }
-  .period-seg button { font-size: 10px; letter-spacing: 0.04em; }
 }

@@ -72,9 +72,14 @@
         Do prvog mjesta ti fali <strong class="num">{{ myGap.behind }} kg</strong>.
       </p>
 
-      <!-- Puna lista -->
+      <!-- Puna lista — svi članovi, ne samo podijum -->
+      <div class="rank-head">
+        <h3 class="eyebrow">Svi</h3>
+        <span class="rank-note">{{ boardNote }}</span>
+      </div>
+
       <div class="rank-list">
-        <div class="rank-row" *ngFor="let e of entries; let i = index; trackBy: trackEntry"
+        <div class="rank-row" *ngFor="let e of visibleEntries; let i = index; trackBy: trackEntry"
              [attr.data-rank]="e.rank"
              [class.me]="e.userId === currentUserId"
              [class.blank]="e.weight === null"
@@ -108,6 +113,10 @@
           </div>
         </div>
       </div>
+
+      <button type="button" class="more" *ngIf="moreRanks > 0" (click)="showMoreRanks()">
+        Prikaži još <span class="num">({{ moreRanks }})</span>
+      </button>
 
     </ng-container>
   </ng-container>

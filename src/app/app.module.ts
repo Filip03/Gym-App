@@ -18,6 +18,7 @@ import { ServiceWorkerModule } from '@angular/service-worker';
 import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
 import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
+import { DatePickerComponent } from './components/shared/date-picker/date-picker.component';
 
 @NgModule({
   declarations: [
@@ -31,7 +32,8 @@ import { ExercicePickerComponent } from './components/shared/exercice-picker/exe
     LeaderboardComponent,
     ProfileComponent,
     BlogComponent,
-    ExercicePickerComponent
+    ExercicePickerComponent,
+    DatePickerComponent
   ],
   imports: [
     BrowserModule,
