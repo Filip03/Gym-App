@@ -1319,3 +1319,41 @@ cijeloj širini, skaliranje je 1:1.
 
 **Dodirnuti fajlovi:**
 - `src/app/components/profile/profile.component.ts` — `weightChartWidth = this.chartSpan`
+
+---
+
+## [2026-07-26] Modali: `svh` umjesto `vh`, obrazac koji se lomi sam
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Na telefonu se modal za upis težine sjekao — vrh ispod zaglavlja,
+dno ispod futera — a polja su se preklapala.
+
+**Uzrok 1 — `vh` na telefonu.** Globalna `.modal-card` je imala
+`max-height: min(88vh, 900px)`. `vh` je **velika** visina ekrana, onakva kakva
+bi bila da je traka sa adresom sakrivena. Otkad stranica ne skroluje (vidi
+`app.component.scss`), traka se **nikad** ne sakriva, pa je `88vh` bio viši od
+onoga što se stvarno vidi. Modal je zato ispadao izvan vidljivog dijela na oba
+kraja.
+
+Ispravljeno na `svh` — mala, stabilna visina ekrana. Isto u biraču vježbe
+(`88dvh` → `88svh`, `78vh` → `78svh`).
+
+**Uzrok 2 — obrazac na fiksne tačke prekida.** Bio je mreža `1fr 1fr auto` uz
+poseban `@media (max-width: 520px)`. To znači da postoji tačno jedna širina na
+kojoj izgleda dobro: mjereno, na 360px se polje za kilažu skupljalo na **56px**
+a dugme „Upiši" je **ispadalo iz kartice**.
+
+Zamijenjeno `flex-wrap`-om sa osnovnom širinom po polju (datum `200px`, kilaža
+`130px`). Dok ima mjesta stoje u redu, kad nema — prelome se. **Bez ijednog
+`@media`.**
+
+**Provjereno mjerenjem** na 300 / 340 / 380 / 500 px: nijedan element ne
+prelijeva karticu, polje za kilažu ostaje 152–232px, kartica staje u ekran i
+skroluje iznutra kad sadržaj preraste.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_base.scss` — `.modal-card` na `svh`
+- `src/app/components/shared/exercice-picker/exercice-picker.component.scss` — `svh`
+- `src/app/components/profile/profile.component.scss` — `.wm-form` na `flex-wrap`,
+  uklonjen `@media`, `.weight-card` više ne postavlja svoju visinu

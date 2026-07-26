@@ -12,13 +12,13 @@
 .picker-card {
   display: flex;
   flex-direction: column;
-  height: 88dvh;
+  height: 88svh;   // `svh`, ne `dvh` — vidi _base.scss
   padding: 0;
   overflow: hidden;
 }
 
 @media (min-width: 640px) {
-  .picker-card { height: min(78vh, 760px); }
+  .picker-card { height: min(78svh, 760px); }
 }
 
 // --- Zaglavlje -------------------------------------------------------------

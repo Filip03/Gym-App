@@ -453,7 +453,13 @@ button:not(:disabled):active { transform: scale(0.97); }
 .modal-card {
   width: 100%;
   max-width: var(--page-max);
-  max-height: min(88vh, 900px);
+  // `svh`, ne `vh`.
+  //
+  // `vh` je VELIKA visina ekrana — onakva kakva bi bila da je traka sa adresom
+  // sakrivena. Otkad stranica ne skroluje (vidi app.component.scss), traka se
+  // nikad ne sakriva, pa je `88vh` viši od onoga što se stvarno vidi: modal se
+  // sjekao i pri vrhu i pri dnu, ispod zaglavlja i futera.
+  max-height: min(88svh, 900px);
   overflow-y: auto;
   overscroll-behavior: contain;
 
