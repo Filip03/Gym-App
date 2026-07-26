@@ -1,12 +1,28 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ProfileService, ProgressPoint } from '../../services/profile.service';
+import { ProfileService, ProgressPoint, TrainingDay } from '../../services/profile.service';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { Profile } from '../../models/models';
 import {
   PickerGroup, PickerOption, toPickerGroups
 } from '../shared/exercice-picker/exercice-picker.component';
+
+/** Jedno polje u kalendaru treninga. */
+interface CalCell {
+  iso: string;
+  day: number;
+  /** 0 = nije trenirano, 1–4 = jačina zelene po broju serija. */
+  level: number;
+  sets: number;
+  today: boolean;
+  future: boolean;
+}
+
+const MONTHS = [
+  'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
+  'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
+];
 
 interface ChartPoint {
   x: number;
@@ -40,6 +56,26 @@ export class ProfileComponent implements OnInit {
   editUsername = '';
   editHeight: number | null = null;
   editWeight: number | null = null;
+
+  // --- Kalendar treninga ------------------------------------------------------
+  //
+  // Ne traži novu tabelu: `workout_sessions` postoji otkad je dodato dugme
+  // „Trening gotov". Cijela godina se povlači jednom, pa je listanje mjeseci
+  // trenutno i bez ijednog novog upita.
+  calLoading = true;
+  calDays: TrainingDay[] = [];
+  calCells: CalCell[] = [];
+  calLead = 0;                       // prazna polja prije prvog u mjesecu
+  calTitle = '';
+  calAtCurrentMonth = true;
+  monthCount = 0;
+  weekStreak = 0;
+  yearCount = 0;
+  yearSets = 0;
+  weekAvg = '0';
+  bestMonth = 0;
+  readonly weekLabels = ['P', 'U', 'S', 'Č', 'P', 'S', 'N'];
+  private calCursor = new Date();
 
   exerciceGroups: MuscleGroupWithExercices[] = [];
   loadingExerciceGroups = true;
@@ -94,6 +130,8 @@ export class ProfileComponent implements OnInit {
 
     this.email = user.email ?? '';
 
+    void this.loadCalendar(user.id);   // ne čeka profil, puni se paralelno
+
     try {
       this.profile = await this.profileService.getProfile(user.id);
       this.updateAvatarUrl();
@@ -127,6 +165,157 @@ export class ProfileComponent implements OnInit {
       await this.onProgressExerciceChange();
     }
   }
+
+  // ---------------------------------------------------------------------------
+  // Kalendar treninga
+
+  private async loadCalendar(userId: string) {
+    const since = new Date();
+    since.setFullYear(since.getFullYear() - 1);
+
+    try {
+      this.calDays = await this.profileService.getTrainingCalendar(userId, this.iso(since));
+      this.yearCount = this.calDays.length;
+      this.yearSets = this.calDays.reduce((n, d) => n + d.sets, 0);
+      this.weekStreak = this.computeWeekStreak();
+      this.weekAvg = this.computeWeekAvg();
+      this.bestMonth = this.computeBestMonth();
+      this.buildMonth();
+    } catch {
+      // Kalendar je dodatak; greška ovdje ne smije oboriti ostatak profila.
+      this.calDays = [];
+    } finally {
+      this.calLoading = false;
+    }
+  }
+
+  prevMonth() { this.shiftMonth(-1); }
+  nextMonth() { if (!this.calAtCurrentMonth) this.shiftMonth(1); }
+
+  private shiftMonth(by: number) {
+    this.calCursor = new Date(
+      this.calCursor.getFullYear(), this.calCursor.getMonth() + by, 1
+    );
+    this.buildMonth();
+  }
+
+  /**
+   * Sastavlja mrežu za mjesec na koji pokazuje `calCursor`.
+   *
+   * Sedmica počinje ponedjeljkom, pa se `getDay()` (0 = nedjelja) pomjera.
+   * Prazna polja prije prvog u mjesecu nose samo razmak, nisu dani.
+   */
+  private buildMonth() {
+    const year = this.calCursor.getFullYear();
+    const month = this.calCursor.getMonth();
+
+    const setsByDate = new Map(this.calDays.map(d => [d.date, d.sets]));
+    const todayIso = this.iso(new Date());
+
+    const first = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    this.calLead = (first.getDay() + 6) % 7;
+    this.calTitle = `${MONTHS[month]} ${year}`;
+
+    const now = new Date();
+    this.calAtCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+
+    this.calCells = [];
+    let inMonth = 0;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const iso = this.iso(new Date(year, month, day));
+      const sets = setsByDate.get(iso);
+      const trained = sets !== undefined;
+      if (trained) inMonth++;
+
+      this.calCells.push({
+        iso,
+        day,
+        sets: sets ?? 0,
+        // Nula serija znači „bio u teretani, ali ništa nije upisano" — to je i
+        // dalje odrađen dan, pa dobija najsvjetliji nivo, ne prazno polje.
+        level: trained ? 1 + Math.min(3, Math.floor((sets ?? 0) / 8)) : 0,
+        today: iso === todayIso,
+        future: iso > todayIso
+      });
+    }
+
+    this.monthCount = inMonth;
+  }
+
+  /**
+   * Uzastopne sedmice sa bar jednim treningom.
+   *
+   * Niz po DANIMA nema smisla u teretani — svaki dan odmora bi ga prekinuo, pa
+   * bi skoro uvijek pisalo 1. Sedmica je jedinica koja stvarno mjeri da li se
+   * održava ritam.
+   *
+   * Tekuća sedmica se ne računa kao prekid ako u njoj još nema treninga: tek je
+   * počela, pa bi nuliranje niza u ponedjeljak ujutro bilo kažnjavanje ni za šta.
+   */
+  private computeWeekStreak(): number {
+    if (this.calDays.length === 0) return 0;
+
+    const weeks = new Set(this.calDays.map(d => this.mondayIso(new Date(`${d.date}T12:00:00`))));
+
+    const cursor = new Date();
+    let key = this.mondayIso(cursor);
+    let streak = 0;
+
+    if (!weeks.has(key)) {
+      cursor.setDate(cursor.getDate() - 7);   // tekuća sedmica još ne broji
+      key = this.mondayIso(cursor);
+    }
+
+    while (weeks.has(key)) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 7);
+      key = this.mondayIso(cursor);
+    }
+
+    return streak;
+  }
+
+  /**
+   * Prosjek treninga po sedmici, od prvog upisanog dana do danas.
+   *
+   * Ne dijeli se sa 52 — ko je počeo prije mjesec dana ne zaslužuje prosjek od
+   * 0.5 samo zato što ranije nije koristio aplikaciju.
+   */
+  private computeWeekAvg(): string {
+    if (this.calDays.length === 0) return '0';
+
+    const first = new Date(`${this.calDays[0].date}T12:00:00`);
+    const days = Math.max(7, (Date.now() - first.getTime()) / 86400000);
+    return (this.calDays.length / (days / 7)).toFixed(1).replace('.', ',');
+  }
+
+  /** Najviše treninga u jednom kalendarskom mjesecu unutar učitane godine. */
+  private computeBestMonth(): number {
+    const byMonth = new Map<string, number>();
+    for (const d of this.calDays) {
+      const key = d.date.slice(0, 7);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
+    }
+    return Math.max(0, ...byMonth.values());
+  }
+
+  private mondayIso(d: Date): string {
+    const m = new Date(d);
+    m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
+    return this.iso(m);
+  }
+
+  /** Lokalni datum kao `YYYY-MM-DD`. `toISOString()` uveče vraća sjutrašnji dan. */
+  private iso(d: Date): string {
+    const mm = `${d.getMonth() + 1}`.padStart(2, '0');
+    const dd = `${d.getDate()}`.padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+
+  trackCell = (_: number, c: CalCell) => c.iso;
 
   onPick(option: PickerOption) {
     this.showPicker = false;

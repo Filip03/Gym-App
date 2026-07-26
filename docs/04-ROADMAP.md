@@ -52,6 +52,9 @@ baze, pa može ići paralelno sa Fazom 0.
 | 1.11 | Nalog bez profila ruši svaki ekran — `handle_new_user()` bez zaštite | A11, S8 | ☐ ČEKA |
 | 1.12 | Jedinstven birač vježbe na sva četiri mjesta (trening, rang lista, napredak) | — | ☑ GOTOVO |
 | 1.13 | Ekran „Ekipa" — sedmica, feed rekorda, podijum i rang po vježbi | — | ☑ GOTOVO |
+| 1.14 | Ulazne animacije (vježbe, dashboard) i klizni prekidač | — | ☑ GOTOVO |
+| 1.15 | Kalendar treninga u profilu + statistika | — | ☑ GOTOVO |
+| 1.16 | Prevlačenje prstom kroz dane plana | — | ☑ GOTOVO |
 
 ---
 

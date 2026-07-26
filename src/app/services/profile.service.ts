@@ -4,6 +4,13 @@ import { Profile } from '../models/models';
 
 const BUCKET_NAME = 'profile-pictures';
 
+/** Jedan odrađen dan u kalendaru treninga. */
+export interface TrainingDay {
+  date: string;
+  /** Broj upisanih serija tog dana — određuje jačinu zelene. */
+  sets: number;
+}
+
 export interface ProgressPoint {
   date: string;
   weight: number;
@@ -67,6 +74,52 @@ export class ProfileService {
 
     if (error) throw error;
     return (data ?? []) as { id: string; username: string }[];
+  }
+
+  /**
+   * Svi dani u kojima je bilo treninga, za kalendar u profilu.
+   *
+   * NIJE POTREBNA NOVA TABELA. `workout_sessions` postoji otkad je dodato dugme
+   * „Trening gotov" i nosi tačno ono što treba: korisnik + datum. Broj serija se
+   * dobija iz `exercice_logs`, i služi samo za jačinu boje.
+   *
+   * Povlači se cijela godina odjednom, ali samo kolona `date` — prelazak na
+   * prethodni mjesec je zato trenutan, bez novog upita. Za četvoro ljudi i
+   * godinu dana to je nekoliko hiljada kratkih redova.
+   *
+   * Dan sa sesijom a bez ijedne upisane serije se broji kao trening (`sets: 0`) —
+   * bio si u teretani i to se vidi, samo nije upisano.
+   */
+  async getTrainingCalendar(userId: string, sinceIso: string): Promise<TrainingDay[]> {
+    const [sessions, logs] = await Promise.all([
+      this.supabase.client
+        .from('workout_sessions')
+        .select('date')
+        .eq('user_id', userId)
+        .gte('date', sinceIso),
+      this.supabase.client
+        .from('exercice_logs')
+        .select('date')
+        .eq('user_id', userId)
+        .gte('date', sinceIso)
+    ]);
+
+    if (sessions.error) throw sessions.error;
+    if (logs.error) throw logs.error;
+
+    const byDate = new Map<string, number>();
+
+    for (const row of (sessions.data ?? []) as any[]) {
+      byDate.set(row.date, byDate.get(row.date) ?? 0);
+    }
+
+    for (const row of (logs.data ?? []) as any[]) {
+      byDate.set(row.date, (byDate.get(row.date) ?? 0) + 1);
+    }
+
+    return [...byDate.entries()]
+      .map(([date, sets]) => ({ date, sets }))
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 
   getPublicUrl(path: string): string {

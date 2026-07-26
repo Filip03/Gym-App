@@ -686,3 +686,99 @@ obore), „Svi" prikazuje 8 + „Učitaj još (1)".
 **Napomene:** Kašnjenje animacije koristi `i % 8`, pa se pri dodavanju novih
 osam animira samo novi blok — već prikazani redovi zadržavaju svoje čvorove
 (`trackBy` im se ne mijenja) i ne trepere.
+
+---
+
+## [2026-07-26] Pokret: ulazne animacije, klizni prekidač, kalendar treninga, prevlačenje
+**Tip:** funkcionalnost / popravka
+**Ref:** Roadmap 1.14, 1.15, 1.16
+
+### 1. Ulazne animacije (vježbe i dashboard)
+
+Katalog vježbi i dashboard su se pojavljivali odjednom, kao da su iskočili.
+Sada naslovi grupa i kartice ulaze stepenasto.
+
+Kašnjenje računa komponenta (`cardDelay`) i postavlja ga inline, jer zavisi od
+rednog broja grupe i kartice. **Ograničeno je** — katalog ima 37 vježbi u 6
+grupa; bez granice bi posljednja čekala preko dvije sekunde i ekran bi djelovao
+sporo umjesto tečno. Mjereno: najduže kašnjenje je 545 ms.
+
+**Zamka koja je zamalo prošla:** `animation-fill-mode` mora biti `backwards`, a
+**ne** `both`. `both` zadržava završno stanje ključnog kadra i time zaključava
+`transform`, pa `:hover` podizanje kartice poslije animacije više ne bi radilo.
+Provjereno u pregledaču: poslije animacije `transform: none`, a na hover
+`matrix(1, 0, 0, 1, 0, -2)`.
+
+### 2. Klizni prekidač (`.seg`)
+
+Aktivna boja je ranije samo preskakala s jednog dugmeta na drugo, bez veze
+između dva stanja. Sada se ispod dugmadi klizi podloga, pa se vidi odakle je
+izbor otišao i kuda.
+
+Podloga je zaseban element, ne `background` na dugmetu — `background-color` se
+ne može animirati po položaju. Položaj nosi `--seg-index`, broj polja
+`--seg-count`. Stil je u `src/styles/_base.scss` jer ga koriste **tri** mjesta:
+„Svi / Moji", prekidač perioda, i opseg u biraču vježbi.
+
+### 3. Kalendar treninga u profilu
+
+**Nije bila potrebna nikakva migracija.** `workout_sessions` postoji otkad je
+dodato dugme „Trening gotov" i nosi tačno ono što treba — korisnik i datum.
+Broj serija iz `exercice_logs` određuje samo jačinu zelene (4 nivoa).
+
+Mjesec, ne posljednjih 30 dana: dan u sedmici mora stajati u svojoj koloni,
+inače se ne vidi obrazac (npr. da se nedjeljom nikad ne trenira). Godina se
+povlači jednom, pa je listanje mjeseci trenutno, bez novog upita.
+
+Šest brojki: ovog mjeseca, niz sedmica, sedmično, najbolji mjesec, treninga i
+serija za 12 mjeseci. Niz se broji **po sedmicama, ne po danima** — niz po
+danima bi prekinuo svaki dan odmora, pa bi skoro uvijek pisalo 1.
+
+Polja su namjerno mala i mreža je ograničena po širini; prva verzija je bila
+`repeat(7, 1fr)` preko cijele kartice, što je na računaru zauzimalo pola ekrana
+ni za šta. Na širem ekranu kalendar i brojke stoje jedno pored drugog.
+
+### 4. Trzaj pri otvaranju plana — pravi uzrok
+
+Prvo sam pogrešno zaključio da okvir „raste od nule" i isključio prelaz.
+Stvarni uzrok je drugi: okvir je stajao na `height: auto` dok podaci ne stignu, a
+**`auto → 610px` se u CSS-u ne interpolira**. `transition: height` je postojao,
+ali nije imao šta da radi — visina je skakala u jednom kadru.
+
+Rješenje: početna visina je broj (`deckStartHeight = 320`), nikad `auto`. Prva
+izmjerena visina se primjenjuje tek nakon dva `requestAnimationFrame`-a, da
+pregledač stigne da iscrta početnu — inače spoji obje promjene u jedan kadar i
+opet nema animacije. Prelaz produžen sa 320 na 460 ms, jer okvir pređe i po 300
+piksela odjednom.
+
+Dodat je i placeholder dok plan stiže, iste visine kao početni okvir.
+
+### 5. Prevlačenje kroz dane plana
+
+Na telefonu su strelice bile jedini način da se promijeni dan. Dodato je
+prevlačenje prstom po samim kartama.
+
+Namjerno se **ne** koristi `touchmove` sa praćenjem prsta — karte bi tada morale
+da prate pomjeraj, a to se tuče sa 3D transformacijama špila. Mjeri se samo
+odakle dokle je prst otišao: prag 50 px, i pokret mora biti pretežno vodoravan
+(`|dx| > |dy| * 1.5`), inače bi svako skrolovanje kroz duži dan mijenjalo
+stranicu. `touch-action: pan-y` ostavlja uspravno skrolovanje pregledaču.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_base.scss` — `.seg`, `.seg-thumb`
+- `src/app/components/exercices/*` — `groupDelay`, `cardDelay`, `card-in`, `group-in`
+- `src/app/components/dashboard/*` — ulazne animacije, `deckStartHeight`,
+  `onDeckTouchStart`/`onDeckTouchEnd`, `.swipe-hint`, `.view-loading`
+- `src/app/components/profile/*` — kalendar, šest brojki, `computeWeekStreak`,
+  `computeWeekAvg`, `computeBestMonth`
+- `src/app/services/profile.service.ts` — `getTrainingCalendar`
+- `src/app/components/leaderboard/*`, `src/app/components/shared/exercice-picker/*` —
+  prelazak na `.seg`
+- `angular.json` — `anyComponentStyle` granica greške 16 → 20 kB
+
+**Napomene:** `dashboard.component.scss` je sada 17 kB i granica je podignuta da
+build prođe. To je zakrpa, ne rješenje — modal plana treba da postane zasebna
+komponenta, što je i ranije zapisano kao dug.
+
+Datumi se svuda računaju u lokalnoj zoni pa pretvaraju u `YYYY-MM-DD`;
+`toISOString()` se ne koristi jer uveče vraća sjutrašnji dan.

@@ -262,6 +262,11 @@ export class LeaderboardComponent implements OnInit {
     return { behind: leader.weight! - me.weight };
   }
 
+  /** Položaj klizne podloge u prekidaču perioda. */
+  get periodIndex(): number {
+    return Math.max(0, this.periods.findIndex(p => p.days === this.period));
+  }
+
   get periodLabel(): string {
     return this.periods.find(p => p.days === this.period)?.label ?? '';
   }

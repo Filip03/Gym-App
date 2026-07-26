@@ -12,7 +12,9 @@
     </header>
 
     <div class="picker-tools">
-      <div class="scope-switch" *ngIf="suggested">
+      <div class="seg scope-seg" *ngIf="suggested"
+           [style.--seg-count]="2" [style.--seg-index]="scope === 'suggested' ? 0 : 1">
+        <span class="seg-thumb"></span>
         <button type="button" [class.on]="scope === 'suggested'" (click)="setScope('suggested')">
           {{ suggestedLabel }}
         </button>

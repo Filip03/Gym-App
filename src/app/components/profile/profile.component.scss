@@ -423,3 +423,192 @@
     font-size: 1.1rem;
   }
 }
+
+// ---------------------------------------------------------------------------
+// KALENDAR TRENINGA
+//
+// Ista ideja kao mreža doprinosa: jedno polje po danu, jače zeleno = više
+// upisanih serija. Ne traži novu tabelu — `workout_sessions` postoji otkad je
+// dodato dugme „Trening gotov".
+//
+// Mjesec, ne posljednjih 30 dana: dan u sedmici mora stajati u svojoj koloni,
+// inače se ne vidi obrazac (npr. da se nedjeljom nikad ne trenira).
+// ---------------------------------------------------------------------------
+
+.cal-section {
+  margin-top: var(--s-6);
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-4);
+}
+
+.cal-head h3 {
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  color: var(--volt);
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.cal-nav button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  color: var(--mist);
+}
+
+.cal-nav button:not(:disabled):hover { background: var(--carbon-high); color: var(--ice); }
+.cal-nav button:disabled { opacity: .3; }
+.cal-nav .material-icons { font-size: 20px; }
+
+.cal-title {
+  min-width: 118px;
+  text-align: center;
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--ice);
+}
+
+// Polja su namjerno MALA i mreža je ograničena po širini.
+//
+// Prvo je bila `repeat(7, 1fr)` preko cijele kartice: na telefonu u redu, na
+// računaru ogromni kvadrati koji su zauzimali pola ekrana ni za šta. Kalendar
+// je pregled, ne glavni sadržaj.
+.cal-body {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 30px));
+  justify-content: center;
+  gap: 4px;
+}
+
+// Na širem ekranu kalendar i brojke stoje jedno pored drugog — inače bi ispod
+// male mreže ostajao prazan pojas preko cijele širine kartice.
+@media (min-width: 640px) {
+  .cal-body {
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: var(--s-6);
+  }
+  .cal-grid { justify-content: start; }
+}
+
+.cal-wd {
+  padding-bottom: 2px;
+  text-align: center;
+  font-family: var(--font-data);
+  font-size: 9px;
+  color: var(--dust);
+}
+
+.cal-pad { aspect-ratio: 1; }
+
+.cal-day {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+
+  background: var(--steel);
+  border: 1px solid transparent;
+  border-radius: 5px;
+
+  font-family: var(--font-data);
+  font-size: 10px;
+  color: var(--dust);
+
+  animation: cal-in 260ms var(--ease-out) backwards;
+}
+
+// Četiri nivoa. Najsvjetliji je „bio, ali bez upisa" ili kratak trening;
+// najjači je dan sa preko 24 serije.
+.cal-day[data-level="1"] { background: rgba(198, 255, 59, .18); color: var(--volt-soft); }
+.cal-day[data-level="2"] { background: rgba(198, 255, 59, .38); color: var(--volt-ink); }
+.cal-day[data-level="3"] { background: rgba(198, 255, 59, .65); color: var(--volt-ink); }
+.cal-day[data-level="4"] {
+  background: var(--volt);
+  color: var(--volt-ink);
+  font-weight: 700;
+  box-shadow: 0 0 12px -3px var(--volt);
+}
+
+.cal-day.today { border-color: var(--ice); }
+.cal-day.future { opacity: .35; }
+
+.cal-empty {
+  padding: var(--s-6) 0;
+  text-align: center;
+  font-size: var(--t-sm);
+  color: var(--dust);
+}
+
+.cal-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+@media (min-width: 640px) {
+  .cal-stats {
+    grid-template-columns: repeat(2, 1fr);
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .cal-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+.cal-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--s-2);
+  background: var(--carbon-high);
+  border-radius: var(--r-sm);
+}
+
+.cs-num {
+  font-size: var(--t-md);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--volt);
+}
+
+.cs-label {
+  font-size: 10px;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--dust);
+  text-align: center;
+}
+
+@keyframes cal-in {
+  from { opacity: 0; transform: scale(.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-day { animation: none; }
+}

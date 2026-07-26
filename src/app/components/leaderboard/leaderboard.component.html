@@ -18,7 +18,9 @@
     <i class="material-icons">expand_more</i>
   </button>
 
-  <div class="period-switch" *ngIf="selectedExerciceId">
+  <div class="seg period-seg" *ngIf="selectedExerciceId"
+       [style.--seg-count]="periods.length" [style.--seg-index]="periodIndex">
+    <span class="seg-thumb"></span>
     <button type="button" *ngFor="let p of periods"
             [class.on]="period === p.days" (click)="setPeriod(p.days)">
       {{ p.label }}
@@ -160,7 +162,9 @@
 
   <ng-container *ngIf="!recordsLoading">
 
-    <div class="scope-switch">
+    <div class="seg record-seg"
+         [style.--seg-count]="2" [style.--seg-index]="recordScope === 'all' ? 0 : 1">
+      <span class="seg-thumb"></span>
       <button type="button" [class.on]="recordScope === 'all'" (click)="setRecordScope('all')">
         Svi
       </button>

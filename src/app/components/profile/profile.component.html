@@ -65,6 +65,71 @@
 
       <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
 
+      <!-- Kalendar treninga -->
+      <div class="cal-section">
+        <div class="cal-head">
+          <h3>Treninzi</h3>
+          <div class="cal-nav">
+            <button type="button" (click)="prevMonth()" aria-label="Prethodni mjesec">
+              <i class="material-icons">chevron_left</i>
+            </button>
+            <span class="cal-title">{{ calTitle }}</span>
+            <button type="button" (click)="nextMonth()" [disabled]="calAtCurrentMonth"
+                    aria-label="Sljedeći mjesec">
+              <i class="material-icons">chevron_right</i>
+            </button>
+          </div>
+        </div>
+
+        <p *ngIf="calLoading" class="cal-empty">Učitavanje...</p>
+
+        <ng-container *ngIf="!calLoading">
+          <div class="cal-body">
+          <div class="cal-grid">
+            <span class="cal-wd" *ngFor="let w of weekLabels">{{ w }}</span>
+
+            <span class="cal-pad" *ngFor="let _ of [].constructor(calLead)"></span>
+
+            <span class="cal-day" *ngFor="let c of calCells; let i = index; trackBy: trackCell"
+                  [attr.data-level]="c.level"
+                  [class.today]="c.today"
+                  [class.future]="c.future"
+                  [style.animation-delay.ms]="i * 12"
+                  [title]="c.level ? c.sets + ' serija' : ''">
+              {{ c.day }}
+            </span>
+          </div>
+
+          <div class="cal-stats">
+            <div class="cal-stat">
+              <span class="cs-num num">{{ monthCount }}</span>
+              <span class="cs-label">ovog mjeseca</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ weekStreak }}</span>
+              <span class="cs-label">niz sedmica</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ weekAvg }}</span>
+              <span class="cs-label">sedmično</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ bestMonth }}</span>
+              <span class="cs-label">najbolji mjesec</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ yearCount }}</span>
+              <span class="cs-label">treninga (12 mj.)</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ yearSets }}</span>
+              <span class="cs-label">serija (12 mj.)</span>
+            </div>
+          </div>
+          </div>
+        </ng-container>
+      </div>
+
       <div class="progress-section">
         <h3>Progres</h3>
 

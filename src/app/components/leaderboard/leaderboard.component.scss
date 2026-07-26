@@ -160,30 +160,8 @@
 // Prekidač opsega rekorda. Kad trenira samo jedan čovjek, cio spisak je njegov —
 // „Moji" je zato jedino mjesto gdje se vide sopstveni rekordi, jer profil to
 // još nema.
-.scope-switch {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  margin-bottom: var(--s-3);
-
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-}
-
-.scope-switch button {
-  flex: 1;
-  min-height: 34px;
-  border-radius: calc(var(--r-sm) - 2px);
-  color: var(--mist);
-  font-family: var(--font-data);
-  font-size: var(--t-2xs);
-  font-weight: 600;
-  letter-spacing: var(--ls-wide);
-}
-
-.scope-switch button:hover { color: var(--ice); }
-.scope-switch button.on { background: var(--volt); color: var(--volt-ink); }
+// Izgled nosi `.seg` u _base.scss — dijele ga tri mjesta.
+.record-seg { margin-bottom: var(--s-3); }
 
 .more {
   width: 100%;
@@ -261,30 +239,7 @@
 
 // --- Rang po vježbi --------------------------------------------------------
 
-.period-switch {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  margin-top: var(--s-3);
-
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-}
-
-.period-switch button {
-  flex: 1;
-  min-height: 34px;
-  border-radius: calc(var(--r-sm) - 2px);
-  color: var(--mist);
-  font-family: var(--font-data);
-  font-size: var(--t-2xs);
-  font-weight: 600;
-  letter-spacing: var(--ls-wide);
-}
-
-.period-switch button:hover { color: var(--ice); }
-.period-switch button.on { background: var(--volt); color: var(--volt-ink); }
+.period-seg { margin-top: var(--s-3); }
 
 .gap {
   margin: var(--s-4) 0 0;
@@ -574,5 +529,5 @@
   .sec { padding-inline: var(--s-3); }
   .dot { width: 14px; height: 18px; }
   .avatar { width: 34px; height: 34px; }
-  .period-switch button { font-size: 10px; letter-spacing: 0.04em; }
+  .period-seg button { font-size: 10px; letter-spacing: 0.04em; }
 }

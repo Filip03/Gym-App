@@ -29,7 +29,9 @@
         </div>
 
         <div class="plans-grid" *ngIf="myPlans.length > 0; else noMyPlans">
-            <div class="plan-card" (click)="openViewModal(plan.id)" *ngFor="let plan of myPlans">
+            <div class="plan-card" (click)="openViewModal(plan.id)"
+                 *ngFor="let plan of myPlans; let i = index"
+                 [style.animation-delay.ms]="cardDelay(0, i)">
             <h3>{{ plan.name }}</h3>
             <p>{{ plan.description }}</p>
             <p>Kreirao: {{plan.profiles?.username}}, {{ plan.created_at | date:'dd.MM.yyyy' }}</p>
@@ -47,7 +49,9 @@
         <h2>Planovi ostalih korisnika</h2>
 
         <div class="plans-grid" *ngIf="otherPlans.length > 0; else noOtherPlans">
-            <div class="plan-card" (click)="openViewModal(plan.id)" *ngFor="let plan of otherPlans">
+            <div class="plan-card" (click)="openViewModal(plan.id)"
+                 *ngFor="let plan of otherPlans; let i = index"
+                 [style.animation-delay.ms]="cardDelay(1, i)">
             <h3>{{ plan.name }}</h3>
             <p>{{ plan.description }}</p>
             <p>Kreirao: {{plan.profiles?.username}}, {{plan.created_at | date:"dd.MM.yyyy"}}</p>
@@ -158,7 +162,12 @@
 <div class="modal-overlay" *ngIf="showViewModal" (click)="closeViewModal()">
   <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
 
-    <p *ngIf="viewLoading">Učitavanje...</p>
+    <!-- Placeholder drži visinu dok podaci stižu, da se kartica ne otvori
+         niska pa da poskoči kad plan stigne. -->
+    <div class="view-loading" *ngIf="viewLoading">
+      <span class="vl-bar"></span>
+      <span class="vl-deck"></span>
+    </div>
     <p *ngIf="viewError" class="error">{{ viewError }}</p>
 
     <ng-container *ngIf="viewedPlan && !viewLoading">
@@ -217,7 +226,10 @@
             </button>
           </div>
 
-          <div class="day-deck" [style.height]="viewportHeight ? viewportHeight + 34 + 'px' : 'auto'">
+          <div class="day-deck"
+               (touchstart)="onDeckTouchStart($event)"
+               (touchend)="onDeckTouchEnd($event, viewedPlan.workout_days.length)"
+               [style.height.px]="viewportHeight ? viewportHeight + 34 : deckStartHeight">
             <div class="day-slide" #daySlide
                  *ngFor="let day of viewedPlan.workout_days; let i = index"
                  [ngStyle]="slideStyle(i)">
@@ -248,6 +260,10 @@
                     [disabled]="currentDayIndex === viewedPlan.workout_days.length - 1"
                     aria-label="Sljedeći dan">›</button>
           </div>
+
+          <p class="swipe-hint" *ngIf="viewedPlan.workout_days.length > 1">
+            Prevuci lijevo ili desno
+          </p>
 
         </div>
       </div>
