@@ -103,30 +103,41 @@
             </span>
           </div>
 
-          <div class="cal-stats">
-            <div class="cal-stat">
-              <span class="cs-num num">{{ monthCount }}</span>
-              <span class="cs-label">ovog mjeseca</span>
+          <div class="cal-stats-wrap">
+            <div class="seg range-seg"
+                 [style.--seg-count]="statRanges.length" [style.--seg-index]="statRangeIndex">
+              <span class="seg-thumb"></span>
+              <button type="button" *ngFor="let r of statRanges"
+                      [class.on]="statRange === r.days" (click)="setStatRange(r.days)">
+                {{ r.label }}
+              </button>
             </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ weekStreak }}</span>
-              <span class="cs-label">niz sedmica</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ weekAvg }}</span>
-              <span class="cs-label">sedmično</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ bestMonth }}</span>
-              <span class="cs-label">najbolji mjesec</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ yearCount }}</span>
-              <span class="cs-label">treninga (12 mj.)</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ yearSets }}</span>
-              <span class="cs-label">serija (12 mj.)</span>
+
+            <div class="cal-stats">
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeCount }}</span>
+                <span class="cs-label">treninga</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeSets }}</span>
+                <span class="cs-label">serija</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeAvg }}</span>
+                <span class="cs-label">sedmično</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangePerDay }}</span>
+                <span class="cs-label">serija/trening</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeBestDay }}</span>
+                <span class="cs-label">najbolji dan</span>
+              </div>
+              <div class="cal-stat global">
+                <span class="cs-num num">{{ weekStreak }}</span>
+                <span class="cs-label">niz sedmica</span>
+              </div>
             </div>
           </div>
           </div>

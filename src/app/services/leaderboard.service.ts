@@ -206,22 +206,35 @@ export class LeaderboardService {
   // ---------------------------------------------------------------------------
   // Sedmica ekipe
 
-  /** Ko je trenirao kog dana ove sedmice. Jedina sekcija koja uvijek ima sadržaj. */
+  /**
+   * Ko je trenirao kog dana ove sedmice. Jedina sekcija koja uvijek ima sadržaj.
+   *
+   * Dan se broji isto kao u kalendaru profila: bar jedna upisana serija, ili
+   * izričito završen trening. Sam red u `workout_sessions` nije dovoljan — on
+   * nastane već pri otvaranju ekrana treninga, pa bi rest day svima svijetlio
+   * kao odrađen. Vidi `ProfileService.getTrainingCalendar`.
+   */
   async getTeamWeek(): Promise<WeekMember[]> {
     const monday = this.mondayOfThisWeek();
     const week = Array.from({ length: 7 }, (_, i) => this.isoAfter(monday, i));
 
-    const [profiles, sessions] = await Promise.all([
+    const since = this.isoAfter(monday, -60);   // i ranije, za „posljednji trening"
+
+    const [profiles, sessions, logs] = await Promise.all([
       this.allProfiles(),
-      this.sessionsSince(this.isoAfter(monday, -60))   // i ranije, za „posljednji trening"
+      this.sessionsSince(since),
+      this.logDatesSince(since)
     ]);
 
     const datesByUser = new Map<string, Set<string>>();
-    for (const s of sessions) {
-      const set = datesByUser.get(s.user_id) ?? new Set<string>();
-      set.add(s.date);
-      datesByUser.set(s.user_id, set);
-    }
+    const add = (userId: string, date: string) => {
+      const set = datesByUser.get(userId) ?? new Set<string>();
+      set.add(date);
+      datesByUser.set(userId, set);
+    };
+
+    for (const s of sessions) add(s.user_id, s.date);
+    for (const l of logs) add(l.user_id, l.date);
 
     const today = this.todayIso();
 
@@ -355,9 +368,22 @@ export class LeaderboardService {
     return (data ?? []) as any[];
   }
 
+  /** Samo ZAVRŠENE sesije — vidi objašnjenje u `getTeamWeek`. */
   private async sessionsSince(since: string) {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
+      .select('user_id, date, finished_at')
+      .not('finished_at', 'is', null)
+      .gte('date', since);
+
+    if (error) throw error;
+    return (data ?? []) as any[];
+  }
+
+  /** Dani sa bar jednom upisanom serijom — broje se i bez „Trening gotov". */
+  private async logDatesSince(since: string) {
+    const { data, error } = await this.supabase.client
+      .from('exercice_logs')
       .select('user_id, date')
       .gte('date', since);
 

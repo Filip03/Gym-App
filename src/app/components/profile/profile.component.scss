@@ -444,6 +444,18 @@
   .cal-grid { justify-content: start; }
 }
 
+// Prekidač opsega + brojke idu zajedno, da se vidi da brojke pripadaju njemu.
+.cal-stats-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+// Izgled prekidača nosi `.seg` u _base.scss. Ovdje su samo sitnija slova —
+// četiri natpisa u uskoj koloni pored kalendara.
+.range-seg button { font-size: 10px; letter-spacing: 0.04em; padding: 0 var(--s-1); }
+
 .cal-wd {
   padding-bottom: 2px;
   text-align: center;
@@ -496,12 +508,12 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--s-2);
-  margin-top: var(--s-4);
+  margin-top: 0;
 }
 
 @media (min-width: 640px) {
   .cal-stats {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     margin-top: 0;
   }
 }
@@ -525,6 +537,13 @@
   font-weight: 700;
   line-height: 1;
   color: var(--volt);
+}
+
+// Jedina brojka koja NE prati prekidač opsega — niz teče od danas unazad bez
+// obzira šta je izabrano. Obrub to nagovještava bez dodatnog teksta.
+.cal-stat.global {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
 }
 
 .cs-label {

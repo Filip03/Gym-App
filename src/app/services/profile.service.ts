@@ -120,22 +120,37 @@ export class ProfileService {
    * Svi dani u kojima je bilo treninga, za kalendar u profilu.
    *
    * NIJE POTREBNA NOVA TABELA. `workout_sessions` postoji otkad je dodato dugme
-   * „Trening gotov" i nosi tačno ono što treba: korisnik + datum. Broj serija se
-   * dobija iz `exercice_logs`, i služi samo za jačinu boje.
+   * „Trening gotov". Broj serija se dobija iz `exercice_logs`, i služi samo za
+   * jačinu boje.
+   *
+   * ŠTA SE BROJI KAO TRENING
+   *
+   * Red u `workout_sessions` NIJE dovoljan. Sesija se pravi već pri otvaranju
+   * ekrana treninga (`getOrCreateSession`), pa postoji i za dan kad si samo
+   * bacio pogled na aplikaciju. Na rest dayu se to dešava **uvijek** — nema
+   * nijedne vježbe da se upiše, a sesija svejedno nastane. Posljedica je bila
+   * da neko ko trenira šest dana ispada da trenira sedam.
+   *
+   * Zato dan ulazi u kalendar samo ako:
+   *   - ima bar jednu upisanu seriju, ili
+   *   - je sesija izričito završena dugmetom „Trening gotov" (`finished_at`).
+   *
+   * Isto pravilo važi i za sedmicu ekipe — vidi `LeaderboardService.getTeamWeek`.
    *
    * Povlači se cijela godina odjednom, ali samo kolona `date` — prelazak na
    * prethodni mjesec je zato trenutan, bez novog upita. Za četvoro ljudi i
    * godinu dana to je nekoliko hiljada kratkih redova.
    *
-   * Dan sa sesijom a bez ijedne upisane serije se broji kao trening (`sets: 0`) —
-   * bio si u teretani i to se vidi, samo nije upisano.
+   * Završena sesija bez ijedne serije se i dalje broji (`sets: 0`) — pritisnuo si
+   * „Trening gotov", dakle bio si tamo, samo nisi upisivao.
    */
   async getTrainingCalendar(userId: string, sinceIso: string): Promise<TrainingDay[]> {
     const [sessions, logs] = await Promise.all([
       this.supabase.client
         .from('workout_sessions')
-        .select('date')
+        .select('date, finished_at')
         .eq('user_id', userId)
+        .not('finished_at', 'is', null)
         .gte('date', sinceIso),
       this.supabase.client
         .from('exercice_logs')
@@ -149,6 +164,7 @@ export class ProfileService {
 
     const byDate = new Map<string, number>();
 
+    // Samo završene sesije — nezavršena bez ijedne serije znači „otvoren ekran".
     for (const row of (sessions.data ?? []) as any[]) {
       byDate.set(row.date, byDate.get(row.date) ?? 0);
     }

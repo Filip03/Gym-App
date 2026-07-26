@@ -27,6 +27,14 @@ interface WeightChartPoint {
   dateLabel: string;
 }
 
+/** Opsezi za statistiku ispod kalendara. */
+const STAT_RANGES: { days: number; label: string }[] = [
+  { days: 7,   label: '7 dana' },
+  { days: 30,  label: '30 dana' },
+  { days: 90,  label: '90 dana' },
+  { days: 365, label: 'Godina' }
+];
+
 const MONTHS = [
   'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
   'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
@@ -76,12 +84,19 @@ export class ProfileComponent implements OnInit {
   calLead = 0;                       // prazna polja prije prvog u mjesecu
   calTitle = '';
   calAtCurrentMonth = true;
+  // Statistika ispod kalendara. Sve osim niza sedmica prati izabrani opseg.
+  readonly statRanges = STAT_RANGES;
+  statRange = 30;
+
+  rangeCount = 0;      // dana sa treningom
+  rangeSets = 0;       // upisanih serija
+  rangeAvg = '—';      // prosjek po punoj sedmici
+  rangePerDay = '—';   // serija po treningu
+  rangeBestDay = 0;    // najviše serija u jednom danu
+  weekStreak = 0;      // trenutni niz — jedini koji NE zavisi od opsega
+
+  /** Dana sa treningom u prikazanom mjesecu (prati strelice, ne opseg). */
   monthCount = 0;
-  weekStreak = 0;
-  yearCount = 0;
-  yearSets = 0;
-  weekAvg = '0';
-  bestMonth = 0;
   readonly weekLabels = ['P', 'U', 'S', 'Č', 'P', 'S', 'N'];
   private calCursor = new Date();
 
@@ -318,11 +333,8 @@ export class ProfileComponent implements OnInit {
 
     try {
       this.calDays = await this.profileService.getTrainingCalendar(userId, this.iso(since));
-      this.yearCount = this.calDays.length;
-      this.yearSets = this.calDays.reduce((n, d) => n + d.sets, 0);
       this.weekStreak = this.computeWeekStreak();
-      this.weekAvg = this.computeWeekAvg();
-      this.bestMonth = this.computeBestMonth();
+      this.computeRangeStats();
       this.buildMonth();
     } catch {
       // Kalendar je dodatak; greška ovdje ne smije oboriti ostatak profila.
@@ -330,6 +342,41 @@ export class ProfileComponent implements OnInit {
     } finally {
       this.calLoading = false;
     }
+  }
+
+  setStatRange(days: number) {
+    if (this.statRange === days) return;
+    this.statRange = days;
+    this.computeRangeStats();
+  }
+
+  get statRangeIndex(): number {
+    return Math.max(0, this.statRanges.findIndex(r => r.days === this.statRange));
+  }
+
+  /**
+   * Sve brojke za izabrani opseg, iz već učitanih dana — bez novog upita.
+   *
+   * Opseg je klizni prozor unazad od danas (7 / 30 / 90 / 365 dana), ne
+   * kalendarski mjesec. Kalendarski mjesec ima svoju brojku („ovog mjeseca")
+   * koja prati strelice iznad mreže.
+   */
+  private computeRangeStats() {
+    const from = new Date();
+    from.setDate(from.getDate() - this.statRange);
+    const fromIso = this.iso(from);
+
+    const days = this.calDays.filter(d => d.date >= fromIso);
+
+    this.rangeCount = days.length;
+    this.rangeSets = days.reduce((n, d) => n + d.sets, 0);
+    this.rangeBestDay = days.reduce((m, d) => Math.max(m, d.sets), 0);
+
+    this.rangePerDay = this.rangeCount
+      ? (this.rangeSets / this.rangeCount).toFixed(1).replace('.', ',')
+      : '—';
+
+    this.rangeAvg = this.computeWeekAvg(this.rangeCount, this.statRange);
   }
 
   prevMonth() { this.shiftMonth(-1); }
@@ -422,27 +469,38 @@ export class ProfileComponent implements OnInit {
   }
 
   /**
-   * Prosjek treninga po sedmici, od prvog upisanog dana do danas.
+   * Prosjek treninga po sedmici, unutar izabranog opsega.
    *
-   * Ne dijeli se sa 52 — ko je počeo prije mjesec dana ne zaslužuje prosjek od
-   * 0.5 samo zato što ranije nije koristio aplikaciju.
+   * `broj treninga u opsegu ÷ broj sedmica u opsegu`. Ništa mudrije od toga —
+   * i baš zato je tačno.
+   *
+   * DVIJE RANIJE VERZIJE SU BILE POGREŠNE, obje na isti način: dijelile su sa
+   * vremenom proteklim od PRVOG treninga, a ne sa dužinom opsega.
+   *
+   *   1. Ko u ponedjeljak i utorak odradi dva treninga, dobio bi **7,0** —
+   *      dva treninga podijeljena sa 2/7 sedmice. To je bila projekcija, ne
+   *      mjerenje.
+   *   2. Popravka preko „samo pune sedmice" je riješila 7,0, ali je uvela goru
+   *      zbrku: „7 dana" je znalo pokazati 0 treninga a prosjek 2,0, jer je
+   *      brojač gledao zadnjih 7 dana a prosjek prošlu punu sedmicu. Dva
+   *      različita prozora u istom redu brojki.
+   *
+   * Donja granica je jedna sedmica — dok istorija ne pređe sedam dana, prosjek
+   * je jednostavno broj treninga u toj prvoj sedmici. Bez granice bi trojica
+   * treninga u tri dana ispala kao 7,0.
+   *
+   * Gornja granica je dužina istorije: ko trenira mjesec dana, a izabere
+   * „Godina", ne zaslužuje 0,1 sedmično samo zato što aplikaciju nije koristio
+   * ranije.
    */
-  private computeWeekAvg(): string {
-    if (this.calDays.length === 0) return '0';
+  private computeWeekAvg(count: number, rangeDays: number): string {
+    if (this.calDays.length === 0) return '—';
 
     const first = new Date(`${this.calDays[0].date}T12:00:00`);
-    const days = Math.max(7, (Date.now() - first.getTime()) / 86400000);
-    return (this.calDays.length / (days / 7)).toFixed(1).replace('.', ',');
-  }
+    const historyDays = (Date.now() - first.getTime()) / 86400000;
 
-  /** Najviše treninga u jednom kalendarskom mjesecu unutar učitane godine. */
-  private computeBestMonth(): number {
-    const byMonth = new Map<string, number>();
-    for (const d of this.calDays) {
-      const key = d.date.slice(0, 7);
-      byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
-    }
-    return Math.max(0, ...byMonth.values());
+    const weeks = Math.max(1, Math.min(rangeDays, historyDays) / 7);
+    return (count / weeks).toFixed(1).replace('.', ',');
   }
 
   private mondayIso(d: Date): string {

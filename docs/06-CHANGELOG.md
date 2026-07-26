@@ -860,3 +860,74 @@ primijenjena na lokalnu bazu (`supabase migration up`), podaci netaknuti.
   `Cannot find module '@ffmpeg/ffmpeg'` iako su paketi na disku.
 - `color-scheme: dark` dodat na `html` — bez toga je nativno polje `type="date"`
   u modalu za težinu bijelo usred tamnog ekrana.
+
+---
+
+## [2026-07-26] Statistika treninga: šta se broji kao trening i prekidač opsega
+**Tip:** popravka / funkcionalnost
+**Ref:** Roadmap 1.15
+
+**Problem:** Marko je primijetio da Filipu ispada prosjek **7,0 treninga
+sedmično**, iako trenira šest dana i ima rest day. Dva odvojena kvara.
+
+### 1. Rest day se brojao kao trening
+
+`getOrCreateSession()` pravi red u `workout_sessions` već pri **otvaranju**
+ekrana treninga — ne pri upisu serije. Na rest dayu se to dešava uvijek: dan
+nema nijednu vježbu, ekran se otvori, sesija nastane. Kalendar i sedmica ekipe
+su brojali svaki takav red kao odrađen trening.
+
+Nije stvar rest daya nego **svakog dana kad se ekran samo otvori**. Vidjelo se i
+u lokalnim podacima: `marko 2026-07-25` — nula serija, nije završen, a brojao se.
+
+**Rješenje:** dan se broji kao trening samo ako ima **bar jednu upisanu seriju**
+ili je sesija **izričito završena** dugmetom „Trening gotov" (`finished_at`).
+Isto pravilo na oba mjesta — `ProfileService.getTrainingCalendar` i
+`LeaderboardService.getTeamWeek`.
+
+Efekat na zatečenim podacima: marko je pao sa 2 na 1 trening u julu.
+
+### 2. Prosjek se dijelio sa proteklim vremenom, ne sa opsegom
+
+`broj treninga ÷ ((danas − prvi trening) / 7)`. Ko u ponedjeljak i utorak odradi
+dva treninga, dijeli 2 sa 2/7 sedmice → **7,0**. To je projekcija, ne mjerenje.
+
+Prva popravka („broji samo pune sedmice") je riješila 7,0 ali uvela goru zbrku:
+„7 dana" je znalo pokazati **0 treninga a prosjek 2,0**, jer je brojač gledao
+zadnjih 7 dana a prosjek prošlu punu sedmicu — dva različita prozora u istom
+redu brojki.
+
+**Konačno rješenje:** `broj treninga u opsegu ÷ broj sedmica u opsegu`, uz donju
+granicu od jedne sedmice (da prva tri dana ne daju 7,0) i gornju granicu na
+dužinu istorije (da mjesec dana korišćenja uz opseg „Godina" ne da 0,1).
+
+Provjereno na sintetičkoj istoriji od 6 mjeseci sa ritmom 3×sedmično:
+
+| Opseg | Treninga | Sedmično |
+|---|---|---|
+| 7 dana | 0 (pauza) | 0,0 |
+| 30 dana | 9 | 2,1 |
+| 90 dana | 35 | 2,7 |
+| Godina | 78 | 2,9 |
+
+### 3. Prekidač opsega
+
+Statistika više nije fiksna na 12 mjeseci — `.seg` prekidač bira
+**7 / 30 / 90 dana / godina**, i pet brojki prati izbor: treninga, serija,
+sedmično, serija po treningu, najbolji dan. Šesta (niz sedmica) namjerno **ne**
+prati opseg — niz teče od danas unazad bez obzira šta je izabrano — pa ima
+isprekidan obrub da se to vidi bez dodatnog teksta.
+
+Sve se računa iz već učitanih dana, bez novog upita pri promjeni opsega.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/profile.service.ts` — `getTrainingCalendar` filtrira
+  `.not('finished_at', 'is', null)`
+- `src/app/services/leaderboard.service.ts` — `sessionsSince` isto + nova
+  `logDatesSince`, unija u `getTeamWeek`
+- `src/app/components/profile/*` — `statRange`, `computeRangeStats`,
+  prepisan `computeWeekAvg`, uklonjen `computeBestMonth`
+
+**Napomene:** Prazne sesije i dalje nastaju u bazi pri otvaranju ekrana; sada se
+samo ne broje. Da se ne prave uopšte, `getOrCreateSession` bi morao da odloži
+upis dok se nešto ne upiše — veći zahvat, i te redove je korisno imati kao trag.
