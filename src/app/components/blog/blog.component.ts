@@ -1,5 +1,6 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
+import { AudioService } from '../../services/audio.service';
 import { BlogService, BlogMediaItem } from '../../services/blog.service';
 import { compressImage } from '../../shared/image-compress';
 import { compressVideo } from '../../shared/video-compress';
@@ -24,8 +25,11 @@ export class BlogComponent implements OnInit {
 
   selectedItem: BlogMediaItem | null = null;
 
+  private userId = '';
+
   constructor(
     private authService: AuthService,
+    private audio: AudioService,
     private blogService: BlogService
   ) {}
 
@@ -37,6 +41,7 @@ export class BlogComponent implements OnInit {
       return;
     }
 
+    this.userId = user.id;
     await this.loadMedia();
   }
 
@@ -54,6 +59,7 @@ export class BlogComponent implements OnInit {
   }
 
   triggerUpload() {
+    this.audio.play('blogAdd');
     if (this.uploading || this.compressing) return;
     this.fileInputRef.nativeElement.click();
   }
@@ -97,7 +103,7 @@ export class BlogComponent implements OnInit {
     this.uploading = true;
 
     try {
-      await this.blogService.uploadMedia(toUpload);
+      await this.blogService.uploadMedia(toUpload, this.userId);
       await this.loadMedia();
     } catch (err: any) {
       this.uploadError = err.message ?? 'Greška prilikom otpremanja fajla.';

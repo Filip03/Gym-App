@@ -1,6 +1,7 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { AudioService } from '../../services/audio.service';
 import { ProfileService, ProgressPoint, WeightPoint } from '../../services/profile.service';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { Profile, Exercice } from '../../models/models';
@@ -94,6 +95,7 @@ export class ProfileComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
+    private audio: AudioService,
     private profileService: ProfileService,
     private exerciceService: ExerciceService,
     private route: ActivatedRoute
@@ -479,6 +481,7 @@ export class ProfileComponent implements OnInit {
   }
 
   onAvatarClick() {
+    this.audio.play('avatar');
     if (this.uploading) return;
     this.fileInputRef.nativeElement.click();
   }

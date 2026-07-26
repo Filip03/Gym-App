@@ -18,5 +18,10 @@ const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0
 export const environment = {
   production: false,
   supabaseUrl: 'https://nsiwfwjpzyzfzxejewar.supabase.co',
-  supabaseKey: 'sb_publishable_CbJq3HcEN3pE7Gr_hWSkCw_jeooBZ0m'
+  supabaseKey: 'sb_publishable_CbJq3HcEN3pE7Gr_hWSkCw_jeooBZ0m',
+
+  // Javni bucket na Cloudflare R2 (blog slike/video). Nije tajna — isto kao
+  // Supabase Storage public URL, samo drugi provajder. Ključevi za PISANJE su
+  // isključivo u supabase/functions/r2-presign, nikad ovdje.
+  r2PublicUrl: 'https://pub-57773944709f45ac8032f82aa78d6a4c.r2.dev'
 }
