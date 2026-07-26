@@ -523,49 +523,6 @@
   font-size: 1rem;
 }
 
-.exercice-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  max-height: 120px;
-  overflow-y: auto;
-}
-
-.exercice-item {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  padding: 0.2rem 0.5rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.7);
-  transition: all 0.2s ease;
-}
-
-.selected-exercice-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.9rem;
-}
-
-.selected-exercice-row span {
-  color: white;
-  font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.selected-exercice-row input {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 5px;
-  padding: 0.2rem 0.3rem;
-  color: white;
-  font-size: 0.9rem;
-}
-
 .day-type-badge {
   display: inline-block;
   background: rgba(173, 255, 47, 0.15);

@@ -8,9 +8,6 @@
 
 :host { display: block; }
 
-.training-wrapper { display: block; }
-.training-container { width: 100%; }
-
 // --- Zaglavlje treninga ----------------------------------------------------
 
 .training-header {
@@ -24,36 +21,6 @@
 .training-header h2 {
   font-size: var(--t-xl);
   color: var(--ice);
-}
-
-.day-badges {
-  display: flex;
-  gap: var(--s-2);
-  flex-shrink: 0;
-}
-
-.day-badge,
-.day-type-badge {
-  padding: var(--s-1) var(--s-3);
-  border-radius: var(--r-full);
-  font-family: var(--font-data);
-  font-size: var(--t-2xs);
-  font-weight: 600;
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.day-badge {
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  color: var(--mist);
-}
-
-.day-type-badge {
-  background: var(--volt-a10);
-  border: 1px solid var(--volt-a40);
-  color: var(--volt);
 }
 
 // --- Rest day --------------------------------------------------------------
@@ -110,14 +77,6 @@
   white-space: nowrap;
 }
 
-.exercice-target {
-  display: block;
-  margin-top: 2px;
-  font-family: var(--font-data);
-  font-size: var(--t-xs);
-  color: var(--mist);
-}
-
 .exercice-actions {
   display: flex;
   align-items: center;
@@ -158,51 +117,10 @@
 
 .log-btn:hover { background: var(--volt-a20); }
 
-// --- Upisane serije --------------------------------------------------------
-
-.logged-sets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  margin-top: var(--s-3);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--line);
-}
-
-.logged-set {
-  padding: var(--s-2) var(--s-3);
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  color: var(--ice);
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--t-sm);
-  animation: set-in var(--d-slow) var(--ease-spring) both;
-}
-
-.logged-set:hover { border-color: var(--volt-a40); color: var(--volt); }
-
 @keyframes set-in {
   from { transform: scale(.9); opacity: 0; }
   to   { transform: scale(1);  opacity: 1; }
 }
-
-// --- Obrasci za upis i izmjenu ---------------------------------------------
-
-.log-form,
-.edit-set-form {
-  display: grid;
-  grid-template-columns: auto 1fr 1fr auto;
-  align-items: center;
-  gap: var(--s-2);
-  margin-top: var(--s-3);
-  padding-top: var(--s-3);
-  border-top: 1px solid var(--line);
-  animation: form-in var(--d-slow) var(--ease-spring) both;
-}
-
-.edit-set-form { grid-template-columns: auto 1fr 1fr auto auto; }
 
 @keyframes form-in {
   from { transform: translateY(-6px); opacity: 0; }
@@ -229,56 +147,10 @@
   white-space: nowrap;
 }
 
-.save-log-btn:not(:disabled):hover { background: #D4FF5E; }
-
-.cancel-edit-btn {
-  min-height: 46px;
-  padding: 0 var(--s-3);
-  background: transparent;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-sm);
-  color: var(--mist);
-}
-
-.cancel-edit-btn:hover { color: var(--ice); }
-
 @media (max-width: 520px) {
   .log-form, .edit-set-form { grid-template-columns: 1fr 1fr; }
   .set-label { grid-column: 1 / -1; }
 }
-
-// --- Modal prošlih rezultata ------------------------------------------------
-
-.previous-date {
-  font-family: var(--font-data);
-  font-size: var(--t-sm);
-  color: var(--mist);
-  margin-bottom: var(--s-3);
-}
-
-.previous-sets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-}
-
-.previous-set-badge {
-  padding: var(--s-2) var(--s-3);
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--t-sm);
-  color: var(--ice);
-}
-
-.previous-empty { color: var(--mist); font-size: var(--t-sm); }
-
-// Dugme "Nazad na dashboard" na dnu ekrana više nije potrebno — zamijenila ga
-// je strelica u stalnom zaglavlju. Ranije je bilo jedini izlaz iz treninga i
-// tražilo je skrol kroz sve vježbe.
-.back-btn { display: none; }
 
 // ===========================================================================
 // SESIJA: zamjena vježbi, Echo, meni po vježbi
@@ -354,7 +226,6 @@
   border-top: 1px solid var(--line);
   padding-top: var(--s-3);
 }
-
 
 .ex-menu button {
   display: flex;
