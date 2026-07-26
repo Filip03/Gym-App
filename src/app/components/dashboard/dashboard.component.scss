@@ -6,19 +6,23 @@
 // što se uđe: koji je dan i šta se radi.
 
 .start-block {
+  // Širina se drži na jednom mjestu, da dugme i traka ispod budu tačno iste
+  // mjere — inače traka ne izgleda kao njegov produžetak.
+  --start-w: 300px;
+
+  width: var(--start-w);
+  margin: 0 auto var(--s-8);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  margin-bottom: var(--s-8);
 }
 
 .start-btn {
   position: relative;
   z-index: 2;
 
-  min-width: 280px;
+  width: 100%;
   min-height: 54px;
-  padding: 0 var(--s-8);
+  padding: 0 var(--s-6);
 
   background: var(--volt);
   color: var(--volt-ink);
@@ -48,16 +52,19 @@
   justify-content: center;
   gap: var(--s-2);
 
-  // Uvučena pod dugme, pa se čita kao njegov produžetak.
-  margin-top: -10px;
-  padding: calc(var(--s-3) + 10px) var(--s-6) var(--s-3);
-  min-width: 236px;
+  // Ista širina kao dugme i uvučena pod njega, pa se čita kao njegov
+  // produžetak — kao "poddugme", a ne kao zaseban element.
+  width: 100%;
+  margin-top: -12px;
+  padding: calc(var(--s-2) + 12px) var(--s-4) var(--s-3);
 
   background: linear-gradient(180deg,
     var(--volt-a20) 0%,
-    var(--volt-a10) 45%,
-    transparent 100%);
+    var(--volt-a10) 50%,
+    rgba(198, 255, 59, 0.03) 100%);
 
+  border: 1px solid var(--volt-a10);
+  border-top: none;
   border-radius: 0 0 var(--r-md) var(--r-md);
 }
 
@@ -84,8 +91,7 @@
 .st-type.rest { color: var(--mist); }
 
 @media (max-width: 480px) {
-  .start-btn   { width: 100%; min-width: 0; }
-  .start-today { width: 88%; min-width: 0; }
+  .start-block { --start-w: 100%; }
 }
 
 .dashboard-container { width: 100%; }
