@@ -44,6 +44,39 @@ npm start
 
 ---
 
+## Testiranje na telefonu
+
+Aplikacija se primarno koristi na telefonu, pa je vrijedi tako i gledati tokom
+rada. Telefon i laptop moraju biti na **istoj Wi-Fi mreži**.
+
+```bash
+npm run start:lan
+```
+
+Zatim na telefonu otvori `http://<IP-LAPTOPA>:4300`.
+
+IP laptopa:
+
+```bash
+ipconfig getifaddr en0        # macOS, Wi-Fi
+hostname -I | awk '{print $1}' # Linux
+```
+
+Obični `npm start` za ovo **ne radi** — dev server se veže samo na `localhost`,
+pa telefon dobije „couldn't connect to the server". `start:lan` ga veže na sve
+interfejse.
+
+Adresa Supabasea se izvodi iz onoga na čemu je stranica otvorena
+(`src/environments/env.ts`), pa se ništa dodatno ne podešava — sa telefona
+`192.168.x.x:4300` sam nađe bazu na `192.168.x.x:54321`.
+
+> Service worker (PWA, rad offline, dodavanje na početni ekran) se ne aktivira
+> preko `http://` na mrežnoj adresi — pregledači ga dozvoljavaju samo na
+> `localhost` ili preko `https`. Za provjeru PWA ponašanja koristi Vercel
+> preview link.
+
+---
+
 ## Bez Dockera
 
 Ako ti Docker nije opcija — samo hoćeš da povučeš, pokreneš i nešto dodaš:
