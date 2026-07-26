@@ -16,12 +16,37 @@
         <i class="material-icons">add</i>
         Dodaj
       </button>
+      <button type="button" class="reorder-btn" [class.on]="showNote || session?.note"
+              *ngIf="!reordering" (click)="toggleNote()"
+              title="Bilješka uz današnji trening">
+        <i class="material-icons">edit_note</i>
+        Bilješka
+      </button>
       <button type="button" class="reorder-btn" [class.on]="reordering"
               *ngIf="!isRestDay" (click)="toggleReorder()">
         <i class="material-icons">{{ reordering ? 'done' : 'swap_vert' }}</i>
         {{ reordering ? 'Gotovo' : 'Preuredi' }}
       </button>
     </div>
+  </div>
+
+  <!-- Bilješka uz TAJ dan treninga (kolona `note`, jedna po danu). -->
+  <div class="note-box" *ngIf="showNote">
+    <textarea [(ngModel)]="noteText" rows="2" maxlength="280"
+              placeholder="Kako je prošlo? Loše spavao, nova šipka, bol u ramenu…"></textarea>
+    <div class="note-actions">
+      <span class="note-count num">{{ noteText.length }}/280</span>
+      <button type="button" class="note-cancel" (click)="showNote = false">Otkaži</button>
+      <button type="button" class="note-save" [disabled]="noteSaving" (click)="saveNote()">
+        {{ noteSaving ? 'Čuvam...' : 'Sačuvaj' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Upisana bilješka — vidi se i kad se dan kasnije ponovo otvori. -->
+  <div class="note-shown" *ngIf="!showNote && session?.note" (click)="toggleNote()">
+    <i class="material-icons">edit_note</i>
+    <p>{{ session?.note }}</p>
   </div>
 
   <div class="reorder-hint" *ngIf="reordering">

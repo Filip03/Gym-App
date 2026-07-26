@@ -82,6 +82,15 @@ export class TrainingComponent implements OnInit, OnDestroy {
   pickerSuggested: PickerOption[] | null = null;
   pickerSuggestedLabel = 'Preporučeno';
 
+  // --- Bilješka uz trening ----------------------------------------------------
+  //
+  // Kolona `note` postoji otkad je tabela napravljena, ali se nikad nije
+  // koristila. Ključ je `UNIQUE (user_id, date)`, pa je bilješka po DANU —
+  // jedna po treningu, ne po vježbi.
+  showNote = false;
+  noteText = '';
+  noteSaving = false;
+
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
   reordering = false;
   reorderSaving = false;
@@ -739,6 +748,26 @@ export class TrainingComponent implements OnInit, OnDestroy {
   }
 
   /** Dodavanje vježbe koje nema u planu — vrijedi samo za današnji trening. */
+  toggleNote() {
+    this.showNote = !this.showNote;
+    if (this.showNote) this.noteText = this.session?.note ?? '';
+  }
+
+  async saveNote() {
+    if (!this.session || this.noteSaving) return;
+    this.noteSaving = true;
+
+    try {
+      await this.trainingService.saveNote(this.session.id, this.noteText);
+      this.session.note = this.noteText.trim() || null;
+      this.showNote = false;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška pri upisu bilješke.');
+    } finally {
+      this.noteSaving = false;
+    }
+  }
+
   async openAdd() {
     this.swapTarget = null;
     this.swapMode = 'add';

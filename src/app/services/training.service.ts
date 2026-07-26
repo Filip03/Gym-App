@@ -24,6 +24,14 @@ export interface WorkoutSession {
   dayLabel: string | null;
   dayTypeName: string | null;
   finishedAt: string | null;
+  /**
+   * Bilješka uz TAJ dan treninga.
+   *
+   * Kolona `note` postoji u `workout_sessions` otkad je tabela napravljena, ali
+   * se nigdje nije koristila. Pošto je ključ `UNIQUE (user_id, date)`, bilješka
+   * je po danu — jedna po treningu, ne po vježbi.
+   */
+  note: string | null;
   exercices: SessionExercice[];
 }
 
@@ -157,7 +165,7 @@ export class TrainingService {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
       .select(`
-        id, date, plan_id, day_label, day_type_name, finished_at,
+        id, date, plan_id, day_label, day_type_name, finished_at, note,
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
@@ -182,6 +190,7 @@ export class TrainingService {
       dayLabel: row.day_label,
       dayTypeName: row.day_type_name,
       finishedAt: row.finished_at,
+      note: row.note ?? null,
       exercices: ((row.session_exercices ?? []) as any[])
         .sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0))
         .map(se => ({
@@ -299,6 +308,18 @@ export class TrainingService {
       .from('session_exercices')
       .update({ target_sets: targetSets, target_reps: targetReps })
       .eq('id', sessionExerciceId);
+
+    if (error) throw error;
+  }
+
+  /** Upis bilješke uz trening. Prazan tekst briše bilješku. */
+  async saveNote(sessionId: string, note: string): Promise<void> {
+    const trimmed = note.trim();
+
+    const { error } = await this.supabase.client
+      .from('workout_sessions')
+      .update({ note: trimmed || null })
+      .eq('id', sessionId);
 
     if (error) throw error;
   }

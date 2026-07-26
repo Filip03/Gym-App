@@ -896,3 +896,69 @@
 
 .reset-order:hover { color: var(--volt); border-color: var(--volt-a40); }
 .reset-order .material-icons { font-size: 15px; }
+
+// --- Bilješka uz trening ---------------------------------------------------
+//
+// Kolona `note` u `workout_sessions` postoji otkad je tabela napravljena, ali
+// se nikad nije koristila. Ključ je `UNIQUE (user_id, date)`, pa je bilješka po
+// DANU — jedna po treningu, ne po vježbi.
+
+.note-box {
+  margin-bottom: var(--s-4);
+  padding: var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+.note-box textarea {
+  min-height: 62px;
+  background: var(--carbon);
+  font-size: var(--t-sm);
+}
+
+.note-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.note-count { flex: 1; font-size: var(--t-2xs); color: var(--dust); }
+
+.note-cancel,
+.note-save {
+  min-height: 36px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  font-weight: 600;
+}
+
+.note-cancel { background: transparent; border: 1px solid var(--line-strong); color: var(--ice); }
+.note-save { background: var(--volt); color: var(--volt-ink); }
+
+// Upisana bilješka. Klik je otvara za izmjenu — bez dodatnog dugmeta.
+.note-shown {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+  padding: var(--s-3);
+
+  background: var(--carbon-high);
+  border-left: 2px solid var(--volt-soft);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.note-shown .material-icons { font-size: 18px; color: var(--volt-soft); }
+
+.note-shown p {
+  font-size: var(--t-sm);
+  color: var(--mist);
+  line-height: var(--lh-snug);
+  white-space: pre-line;
+}
+
+.note-shown:hover { background: var(--steel); }
