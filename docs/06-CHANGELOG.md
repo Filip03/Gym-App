@@ -1357,3 +1357,50 @@ skroluje iznutra kad sadržaj preraste.
 - `src/app/components/shared/exercice-picker/exercice-picker.component.scss` — `svh`
 - `src/app/components/profile/profile.component.scss` — `.wm-form` na `flex-wrap`,
   uklonjen `@media`, `.weight-card` više ne postavlja svoju visinu
+
+---
+
+## [2026-07-26] Modali žive u polju između zaglavlja i futera
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Sadržaj modala se nije lijepo uklapao — pokušavao je da se rasporedi
+na **cijelu visinu ekrana**, iako se zaglavlje i futer nikad ne sklanjaju.
+Posljedica na telefonu: vrh kartice ispod zaglavlja, dno ispod futera.
+
+Prethodna popravka (`vh` → `svh`) je smanjila grešku ali je nije uklonila —
+i dalje je bila **procjena** visine umjesto stvarne mjere.
+
+**Rješenje:** `.modal-overlay` više nije `inset: 0`, nego:
+
+```scss
+top:    calc(var(--header-h) + var(--safe-t));
+bottom: calc(var(--footer-h) + var(--safe-b));
+```
+
+Kartica onda ima `max-height: 100%` — a 100% je tačno onoliko prostora koliko
+ga stvarno ima. Nema više nikakvog `vh`, `svh` ni `dvh` u modalima; nema šta da
+se procjenjuje.
+
+Isto važi za birač vježbe (`height: 100%` umjesto `88dvh`) i za rezervu za
+sigurnu zonu u dnu kartice, koja je postala suvišna — futer je već izvan polja
+modala i sam vodi računa o njoj.
+
+**Izmjereno poslije popravke** (ekran 500×641):
+
+| | od | do |
+|---|---|---|
+| zaglavlje | 0 | 86 |
+| **polje modala** | **86** | **577** |
+| kartica | 86 | 577 |
+| futer | 577 | 641 |
+
+Kartica ne ulazi ni pod zaglavlje ni pod futer, a skroluje iznutra (sadržaj 665,
+okvir 490).
+
+**Napomena:** pregled slika u blogu (`.lb`) namjerno ostaje preko cijelog ekrana
+— to je pregledač fotografija, ne obrazac.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_base.scss` — `.modal-overlay`, `.modal-card`
+- `src/app/components/shared/exercice-picker/exercice-picker.component.scss`

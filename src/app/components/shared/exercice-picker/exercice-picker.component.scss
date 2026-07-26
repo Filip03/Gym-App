@@ -12,13 +12,13 @@
 .picker-card {
   display: flex;
   flex-direction: column;
-  height: 88svh;   // `svh`, ne `dvh` — vidi _base.scss
+  height: 100%;    // cijelo polje između zaglavlja i futera
   padding: 0;
   overflow: hidden;
 }
 
 @media (min-width: 640px) {
-  .picker-card { height: min(78svh, 760px); }
+  .picker-card { height: min(100%, 760px); }
 }
 
 // --- Zaglavlje -------------------------------------------------------------
@@ -110,7 +110,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  padding: var(--s-4) var(--s-5) calc(var(--s-6) + var(--safe-b));
+  padding: var(--s-4) var(--s-5) var(--s-6);
 }
 
 .picker-group + .picker-group { margin-top: var(--s-5); }
