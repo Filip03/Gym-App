@@ -82,7 +82,7 @@
           </div>
         </div>
 
-        <div class="exercice-actions" *ngIf="!reordering">
+        <div class="exercice-actions" *ngIf="!reordering && !isFinished">
           <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
             {{ ex.showLogForm ? 'Otkaži' : 'Upiši' }}
           </button>
@@ -130,7 +130,7 @@
       <div class="sets" *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
         <ng-container *ngFor="let set of ex.loggedSets">
 
-          <button type="button" class="set" *ngIf="!set.editing"
+          <button type="button" class="set" *ngIf="!set.editing" [disabled]="isFinished"
                   [class.up]="set.delta === 'up'"
                   [class.down]="set.delta === 'down'"
                   [title]="set.prevLabel ?? 'Prvi put ova serija'"
@@ -180,7 +180,7 @@
       </div>
 
       <!-- Upis: polja su predpunjena prošlim rezultatom -->
-      <div class="log-form" *ngIf="ex.showLogForm">
+      <div class="log-form" *ngIf="ex.showLogForm && !isFinished">
         <span class="set-label">Serija {{ nextSetNumber(ex) }}</span>
 
         <label class="field">
@@ -238,7 +238,8 @@
 
     <p *ngIf="swapLoading" class="empty">Učitavanje...</p>
 
-    <div class="swap-grid" *ngIf="!swapLoading">
+    <!-- Za današnji dan, ili zamjena: ravna lista, kratka je -->
+    <div class="swap-grid" *ngIf="!swapLoading && !(swapMode === 'add' && swapScope === 'all')">
       <button type="button" class="swap-option" *ngFor="let o of filteredSwapOptions"
               [disabled]="swapSaving" (click)="confirmSwap(o)">
         <img *ngIf="o.picture" [src]="getPictureUrl(o.picture)" [alt]="o.name">
@@ -246,7 +247,24 @@
         <span class="swap-name">{{ o.name }}</span>
       </button>
 
-      <p *ngIf="filteredSwapOptions.length === 0" class="empty">Nema vježbe s tim nazivom.</p>
+      <p *ngIf="filteredSwapOptions.length === 0" class="empty">Nema vježbi za prikaz.</p>
+    </div>
+
+    <!-- Cijeli katalog: grupisan po mišićnim grupama -->
+    <div class="swap-groups" *ngIf="!swapLoading && swapMode === 'add' && swapScope === 'all'">
+      <div class="swap-group" *ngFor="let g of visibleGroups">
+        <h4 class="sg-name">{{ g.name }}</h4>
+        <div class="swap-grid">
+          <button type="button" class="swap-option" *ngFor="let o of g.items"
+                  [disabled]="swapSaving" (click)="confirmSwap(o)">
+            <img *ngIf="o.picture" [src]="getPictureUrl(o.picture)" [alt]="o.name">
+            <span class="ph" *ngIf="!o.picture"><i class="material-icons">fitness_center</i></span>
+            <span class="swap-name">{{ o.name }}</span>
+          </button>
+        </div>
+      </div>
+
+      <p *ngIf="visibleGroups.length === 0" class="empty">Nema vježbe s tim nazivom.</p>
     </div>
   </div>
 </div>
@@ -272,5 +290,51 @@
       <button type="button" class="btn-ghost" (click)="closeTargets()">Otkaži</button>
       <button type="button" class="btn-primary" (click)="saveTargets()">Sačuvaj</button>
     </div>
+  </div>
+</div>
+
+<!-- Sažetak po završetku treninga -->
+<div class="modal-overlay summary-overlay" *ngIf="showSummary && summary" (click)="closeSummary()">
+  <div class="summary-card" [attr.data-tone]="summary.tone" (click)="$event.stopPropagation()">
+
+    <div class="sum-icon">
+      <i class="material-icons">
+        {{ summary.tone === 'record' ? 'local_fire_department'
+         : summary.tone === 'progress' ? 'trending_up'
+         : summary.tone === 'steady' ? 'check_circle'
+         : summary.tone === 'down' ? 'trending_down' : 'done' }}
+      </i>
+    </div>
+
+    <h2 class="sum-headline">{{ summary.headline }}</h2>
+    <p class="sum-line">{{ summary.line }}</p>
+
+    <div class="sum-stats">
+      <div class="sum-stat">
+        <span class="sv num">{{ summary.sets }}</span>
+        <span class="sl">serija</span>
+      </div>
+      <div class="sum-stat">
+        <span class="sv num">{{ summary.tonnage }}</span>
+        <span class="sl">kg ukupno</span>
+      </div>
+      <div class="sum-stat" *ngIf="summary.up || summary.down">
+        <span class="sv num">
+          <span class="up" *ngIf="summary.up">+{{ summary.up }}</span><span
+                class="dn" *ngIf="summary.down">−{{ summary.down }}</span>
+        </span>
+        <span class="sl">vs prošli put</span>
+      </div>
+    </div>
+
+    <div class="sum-records" *ngIf="summary.records.length">
+      <div class="sum-record" *ngFor="let r of summary.records">
+        <i class="material-icons">local_fire_department</i>
+        <span class="rn">{{ r.name }}</span>
+        <span class="rw num">{{ r.weight }}<small>kg</small></span>
+      </div>
+    </div>
+
+    <button type="button" class="btn-primary sum-close" (click)="closeSummary()">Zatvori</button>
   </div>
 </div>

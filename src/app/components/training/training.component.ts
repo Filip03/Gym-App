@@ -76,6 +76,8 @@ export class TrainingComponent implements OnInit, OnDestroy {
   swapSaving = false;
   /** U modalu za dodavanje: samo vježbe za današnji tip, ili cijeli katalog. */
   swapScope: 'day' | 'all' = 'day';
+  /** Vježbe grupisane po mišićnoj grupi — za pregled cijelog kataloga. */
+  swapGroups: { name: string; items: { id: string; name: string; picture: string | null }[] }[] = [];
   private swapDayIds = new Set<string>();
 
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
@@ -453,6 +455,65 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
   get isFinished(): boolean { return !!this.session?.finishedAt; }
 
+  /** Sažetak koji se pokazuje po završetku. Računa se iz onoga što je već na ekranu. */
+  summary: {
+    tone: 'record' | 'progress' | 'steady' | 'down' | 'plain';
+    headline: string;
+    line: string;
+    sets: number;
+    tonnage: number;
+    records: { name: string; weight: number }[];
+    up: number;
+    down: number;
+  } | null = null;
+
+  showSummary = false;
+
+  private buildSummary() {
+    let sets = 0, tonnage = 0, up = 0, down = 0;
+    const records: { name: string; weight: number }[] = [];
+
+    for (const ex of this.exercices) {
+      sets += ex.loggedSets.length;
+      for (const s of ex.loggedSets) {
+        tonnage += s.weight * s.reps;
+        if (s.delta === 'up') up++;
+        if (s.delta === 'down') down++;
+      }
+      if (ex.isPr) {
+        const best = this.todayBest(ex);
+        if (best !== null) records.push({ name: ex.name, weight: best });
+      }
+    }
+
+    // Naslov bira NAJJAČU istinitu činjenicu o treningu, tim redom.
+    let tone: 'record' | 'progress' | 'steady' | 'down' | 'plain' = 'plain';
+    let headline = 'Trening upisan';
+    let line = `${sets} ${sets === 1 ? 'serija' : 'serija'} · ${Math.round(tonnage)} kg ukupno`;
+
+    if (records.length > 0) {
+      tone = 'record';
+      headline = records.length === 1 ? 'Novi lični rekord' : `${records.length} nova rekorda`;
+      line = 'Podigao si više nego ikad na ovoj vježbi.';
+    } else if (up > down) {
+      tone = 'progress';
+      headline = 'Napredovao si';
+      line = `${up} ${up === 1 ? 'serija' : 'serije'} bolje nego prošli put.`;
+    } else if (up > 0 && up === down) {
+      tone = 'steady';
+      headline = 'Održao si nivo';
+      line = 'Isto koliko i prošli put — i to je posao.';
+    } else if (down > up && down > 0) {
+      tone = 'down';
+      headline = 'Težak dan';
+      line = 'Slabije nego prošli put. Dešava se — sljedeći put jače.';
+    }
+
+    this.summary = { tone, headline, line, sets, tonnage: Math.round(tonnage), records, up, down };
+  }
+
+  closeSummary() { this.showSummary = false; }
+
   /** Ukupno upisanih serija danas — prikazuje se uz oznaku da je trening gotov. */
   get totalSets(): number {
     return this.exercices.reduce((n, e) => n + e.loggedSets.length, 0);
@@ -465,7 +526,11 @@ export class TrainingComponent implements OnInit, OnDestroy {
     try {
       await this.trainingService.finishSession(this.session.id);
       this.session.finishedAt = new Date().toISOString();
-      this.audio.play('record');
+
+      this.buildSummary();
+      this.showSummary = true;
+      this.exercices.forEach(e => { e.showLogForm = false; e.menuOpen = false; });
+      if (this.summary?.tone === 'record') this.audio.play('record');
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom završetka treninga.');
     } finally {
@@ -636,13 +701,31 @@ export class TrainingComponent implements OnInit, OnDestroy {
       // "Za današnji dan" = vježbe koje dijele mišićnu grupu sa nečim što je
       // već u treningu. Izvedeno iz same sesije, pa radi i kad je vježba
       // zamijenjena ili ručno dodana.
-      const [all, related] = await Promise.all([
-        this.trainingService.getAllExercices(),
+      const [grouped, related] = await Promise.all([
+        this.exerciceService.getExercicesGroupedByMuscleGroup(),
         this.trainingService.getRelatedToAll([...already])
       ]);
 
       this.swapDayIds = related;
-      this.swapOptions = all.filter(o => !already.has(o.id));
+
+      // Cijeli katalog se prikazuje GRUPISAN po mišićnim grupama — ravna lista
+      // od pedesetak vježbi se ne može pregledati.
+      this.swapGroups = grouped
+        .map(g => ({
+          name: g.name,
+          items: g.exercices
+            .filter(e => !already.has(e.id))
+            .map(e => ({ id: e.id, name: e.name ?? '', picture: e.picture }))
+        }))
+        .filter(g => g.items.length > 0);
+
+      // Ista vježba može biti u više grupa; za "za današnji dan" treba jedinstven spisak.
+      const seen = new Set<string>();
+      this.swapOptions = this.swapGroups.flatMap(g => g.items).filter(o => {
+        if (seen.has(o.id)) return false;
+        seen.add(o.id);
+        return true;
+      });
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri učitavanju vježbi.');
     } finally {
@@ -698,6 +781,14 @@ export class TrainingComponent implements OnInit, OnDestroy {
   }
 
   setSwapScope(scope: 'day' | 'all') { this.swapScope = scope; }
+
+  /** Grupe za prikaz — filtrirane pretragom, prazne se izostavljaju. */
+  get visibleGroups() {
+    const q = this.swapFilter.trim().toLowerCase();
+    return this.swapGroups
+      .map(g => ({ name: g.name, items: g.items.filter(o => !q || o.name.toLowerCase().includes(q)) }))
+      .filter(g => g.items.length > 0);
+  }
 
   async confirmSwap(option: { id: string; name: string; picture: string | null }) {
     if (!this.session || this.swapSaving) return;
