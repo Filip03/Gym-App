@@ -1061,3 +1061,28 @@ sa trakom adresne linije, ali se traka nikad ne sakriva.
 - `src/app/app.component.scss`, `login`, `register` — `dvh` → `svh`
 - `src/styles/_base.scss` — `overscroll-behavior-y`
 - `src/app/app.module.ts` — registracija
+
+---
+
+## [2026-07-26] Popravka: birač osobe za poređenje nije imao stilove
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** U prethodnoj izmjeni je napisan markup modala za izbor osobe
+(`.cmp-row`, `.cmp-av`, `.cmp-check`…), ali **nijedno od tih pravila nije
+dodano u SCSS**. Modal se otvarao kao neoblikovan spisak — dugmad bez podloge,
+avatari bez okvira, kvačica u boji teksta.
+
+Greška je moja i tipična za razdvojen predložak i stil: build prolazi, TypeScript
+ne prijavljuje ništa, jer nedostatak CSS klase nije greška ni za koga osim za oko.
+
+**Rješenje:** Dodata pravila u `profile.component.scss` — red visine 52px sa
+avatarom, naglašen izabrani red (volt podloga i obrub), isprekidan krug za
+„Niko", stepenasti ulaz redova.
+
+**Provjera:** Otvoren modal, izabran „marko" — polje se ažurira, legenda se
+pojavljuje sa dvije boje (volt = ti, zlatna = drugi), grafikon povlači i drugu
+liniju.
+
+**Napomena za ubuduće:** kad se doda markup sa novim klasama, provjeriti
+`grep -c "nova-klasa" *.scss` prije commita. Ovdje bi to odmah dalo nulu.
