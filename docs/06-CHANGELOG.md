@@ -455,3 +455,50 @@ otežalo pokretanje kolegi.
 **Napomene:** `npm install` prijavljuje 64 ranjivosti (45 high, 1 critical),
 većinom u build alatima. Zabilježeno u `03-SIGURNOST.md` → S7. Nije dirano jer
 `npm audit fix --force` na Angular 16 projektu lako razbije build.
+
+---
+
+## [2026-07-26] Zvuk na iPhoneu — otključavanje unutar dodira i rezervni put
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Na telefonu (iPhone) zvuk se pri prvom otvaranju prijave nije čuo,
+dok je na računaru radio. Ranije popravke (puštanje na prvi dodir,
+`audioSession.type = 'playback'`) nisu pomogle.
+
+**Rješenje:** Tri odvojena iOS ograničenja, sva tri prekršena u istom kodu:
+
+1. **Otključavanje nije bilo sinhrono.** Rukovalac dodira je bio `async` i imao
+   `await ctx.resume()` prije puštanja tihog uzorka. Svaki `await` prekida vezu
+   sa dodirom — iOS tada više ne smatra da je zvuk pokrenuo korisnik. Sada
+   `unlock()` nema nijedan `await`: kontekst → `resume()` → tihi uzorak, sve u
+   istom potezu.
+2. **AudioContext se pravio pri učitavanju stranice**, prije ijednog dodira. Takav
+   kontekst na iOS-u zna ostati gluv i nakon `resume()`. Sada se pravi tek u dodiru.
+3. **Snimak se dekodirao poslije dodira**, pa je i mreža ulazila u kritični
+   trenutak. Sada se bajtovi povlače unaprijed (`fetch` ne traži kontekst), a
+   dekodiraju tek kad kontekst postoji.
+
+Dodat je i **rezervni put preko `<audio>` elementa**, otključan istim dodirom.
+Web Audio je jedini koji svira kad je bočni prekidač na tihom, ali mu
+dekodiranje `.m4a` na starijim iOS-ima zna pasti; `<audio>` uvijek zna da pusti
+`.m4a`, ali ga tihi režim utišava. Puštanje ide Web Audiom kad je snimak
+dekodiran, a `<audio>` preuzima kad nije.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/audio.service.ts` — kompletno prepisan servis: `unlock()`
+  (sinhroni, oba puta), `prefetch()` (sirovi bajtovi), `decode()` (dedupliranje),
+  `playElement()` (rezervni put), `elementActive` zastavica
+
+**Efekat:** Zvuk se čuje na prvi dodir na ekranu prijave, i na telefonu i na
+računaru. Mjereno na produkcijskom buildu: `<audio>` otključan → kontekst
+napravljen → tihi uzorak → jedno dekodiranje (253 kB) → klip pušten.
+
+**Napomene:** Dvije greške pronađene tek mjerenjem, ne čitanjem koda:
+- `stop()` je pauzirao element i time prekidao (`AbortError`) baš ono puštanje
+  koje ga otključava. Sada pauzira samo pravi klip (`elementActive`).
+- Isti snimak se dekodirao dvaput paralelno (`unlock()` grije unaprijed,
+  `play()` traži odmah zatim) — dva puta po 250 kB. Dodata mapa dekodiranja u toku.
+
+Ako se i dalje ne čuje: provjeriti bočni prekidač na iPhoneu za `<audio>` put i
+da Safari nije stariji od 16.4 (`audioSession` API).
