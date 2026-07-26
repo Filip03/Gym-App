@@ -1,39 +1,47 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
-import { TrainingService } from '../../services/training.service';
 import { AuthService } from '../../services/auth.service';
-import { DAY_NAMES } from '../../shared/day-names';
+import { ExerciceService } from '../../services/exercice.service';
+import { Router } from '@angular/router';
+import {
+  TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet
+} from '../../services/training.service';
+
+/** Poređenje jedne serije sa istom serijom prošlog treninga. */
+type Delta = 'up' | 'down' | 'same' | null;
 
 interface LoggedSet {
   id: string;
   setNumber: number;
   reps: number;
   weight: number;
+  delta: Delta;
   editing: boolean;
   editReps: number | null;
   editWeight: number | null;
   saving: boolean;
 }
 
-interface TodayExercice {
-  dayExerciceId: string;
-  exerciceId: string;
-  name: string;
-  targetSets: number | null;
-  targetReps: number | null;
+interface TodayExercice extends SessionExercice {
   loggedSets: LoggedSet[];
+  echo: Echo | null;
+
+  /** Najbolja kilaža PRIJE današnjeg treninga. Prag za lični rekord. */
+  previousBest: number | null;
+  /** Da li je današnji trening oborio taj prag. Jedan po vježbi, ne po seriji. */
+  isPr: boolean;
+  /** Uključuje se samo u trenutku obaranja — pokreće animaciju slavlja. */
+  celebrating: boolean;
+  /** Mijenja se pri svakom slavlju da bi se snimak odsvirao ispočetka. */
+  celebrateKey: number;
+  /** Kilaža za koju je plamen već odsviran — sprječava ponavljanje pri svakom dodiru. */
+  prShown: number | null;
+
   showLogForm: boolean;
   repsInput: number | null;
   weightInput: number | null;
   saving: boolean;
+  menuOpen: boolean;
 }
-
-interface PreviousSet {
-  setNumber: number;
-  reps: number;
-  weight: number;
-}
-
 
 @Component({
   selector: 'app-training',
@@ -44,25 +52,31 @@ export class TrainingComponent implements OnInit {
   loading = true;
   errorMessage = '';
 
-  plan: any = null;
-  todayDayName = '';
+  session: WorkoutSession | null = null;
   todayDate = '';
-  todayWorkoutDay: any = null;
-  todayExercices: TodayExercice[] = [];
+  exercices: TodayExercice[] = [];
   isRestDay = false;
 
-  showPreviousModal = false;
-  previousModalExerciceName = '';
-  previousModalDate: string | null = null;
-  previousModalSets: PreviousSet[] = [];
-  previousModalLoading = false;
-  previousModalError = '';
+  // Zamjena vježbe
+  showSwapModal = false;
+  swapTarget: TodayExercice | null = null;
+  swapMode: 'replace' | 'add' = 'replace';
+  swapOptions: { id: string; name: string; picture: string | null }[] = [];
+  swapLoading = false;
+  swapFilter = '';
+  swapSaving = false;
+
+  // Izmjena cilja za ovaj trening
+  showTargetModal = false;
+  targetTarget: TodayExercice | null = null;
+  targetSetsInput: number | null = null;
+  targetRepsInput: number | null = null;
 
   private currentUserId = '';
-  private dayNames = DAY_NAMES;
 
   constructor(
     private trainingService: TrainingService,
+    private exerciceService: ExerciceService,
     private authService: AuthService,
     private router: Router
   ) {}
@@ -76,48 +90,20 @@ export class TrainingComponent implements OnInit {
     }
 
     this.currentUserId = user.id;
-    this.todayDayName = this.getTodayDayName();
-    this.todayDate = this.getTodayDateString();
+    this.todayDate = this.todayString();
 
     try {
-      this.plan = await this.trainingService.getPlanForUser(user.id);
+      const plan = await this.trainingService.getPlanForUser(user.id);
+      this.session = await this.trainingService.getOrCreateSession(user.id, this.todayDate, plan);
 
-      if (!this.plan) {
-        this.errorMessage = 'Nemaš trening za praćenje.';
+      if (!this.session) {
+        this.errorMessage = plan
+          ? 'Nema definisanog rasporeda za danas.'
+          : 'Nemaš plan koji pratiš. Napravi ga ili zaprati tuđi na ekranu Planovi.';
         return;
       }
 
-      this.todayWorkoutDay = this.plan.workout_days.find(
-        (day: any) => day.name === this.todayDayName
-      ) ?? null;
-
-      if (!this.todayWorkoutDay) {
-        this.errorMessage = `Nema definisanog rasporeda za ${this.todayDayName}.`;
-        return;
-      }
-
-      const sortedDayExercices = [...this.todayWorkoutDay.day_exercice].sort(
-        (a: any, b: any) => a.order_num - b.order_num
-      );
-
-      this.isRestDay = sortedDayExercices.length === 0;
-
-      this.todayExercices = sortedDayExercices.map((dayEx: any) => ({
-        dayExerciceId: dayEx.id,
-        exerciceId: dayEx.exercice_id,
-        name: dayEx.exercices?.name ?? '',
-        targetSets: dayEx.target_sets,
-        targetReps: dayEx.target_reps,
-        loggedSets: [],
-        showLogForm: false,
-        repsInput: null,
-        weightInput: null,
-        saving: false
-      }));
-
-      if (!this.isRestDay) {
-        await this.loadLoggedSets();
-      }
+      await this.hydrate();
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju treninga.';
     } finally {
@@ -125,93 +111,184 @@ export class TrainingComponent implements OnInit {
     }
   }
 
-  private async loadLoggedSets() {
-    const exerciceIds = this.todayExercices.map(ex => ex.exerciceId);
-    const logs = await this.trainingService.getTodayLogs(
-      this.currentUserId,
-      this.plan.id,
-      exerciceIds,
-      this.todayDate
-    );
+  /** Napuni ekran: vježbe iz sesije + upisane serije + echo + rekordi. */
+  private async hydrate() {
+    if (!this.session) return;
 
-    for (const ex of this.todayExercices) {
-      ex.loggedSets = logs
-        .filter(log => log.exercice_id === ex.exerciceId)
-        .map(log => ({
-          id: log.id,
-          setNumber: log.set_number,
-          reps: log.reps,
-          weight: log.weight,
-          editing: false,
-          editReps: null,
-          editWeight: null,
-          saving: false
-        }));
-    }
-  }
+    const exerciceIds = this.session.exercices.map(e => e.exerciceId);
+    this.isRestDay = exerciceIds.length === 0;
 
-  async openPreviousModal(ex: TodayExercice) {
-    this.showPreviousModal = true;
-    this.previousModalExerciceName = ex.name;
-    this.previousModalDate = null;
-    this.previousModalSets = [];
-    this.previousModalError = '';
-    this.previousModalLoading = true;
+    // Tri nezavisna upita — paralelno, da ekran ne čeka lanac.
+    const [logs, echo, bests] = await Promise.all([
+      this.trainingService.getSessionLogs(this.session.id),
+      this.trainingService.getEcho(this.currentUserId, exerciceIds, this.todayDate),
+      this.trainingService.getPersonalBests(this.currentUserId, exerciceIds, this.todayDate)
+    ]);
 
-    try {
-      const previousDate = await this.trainingService.getPreviousSessionDate(
-        this.currentUserId,
-        this.plan.id,
-        [ex.exerciceId],
-        this.todayDate
-      );
+    this.exercices = this.session.exercices.map(se => {
+      const own = logs.filter(l => l.exercice_id === se.exerciceId);
+      const ec = echo.get(se.exerciceId) ?? null;
+      const previousBest = bests.get(se.exerciceId) ?? null;
 
-      if (!previousDate) return;
-
-      const results = await this.trainingService.getSessionResults(
-        this.currentUserId,
-        this.plan.id,
-        [ex.exerciceId],
-        previousDate
-      );
-
-      this.previousModalDate = previousDate;
-      this.previousModalSets = results.map(r => ({
-        setNumber: r.set_number,
-        reps: r.reps,
-        weight: r.weight
+      const sets: LoggedSet[] = own.map(l => ({
+        id: l.id,
+        setNumber: l.set_number,
+        reps: l.reps,
+        weight: l.weight,
+        delta: this.deltaFor(ec, l.set_number, l.weight, l.reps),
+        editing: false,
+        editReps: null,
+        editWeight: null,
+        saving: false
       }));
-    } catch (err: any) {
-      this.previousModalError = err.message ?? 'Greška pri učitavanju prethodnih rezultata.';
-    } finally {
-      this.previousModalLoading = false;
-    }
+
+      const isPr = this.hasPr(sets, previousBest);
+
+      return {
+        ...se,
+        echo: ec,
+        previousBest,
+        isPr,
+        // Zatečeni rekord se NE slavi pri učitavanju ekrana — samo onaj koji
+        // padne pred korisnikom.
+        prShown: isPr ? Math.max(...sets.map(s => s.weight)) : null,
+        celebrating: false,
+        celebrateKey: 0,
+        loggedSets: sets,
+        showLogForm: false,
+        repsInput: null,
+        weightInput: null,
+        saving: false,
+        menuOpen: false
+      };
+    });
   }
 
-  closePreviousModal() {
-    this.showPreviousModal = false;
+  /**
+   * Poređenje SERIJE sa istom serijom prošlog treninga.
+   * Gore = teže, ili isto teško uz više ponavljanja.
+   */
+  private deltaFor(echo: Echo | null, setNumber: number, weight: number, reps: number): Delta {
+    const prev = echo?.sets.find(s => s.setNumber === setNumber);
+    if (!prev) return null;
+
+    if (weight > prev.weight) return 'up';
+    if (weight < prev.weight) return 'down';
+    if (reps > prev.reps) return 'up';
+    if (reps < prev.reps) return 'down';
+    return 'same';
   }
+
+  /**
+   * Lični rekord se računa na nivou VJEŽBE, ne serije.
+   *
+   * Ranije je svaka serija teža od prethodne dobijala plamen, pa je trening
+   * 70-72-74 kg davao tri "rekorda". Sada je rekord jedan: najteža današnja
+   * serija naspram svega ranije odrađenog.
+   *
+   * Vježba bez ijednog ranijeg upisa NEMA rekord — prvi put kad nešto radiš
+   * nije dostignuće, nema se šta nadmašiti.
+   */
+  private hasPr(sets: LoggedSet[], previousBest: number | null): boolean {
+    if (sets.length === 0 || previousBest === null) return false;
+    return Math.max(...sets.map(s => s.weight)) > previousBest;
+  }
+
+  /**
+   * Preračunaj rekord i, ako je prag upravo pređen, pokreni slavlje.
+   *
+   * Zove se iz SVAKE radnje koja mijenja serije — upisa, izmjene i brisanja.
+   * Ranije je slavlje visjelo samo na upisu nove serije, pa izmjena postojeće
+   * na veću kilažu nije davala ništa iako je rekord stvarno pao.
+   *
+   * `prShown` pamti kilažu za koju je plamen već odsviran, pa se animacija ne
+   * ponavlja pri svakom dodiru — ali se pokreće ponovo ako rekord naraste još
+   * jednom u istom treningu.
+   */
+  private refreshPr(ex: TodayExercice) {
+    ex.isPr = this.hasPr(ex.loggedSets, ex.previousBest);
+
+    if (!ex.isPr) {
+      ex.prShown = null;
+      return;
+    }
+
+    const best = this.todayBest(ex)!;
+    if (ex.prShown !== null && best <= ex.prShown) return;
+
+    ex.prShown = best;
+    ex.celebrateKey = Date.now();
+    ex.celebrating = true;
+    setTimeout(() => ex.celebrating = false, 1800);   // dužina snimka
+  }
+
+  /** Najteža današnja serija — prikazuje se uz oznaku rekorda. */
+  todayBest(ex: TodayExercice): number | null {
+    if (ex.loggedSets.length === 0) return null;
+    return Math.max(...ex.loggedSets.map(s => s.weight));
+  }
+
+  // -------------------------------------------------------------------------
+  // Echo — vrijednosti prošlog treninga
+  // -------------------------------------------------------------------------
+
+  /** Prošli trening za seriju koju korisnik upravo upisuje. */
+  echoFor(ex: TodayExercice, setNumber: number): EchoSet | null {
+    return ex.echo?.sets.find(s => s.setNumber === setNumber) ?? null;
+  }
+
+  nextSetNumber(ex: TodayExercice): number {
+    return ex.loggedSets.length + 1;
+  }
+
+  /** Tekst u polju prije nego što korisnik išta ukuca. */
+  echoPlaceholder(ex: TodayExercice, field: 'reps' | 'weight'): string {
+    const prev = this.echoFor(ex, this.nextSetNumber(ex));
+    if (!prev) return field === 'reps' ? 'Ponavljanja' : 'Kilaža';
+    return field === 'reps' ? `${prev.reps}` : `${prev.weight}`;
+  }
+
+  /** Koliko je serija plan predvidio, a koliko ih je odrađeno. */
+  progressLabel(ex: TodayExercice): string {
+    const done = ex.loggedSets.length;
+    return ex.targetSets ? `${done}/${ex.targetSets}` : `${done}`;
+  }
+
+  isComplete(ex: TodayExercice): boolean {
+    return !!ex.targetSets && ex.loggedSets.length >= ex.targetSets;
+  }
+
+  // -------------------------------------------------------------------------
+  // Upis serije
+  // -------------------------------------------------------------------------
 
   toggleLogForm(ex: TodayExercice) {
     ex.showLogForm = !ex.showLogForm;
-    ex.repsInput = null;
-    ex.weightInput = null;
+    ex.menuOpen = false;
+
+    // Predloži prošli rezultat kao polaznu vrijednost — u teretani se najčešće
+    // ponavlja isto ili se dodaje mali korak.
+    const prev = this.echoFor(ex, this.nextSetNumber(ex));
+    ex.repsInput = ex.showLogForm ? prev?.reps ?? null : null;
+    ex.weightInput = ex.showLogForm ? prev?.weight ?? null : null;
   }
 
   async saveLog(ex: TodayExercice) {
+    if (!this.session) return;
     if (ex.repsInput == null || ex.weightInput == null || ex.saving) return;
-    if (ex.weightInput < 2.5 || ex.weightInput > 500) return;
+    if (ex.weightInput < 0 || ex.weightInput > 1000) return;
 
     ex.saving = true;
 
     try {
-      const nextSetNumber = ex.loggedSets.length + 1;
+      const setNumber = this.nextSetNumber(ex);
       const saved = await this.trainingService.logSet({
         userId: this.currentUserId,
+        sessionId: this.session.id,
         exerciceId: ex.exerciceId,
-        planId: this.plan.id,
+        planId: this.session.planId,
         date: this.todayDate,
-        setNumber: nextSetNumber,
+        setNumber,
         reps: ex.repsInput,
         weight: ex.weightInput
       });
@@ -221,11 +298,15 @@ export class TrainingComponent implements OnInit {
         setNumber: saved.set_number,
         reps: saved.reps,
         weight: saved.weight,
+        delta: this.deltaFor(ex.echo, saved.set_number, saved.weight, saved.reps),
         editing: false,
         editReps: null,
         editWeight: null,
         saving: false
       });
+
+      this.refreshPr(ex);
+
       ex.showLogForm = false;
       ex.repsInput = null;
       ex.weightInput = null;
@@ -246,9 +327,8 @@ export class TrainingComponent implements OnInit {
     set.editing = false;
   }
 
-  async saveEditSet(set: LoggedSet) {
+  async saveEditSet(ex: TodayExercice, set: LoggedSet) {
     if (set.editReps == null || set.editWeight == null || set.saving) return;
-    if (set.editWeight < 2.5 || set.editWeight > 500) return;
 
     set.saving = true;
 
@@ -256,26 +336,177 @@ export class TrainingComponent implements OnInit {
       const updated = await this.trainingService.updateLog(set.id, set.editReps, set.editWeight);
       set.reps = updated.reps;
       set.weight = updated.weight;
+      set.delta = this.deltaFor(ex.echo, set.setNumber, set.weight, set.reps);
       set.editing = false;
+
+      // Izmjena može i stvoriti i poništiti rekord — zato ista provjera kao
+      // pri upisu, uključujući i animaciju.
+      this.refreshPr(ex);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom izmene rezultata.';
+      this.errorMessage = err.message ?? 'Greška prilikom izmjene rezultata.';
     } finally {
       set.saving = false;
     }
   }
 
-  private getTodayDayName(): string {
-    const jsDay = new Date().getDay(); // 0 = Nedelja, 1 = Ponedeljak, ... 6 = Subota
-    const index = jsDay === 0 ? 6 : jsDay - 1;
-    return this.dayNames[index];
+  /** Briše seriju i prenumeriše preostale, da rupe ne pomjere Echo poređenje. */
+  async deleteSet(ex: TodayExercice, set: LoggedSet) {
+    if (set.saving) return;
+    set.saving = true;
+
+    try {
+      await this.trainingService.deleteLog(set.id);
+      ex.loggedSets = ex.loggedSets.filter(s => s.id !== set.id);
+
+      for (let i = 0; i < ex.loggedSets.length; i++) {
+        const wanted = i + 1;
+        if (ex.loggedSets[i].setNumber !== wanted) {
+          await this.trainingService.renumberSet(ex.loggedSets[i].id, wanted);
+          ex.loggedSets[i].setNumber = wanted;
+          ex.loggedSets[i].delta = this.deltaFor(
+            ex.echo, wanted, ex.loggedSets[i].weight, ex.loggedSets[i].reps
+          );
+        }
+      }
+
+      this.refreshPr(ex);
+    } catch (err: any) {
+      this.errorMessage = err.message ?? 'Greška prilikom brisanja serije.';
+      set.saving = false;
+    }
   }
 
-  private getTodayDateString(): string {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  // -------------------------------------------------------------------------
+  // Zamjena vježbe — samo za ovaj trening
+  // -------------------------------------------------------------------------
+
+  toggleMenu(ex: TodayExercice) {
+    const open = ex.menuOpen;
+    this.exercices.forEach(e => e.menuOpen = false);
+    ex.menuOpen = !open;
+  }
+
+  async openSwap(ex: TodayExercice, mode: 'replace' | 'add') {
+    // Upisane serije su vezane za exercice_id, a ne za red u sesiji. Zamjena bi
+    // ih ostavila u bazi ali ih sklonila sa ekrana, jer red od tada prikazuje
+    // drugu vježbu. Umjesto tihog gubitka podatka — jasna poruka.
+    if (mode === 'replace' && ex.loggedSets.length > 0) {
+      this.errorMessage =
+        `${ex.name} već ima upisane serije. Obriši ih ako želiš zamijeniti vježbu.`;
+      ex.menuOpen = false;
+      return;
+    }
+
+    this.errorMessage = '';
+    this.swapTarget = ex;
+    this.swapMode = mode;
+    this.showSwapModal = true;
+    this.swapLoading = true;
+    this.swapFilter = '';
+    this.swapOptions = [];
+    ex.menuOpen = false;
+
+    try {
+      this.swapOptions = await this.trainingService.getAlternatives(ex.exerciceId);
+    } catch (err: any) {
+      this.errorMessage = err.message ?? 'Greška pri učitavanju zamjena.';
+    } finally {
+      this.swapLoading = false;
+    }
+  }
+
+  closeSwap() {
+    this.showSwapModal = false;
+    this.swapTarget = null;
+  }
+
+  get filteredSwapOptions() {
+    const q = this.swapFilter.trim().toLowerCase();
+    if (!q) return this.swapOptions;
+    return this.swapOptions.filter(o => o.name.toLowerCase().includes(q));
+  }
+
+  async confirmSwap(option: { id: string; name: string; picture: string | null }) {
+    if (!this.swapTarget || !this.session || this.swapSaving) return;
+    this.swapSaving = true;
+
+    try {
+      if (this.swapMode === 'replace') {
+        await this.trainingService.replaceExercice(
+          this.swapTarget.id, option.id, this.swapTarget.exerciceId
+        );
+      } else {
+        const nextOrder = Math.max(0, ...this.exercices.map(e => e.orderNum)) + 1;
+        await this.trainingService.addExercice(this.session.id, option.id, nextOrder);
+      }
+
+      this.session = await this.trainingService.getOrCreateSession(
+        this.currentUserId, this.todayDate, null
+      );
+      await this.hydrate();
+      this.closeSwap();
+    } catch (err: any) {
+      this.errorMessage = err.message ?? 'Greška prilikom zamjene vježbe.';
+    } finally {
+      this.swapSaving = false;
+    }
+  }
+
+  async removeExercice(ex: TodayExercice) {
+    if (ex.loggedSets.length > 0) {
+      this.errorMessage = 'Vježba ima upisane serije — prvo obriši serije.';
+      return;
+    }
+
+    ex.menuOpen = false;
+
+    try {
+      await this.trainingService.removeExercice(ex.id);
+      this.session = await this.trainingService.getOrCreateSession(
+        this.currentUserId, this.todayDate, null
+      );
+      await this.hydrate();
+    } catch (err: any) {
+      this.errorMessage = err.message ?? 'Greška prilikom uklanjanja vježbe.';
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Cilj za ovaj trening
+  // -------------------------------------------------------------------------
+
+  openTargets(ex: TodayExercice) {
+    this.targetTarget = ex;
+    this.targetSetsInput = ex.targetSets;
+    this.targetRepsInput = ex.targetReps;
+    this.showTargetModal = true;
+    ex.menuOpen = false;
+  }
+
+  closeTargets() {
+    this.showTargetModal = false;
+    this.targetTarget = null;
+  }
+
+  async saveTargets() {
+    if (!this.targetTarget) return;
+
+    try {
+      await this.trainingService.updateTargets(
+        this.targetTarget.id, this.targetSetsInput, this.targetRepsInput
+      );
+      this.targetTarget.targetSets = this.targetSetsInput;
+      this.targetTarget.targetReps = this.targetRepsInput;
+      this.closeTargets();
+    } catch (err: any) {
+      this.errorMessage = err.message ?? 'Greška prilikom izmjene cilja.';
+    }
+  }
+
+  // -------------------------------------------------------------------------
+
+  getPictureUrl(picture: string | null): string | null {
+    return picture ? this.exerciceService.getPublicUrl(picture) : null;
   }
 
   goToLeaderboard(ex: TodayExercice) {
@@ -286,7 +517,11 @@ export class TrainingComponent implements OnInit {
     this.router.navigate(['/profiles'], { queryParams: { exercice: ex.exerciceId } });
   }
 
-  goBack() {
-    this.router.navigate(['/dashboard']);
+  private todayString(): string {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 }
