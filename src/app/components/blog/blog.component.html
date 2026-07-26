@@ -108,5 +108,7 @@
     <i class="material-icons">chevron_right</i>
   </button>
 
-  <span class="lb-hint" *ngIf="total > 1">Prevuci ili strelice</span>
+  <span class="lb-hint">
+    {{ total > 1 ? 'Prevuci lijevo/desno · povuci dolje za izlaz' : 'Povuci dolje za izlaz' }}
+  </span>
 </div>

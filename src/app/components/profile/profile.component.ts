@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ProfileService, ProgressPoint, TrainingDay, WeightPoint } from '../../services/profile.service';
@@ -207,8 +207,19 @@ export class ProfileComponent implements OnInit {
   readonly chartPaddingTop = 30;
   readonly chartPaddingBottom = 34;
   private readonly pointSpacing = 70;
-  /** Stalna širina crteža. Mijenja se gustina tačaka, ne dužina grafikona. */
-  private readonly chartSpan = 560;
+  /**
+   * Širina crteža u koordinatama SVG-a.
+   *
+   * SVG se u CSS-u razvlači na širinu kartice, pa se sa njim skalira i TEKST.
+   * Sa fiksnih 560 na uskom telefonu ispadne odnos 0,46 — natpisi ose od 10px
+   * postanu 4,6px i praktično se ne vide.
+   *
+   * Zato je crtež uži na uskom ekranu: odnos ostaje blizu 1:1 i tekst je
+   * čitljiv na svakom uređaju. Ne mijenja se sadržaj, samo koordinatna mreža.
+   */
+  private get chartSpan(): number {
+    return window.innerWidth < 560 ? 360 : 560;
+  }
 
   constructor(
     private authService: AuthService,
@@ -346,8 +357,17 @@ export class ProfileComponent implements OnInit {
     return '0,0';
   }
 
-  /** Prikaz izabranog datuma u polju koje otvara birač. */
-  get weightDateLabel(): string { return formatIsoDate(this.newWeightDate); }
+  /**
+   * Prikaz izabranog datuma u polju koje otvara birač.
+   *
+   * Godina se izostavlja kad je tekuća — u praksi se upisuje današnji ili
+   * jučerašnji dan, pa „2026." samo troši širinu polja i tjera skraćivanje.
+   */
+  get weightDateLabel(): string {
+    const full = formatIsoDate(this.newWeightDate);
+    const year = this.newWeightDate.slice(0, 4);
+    return year === String(new Date().getFullYear()) ? full.slice(0, 6) : full;
+  }
 
   /** Gornja granica u biraču — težina se ne mjeri unaprijed. */
   get todayIso(): string { return this.iso(new Date()); }
@@ -777,6 +797,13 @@ export class ProfileComponent implements OnInit {
   selectSet(setNumber: number) {
     this.selectedSetNumber = setNumber;
     this.applySetFilter();
+  }
+
+  /** Promjena širine prozora mijenja `chartSpan`, pa se crtež mora ponovo složiti. */
+  @HostListener('window:resize')
+  onWindowResize() {
+    if (this.selectedExerciceId) this.applySetFilter();
+    if (this.weightHistory.length) this.buildWeightChart();
   }
 
   private applySetFilter() {

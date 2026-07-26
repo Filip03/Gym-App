@@ -272,13 +272,34 @@
 
 // --- Pregled ---------------------------------------------------------------
 
+// Pregled zauzima ISTO polje kao modali — između zaglavlja i futera.
+//
+// Ranije `inset: 0`: dugme za izlaz je završavalo uz samu ivicu ekrana, ispod
+// pregledačeve trake, pa se na telefonu nije moglo pogoditi. Sada je unutar
+// vidljivog dijela, kao i sve ostalo.
 .lb {
   position: fixed;
-  inset: 0;
+  top: calc(var(--header-h) + var(--safe-t));
+  bottom: calc(var(--footer-h) + var(--safe-b));
+  left: 0;
+  right: 0;
   z-index: 200;
   display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
+  // `minmax(0, 1fr)`, ne `1fr` — inače srednja kolona ne smije da bude uža od
+  // sadržaja, pa široka slika razvuče cio raspored.
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  // Red MORA biti određen. Bez ovoga je `auto`, pa ga slika od 1920px razvuče
+  // — a onda ni `height: 100%` ni `max-height: 100%` nemaju prema čemu da se
+  // izračunaju. `minmax(0, 1fr)` znači „tačno onoliko koliko ima, i ni piksel
+  // više".
+  grid-template-rows: minmax(0, 1fr);
+  // `stretch`, NE `center`.
+  //
+  // Sa `center` se red mjeri po sadržaju, pa polje za sliku nema određenu
+  // visinu — a `max-height: 100%` na slici tada nema prema čemu da se izračuna
+  // i slika se crta u punoj veličini (mjereno: 1920px u polju od 1008px).
+  // Sadržaj se centrira unutar samog polja, ne rastezanjem reda.
+  align-items: stretch;
 
   background: rgba(3, 5, 7, .94);
   animation: lb-in var(--d-base) var(--ease-out) both;
@@ -292,7 +313,9 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  padding: calc(var(--safe-t) + var(--s-3)) var(--s-4) var(--s-3);
+  // Više prostora od vrha. Ranije je dugme za izlaz bilo zalijepljeno za samu
+  // ivicu ekrana — tamo gdje je pregledačeva traka i gdje palac teško dohvata.
+  padding: var(--s-4);
   background: linear-gradient(180deg, rgba(3, 5, 7, .9) 0%, transparent 100%);
 }
 
@@ -312,35 +335,66 @@
   color: var(--dust);
 }
 
+// Krupno i vidljivo. Ovo je jedini očigledan izlaz iz pregleda; sve ostalo
+// (dodir na pozadinu, povlačenje nadolje) korisnik mora da pogodi.
 .lb-close {
+  flex: none;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--r-full);
-  background: var(--carbon-high);
+
+  background: rgba(19, 26, 34, .92);
+  border: 1px solid var(--line-strong);
   color: var(--ice);
 }
 
-.lb-close:hover { background: var(--steel); }
+.lb-close .material-icons { font-size: 24px; }
+.lb-close:hover { background: var(--steel); border-color: var(--volt-a40); }
 
+// `height: 100%` + `min-height: 0`, ne `max-height`.
+//
+// Procenat visine djeteta se računa prema ODREĐENOJ visini roditelja. Sa samo
+// `max-height: 100%` polje ostaje visine sadržaja, pa `max-height: 100%` na
+// slici nema prema čemu da se izračuna — slika se crta u punoj veličini i
+// prelijeva ekran. `min-height: 0` je obavezan u grid/flex djetetu, inače ne
+// dozvoljava da se smanji ispod sadržaja.
+// BEZ `place-items: center`.
+//
+// Centriranje čini da se slika mjeri po sadržaju, pa joj `height: 100%` nema
+// prema čemu da se izračuna — polje je bilo 1008px, a slika svejedno 2192px.
+// Podrazumijevano `stretch` je razvuče na cijelo polje, a `object-fit: contain`
+// je onda uklopi unutra i sam centrira. Centriranje radi slika, ne raspored.
+// OBIČAN BLOK, ne grid.
+//
+// Kad je i polje grid, njegov red je `auto` pa ga slika opet razvuče — ista
+// zamka jedan nivo niže. Kod običnog bloka `height: 100%` na slici se računa
+// prema određenoj visini bloka, pa `object-fit: contain` konačno ima okvir.
 .lb-stage {
   grid-column: 2;
-  display: grid;
-  place-items: center;
-  max-height: 100svh;
-  padding: calc(var(--safe-t) + var(--s-12)) var(--s-2) calc(var(--safe-b) + var(--s-10));
+  display: block;
+  height: 100%;
+  min-height: 0;
+  padding: var(--s-10) var(--s-2);
 }
 
+// `width/height: 100%` + `object-fit: contain`, ne `max-*`.
+//
+// Okvir slike je time tačno veličine polja, a sama fotografija se uklapa u
+// njega sa crnim rubovima gdje treba. Nikakva veličina originala ne može da
+// prelije ekran — a `max-height` u procentima traži da roditelj ima određenu
+// visinu, što se pokazalo kao stalan izvor grešaka.
 .lb-stage img,
 .lb-stage video {
-  max-width: 100%;
-  max-height: 78svh;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   border-radius: var(--r-md);
 }
 
 .lb-nav {
+  align-self: center;
   display: grid;
   place-items: center;
   width: 44px;
@@ -359,13 +413,18 @@
 @media (max-width: 560px) {
   .lb-nav { display: none; }
   .lb-stage { grid-column: 1 / -1; }
+
+  // Slika se malo smanji da oko nje ostane pozadina — dodir na nju zatvara
+  // pregled. Bez toga slika pokrije skoro sve, a dodir po njoj ne radi ništa
+  // (namjerno, da se ne zatvara pri pokušaju zumiranja).
+  .lb-stage { padding: var(--s-10) var(--s-4); }
 }
 
 .lb-hint {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(var(--safe-b) + var(--s-4));
+  bottom: var(--s-3);
   text-align: center;
   font-family: var(--font-data);
   font-size: 10px;
