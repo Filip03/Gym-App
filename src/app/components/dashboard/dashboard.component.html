@@ -1,6 +1,15 @@
-<div class="start-training-bar">
-    <button type="button" class="start-training-btn" (click)="goToTraining()">Započni trening</button>
-</div>
+<button type="button" class="start-training" (click)="goToTraining()">
+    <span class="st-today">
+        <span class="st-day">{{ todayName }}</span>
+        <span class="st-sep" *ngIf="todayType">·</span>
+        <span class="st-type" *ngIf="todayType">{{ todayType }}</span>
+        <span class="st-type rest" *ngIf="!todayType && todayName">Rest</span>
+    </span>
+    <span class="st-go">
+        Započni trening
+        <i class="material-icons">arrow_forward</i>
+    </span>
+</button>
 
 <div class="wrapper">
     <div class="dashboard-container">
@@ -110,9 +119,19 @@
               </button>
 
               <div class="exercice-view-list" *ngIf="day.selectedExercices.length > 0">
-                <div class="exercice-view-item" *ngFor="let sel of day.selectedExercices">
+                <div class="exercice-view-item" *ngFor="let sel of day.selectedExercices; let i = index">
+                  <span class="ord num">{{ i + 1 }}</span>
                   <span class="exercice-name">{{ sel.name }}</span>
                   <span class="exercice-sets-reps">{{ sel.targetSets ?? '-' }} x {{ sel.targetReps ?? '-' }}</span>
+                  <span class="ord-actions">
+                    <button type="button" [disabled]="i === 0" (click)="moveInDay(day, i, -1)" aria-label="Gore">
+                      <i class="material-icons">keyboard_arrow_up</i>
+                    </button>
+                    <button type="button" [disabled]="i === day.selectedExercices.length - 1"
+                            (click)="moveInDay(day, i, 1)" aria-label="Dolje">
+                      <i class="material-icons">keyboard_arrow_down</i>
+                    </button>
+                  </span>
                 </div>
               </div>
 

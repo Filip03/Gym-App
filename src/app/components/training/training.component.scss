@@ -328,31 +328,33 @@
 // kraju prelaza.
 
 .ex-menu-wrap {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows var(--d-slow) var(--ease-out),
-              opacity var(--d-base) var(--ease),
-              margin-top var(--d-slow) var(--ease-out);
+  // max-height, a NE grid-template-rows: mjereno je da prelaz između 0fr i 1fr
+  // u praksi ne animira nego preskoči. Gornja granica je namjerno veća od
+  // sadržaja (pet stavki, oko 240px) — višak se ne vidi jer se animira i
+  // prozirnost.
+  max-height: 0;
+  overflow: hidden;
   opacity: 0;
   margin-top: 0;
+
+  transition: max-height var(--d-slow) var(--ease-out),
+              opacity var(--d-base) var(--ease),
+              margin-top var(--d-slow) var(--ease-out);
 }
 
 .ex-menu-wrap.open {
-  grid-template-rows: 1fr;
+  max-height: 360px;
   opacity: 1;
   margin-top: var(--s-3);
 }
 
 .ex-menu {
-  overflow: hidden;
   display: grid;
   gap: 2px;
-  min-height: 0;
   border-top: 1px solid var(--line);
   padding-top: var(--s-3);
 }
 
-.ex-menu-wrap:not(.open) .ex-menu { border-top-color: transparent; padding-top: 0; }
 
 .ex-menu button {
   display: flex;
@@ -724,3 +726,38 @@
 // Kad je jedan dio porastao, drugi se prigušuje da kontrast radi posao.
 .set.up .set-v .part:not(.up),
 .set.down .set-v .part:not(.down) { color: var(--mist); font-weight: 500; }
+
+// --- Dan i tip treninga zajedno --------------------------------------------
+//
+// Ranije su bili razdvojeni: dan kao sitna oznaka lijevo, tip kao značka skroz
+// desno. Nije se vidjelo da su to dvije strane iste informacije.
+
+.day-id {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.day-name,
+.day-type {
+  font-family: var(--font-display);
+  font-size: var(--t-lg);
+  font-weight: 700;
+  letter-spacing: var(--ls-tight);
+  line-height: 1.1;
+}
+
+.day-name { color: var(--ice); }
+.day-type { color: var(--volt); }
+.day-sep  { color: var(--dust); font-size: var(--t-lg); }
+
+.plan-name {
+  flex-basis: 100%;
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--dust);
+}

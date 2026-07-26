@@ -125,22 +125,14 @@ export class TrainingService {
       throw error;
     }
 
-    // Redoslijed iz plana je onaj kojim su vježbe UNESENE pri kreiranju, a ne
-    // kojim se stvarno rade. Ako je korisnik ranije preredio isti dan, taj
-    // redoslijed se nasljeđuje. Prošle sesije se time ne diraju — svaka čuva
-    // svoj poredak.
-    const remembered = await this.rememberedOrder(userId, day?.id ?? null, date);
-
-    const dayExercices = [...(day?.day_exercice ?? [])].sort((a: any, b: any) => {
-      const ra = remembered.get(a.exercice_id);
-      const rb = remembered.get(b.exercice_id);
-
-      // Vježbe kojih nije bilo prošli put idu na kraj, međusobno po planu.
-      if (ra == null && rb == null) return (a.order_num ?? 0) - (b.order_num ?? 0);
-      if (ra == null) return 1;
-      if (rb == null) return -1;
-      return ra - rb;
-    });
+    // Redoslijed uvijek dolazi IZ PLANA.
+    //
+    // Preređivanje u toku treninga mijenja samo tu sesiju i namjerno se ne
+    // prenosi na naredne — tako se može slobodno probati drugi raspored bez
+    // posljedica. Ako se novi raspored pokaže kao bolji, mijenja se u samom
+    // planu (Planovi -> Izmijeni), i onda vrijedi za sve.
+    const dayExercices = [...(day?.day_exercice ?? [])]
+      .sort((a: any, b: any) => (a.order_num ?? 0) - (b.order_num ?? 0));
 
     if (dayExercices.length > 0) {
       const rows = dayExercices.map((dayEx: any, i: number) => ({
@@ -159,45 +151,6 @@ export class TrainingService {
     }
 
     return this.findSession(userId, date);
-  }
-
-  /**
-   * Redoslijed vježbi sa POSLJEDNJEG treninga istog dana u planu.
-   *
-   * Time se jednom podešen poredak prenosi na svaki sljedeći trening tog dana,
-   * bez diranja plana (koji je zajednički) i bez diranja ranijih sesija (koje
-   * čuvaju poredak kojim su tada rađene).
-   *
-   * Vraća mapu exercice_id -> mjesto. Prazna mapa znači "koristi plan".
-   */
-  private async rememberedOrder(
-    userId: string,
-    workoutDayId: string | null,
-    beforeDate: string
-  ): Promise<Map<string, number>> {
-    const order = new Map<string, number>();
-    if (!workoutDayId) return order;
-
-    const { data, error } = await this.supabase.client
-      .from('workout_sessions')
-      .select('id, session_exercices ( exercice_id, order_num )')
-      .eq('user_id', userId)
-      .eq('workout_day_id', workoutDayId)
-      .lt('date', beforeDate)
-      .order('date', { ascending: false })
-      .limit(1);
-
-    // Nasljeđivanje poretka je udobnost, ne nužnost — ako upit padne, koristi
-    // se redoslijed iz plana.
-    if (error || !data?.length) return order;
-
-    const rows = ((data[0] as any).session_exercices ?? []) as any[];
-    rows
-      .slice()
-      .sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0))
-      .forEach((r, i) => order.set(r.exercice_id, i));
-
-    return order;
   }
 
   private async findSession(userId: string, date: string): Promise<WorkoutSession | null> {

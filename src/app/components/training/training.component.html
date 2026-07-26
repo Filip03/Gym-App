@@ -4,12 +4,13 @@
 <ng-container *ngIf="!loading && session">
 
   <div class="training-header">
-    <div>
-      <span class="eyebrow">{{ session.dayLabel }}</span>
-      <h2>{{ session.planName ?? 'Trening' }}</h2>
+    <div class="day-id">
+      <span class="day-name">{{ session.dayLabel }}</span>
+      <span class="day-sep" *ngIf="session.dayTypeName">·</span>
+      <span class="day-type" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
+      <span class="plan-name">{{ session.planName }}</span>
     </div>
     <div class="header-right">
-      <span class="day-type-badge" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
       <button type="button" class="reorder-btn" *ngIf="!reordering"
               (click)="openAdd()" title="Dodaj vježbu za danas">
         <i class="material-icons">add</i>
@@ -24,8 +25,8 @@
   </div>
 
   <p class="reorder-hint" *ngIf="reordering">
-    Redoslijed vrijedi za današnji trening i pamti se za sljedeći isti dan.
-    Plan i raniji treninzi ostaju nepromijenjeni.
+    Vrijedi samo za današnji trening. Ako ti se novi raspored svidi, promijeni ga
+    u planu (Planovi → Izmijeni) pa vrijedi za svaki sljedeći put.
   </p>
 
   <div class="rest-day" *ngIf="isRestDay">

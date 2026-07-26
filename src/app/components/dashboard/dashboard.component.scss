@@ -1,43 +1,78 @@
-// Kontejner ekrana. Naslijeđeni `border: 2px solid greenyellow` +
-// `box-shadow: 0 3px 10px white` su uklonjeni — pravili su efekat izgorjelog
-// ekrana i zatvarali sadržaj u okvir koji ničemu nije služio.
+// Traka "šta je danas". Ranije je ovdje stajalo obično zeleno dugme koje nije
+// govorilo ništa o tome šta te čeka. Sada je prigušeno polje preko cijele
+// širine: dan i tip treninga u volt boji, poziv na akciju desno.
 
-:host { display: block; }
-.wrapper { display: block; }
-
-.start-training-bar {
+.start-training {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  width: 100%;
+  min-height: 66px;
+  padding: var(--s-3) var(--s-5);
   margin-bottom: var(--s-6);
-}
 
-.start-training-btn {
-  flex: 1;
-  min-height: 52px;
-  padding: 0 var(--s-6);
-
-  background: var(--volt);
-  color: var(--volt-ink);
+  background: var(--carbon);
+  border: 1px solid var(--volt-a20);
   border-radius: var(--r-md);
+  text-align: left;
 
+  transition: border-color var(--d-base) var(--ease),
+              background-color var(--d-base) var(--ease),
+              transform var(--d-fast) var(--ease);
+}
+
+.start-training:hover {
+  background: var(--carbon-high);
+  border-color: var(--volt-a40);
+}
+.start-training:active { transform: scale(.995); }
+
+.st-today {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.st-day {
   font-family: var(--font-display);
-  font-size: var(--t-md);
+  font-size: var(--t-lg);
   font-weight: 700;
-  letter-spacing: .01em;
-
-  transition: transform var(--d-fast) var(--ease),
-              box-shadow var(--d-base) var(--ease),
-              background-color var(--d-fast) var(--ease);
+  color: var(--ice);
+  letter-spacing: var(--ls-tight);
 }
 
-.start-training-btn:hover {
-  background: #D4FF5E;
-  box-shadow: 0 0 28px -6px var(--volt-a40);
-}
-.start-training-btn:active { transform: scale(.985); }
+.st-sep { color: var(--dust); }
 
-@media (min-width: 640px) {
-  .start-training-bar { justify-content: center; }
-  .start-training-btn { flex: 0 0 auto; min-width: 260px; }
+.st-type {
+  font-family: var(--font-display);
+  font-size: var(--t-lg);
+  font-weight: 700;
+  color: var(--volt);
+  letter-spacing: var(--ls-tight);
+}
+
+.st-type.rest { color: var(--mist); }
+
+.st-go {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--volt);
+}
+
+.st-go .material-icons { font-size: 17px; }
+
+@media (max-width: 480px) {
+  .start-training { flex-direction: column; align-items: flex-start; gap: var(--s-2); }
 }
 
 .dashboard-container { width: 100%; }
@@ -822,3 +857,63 @@
     width: 100%;
   }
 }
+// --- Redoslijed vježbi u danu plana ----------------------------------------
+//
+// Jedino mjesto gdje se redoslijed mijenja TRAJNO. Preređivanje u toku treninga
+// vrijedi samo za taj dan i namjerno se ne prenosi dalje.
+
+.exercice-view-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-top: var(--s-2);
+}
+
+.exercice-view-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+}
+
+.exercice-view-item .ord {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  color: var(--volt);
+  font-size: var(--t-2xs);
+  font-weight: 700;
+}
+
+.exercice-view-item .exercice-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ice);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exercice-view-item .exercice-sets-reps {
+  flex-shrink: 0;
+  font-family: var(--font-data);
+  color: var(--mist);
+}
+
+.ord-actions { display: flex; flex-shrink: 0; }
+
+.ord-actions button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  color: var(--dust);
+}
+
+.ord-actions button:not(:disabled):hover { color: var(--volt); background: var(--volt-a10); }
+.ord-actions .material-icons { font-size: 17px; }

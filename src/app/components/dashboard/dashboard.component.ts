@@ -5,6 +5,8 @@ import { AuthService } from '../../services/auth.service';
 import { WorkoutPlan, PlanType, DayType, Exercice } from '../../models/models';
 import { DAY_NAMES } from '../../shared/day-names';
 import { ExerciceService } from '../../services/exercice.service';
+import { TrainingService } from '../../services/training.service';
+import { DAY_NAMES as DAYS } from '../../shared/day-names';
 
 interface SelectedExercice {
   exerciceId: string;
@@ -63,6 +65,11 @@ export class DashboardComponent implements OnInit {
 
   private dayNames = DAY_NAMES;
 
+  // Šta je danas na redu — prikazuje se na traci iznad planova.
+  todayName = '';
+  todayType: string | null = null;
+  todayCount = 0;
+
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
     'PPL (PUSHPULLLEGS)': ['PUSH', 'PULL', 'LEGS', 'REST'],
     'UL (UPPERLOWER)': ['UPPER', 'LOWER', 'REST'],
@@ -83,6 +90,7 @@ export class DashboardComponent implements OnInit {
     private dashboardService: DashboardService,
     private authService: AuthService,
     private exerciceService: ExerciceService,
+    private trainingService: TrainingService,
     private router: Router
   ) {}
 
@@ -106,10 +114,42 @@ export class DashboardComponent implements OnInit {
     } finally {
       this.loading = false;
     }
+
+    await this.loadToday(user.id);
+  }
+
+  /** Dan i tip treninga za danas, po planu koji korisnik prati ili ima aktivan. */
+  private async loadToday(userId: string) {
+    const jsDay = new Date().getDay();
+    this.todayName = DAYS[jsDay === 0 ? 6 : jsDay - 1];
+
+    try {
+      const plan = await this.trainingService.getPlanForUser(userId);
+      const day = (plan?.workout_days ?? []).find((d: any) => d.name === this.todayName);
+      this.todayType = day?.day_type?.name ?? null;
+      this.todayCount = (day?.day_exercice ?? []).length;
+    } catch {
+      // Traka je informativna — ako plan ne može da se učita, ostaje samo dan.
+    }
   }
 
   goToTraining() {
     this.router.navigate(['/training']);
+  }
+
+  /**
+   * Promjena redoslijeda vježbi u danu plana.
+   *
+   * Redoslijed se pri snimanju izvodi iz položaja u nizu (orderNum: index + 1),
+   * pa je dovoljno zamijeniti mjesta. Ovo je JEDINO mjesto gdje se redoslijed
+   * mijenja trajno — preređivanje u toku treninga vrijedi samo za taj dan.
+   */
+  moveInDay(day: DayEntry, index: number, direction: -1 | 1) {
+    const to = index + direction;
+    if (to < 0 || to >= day.selectedExercices.length) return;
+
+    const list = day.selectedExercices;
+    [list[index], list[to]] = [list[to], list[index]];
   }
 
   openCreateModal() {
