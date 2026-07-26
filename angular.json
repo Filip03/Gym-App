@@ -66,6 +66,20 @@
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
+            },
+            "cloud": {
+              "buildOptimizer": false,
+              "optimization": false,
+              "vendorChunk": true,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/env.ts",
+                  "with": "src/environments/env.prod.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -81,6 +95,9 @@
             },
             "development": {
               "browserTarget": "gym-app:build:development"
+            },
+            "cloud": {
+              "browserTarget": "gym-app:build:cloud"
             }
           },
           "defaultConfiguration": "development"

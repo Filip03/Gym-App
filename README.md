@@ -44,6 +44,39 @@ npm start
 
 ---
 
+## Bez Dockera
+
+Ako ti Docker nije opcija — samo hoćeš da povučeš, pokreneš i nešto dodaš:
+
+```bash
+npm install
+npm run start:cloud     # → localhost:4300, radi protiv CLOUD baze
+```
+
+Nema Dockera, nema seed-a, nema `setup` koraka. Prijavljuješ se svojim pravim
+nalogom, jer je to prava baza.
+
+**Prije prvog pokretanja u ovom režimu** cloud baza mora dobiti nove tabele —
+inače ekran treninga puca. Uputstvo (jedan copy-paste u Supabase SQL editor,
+bez ikakvih alata): [`supabase/cloud/README.md`](supabase/cloud/README.md).
+
+### Šta imati na umu
+
+| | |
+|---|---|
+| Radiš nad **pravim podacima** | što obrišeš, obrisano je — nema lokalne kopije da se vratiš |
+| Treba **internet** | i cloud projekat ne smije biti uspavan |
+| **Izmjena šeme ide kroz migraciju** | ako nešto promijeniš klikom u Supabase Studiju, to ne stiže ni do koga i nestaje pri sljedećem `db:reset`. Napravi migraciju u `supabase/migrations/`, pa je primijeni i na cloud |
+
+Zato je Docker režim i dalje preporučen za razvoj — ovaj je za brze izmjene.
+
+> Nema posebne grane za ovo. Grana bi značila da se `env.ts` trajno razlikuje,
+> pa bi **svaki merge imao konflikt** na tom fajlu i svaki feature bi se
+> merge-ovao dvaput. Razlika je samo u tome koju bazu gađaš, a to je stvar
+> konfiguracije, ne istorije.
+
+---
+
 ## Prijava
 
 Baza dolazi sa **pravim podacima o treningu**, ali **anonimizovanim nalozima** —
