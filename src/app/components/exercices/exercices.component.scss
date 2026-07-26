@@ -93,6 +93,40 @@
   transform: translateY(-2px);
 }
 
+// --- Ulaz ------------------------------------------------------------------
+//
+// Katalog se ranije pojavljivao odjednom, kao da je iskočio. Sada naslov grupe
+// i kartice ulaze stepenasto; kašnjenje računa komponenta i postavlja ga
+// inline, jer zavisi od rednog broja grupe i kartice.
+//
+// `backwards`, NE `both`. `both` zadržava završno stanje ključnog kadra i time
+// zaključava `transform`, pa `:hover` podizanje kartice poslije animacije više
+// ne bi radilo. `backwards` drži samo početno stanje tokom kašnjenja, a po
+// završetku vraća kontrolu običnim CSS pravilima.
+
+.muscle-group-section h3 {
+  animation: group-in 380ms var(--ease-out) backwards;
+}
+
+.exercice-card {
+  animation: card-in 460ms var(--ease-spring) backwards;
+}
+
+@keyframes group-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(16px) scale(.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .muscle-group-section h3,
+  .exercice-card { animation: none; }
+}
+
 .exercice-card img {
   width: 100%;
   aspect-ratio: 4 / 3;

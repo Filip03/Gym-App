@@ -35,6 +35,25 @@ export class ExercicesComponent implements OnInit {
     await this.loadExercices();
   }
 
+  /**
+   * Kašnjenje ulazne animacije, u milisekundama.
+   *
+   * Kartice ulaze jedna za drugom, ali kašnjenje je OGRANIČENO. Katalog ima
+   * tridesetak vježbi u desetak grupa; da svaka dobije svoj red, posljednja bi
+   * čekala preko dvije sekunde i ekran bi djelovao sporo umjesto tečno. Ovako
+   * je najduže čekanje oko 0.7 s, a stepenasti utisak ostaje.
+   *
+   * Ono što je ispod pregiba se ionako animira dok se ne doskrola, pa se vidi
+   * već smireno.
+   */
+  groupDelay(groupIndex: number): number {
+    return Math.min(groupIndex * 70, 350);
+  }
+
+  cardDelay(groupIndex: number, cardIndex: number): number {
+    return this.groupDelay(groupIndex) + 60 + Math.min(cardIndex * 45, 270);
+  }
+
   private async loadExercices() {
     this.loading = true;
     this.errorMessage = '';

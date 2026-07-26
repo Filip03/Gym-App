@@ -17,6 +17,7 @@ import { ProfileComponent } from './components/profile/profile.component';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
+import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
 
 @NgModule({
   declarations: [
@@ -29,7 +30,8 @@ import { HeaderComponent } from './components/header/header.component';
     ExercicesComponent,
     LeaderboardComponent,
     ProfileComponent,
-    BlogComponent
+    BlogComponent,
+    ExercicePickerComponent
   ],
   imports: [
     BrowserModule,

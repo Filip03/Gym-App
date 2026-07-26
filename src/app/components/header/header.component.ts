@@ -17,7 +17,7 @@ const ROUTES: Record<string, RouteMeta> = {
   '/dashboard':   { title: 'Planovi',     back: null },
   '/training':    { title: 'Trening',     back: '/dashboard' },
   '/exercices':   { title: 'Vježbe',      back: null },
-  '/leaderboard': { title: 'Rang lista',  back: null },
+  '/leaderboard': { title: 'Ekipa',       back: null },
   '/profiles':    { title: 'Profil',      back: null },
   '/blog':        { title: 'Ekipa',       back: null }
 };

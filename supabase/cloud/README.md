@@ -31,6 +31,7 @@ Migracije su pisane tako da se mogu pustiti i dvaput — koriste
 | `20260725000001_storage_policies.sql` | ✅ | ✅ već postojalo — **ne puštati** |
 | `20260725000002_grants.sql` | ✅ | ✅ već postojalo — **ne puštati** |
 | `20260726000000_workout_sessions.sql` | ✅ | ⬜ **treba pustiti** |
+| `20260726010000_weight_logs.sql` | ✅ | ❔ **provjeriti sa Filipom** |
 
 Prve tri migracije su **izvedene iz** cloud baze (iz `pg_dump`-a), pa tamo već
 postoje. Puštanje nema smisla i samo pravi buku.
@@ -41,6 +42,11 @@ tabele kojih nema.
 
 Ta migracija usput rekonstruiše sesije iz postojećih upisa u `exercice_logs`,
 pa „prošli trening" ima podatke odmah, a ne tek od sljedećeg treninga.
+
+Peta (`weight_logs`) je **Filipova** — donosi istoriju tjelesne težine. Pisao ju
+je radeći protiv cloud baze, pa je vjerovatno već tamo puštena, ali to niko nije
+zapisao. Prije nego što se pusti ponovo: `create table if not exists`, pa ne može
+ništa pokvariti ako već postoji.
 
 ---
 

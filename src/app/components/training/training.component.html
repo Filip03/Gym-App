@@ -221,59 +221,21 @@
 
 </ng-container>
 
-<!-- Zamjena vježbe -->
-<div class="modal-overlay" *ngIf="showSwapModal" (click)="closeSwap()">
-  <div class="modal-card" (click)="$event.stopPropagation()">
-    <h3>{{ swapMode === 'replace' ? 'Zamijeni ' + swapTarget?.name : 'Dodaj vježbu' }}</h3>
-    <p class="modal-note">
-      {{ swapMode === 'replace'
-          ? 'Mijenja se samo današnji trening. Plan ostaje isti.'
-          : 'Vježba se dodaje samo u današnji trening. Plan ostaje isti.' }}
-    </p>
-
-    <div class="scope-switch" *ngIf="swapMode === 'add'">
-      <button type="button" [class.on]="swapScope === 'day'" (click)="setSwapScope('day')">
-        Za današnji dan
-      </button>
-      <button type="button" [class.on]="swapScope === 'all'" (click)="setSwapScope('all')">
-        Sve vježbe
-      </button>
-    </div>
-
-    <input type="text" [(ngModel)]="swapFilter" placeholder="Traži vježbu..." class="swap-search" />
-
-    <p *ngIf="swapLoading" class="empty">Učitavanje...</p>
-
-    <!-- Za današnji dan, ili zamjena: ravna lista, kratka je -->
-    <div class="swap-grid" *ngIf="!swapLoading && !(swapMode === 'add' && swapScope === 'all')">
-      <button type="button" class="swap-option" *ngFor="let o of filteredSwapOptions"
-              [disabled]="swapSaving" (click)="confirmSwap(o)">
-        <img *ngIf="o.picture" [src]="getPictureUrl(o.picture)" [alt]="o.name">
-        <span class="ph" *ngIf="!o.picture"><i class="material-icons">fitness_center</i></span>
-        <span class="swap-name">{{ o.name }}</span>
-      </button>
-
-      <p *ngIf="filteredSwapOptions.length === 0" class="empty">Nema vježbi za prikaz.</p>
-    </div>
-
-    <!-- Cijeli katalog: grupisan po mišićnim grupama -->
-    <div class="swap-groups" *ngIf="!swapLoading && swapMode === 'add' && swapScope === 'all'">
-      <div class="swap-group" *ngFor="let g of visibleGroups">
-        <h4 class="sg-name">{{ g.name }}</h4>
-        <div class="swap-grid">
-          <button type="button" class="swap-option" *ngFor="let o of g.items"
-                  [disabled]="swapSaving" (click)="confirmSwap(o)">
-            <img *ngIf="o.picture" [src]="getPictureUrl(o.picture)" [alt]="o.name">
-            <span class="ph" *ngIf="!o.picture"><i class="material-icons">fitness_center</i></span>
-            <span class="swap-name">{{ o.name }}</span>
-          </button>
-        </div>
-      </div>
-
-      <p *ngIf="visibleGroups.length === 0" class="empty">Nema vježbe s tim nazivom.</p>
-    </div>
-  </div>
-</div>
+<!-- Zamjena / dodavanje vježbe — isti birač kao na leaderboardu i u profilu -->
+<app-exercice-picker
+  *ngIf="showSwapModal"
+  [title]="swapMode === 'replace' ? 'Zamijeni ' + swapTarget?.name : 'Dodaj vježbu'"
+  [note]="swapMode === 'replace'
+            ? 'Mijenja se samo današnji trening. Plan ostaje isti.'
+            : 'Vježba se dodaje samo u današnji trening. Plan ostaje isti.'"
+  [groups]="pickerGroups"
+  [suggested]="pickerSuggested"
+  [suggestedLabel]="pickerSuggestedLabel"
+  [loading]="swapLoading"
+  [busy]="swapSaving"
+  (pick)="confirmSwap($event)"
+  (dismiss)="closeSwap()">
+</app-exercice-picker>
 
 <!-- Serije i ponavljanja za ovaj trening -->
 <div class="modal-overlay" *ngIf="showTargetModal" (click)="closeTargets()">

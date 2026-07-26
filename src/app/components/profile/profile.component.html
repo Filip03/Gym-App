@@ -68,25 +68,87 @@
 
       <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
 
+      <!-- Kalendar treninga -->
+      <div class="cal-section">
+        <div class="cal-head">
+          <h3>Treninzi</h3>
+          <div class="cal-nav">
+            <button type="button" (click)="prevMonth()" aria-label="Prethodni mjesec">
+              <i class="material-icons">chevron_left</i>
+            </button>
+            <span class="cal-title">{{ calTitle }}</span>
+            <button type="button" (click)="nextMonth()" [disabled]="calAtCurrentMonth"
+                    aria-label="Sljedeći mjesec">
+              <i class="material-icons">chevron_right</i>
+            </button>
+          </div>
+        </div>
+
+        <p *ngIf="calLoading" class="cal-empty">Učitavanje...</p>
+
+        <ng-container *ngIf="!calLoading">
+          <div class="cal-body">
+          <div class="cal-grid">
+            <span class="cal-wd" *ngFor="let w of weekLabels">{{ w }}</span>
+
+            <span class="cal-pad" *ngFor="let _ of [].constructor(calLead)"></span>
+
+            <span class="cal-day" *ngFor="let c of calCells; let i = index; trackBy: trackCell"
+                  [attr.data-level]="c.level"
+                  [class.today]="c.today"
+                  [class.future]="c.future"
+                  [style.animation-delay.ms]="i * 12"
+                  [title]="c.level ? c.sets + ' serija' : ''">
+              {{ c.day }}
+            </span>
+          </div>
+
+          <div class="cal-stats">
+            <div class="cal-stat">
+              <span class="cs-num num">{{ monthCount }}</span>
+              <span class="cs-label">ovog mjeseca</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ weekStreak }}</span>
+              <span class="cs-label">niz sedmica</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ weekAvg }}</span>
+              <span class="cs-label">sedmično</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ bestMonth }}</span>
+              <span class="cs-label">najbolji mjesec</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ yearCount }}</span>
+              <span class="cs-label">treninga (12 mj.)</span>
+            </div>
+            <div class="cal-stat">
+              <span class="cs-num num">{{ yearSets }}</span>
+              <span class="cs-label">serija (12 mj.)</span>
+            </div>
+          </div>
+          </div>
+        </ng-container>
+      </div>
+
       <div class="progress-section">
         <h3>Progres</h3>
 
         <div class="exercice-select">
           <label>Izaberi vježbu</label>
-          <button
-            type="button"
-            class="exercice-picker-trigger"
-            [disabled]="loadingExerciceGroups"
-            (click)="openExercicePicker()"
-          >
-            <span class="trigger-thumb" *ngIf="selectedExercice">
-              <img *ngIf="getExercicePictureUrl(selectedExercice.picture) as url" [src]="url" [alt]="selectedExercice.name">
-              <i class="material-icons" *ngIf="!selectedExercice.picture">fitness_center</i>
+          <button type="button" class="pick-field" [disabled]="loadingExerciceGroups"
+                  (click)="showPicker = true">
+            <img *ngIf="selectedExercice?.picture"
+                 [src]="pictureUrl(selectedExercice!.picture)" [alt]="selectedExercice!.name">
+            <span class="pf-ph" *ngIf="!selectedExercice?.picture">
+              <i class="material-icons">fitness_center</i>
             </span>
-            <span class="trigger-label">
-              {{ loadingExerciceGroups ? 'Učitavanje...' : (selectedExercice ? selectedExercice.name : '-- Izaberi vježbu --') }}
+            <span class="pf-name" [class.empty-choice]="!selectedExercice">
+              {{ selectedExercice ? selectedExercice.name : 'Izaberi vježbu' }}
             </span>
-            <i class="material-icons trigger-caret">expand_more</i>
+            <i class="material-icons">expand_more</i>
           </button>
         </div>
 
@@ -197,81 +259,70 @@
   </div>
 </div>
 
-<div class="modal-overlay" *ngIf="showExercicePicker" (click)="closeExercicePicker()">
-  <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
-    <h2>Izbor vježbe</h2>
-    <div class="muscle-group-section" *ngFor="let group of exerciceGroups">
-      <h3>{{ group.name }}</h3>
-      <div class="exercice-grid">
-        <button
-          type="button"
-          class="exercice-card"
-          *ngFor="let ex of group.exercices"
-          [class.selected]="ex.id === selectedExerciceId"
-          (click)="selectExercice(ex)"
-        >
-          <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name">
-          <span class="ph" *ngIf="!ex.picture"><i class="material-icons">fitness_center</i></span>
-          <h4>{{ ex.name }}</h4>
-        </button>
-      </div>
-    </div>
-    <div class="form-actions">
-      <button type="button" (click)="closeExercicePicker()">Zatvori</button>
-    </div>
-  </div>
-</div>
 
+<app-exercice-picker
+  *ngIf="showPicker"
+  title="Izaberi vježbu"
+  note="Grafikon prikazuje napredak po izabranoj vježbi."
+  [groups]="pickerGroups"
+  [selectedId]="selectedExerciceId"
+  (pick)="onPick($event)"
+  (dismiss)="showPicker = false">
+</app-exercice-picker>
+
+<!-- Tjelesna težina — Filipova funkcija sa `main` grane.
+     Zadržana pri spajanju; prilagođen samo izgled, logika je njegova. -->
 <div class="modal-overlay" *ngIf="showWeightModal" (click)="closeWeightModal()">
-  <div class="modal-card modal-card-medium" (click)="$event.stopPropagation()">
-    <h2>Težina — progres</h2>
+  <div class="modal-card weight-card" (click)="$event.stopPropagation()">
 
-    <form class="weight-log-form" (ngSubmit)="submitWeightLog()">
-      <div class="form-group">
+    <header class="wm-head">
+      <div>
+        <h3>Težina</h3>
+        <p class="wm-note">Upiši povremeno da vidiš kretanje kroz vrijeme.</p>
+      </div>
+      <button type="button" class="wm-close" (click)="closeWeightModal()" aria-label="Zatvori">
+        <i class="material-icons">close</i>
+      </button>
+    </header>
+
+    <form class="wm-form" (ngSubmit)="submitWeightLog()">
+      <div class="wm-field">
         <label for="weightDate">Datum</label>
         <input id="weightDate" type="date" name="weightDate" [(ngModel)]="newWeightDate" required>
       </div>
-      <div class="form-group">
+      <div class="wm-field">
         <label for="weightValue">Težina (kg)</label>
-        <input id="weightValue" type="number" name="weightValue" [(ngModel)]="newWeightValue" min="0" step="0.1" required>
+        <input id="weightValue" type="number" name="weightValue" [(ngModel)]="newWeightValue"
+               min="0" step="0.1" required>
       </div>
-      <button type="submit" class="log-weight-btn" [disabled]="loggingWeight">
+      <button type="submit" class="btn-primary wm-submit" [disabled]="loggingWeight">
         {{ loggingWeight ? 'Čuvam...' : 'Upiši' }}
       </button>
     </form>
-    <p *ngIf="logWeightError" class="error">{{ logWeightError }}</p>
 
-    <p *ngIf="weightLoading">Učitavanje...</p>
+    <p *ngIf="logWeightError" class="error">{{ logWeightError }}</p>
+    <p *ngIf="weightLoading" class="empty">Učitavanje...</p>
     <p *ngIf="weightError" class="error">{{ weightError }}</p>
-    <p *ngIf="!weightLoading && !weightError && weightHistory.length === 0" class="no-entries">
+    <p *ngIf="!weightLoading && !weightError && weightHistory.length === 0" class="empty">
       Još nema upisane težine.
     </p>
 
     <div class="chart-wrapper" *ngIf="weightChartPoints.length > 0">
-      <svg
-        [attr.width]="weightChartWidth"
-        [attr.height]="chartHeight"
-        [attr.viewBox]="'0 0 ' + weightChartWidth + ' ' + chartHeight"
-        class="progress-chart"
-      >
+      <svg [attr.width]="weightChartWidth" [attr.height]="chartHeight"
+           [attr.viewBox]="'0 0 ' + weightChartWidth + ' ' + chartHeight"
+           class="progress-chart">
         <defs>
           <linearGradient id="weightAreaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#199e70" stop-opacity="0.4" />
-            <stop offset="100%" stop-color="#199e70" stop-opacity="0" />
+            <stop offset="0%" stop-color="#C6FF3B" stop-opacity="0.30" />
+            <stop offset="100%" stop-color="#C6FF3B" stop-opacity="0" />
           </linearGradient>
         </defs>
 
         <g *ngFor="let grid of weightYGridLines">
-          <line
-            [attr.x1]="chartPaddingLeft"
-            [attr.x2]="weightChartWidth - chartPaddingRight"
-            [attr.y1]="grid.y"
-            [attr.y2]="grid.y"
-            class="grid-line"
-          />
-          <text [attr.x]="chartPaddingLeft - 8" [attr.y]="grid.y + 4" text-anchor="end" class="grid-label">
-            {{ grid.label }}
-          </text>
+          <line [attr.x1]="chartPaddingLeft" [attr.x2]="weightChartWidth - chartPaddingRight"
+                [attr.y1]="grid.y" [attr.y2]="grid.y" class="grid-line" />
+          <text [attr.x]="chartPaddingLeft - 8" [attr.y]="grid.y + 4"
+                text-anchor="end" class="grid-label">{{ grid.label }}</text>
         </g>
 
         <path [attr.d]="weightAreaPath" fill="url(#weightAreaGradient)" stroke="none" />
@@ -286,20 +337,10 @@
           </circle>
         </g>
 
-        <text
-          *ngFor="let tick of weightXAxisLabels"
-          [attr.x]="tick.x"
-          [attr.y]="chartHeight - chartPaddingBottom + 18"
-          text-anchor="middle"
-          class="date-label"
-        >
-          {{ tick.label }}
-        </text>
+        <text *ngFor="let tick of weightXAxisLabels"
+              [attr.x]="tick.x" [attr.y]="chartHeight - chartPaddingBottom + 18"
+              text-anchor="middle" class="date-label">{{ tick.label }}</text>
       </svg>
-    </div>
-
-    <div class="form-actions">
-      <button type="button" (click)="closeWeightModal()">Zatvori</button>
     </div>
   </div>
 </div>

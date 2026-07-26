@@ -5,19 +5,39 @@ import { Injectable } from '@angular/core';
  *
  * ZAŠTO SERVIS, A NE `new Audio()` U KOMPONENTI
  *
- * Svi pregledači blokiraju puštanje zvuka dok korisnik nije ničim dodirnuo
- * stranicu. Raniji kod je zvao `audio.play()` u `ngOnInit` ekrana za prijavu —
- * dakle pri učitavanju stranice, prije ijednog klika — pa je bio blokiran svaki
- * put kad se stranica otvori direktno. Izgledalo je kao da "nekad radi": radilo
- * je samo ako se do ekrana došlo klikom sa druge stranice.
+ * Pregledači ne puštaju zvuk dok korisnik nije ničim dodirnuo stranicu. Raniji
+ * kod je zvao `audio.play()` u `ngOnInit` ekrana za prijavu — dakle pri
+ * učitavanju, prije ijednog dodira — pa je bio blokiran. Izgledalo je kao da
+ * "nekad radi": radilo je samo kad se do ekrana došlo klikom sa druge stranice.
  *
- * Rješenje je Web Audio API: `AudioContext` se otključa jednom, na prvi dodir
- * bilo gdje u aplikaciji. Od tog trenutka zvuk se može pustiti kad god treba,
- * bez novog dodira. To je i jedini način koji radi na iOS Safariju.
+ * ZAŠTO DVA PUTA REPRODUKCIJE
  *
- * Servis takođe garantuje da zvuk NIKAD ne blokira tok aplikacije — raniji kod
+ * Ni jedan način ne radi svuda:
+ *
+ *   Web Audio    — jedini koji svira kad je na iPhoneu bočni prekidač na tihom,
+ *                  ali samo uz `audioSession.type = 'playback'` (Safari 16.4+).
+ *                  Traži dekodiranje snimka, što na starijim iOS-ima zna pasti.
+ *   <audio>      — uvijek zna da pusti .m4a, ali ga tihi režim iPhonea utišava.
+ *
+ * Zato se otključavaju OBA u istom dodiru, a pušta se Web Audiom kad je snimak
+ * dekodiran, uz <audio> kao zamjenu kad nije.
+ *
+ * ŠTA JE POKVARILO ZVUK NA IPHONEU (ovo su tri odvojene zamke)
+ *
+ *   1. Otključavanje mora biti POTPUNO SINHRONO unutar dodira. Jedan `await`
+ *      prije `resume()` ili prije puštanja tihog uzorka — i dodir je potrošen.
+ *      Zato `unlock()` nema nijedan `await` i mora tako ostati.
+ *   2. AudioContext napravljen prije ijednog dodira zna ostati gluv i nakon
+ *      `resume()`. Zato se pravi TEK u dodiru, ne u konstruktoru.
+ *   3. Web Audio se podrazumijevano vodi kao ambijentalni zvuk, koji bočni
+ *      prekidač utišava.
+ *
+ * Snimci se zato preuzimaju unaprijed kao SIROVI BAJTOVI — za to kontekst nije
+ * potreban — a dekodiraju tek kad kontekst postoji.
+ *
+ * Servis takođe garantuje da zvuk NIKAD ne blokira tok aplikacije: raniji kod
  * je čekao `onended` prije preusmjeravanja, pa je blokiran autoplay značio da
- * se korisnik nakon uspješne registracije zaglavi na ekranu zauvijek.
+ * korisnik nakon uspješne registracije zauvijek ostane na ekranu.
  */
 
 export type SoundName = 'login' | 'register' | 'record' | 'avatar' | 'blogAdd';
@@ -31,129 +51,110 @@ const CLIPS: Record<SoundName, string> = {
   blogAdd:  'prskulja.m4a'            // klik na dodavanje fajla u blog
 };
 
+// Prazan WAV (44 bajta zaglavlja, nula uzoraka). Služi samo da se <audio>
+// element jednom pusti unutar dodira; poslije toga mu se izvor smije mijenjati
+// i puštati programski.
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
+const VOLUME = 0.5;
 const MUTE_KEY = 'gymapp.muted';
+const GESTURES: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'click', 'keydown'];
 
 @Injectable({ providedIn: 'root' })
 export class AudioService {
 
   private ctx: AudioContext | null = null;
   private gain: GainNode | null = null;
-  private readonly buffers = new Map<SoundName, AudioBuffer>();
+  private el: HTMLAudioElement | null = null;
+
+  /** Sirovi bajtovi, preuzeti prije dodira — za mrežu kontekst nije potreban. */
+  private readonly raw = new Map<SoundName, ArrayBuffer>();
+  /** Dekodirani snimci — dekodiranje traži kontekst, pa ide tek poslije dodira. */
+  private readonly decoded = new Map<SoundName, AudioBuffer>();
+  /** Dekodiranja u toku — bez ovoga isti snimak krene dva puta paralelno. */
+  private readonly decoding = new Map<SoundName, Promise<AudioBuffer | null>>();
+
   private playing: AudioBufferSourceNode | null = null;
+  /** Da li <audio> svira pravi klip (a ne tišinu za otključavanje). */
+  private elementActive = false;
   private unlocked = false;
 
   muted = localStorage.getItem(MUTE_KEY) === '1';
 
   constructor() {
-    this.armUnlock();
+    // Ovdje se NIŠTA ne pravi — ni kontekst, ni zvuk. Samo se čeka prvi dodir.
+    GESTURES.forEach(e =>
+      document.addEventListener(e, this.onFirstGesture, { once: true, passive: true })
+    );
   }
 
   // ---------------------------------------------------------------------------
 
+  /** Pusti odmah. Za zvukove koji slijede nakon radnje korisnika. */
   async play(name: SoundName) {
     if (this.muted) return;
+    if (!this.unlocked) return;   // bez dodira ionako ne bi zasviralo
+
+    this.stop();
 
     try {
-      const ctx = this.context();
-      if (!ctx) return;
+      const buffer = this.decoded.get(name) ?? await this.decode(name);
+      if (buffer && this.ctx && this.gain) {
+        if (this.ctx.state === 'suspended') void this.ctx.resume();
+        this.startBuffer(buffer);
+        return;
+      }
+    } catch { /* pada na <audio> ispod */ }
 
-      // Kontekst zna da se uspava kad je kartica dugo neaktivna.
-      if (ctx.state === 'suspended') await ctx.resume();
-      if (ctx.state !== 'running') return;
-
-      const buffer = await this.load(name);
-      if (!buffer) return;
-
-      this.startBuffer(ctx, buffer);
-    } catch {
-      // Zvuk je ukras. Nijedna greška ovdje ne smije zaustaviti aplikaciju.
-    }
+    this.playElement(name);
   }
 
   /**
-   * Pusti odmah ako je moguće; ako nije, pusti na prvi dodir korisnika.
+   * Pusti odmah ako je moguće; ako nije, pusti na prvi dodir.
    *
-   * Za zvukove koji pripadaju SAMOM DOLASKU na ekran, a ne nekoj radnji —
-   * npr. poruka "moraš se predstaviti" na ekranu za prijavu. Takav zvuk se ne
-   * može pustiti pri prvom otvaranju stranice jer pregledač to zabranjuje dok
-   * korisnik nije ništa dodirnuo. Umjesto da se tiho izgubi, čeka na prvi
-   * dodir — a to je u praksi trenutak kad korisnik klikne polje za unos.
+   * Za zvukove koji pripadaju samom DOLASKU na ekran — npr. poruka na prijavi.
+   * Pri prvom otvaranju stranice dodira još nema, pa se čeka; u praksi je to
+   * trenutak kad korisnik dodirne polje za unos.
    *
-   * Kad se do ekrana dođe iz same aplikacije (odjava, preusmjeravanje), dodir
-   * je već postojao pa se pušta odmah.
-   *
-   * @returns funkcija za otkazivanje — pozvati je pri napuštanju ekrana, da
-   *          zvuk ne krene nakon što je korisnik već otišao.
+   * @returns funkcija za otkazivanje — pozvati pri napuštanju ekrana.
    */
   playOrArm(name: SoundName): () => void {
     let cancelled = false;
 
-    // Snimak se dekodira ODMAH, prije ijednog dodira. To je ključno: kad dodir
-    // stigne, u rukovaocu se smije raditi samo ono što traje trenutak.
-    void this.load(name).catch(() => {});
+    // Bajtovi se povlače ODMAH, da se u dodiru ne čeka mreža.
+    void this.prefetch(name);
 
-    const ctx = this.context();
-    if (ctx?.state === 'running') {
-      this.play(name);
+    if (this.unlocked) {
+      void this.play(name);
       return () => { cancelled = true; };
     }
-
-    const events: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'keydown'];
 
     const onGesture = () => {
       cleanup();
       if (cancelled) return;
-
-      // SINHRONO, unutar samog dodira — bez setTimeout i bez await.
-      //
-      // Ovo je bio uzrok zašto zvuk na ekranu za prijavu nije radio pri prvom
-      // otvaranju: ranije se `resume()` i puštanje odgađalo kroz setTimeout i
-      // await na preuzimanje snimka. Pregledači, a Safari strogo, priznaju
-      // odobrenje samo ako se traži unutar zadatka koji je pokrenuo dodir.
-      // Sve poslije toga tretiraju kao autoplay i tiho odbiju.
-      const c = this.context();
-      if (!c) return;
-
-      c.resume();
-
-      const buffer = this.buffers.get(name);
-      if (buffer) {
-        this.startBuffer(c, buffer);
-      } else {
-        // Snimak još nije dekodiran — kontekst je ipak otključan ovim dodirom,
-        // pa puštanje prolazi i kad stigne.
-        void this.play(name);
-      }
+      this.unlock();            // sinhrono, unutar dodira
+      void this.play(name);     // tek onda smije asinhrono
     };
+    const cleanup = () => GESTURES.forEach(e => document.removeEventListener(e, onGesture));
 
-    const cleanup = () => events.forEach(e => document.removeEventListener(e, onGesture));
-    events.forEach(e => document.addEventListener(e, onGesture, { once: true, passive: true }));
-
+    GESTURES.forEach(e => document.addEventListener(e, onGesture, { once: true, passive: true }));
     return () => { cancelled = true; cleanup(); };
   }
 
-  /** Kreiranje i pokretanje izvora — jedino mjesto koje stvarno pušta zvuk. */
-  private startBuffer(ctx: AudioContext, buffer: AudioBuffer) {
-    this.stop();
-
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(this.gain!);
-    source.onended = () => {
-      if (this.playing === source) this.playing = null;
-    };
-    source.start(0);
-    this.playing = source;
-  }
-
-  /** Prekid trenutnog zvuka — npr. da klip ne pređe na sljedeći ekran. */
+  /** Prekid trenutnog zvuka — da klip ne pređe na sljedeći ekran. */
   stop() {
-    try {
-      this.playing?.stop();
-    } catch {
-      // već zaustavljen
-    }
+    try { this.playing?.stop(); } catch { /* već zaustavljen */ }
     this.playing = null;
+
+    // Samo pravi klip. Pauziranje tišine iz `unlock()` prekida `play()` koji je
+    // upravo pokrenut u dodiru (AbortError) — a baš to puštanje je ono što
+    // element otključava, pa bi ga prekid poništio.
+    if (this.el && this.elementActive) {
+      this.elementActive = false;
+      this.el.pause();
+      this.el.currentTime = 0;
+    }
   }
 
   toggleMute(): boolean {
@@ -165,63 +166,132 @@ export class AudioService {
 
   // ---------------------------------------------------------------------------
 
-  private context(): AudioContext | null {
-    if (this.ctx) return this.ctx;
-
-    const Ctor = window.AudioContext ?? (window as any).webkitAudioContext;
-    if (!Ctor) return null;
-
-    this.ctx = new Ctor();
-    this.gain = this.ctx.createGain();
-    this.gain.gain.value = 0.5;
-    this.gain.connect(this.ctx.destination);
-
-    return this.ctx;
-  }
+  private onFirstGesture = () => this.unlock();
 
   /**
-   * Otključavanje na prvi dodir bilo gdje u aplikaciji.
+   * Otključavanje oba puta reprodukcije.
    *
-   * Pušta se jedan uzorak tišine — bez toga iOS Safari drži kontekst
-   * "running" ali ne pušta ništa. Slušači se skidaju odmah nakon prvog
-   * okidanja (`once`), pa nema trajnog troška.
+   * SVE u ovoj metodi je sinhrono i mora ostati takvo — jedan `await` i iPhone
+   * više ne priznaje da je ovo dodir korisnika. Zato i `el.play()` ide bez
+   * čekanja, a pauza se veže na obećanje koje vrati.
    */
-  private armUnlock() {
-    const events: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'keydown'];
+  private unlock() {
+    if (this.unlocked) return;
+    this.unlocked = true;
 
-    const unlock = async () => {
-      if (this.unlocked) return;
-      this.unlocked = true;
+    // (1) <audio> — radi svuda, ali ga tihi režim iPhonea utišava.
+    try {
+      const el = new Audio();
+      el.preload = 'auto';
+      el.volume = VOLUME;
+      el.setAttribute('playsinline', '');
+      el.src = SILENT_WAV;
 
+      // Bez ručne pauze — snimak je prazan i završi sam. Pauza bi prekinula
+      // upravo ono puštanje koje element otključava.
+      const started = el.play();
+      if (started) started.catch(() => {});
+
+      this.el = el;
+    } catch { /* bez zamjene se može */ }
+
+    // (2) Web Audio — jedini koji se čuje i kad je zvono na tihom.
+    try {
+      const Ctor = window.AudioContext ?? (window as any).webkitAudioContext;
+      if (!Ctor) return;
+
+      // Mora prije pravljenja konteksta: svrstava zvuk u reprodukciju umjesto u
+      // ambijentalni, koji bočni prekidač na iPhoneu gasi.
       try {
-        const ctx = this.context();
-        if (!ctx) return;
-        if (ctx.state === 'suspended') await ctx.resume();
+        const session = (navigator as any).audioSession;
+        if (session) session.type = 'playback';
+      } catch { /* podržano tek od Safarija 16.4 */ }
 
-        const silent = ctx.createBufferSource();
-        silent.buffer = ctx.createBuffer(1, 1, 22050);
-        silent.connect(ctx.destination);
-        silent.start(0);
-      } catch {
-        // Bez zvuka se može živjeti.
-      }
-    };
+      const ctx: AudioContext = new Ctor();
+      const gain = ctx.createGain();
+      gain.gain.value = VOLUME;
+      gain.connect(ctx.destination);
 
-    events.forEach(e => document.addEventListener(e, unlock, { once: true, passive: true }));
+      ctx.resume();   // BEZ await — vidi komentar iznad
+
+      // Jedan uzorak tišine, odmah. Bez njega iOS prijavi kontekst kao
+      // "running", a ne pusti ništa.
+      const silent = ctx.createBufferSource();
+      silent.buffer = ctx.createBuffer(1, 1, 22050);
+      silent.connect(ctx.destination);
+      silent.start(0);
+
+      this.ctx = ctx;
+      this.gain = gain;
+
+      // Što je već preuzeto može se sada dekodirati, unaprijed.
+      this.raw.forEach((_, name) => void this.decode(name));
+    } catch { /* ostaje <audio> */ }
   }
 
-  private async load(name: SoundName): Promise<AudioBuffer | null> {
-    const cached = this.buffers.get(name);
-    if (cached) return cached;
+  private startBuffer(buffer: AudioBuffer) {
+    if (!this.ctx || !this.gain) return;
 
-    const ctx = this.context();
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.gain);
+    source.onended = () => { if (this.playing === source) this.playing = null; };
+    source.start(0);
+    this.playing = source;
+  }
+
+  private playElement(name: SoundName) {
+    const el = this.el;
+    if (!el) return;
+
+    el.src = `assets/${CLIPS[name]}`;
+    el.volume = VOLUME;
+    this.elementActive = true;
+    el.onended = () => { this.elementActive = false; };
+
+    const started = el.play();
+    if (started) started.catch(() => { this.elementActive = false; });
+  }
+
+  private async prefetch(name: SoundName): Promise<void> {
+    if (this.raw.has(name)) return;
+    try {
+      const res = await fetch(`assets/${CLIPS[name]}`);
+      if (res.ok) this.raw.set(name, await res.arrayBuffer());
+    } catch { /* nema mreže — ostaje <audio>, koji ima svoj keš */ }
+  }
+
+  private decode(name: SoundName): Promise<AudioBuffer | null> {
+    const cached = this.decoded.get(name);
+    if (cached) return Promise.resolve(cached);
+    if (!this.ctx) return Promise.resolve(null);
+
+    // `unlock()` grije dekodiranje unaprijed, a `play()` ga traži odmah zatim.
+    // Bez ovoga se isti snimak dekodira dvaput paralelno (dva puta po 250 kB).
+    const running = this.decoding.get(name);
+    if (running) return running;
+
+    const task = this.decodeNow(name).finally(() => this.decoding.delete(name));
+    this.decoding.set(name, task);
+    return task;
+  }
+
+  private async decodeNow(name: SoundName): Promise<AudioBuffer | null> {
+    const ctx = this.ctx;
     if (!ctx) return null;
 
-    const res = await fetch(`assets/${CLIPS[name]}`);
-    if (!res.ok) return null;
+    if (!this.raw.has(name)) await this.prefetch(name);
+    const bytes = this.raw.get(name);
+    if (!bytes) return null;
 
-    const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
-    this.buffers.set(name, buffer);
-    return buffer;
+    try {
+      // slice(0) — decodeAudioData "pojede" ArrayBuffer, pa original mora ostati
+      // netaknut za eventualno ponovno dekodiranje.
+      const buffer = await ctx.decodeAudioData(bytes.slice(0));
+      this.decoded.set(name, buffer);
+      return buffer;
+    } catch {
+      return null;   // ostaje <audio>
+    }
   }
 }

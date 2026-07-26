@@ -890,10 +890,14 @@
 // smanjeni pravougaonici, s njom stvarno stoje jedna IZA druge.
 .day-deck {
   position: relative;
+  // Uspravno skrolovanje ostaje pregledaču, vodoravno hvata `onDeckTouch*`.
+  touch-action: pan-y;
   perspective: 1500px;
   perspective-origin: 50% 0%;
   transform-style: preserve-3d;
-  transition: height var(--d-slow) var(--ease-out);
+  // 460ms, ne 320: pri otvaranju plana okvir pređe i po 300 piksela odjednom,
+  // a na toj razlici je kraći prelaz djelovao kao trzaj.
+  transition: height 460ms var(--ease-out);
 }
 
 .day-slide {
@@ -1083,3 +1087,97 @@
 }
 
 .day-slide .day-header { border-bottom-color: rgba(255, 250, 240, .09); }
+
+// --- Ulaz ------------------------------------------------------------------
+//
+// Ekran se ranije pojavljivao odjednom. Sada dugme za trening ulazi prvo (ono
+// je razlog zbog kojeg se aplikacija otvara), pa naslovi sekcija, pa kartice
+// planova stepenasto. Kašnjenje kartica računa komponenta i postavlja ga inline.
+//
+// `backwards`, NE `both` — `both` bi zadržao završno stanje ključnog kadra i
+// time zaključao `transform`, pa `:hover` na karticama poslije animacije više
+// ne bi radio.
+
+.start-block { animation: start-in 520ms var(--ease-spring) backwards; }
+.start-today { animation: start-in 520ms var(--ease-spring) 90ms backwards; }
+
+.my-plans    > .header,
+.other-plans > h2 { animation: head-in 420ms var(--ease-out) 180ms backwards; }
+.other-plans > h2 { animation-delay: 270ms; }
+
+.plan-card { animation: card-in 460ms var(--ease-spring) backwards; }
+
+.section-divider { animation: head-in 420ms var(--ease-out) 240ms backwards; }
+
+@keyframes start-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes head-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(16px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-block, .start-today, .my-plans > .header,
+  .other-plans > h2, .plan-card, .section-divider { animation: none; }
+}
+
+// Placeholder dok plan stiže. Nema sadržaja, samo drži prostor u istom obliku
+// koji će sadržaj zauzeti — kartica se time otvara odmah u punoj veličini,
+// umjesto da bude niska pa da poskoči.
+.view-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-2) 0;
+}
+
+.vl-bar,
+.vl-deck {
+  display: block;
+  border-radius: var(--r-md);
+  background: linear-gradient(
+    100deg,
+    var(--carbon-high) 0%,
+    var(--steel) 40%,
+    var(--carbon-high) 80%
+  );
+  background-size: 300% 100%;
+  animation: vl-sweep 1.4s ease-in-out infinite;
+}
+
+.vl-bar  { height: 56px; }
+.vl-deck { height: 320px; }   // isto kao `deckStartHeight`, da nema skoka
+
+@keyframes vl-sweep {
+  from { background-position: 120% 0; }
+  to   { background-position: -40% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vl-bar, .vl-deck { animation: none; }
+}
+
+// Uputstvo za prevlačenje samo tamo gdje prevlačenja i ima — na uređaju sa
+// mišem su strelice očigledne, pa bi tekst bio suvišan.
+.swipe-hint { display: none; }
+
+@media (hover: none) {
+  .swipe-hint {
+    display: block;
+    margin-top: var(--s-2);
+    text-align: center;
+    font-family: var(--font-data);
+    font-size: 10px;
+    letter-spacing: var(--ls-wide);
+    text-transform: uppercase;
+    color: var(--echo);
+  }
+}

@@ -147,6 +147,18 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  /**
+   * Kašnjenje ulazne animacije kartice plana, u milisekundama.
+   *
+   * `section` je 0 za „Moji planovi", 1 za „Planovi ostalih" — druga kolona
+   * kreće nešto kasnije, pa se vidi da su to dvije grupe a ne jedna. Kašnjenje
+   * unutar grupe je ograničeno, da posljednja kartica ne čeka predugo kad neko
+   * ima desetak planova.
+   */
+  cardDelay(section: number, index: number): number {
+    return 260 + section * 90 + Math.min(index * 55, 330);
+  }
+
   goToTraining() {
     this.router.navigate(['/training']);
   }
@@ -177,6 +189,44 @@ export class DashboardComponent implements OnInit {
     this.filteredDayTypes = [];
     this.currentDayIndex = 0;
     this.closeExercicePicker();
+  }
+
+  // --- Prevlačenje prstom ----------------------------------------------------
+  //
+  // Na telefonu su strelice ispod špila jedini način da se promijeni dan, a
+  // prirodan pokret je prevlačenje po samim kartama. Namjerno se NE koristi
+  // `touchmove` sa praćenjem prsta: karte bi tada morale da prate pomjeraj, a
+  // to se tuče sa 3D transformacijama špila. Ovdje se samo mjeri odakle dokle
+  // je prst otišao.
+
+  private touchX = 0;
+  private touchY = 0;
+  private touchTracking = false;
+
+  onDeckTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1) return;   // štipanje za uvećanje nije prevlačenje
+    this.touchX = event.touches[0].clientX;
+    this.touchY = event.touches[0].clientY;
+    this.touchTracking = true;
+  }
+
+  onDeckTouchEnd(event: TouchEvent, totalDays: number) {
+    if (!this.touchTracking) return;
+    this.touchTracking = false;
+
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+
+    const dx = touch.clientX - this.touchX;
+    const dy = touch.clientY - this.touchY;
+
+    // Prag od 50px da slučajan dodir ne preskoči dan, i uslov da je pokret
+    // pretežno vodoravan — inače bi svako skrolovanje kroz duži dan mijenjalo
+    // stranicu.
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    if (dx < 0) this.nextDay(totalDays);
+    else this.prevDay();
   }
 
   nextDay(totalDays: number) {
@@ -258,13 +308,36 @@ export class DashboardComponent implements OnInit {
    * unutar ngAfterViewChecked ne pokreće novo iscrtavanje — okvir je zbog toga
    * ostajao na nuli i sadržaj se uopšte nije vidio.
    */
+  /**
+   * Visina okvira dana prije prvog mjerenja, u pikselima.
+   *
+   * MORA biti broj, ne `auto`. Ranije je stajalo `height: auto` dok podaci ne
+   * stignu, a `auto → 610px` se u CSS-u **ne interpolira** — visina je zato
+   * skakala u jednom kadru, bez obzira što `transition: height` postoji. To je
+   * bio onaj trzaj pri otvaranju plana.
+   */
+  readonly deckStartHeight = 320;
+
+  /** Da li je prva izmjerena visina već primijenjena. */
+  deckReady = false;
+
   private syncHeight(attempt = 0) {
     setTimeout(() => {
       const slide = this.daySlides?.get(this.currentDayIndex)?.nativeElement;
       const h = slide?.offsetHeight ?? 0;
 
       if (h) {
-        this.viewportHeight = h;
+        // Prvi put: početna visina mora biti ISCRTANA prije nego što se pređe na
+        // izmjerenu, inače pregledač spoji obje promjene u jedan kadar i nema
+        // šta da se animira. Dva `requestAnimationFrame`-a to garantuju.
+        if (!this.deckReady) {
+          this.deckReady = true;
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => { this.viewportHeight = h; })
+          );
+        } else {
+          this.viewportHeight = h;
+        }
         return;
       }
 
@@ -497,6 +570,7 @@ export class DashboardComponent implements OnInit {
 
   async openViewModal(planId: string) {
     this.showViewModal = true;
+    this.deckReady = false;
     this.viewLoading = true;
     this.viewError = '';
     this.viewedPlan = null;
