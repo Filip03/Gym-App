@@ -9,6 +9,9 @@
 
     <p *ngIf="loading">Učitavanje...</p>
     <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+    <p *ngIf="compressing">
+      {{ compressProgress > 0 ? 'Kompresujem... ' + (compressProgress * 100 | number:'1.0-0') + '%' : 'Kompresujem...' }}
+    </p>
     <p *ngIf="uploading">Otpremam...</p>
     <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
 
