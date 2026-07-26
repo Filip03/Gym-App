@@ -113,6 +113,7 @@ export class LeaderboardComponent implements OnInit {
     void this.loadWeek();
     void this.loadRecords();
 
+
     try {
       const groups = await this.leaderboardService.getExerciceGroups();
       this.pickerGroups = toPickerGroups(groups.filter(g => g.exercices.length > 0));

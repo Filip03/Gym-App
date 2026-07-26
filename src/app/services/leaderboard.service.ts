@@ -76,6 +76,17 @@ export interface WeekMember {
   lastLabel: string;
 }
 
+/** Neko ko je upravo u teretani. */
+export interface LiveSession {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  /** Minuta od početka treninga. */
+  minutes: number;
+  /** Koliko je serija dosad upisao. */
+  sets: number;
+}
+
 export interface RecordEvent {
   userId: string;
   username: string;
@@ -104,6 +115,15 @@ interface TeamProfile {
  * inače bi svaki povratak na vježbu poslije pauze ispao „rekord".
  */
 const RECORD_WINDOW_DAYS = 90;
+
+/**
+ * Poslije koliko sati se prestaje smatrati da neko „trenira sada".
+ *
+ * `finished_at` ostane prazan i kad neko zaboravi da pritisne „Trening gotov",
+ * pa bi bez granice pisalo da trenira i sjutradan. Četiri sata su duža od
+ * svakog stvarnog treninga, a kraća od pola dana.
+ */
+const LIVE_MAX_HOURS = 4;
 
 @Injectable({
   providedIn: 'root'
@@ -262,6 +282,66 @@ export class LeaderboardService {
         lastLabel: this.agoLabel(last)
       };
     }).sort((a, b) => b.count - a.count || a.username.localeCompare(b.username));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ko trenira sada
+
+  /**
+   * Ko je trenutno u teretani.
+   *
+   * Ne traži nikakvu novu kolonu: `workout_sessions.started_at` se puni sam
+   * (`default now()`), a prazan `finished_at` znači da trening još traje.
+   *
+   * USLOV NIJE SAMO OTVORENA SESIJA. Red nastaje već pri otvaranju ekrana
+   * treninga, pa bi inače pisalo da trenira i onaj ko je samo bacio pogled na
+   * aplikaciju. Zato se traži i **bar jedna upisana serija danas** — tek tada se
+   * zna da neko stvarno radi.
+   */
+  async getLiveSessions(): Promise<LiveSession[]> {
+    const today = this.todayIso();
+
+    const [profiles, sessions, logs] = await Promise.all([
+      this.allProfiles(),
+      this.supabase.client
+        .from('workout_sessions')
+        .select('user_id, started_at')
+        .eq('date', today)
+        .is('finished_at', null),
+      this.supabase.client
+        .from('exercice_logs')
+        .select('user_id')
+        .eq('date', today)
+    ]);
+
+    if (sessions.error) throw sessions.error;
+    if (logs.error) throw logs.error;
+
+    const setsByUser = new Map<string, number>();
+    for (const row of (logs.data ?? []) as any[]) {
+      setsByUser.set(row.user_id, (setsByUser.get(row.user_id) ?? 0) + 1);
+    }
+
+    const profileById = new Map(profiles.map(p => [p.id, p]));
+    const now = Date.now();
+    const live: LiveSession[] = [];
+
+    for (const row of (sessions.data ?? []) as any[]) {
+      const sets = setsByUser.get(row.user_id) ?? 0;
+      if (sets === 0) continue;                       // samo otvorio ekran
+
+      const started = new Date(row.started_at).getTime();
+      const minutes = Math.max(0, Math.round((now - started) / 60000));
+      if (minutes > LIVE_MAX_HOURS * 60) continue;    // zaboravio da završi
+
+      const profile = profileById.get(row.user_id);
+      if (!profile) continue;
+
+      live.push({ userId: row.user_id, username: profile.username,
+                  avatarUrl: profile.avatarUrl, minutes, sets });
+    }
+
+    return live.sort((a, b) => b.sets - a.sets);
   }
 
   // ---------------------------------------------------------------------------

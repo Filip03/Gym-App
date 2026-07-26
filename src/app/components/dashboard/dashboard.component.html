@@ -12,6 +12,27 @@
     </div>
 </div>
 
+<!-- Ko je BAŠ SAD u teretani. Prikazuje se samo kad neko jeste — prazna
+     sekcija „niko ne trenira" bi visila cijeli dan bez ikakve vrijednosti. -->
+<div class="live" *ngIf="live.length > 0">
+    <div class="live-head">
+        <span class="dot-live"></span>
+        <span class="live-title">Trenira sada</span>
+    </div>
+
+    <div class="live-row" *ngFor="let l of live; let i = index; trackBy: trackLive"
+         [class.me]="l.userId === currentUserId"
+         [style.animation-delay.ms]="i * 80">
+        <div class="live-av">
+            <img *ngIf="l.avatarUrl" [src]="l.avatarUrl" alt="">
+            <i class="material-icons" *ngIf="!l.avatarUrl">person</i>
+        </div>
+        <span class="live-name">{{ l.username }}</span>
+        <span class="live-sets num">{{ l.sets }} serija</span>
+        <span class="live-time num">{{ liveTime(l.minutes) }}</span>
+    </div>
+</div>
+
 <div class="wrapper">
     <div class="dashboard-container">
 
