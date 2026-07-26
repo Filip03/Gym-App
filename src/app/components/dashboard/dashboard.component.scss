@@ -1,78 +1,91 @@
-// Traka "šta je danas". Ranije je ovdje stajalo obično zeleno dugme koje nije
-// govorilo ništa o tome šta te čeka. Sada je prigušeno polje preko cijele
-// širine: dan i tip treninga u volt boji, poziv na akciju desno.
+// "Započni trening" + traka sa danom ispod.
+//
+// Dugme je nosilac akcije i ostaje puno zeleno. Traka izlazi ISPOD njega,
+// uvučena i uža, sa prelazom koji blijedi prema dnu — čita se kao produžetak
+// dugmeta, a ne kao zaseban element. Nosi samo ono što treba znati prije nego
+// što se uđe: koji je dan i šta se radi.
 
-.start-training {
+.start-block {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--s-4);
-  width: 100%;
-  min-height: 66px;
-  padding: var(--s-3) var(--s-5);
-  margin-bottom: var(--s-6);
+  margin-bottom: var(--s-8);
+}
 
-  background: var(--carbon);
-  border: 1px solid var(--volt-a20);
+.start-btn {
+  position: relative;
+  z-index: 2;
+
+  min-width: 280px;
+  min-height: 54px;
+  padding: 0 var(--s-8);
+
+  background: var(--volt);
+  color: var(--volt-ink);
   border-radius: var(--r-md);
-  text-align: left;
 
-  transition: border-color var(--d-base) var(--ease),
-              background-color var(--d-base) var(--ease),
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 700;
+
+  transition: background-color var(--d-fast) var(--ease),
+              box-shadow var(--d-base) var(--ease),
               transform var(--d-fast) var(--ease);
 }
 
-.start-training:hover {
-  background: var(--carbon-high);
-  border-color: var(--volt-a40);
+.start-btn:hover {
+  background: #D4FF5E;
+  box-shadow: 0 0 30px -6px var(--volt-a40);
 }
-.start-training:active { transform: scale(.995); }
+.start-btn:active { transform: scale(.985); }
 
-.st-today {
+.start-today {
+  position: relative;
+  z-index: 1;
+
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: var(--s-2);
-  min-width: 0;
+
+  // Uvučena pod dugme, pa se čita kao njegov produžetak.
+  margin-top: -10px;
+  padding: calc(var(--s-3) + 10px) var(--s-6) var(--s-3);
+  min-width: 236px;
+
+  background: linear-gradient(180deg,
+    var(--volt-a20) 0%,
+    var(--volt-a10) 45%,
+    transparent 100%);
+
+  border-radius: 0 0 var(--r-md) var(--r-md);
 }
 
 .st-day {
   font-family: var(--font-display);
-  font-size: var(--t-lg);
+  font-size: var(--t-base);
   font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
   color: var(--ice);
-  letter-spacing: var(--ls-tight);
 }
 
-.st-sep { color: var(--dust); }
+.st-sep { color: var(--volt-soft); }
 
 .st-type {
   font-family: var(--font-display);
-  font-size: var(--t-lg);
+  font-size: var(--t-base);
   font-weight: 700;
-  color: var(--volt);
-  letter-spacing: var(--ls-tight);
-}
-
-.st-type.rest { color: var(--mist); }
-
-.st-go {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex-shrink: 0;
-
-  font-family: var(--font-data);
-  font-size: var(--t-2xs);
-  font-weight: 600;
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
   color: var(--volt);
 }
 
-.st-go .material-icons { font-size: 17px; }
+.st-type.rest { color: var(--mist); }
 
 @media (max-width: 480px) {
-  .start-training { flex-direction: column; align-items: flex-start; gap: var(--s-2); }
+  .start-btn   { width: 100%; min-width: 0; }
+  .start-today { width: 88%; min-width: 0; }
 }
 
 .dashboard-container { width: 100%; }

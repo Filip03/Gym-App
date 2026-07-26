@@ -1,15 +1,13 @@
-<button type="button" class="start-training" (click)="goToTraining()">
-    <span class="st-today">
+<div class="start-block">
+    <button type="button" class="start-btn" (click)="goToTraining()">Započni trening</button>
+
+    <div class="start-today" *ngIf="todayName">
         <span class="st-day">{{ todayName }}</span>
         <span class="st-sep" *ngIf="todayType">·</span>
         <span class="st-type" *ngIf="todayType">{{ todayType }}</span>
-        <span class="st-type rest" *ngIf="!todayType && todayName">Rest</span>
-    </span>
-    <span class="st-go">
-        Započni trening
-        <i class="material-icons">arrow_forward</i>
-    </span>
-</button>
+        <span class="st-type rest" *ngIf="!todayType">Rest day</span>
+    </div>
+</div>
 
 <div class="wrapper">
     <div class="dashboard-container">
