@@ -7,6 +7,7 @@ import { Profile } from '../../models/models';
 import {
   PickerGroup, PickerOption, toPickerGroups
 } from '../shared/exercice-picker/exercice-picker.component';
+import { formatIsoDate } from '../shared/date-picker/date-picker.component';
 
 /** Jedno polje u kalendaru treninga. */
 interface CalCell {
@@ -131,6 +132,7 @@ export class ProfileComponent implements OnInit {
   loggingWeight = false;
   logWeightError = '';
   newWeightDate = this.iso(new Date());
+  showDatePicker = false;
   newWeightValue: number | null = null;
   weightChartPoints: WeightChartPoint[] = [];
   weightChartLinePoints = '';
@@ -152,6 +154,7 @@ export class ProfileComponent implements OnInit {
 
   otherProfiles: { id: string; username: string }[] = [];
   compareUserId = '';
+  showComparePicker = false;
   compareUsername = '';
   private compareAllPoints: ProgressPoint[] = [];
 
@@ -317,8 +320,16 @@ export class ProfileComponent implements OnInit {
     return '0,0';
   }
 
-  /** Datum današnjeg dana — za dugme „Danas" u obrascu. */
-  setWeightDateToday() { this.newWeightDate = this.iso(new Date()); }
+  /** Prikaz izabranog datuma u polju koje otvara birač. */
+  get weightDateLabel(): string { return formatIsoDate(this.newWeightDate); }
+
+  /** Gornja granica u biraču — težina se ne mjeri unaprijed. */
+  get todayIso(): string { return this.iso(new Date()); }
+
+  onDatePick(iso: string) {
+    this.newWeightDate = iso;
+    this.showDatePicker = false;
+  }
 
   trackWeightRow = (_: number, r: WeightRow) => r.date;
 
@@ -579,6 +590,18 @@ export class ProfileComponent implements OnInit {
   }
 
   trackCell = (_: number, c: CalCell) => c.iso;
+
+  get compareLabel(): string {
+    if (!this.compareUserId) return 'Niko';
+    return this.otherProfiles.find(p => p.id === this.compareUserId)?.username ?? 'Niko';
+  }
+
+  chooseCompare(id: string) {
+    this.showComparePicker = false;
+    if (this.compareUserId === id) return;
+    this.compareUserId = id;
+    void this.onCompareUserChange();
+  }
 
   onPick(option: PickerOption) {
     this.showPicker = false;

@@ -164,11 +164,12 @@
         </div>
 
         <div class="exercice-select" *ngIf="selectedExerciceId && otherProfiles.length > 0">
-          <label for="compareUser">Uporedi sa</label>
-          <select id="compareUser" [(ngModel)]="compareUserId" (change)="onCompareUserChange()">
-            <option value="">-- Niko --</option>
-            <option *ngFor="let p of otherProfiles" [value]="p.id">{{ p.username }}</option>
-          </select>
+          <label>Uporedi sa</label>
+          <button type="button" class="pick-field" (click)="showComparePicker = true">
+            <span class="pf-ph"><i class="material-icons">group</i></span>
+            <span class="pf-name" [class.empty-choice]="!compareUserId">{{ compareLabel }}</span>
+            <i class="material-icons">expand_more</i>
+          </button>
         </div>
 
         <p *ngIf="progressLoading">Učitavanje...</p>
@@ -193,12 +194,12 @@
             >
               <defs>
                 <linearGradient id="progressAreaGradientMe" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#199e70" stop-opacity="0.4" />
-                  <stop offset="100%" stop-color="#199e70" stop-opacity="0" />
+                  <stop offset="0%" stop-color="#C6FF3B" stop-opacity="0.28" />
+                  <stop offset="100%" stop-color="#C6FF3B" stop-opacity="0" />
                 </linearGradient>
                 <linearGradient id="progressAreaGradientCompare" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e66767" stop-opacity="0.4" />
-                  <stop offset="100%" stop-color="#e66767" stop-opacity="0" />
+                  <stop offset="0%" stop-color="#FFC94A" stop-opacity="0.20" />
+                  <stop offset="100%" stop-color="#FFC94A" stop-opacity="0" />
                 </linearGradient>
               </defs>
 
@@ -215,13 +216,16 @@
                 </text>
               </g>
 
-              <path [attr.d]="compareAreaPath" class="progress-area compare" />
-              <path [attr.d]="areaPath" class="progress-area me" />
+              <path [attr.d]="compareAreaPath" fill="url(#progressAreaGradientCompare)"
+                    stroke="none" class="progress-area compare" />
+              <path [attr.d]="areaPath" fill="url(#progressAreaGradientMe)"
+                    stroke="none" class="progress-area me" />
 
-              <polyline [attr.points]="compareLinePoints" class="progress-line compare" />
-              <polyline [attr.points]="chartLinePoints" class="progress-line me" />
+              <polyline [attr.points]="compareLinePoints" pathLength="1" class="progress-line compare" />
+              <polyline [attr.points]="chartLinePoints" pathLength="1" class="progress-line me" />
 
-              <g *ngFor="let point of comparePoints">
+              <g *ngFor="let point of comparePoints; let i = index"
+                 class="pt" [style.animation-delay.ms]="520 + i * 45">
                 <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
                   {{ point.reps }} rep.
                 </text>
@@ -230,7 +234,8 @@
                 </circle>
               </g>
 
-              <g *ngFor="let point of chartPoints">
+              <g *ngFor="let point of chartPoints; let i = index"
+                 class="pt" [style.animation-delay.ms]="560 + i * 45">
                 <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
                   {{ point.reps }} rep.
                 </text>
@@ -311,11 +316,12 @@
     <form class="wm-form" (ngSubmit)="submitWeightLog()">
       <div class="wm-field">
         <label for="weightDate">Datum</label>
-        <div class="wm-date">
-          <input id="weightDate" type="date" name="weightDate"
-                 [(ngModel)]="newWeightDate" required>
-          <button type="button" class="wm-today" (click)="setWeightDateToday()">danas</button>
-        </div>
+        <button type="button" class="pick-field wm-date-field"
+                (click)="showDatePicker = true">
+          <span class="pf-ph"><i class="material-icons">event</i></span>
+          <span class="pf-name num">{{ weightDateLabel }}</span>
+          <i class="material-icons">expand_more</i>
+        </button>
       </div>
 
       <div class="wm-field">
@@ -358,9 +364,10 @@
         </g>
 
         <path [attr.d]="weightAreaPath" fill="url(#weightAreaGradient)" stroke="none" />
-        <polyline [attr.points]="weightChartLinePoints" class="progress-line me" />
+        <polyline [attr.points]="weightChartLinePoints" pathLength="1" class="progress-line me" />
 
-        <g *ngFor="let point of weightChartPoints">
+        <g *ngFor="let point of weightChartPoints; let i = index"
+           class="pt" [style.animation-delay.ms]="560 + i * 45">
           <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
             {{ point.weight }} kg
           </text>
@@ -385,5 +392,42 @@
         <span class="wm-row-delta first" *ngIf="r.delta === null">prvi upis</span>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Birač datuma za upis težine -->
+<app-date-picker
+  *ngIf="showDatePicker"
+  title="Datum mjerenja"
+  [value]="newWeightDate"
+  [max]="todayIso"
+  (pick)="onDatePick($event)"
+  (dismiss)="showDatePicker = false">
+</app-date-picker>
+
+<!-- Sa kim se poredi napredak -->
+<div class="modal-overlay cmp-overlay" *ngIf="showComparePicker" (click)="showComparePicker = false">
+  <div class="modal-card cmp-card" (click)="$event.stopPropagation()">
+    <header class="cmp-head">
+      <h3>Uporedi sa</h3>
+      <button type="button" class="cmp-close" (click)="showComparePicker = false" aria-label="Zatvori">
+        <i class="material-icons">close</i>
+      </button>
+    </header>
+
+    <button type="button" class="cmp-row" [class.on]="!compareUserId" (click)="chooseCompare('')">
+      <span class="cmp-av none"><i class="material-icons">block</i></span>
+      <span class="cmp-name">Niko</span>
+      <i class="material-icons cmp-check" *ngIf="!compareUserId">check</i>
+    </button>
+
+    <button type="button" class="cmp-row" *ngFor="let p of otherProfiles; let i = index"
+            [class.on]="compareUserId === p.id"
+            [style.animation-delay.ms]="(i + 1) * 45"
+            (click)="chooseCompare(p.id)">
+      <span class="cmp-av"><i class="material-icons">person</i></span>
+      <span class="cmp-name">{{ p.username }}</span>
+      <i class="material-icons cmp-check" *ngIf="compareUserId === p.id">check</i>
+    </button>
   </div>
 </div>

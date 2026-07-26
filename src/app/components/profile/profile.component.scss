@@ -229,18 +229,67 @@
 
 .reps-label { fill: var(--mist); }
 
+// Linija se CRTA, ne pojavljuje.
+//
+// `pathLength="1"` u predlošku normalizuje dužinu putanje na 1, pa se
+// `stroke-dasharray` i `stroke-dashoffset` mogu zadati u CSS-u bez mjerenja
+// dužine u JavaScriptu (`getTotalLength()`), koje bi tražilo pristup elementu i
+// ponovno računanje pri svakoj promjeni podataka.
 .progress-line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: line-draw 900ms var(--ease-out) 120ms forwards;
 }
 
-.progress-line.me { stroke: var(--volt); }
-.progress-line.compare { stroke: var(--gold); stroke-dasharray: 5 4; }
+.progress-line.me {
+  stroke: var(--volt);
+  filter: drop-shadow(0 0 6px var(--volt-a40));
+}
+
+// Tuđa linija je isprekidana i bez sjaja — na prvi pogled se vidi koja je čija,
+// i bez legende ispod grafikona.
+.progress-line.compare {
+  stroke: var(--gold);
+  stroke-width: 2;
+  stroke-dasharray: 0.012 0.01;
+  stroke-dashoffset: 0;
+  animation: line-fade 700ms var(--ease-out) 220ms backwards;
+}
+
+// Površina ispod linije stiže poslije nje, da se ne vidi kako „raste" ispred.
+.progress-area { animation: area-in 600ms var(--ease-out) 620ms backwards; }
 
 .progress-point.me { fill: var(--volt); stroke: var(--void); stroke-width: 2; }
 .progress-point.compare { fill: var(--gold); stroke: var(--void); stroke-width: 2; }
+
+// Tačka + njen natpis ulaze zajedno, sa kašnjenjem iz predloška.
+.pt { animation: pt-in 340ms var(--ease-spring) backwards; }
+
+@keyframes line-draw { to { stroke-dashoffset: 0; } }
+@keyframes line-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes area-in   { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes pt-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// `transform` na SVG grupi računa se od koordinatnog početka crteža, ne od
+// same tačke — bez ovoga bi tačke uletjele iz gornjeg lijevog ugla.
+.pt { transform-box: fill-box; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-line, .progress-area, .pt {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
 
 .chart-legend {
   display: flex;

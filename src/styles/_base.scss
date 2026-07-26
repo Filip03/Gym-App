@@ -27,6 +27,10 @@ body {
   background-color: var(--void);
   color: var(--ice);
 
+  // Bez odskakanja na krajevima. Na iOS-u se pri „rubber band" povlačenju
+  // fiksirani futer vidljivo odvoji od ivice ekrana.
+  overscroll-behavior-y: none;
+
   font-family: var(--font-body);
   font-size: var(--t-base);
   line-height: var(--lh-body);

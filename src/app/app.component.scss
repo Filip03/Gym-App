@@ -2,9 +2,17 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 100dvh;   // dvh, ne vh — vh na mobilnom Safariju uračunava i
-                        // traku adresne linije, pa dno sadržaja ispadne ispod
-                        // vidljivog dijela ekrana
+  // `svh`, ne `vh` ni `dvh`.
+  //
+  //   vh   uračunava i traku adresne linije, pa dno sadržaja ispadne ispod
+  //        vidljivog dijela ekrana
+  //   dvh  prati traku UŽIVO — visina stranice se mijenja usred skrola, a
+  //        fiksirani futer se tada vidljivo otme pa se smiri pa opet skoči
+  //   svh  najmanja moguća visina, NE mijenja se dok se skroluje
+  //
+  // Stabilnost je ovdje važnija od dvadesetak piksela koje `dvh` dobije kad se
+  // traka sakrije.
+  min-height: 100svh;
 }
 
 .content {

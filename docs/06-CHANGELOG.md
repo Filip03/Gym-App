@@ -998,3 +998,66 @@ konstante.
   `weightTotalChange`, `formatDelta`, `setWeightDateToday`, veći padding grafikona
 - `src/app/components/profile/profile.component.{html,scss}` — modal težine
 - `src/styles/_base.scss` — `input[type="date"]`
+
+---
+
+## [2026-07-26] Sopstveni birač datuma, birač za poređenje, animiran grafikon, futer na telefonu
+**Tip:** funkcionalnost / popravka / redizajn
+**Ref:** Roadmap 1.15
+
+### 1. Sopstveni birač datuma (`<app-date-picker>`)
+
+Nativni `<input type="date">` se **ne može** stilizovati. CSS dohvata samo okvir
+polja; kalendar koji iskoči na klik crta pregledač po sistemskoj temi, i nijedan
+selektor ga ne dosegne — usred tamnog ekrana se otvarao bijeli Chrome-ov
+kalendar sa plavim dugmadima.
+
+Nova komponenta koristi istu mrežu i iste tokene kao kalendar treninga u
+profilu, pa se dva kalendara u aplikaciji ne razlikuju. Radi sa `YYYY-MM-DD`
+nizom, ne sa `Date` — baza čuva dan bez vremena, a `Date` uvodi zonu u nešto što
+je samo dan u mjesecu. Budući datumi su onemogućeni (`max`), otvara se na
+mjesecu već izabranog datuma, Escape zatvara.
+
+### 2. „Uporedi sa" više nije `<select>`
+
+Posljednji `<select>` u aplikaciji. Zamijenjen poljem `.pick-field` i modalom sa
+spiskom članova, kvačicom na izabranom i opcijom „Niko".
+
+### 3. Grafikon napretka
+
+- **Linija se crta**, ne pojavljuje. `pathLength="1"` u predlošku normalizuje
+  dužinu putanje, pa `stroke-dasharray`/`dashoffset` rade iz CSS-a — bez
+  `getTotalLength()` u JavaScriptu i bez ponovnog računanja pri promjeni podataka.
+- **Tačke i natpisi** ulaze stepenasto, poslije linije.
+- **Tuđa linija** je isprekidana i bez sjaja, naša puna sa `drop-shadow` — vidi
+  se čija je koja i bez legende.
+- `transform-box: fill-box` na grupama tačaka: bez toga se `transform` na SVG
+  grupi računa od koordinatnog početka crteža, pa tačke ulijeću iz ugla.
+
+**Zatečena greška:** površina ispod linije bila je **crna mrlja**. Gradijenti
+`progressAreaGradientMe/Compare` su bili definisani u `<defs>`, ali ih putanje
+nisu koristile — nedostajao je `fill`, a SVG bez njega podrazumijeva crno. Uz
+popravku, boje gradijenta su usklađene sa linijama (volt / zlatna) umjesto
+zatečenih tirkizne i crvene.
+
+### 4. Futer na telefonu bježao pri skrolu
+
+`.shell` je imao `min-height: 100dvh`. `dvh` prati traku adresne linije **uživo**
+— visina stranice se mijenja usred skrola, pa se fiksirani futer vidljivo otme,
+smiri, pa opet skoči. Prebačeno na `100svh` (najmanja moguća visina, ne mijenja
+se pri skrolu). Isto u prijavi i registraciji.
+
+Dodato i `overscroll-behavior-y: none` na `body` — na iOS-u se pri „rubber band"
+povlačenju fiksirani futer odvaja od ivice ekrana.
+
+**Napomena:** ovo su dva uzroka koja se mogu ukloniti CSS-om. Ako na iPhoneu i
+dalje bude primjetno pri naglom skrolu, preostaje strukturna promjena: `.shell`
+fiksne visine u kojoj skroluje **sadržaj**, a ne stranica. Tada futer nema veze
+sa trakom adresne linije, ali se traka nikad ne sakriva.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/shared/date-picker/*` — nova komponenta + `formatIsoDate`
+- `src/app/components/profile/*` — birač datuma, birač za poređenje, animacije
+- `src/app/app.component.scss`, `login`, `register` — `dvh` → `svh`
+- `src/styles/_base.scss` — `overscroll-behavior-y`
+- `src/app/app.module.ts` — registracija
