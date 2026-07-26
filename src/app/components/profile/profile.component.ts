@@ -19,6 +19,15 @@ interface CalCell {
   future: boolean;
 }
 
+/** Jedan red u spisku upisa težine. */
+interface WeightRow {
+  date: string;
+  label: string;
+  weight: number;
+  /** Razlika u odnosu na PRETHODNI upis. `null` za najstariji. */
+  delta: number | null;
+}
+
 /** Tačka na grafikonu tjelesne težine (Filipova funkcija, zadržana pri spajanju). */
 interface WeightChartPoint {
   x: number;
@@ -27,12 +36,21 @@ interface WeightChartPoint {
   dateLabel: string;
 }
 
-/** Opsezi za statistiku ispod kalendara. */
-const STAT_RANGES: { days: number; label: string }[] = [
-  { days: 7,   label: '7 dana' },
-  { days: 30,  label: '30 dana' },
-  { days: 90,  label: '90 dana' },
-  { days: 365, label: 'Godina' }
+/**
+ * Opsezi za statistiku ispod kalendara — zadati u CIJELIM SEDMICAMA.
+ *
+ * Nisu 30 / 90 / 365 dana, jer se tada „sedmično" ne može tačno podijeliti:
+ * u 30 dana stane 4,3 sedmice, pa djelilac postaje razlomak i broj se razvodni.
+ * Ovako je djelilac tačno 1, 4, 13 ili 52 — koliko sedmica stvarno staje.
+ *
+ * Natpisi su zaokruženi na ono kako se o tome govori: 4 sedmice se u teretani
+ * zovu mjesec, 13 sedmica tri mjeseca.
+ */
+const STAT_RANGES: { weeks: number; label: string }[] = [
+  { weeks: 1,  label: 'Sedmica' },
+  { weeks: 4,  label: 'Mjesec' },
+  { weeks: 13, label: '3 mjeseca' },
+  { weeks: 52, label: 'Godina' }
 ];
 
 const MONTHS = [
@@ -86,7 +104,8 @@ export class ProfileComponent implements OnInit {
   calAtCurrentMonth = true;
   // Statistika ispod kalendara. Sve osim niza sedmica prati izabrani opseg.
   readonly statRanges = STAT_RANGES;
-  statRange = 30;
+  /** Izabrani opseg, u sedmicama. */
+  statRange = 4;
 
   rangeCount = 0;      // dana sa treningom
   rangeSets = 0;       // upisanih serija
@@ -119,6 +138,8 @@ export class ProfileComponent implements OnInit {
   weightYGridLines: { y: number; label: string }[] = [];
   weightXAxisLabels: { x: number; label: string }[] = [];
   weightChartWidth = 400;
+  /** Spisak upisa, najnoviji prvi. */
+  weightRows: WeightRow[] = [];
 
   exerciceGroups: MuscleGroupWithExercices[] = [];
   loadingExerciceGroups = true;
@@ -150,8 +171,12 @@ export class ProfileComponent implements OnInit {
   chartWidth = 400;
 
   readonly chartHeight = 260;
-  readonly chartPaddingLeft = 46;
-  readonly chartPaddingRight = 20;
+  // Lijevo mora stati najduža oznaka ose („102.5 kg" = 8 znakova monospace-a),
+  // a crta se od `chartPaddingLeft - 8` unalijevo. Sa 46 je ispadalo „l2.5 kg".
+  readonly chartPaddingLeft = 62;
+  // Desno: posljednja tačka nosi centriranu oznaku vrijednosti iznad sebe, pa
+  // joj treba pola širine natpisa da ne bude odsječena.
+  readonly chartPaddingRight = 34;
   readonly chartPaddingTop = 30;
   readonly chartPaddingBottom = 34;
   private readonly pointSpacing = 70;
@@ -225,6 +250,7 @@ export class ProfileComponent implements OnInit {
     try {
       this.weightHistory = await this.profileService.getWeightHistory(this.profile.id);
       this.buildWeightChart();
+      this.buildWeightRows();
     } catch (err: any) {
       this.weightError = err.message ?? 'Greška pri učitavanju težine.';
     } finally {
@@ -255,6 +281,46 @@ export class ProfileComponent implements OnInit {
       this.loggingWeight = false;
     }
   }
+
+  /** Spisak upisa sa razlikom u odnosu na prethodni. Najnoviji prvi. */
+  private buildWeightRows() {
+    this.weightRows = this.weightHistory
+      .map((p, i) => ({
+        date: p.date,
+        label: this.formatDateLabel(p.date),
+        weight: p.weight,
+        delta: i === 0 ? null : +(p.weight - this.weightHistory[i - 1].weight).toFixed(1)
+      }))
+      .reverse();
+  }
+
+  /** Posljednja upisana težina. */
+  get weightCurrent(): number | null {
+    return this.weightHistory.length
+      ? this.weightHistory[this.weightHistory.length - 1].weight
+      : null;
+  }
+
+  /** Ukupna promjena od prvog upisa do danas. */
+  get weightTotalChange(): number | null {
+    if (this.weightHistory.length < 2) return null;
+    const first = this.weightHistory[0].weight;
+    const last = this.weightHistory[this.weightHistory.length - 1].weight;
+    return +(last - first).toFixed(1);
+  }
+
+  /** „+1,2" / „−0,8" — minus je pravi minus (U+2212), ne crtica. */
+  formatDelta(value: number): string {
+    const s = Math.abs(value).toFixed(1).replace('.', ',');
+    if (value > 0) return `+${s}`;
+    if (value < 0) return `−${s}`;
+    return '0,0';
+  }
+
+  /** Datum današnjeg dana — za dugme „Danas" u obrascu. */
+  setWeightDateToday() { this.newWeightDate = this.iso(new Date()); }
+
+  trackWeightRow = (_: number, r: WeightRow) => r.date;
 
   private buildWeightChart() {
     this.weightChartPoints = [];
@@ -344,26 +410,26 @@ export class ProfileComponent implements OnInit {
     }
   }
 
-  setStatRange(days: number) {
-    if (this.statRange === days) return;
-    this.statRange = days;
+  setStatRange(weeks: number) {
+    if (this.statRange === weeks) return;
+    this.statRange = weeks;
     this.computeRangeStats();
   }
 
   get statRangeIndex(): number {
-    return Math.max(0, this.statRanges.findIndex(r => r.days === this.statRange));
+    return Math.max(0, this.statRanges.findIndex(r => r.weeks === this.statRange));
   }
 
   /**
    * Sve brojke za izabrani opseg, iz već učitanih dana — bez novog upita.
    *
-   * Opseg je klizni prozor unazad od danas (7 / 30 / 90 / 365 dana), ne
-   * kalendarski mjesec. Kalendarski mjesec ima svoju brojku („ovog mjeseca")
-   * koja prati strelice iznad mreže.
+   * Opseg je klizni prozor unazad od danas, u cijelim sedmicama, ne kalendarski
+   * mjesec. Kalendarski mjesec ima svoju brojku („ovog mjeseca") koja prati
+   * strelice iznad mreže.
    */
   private computeRangeStats() {
     const from = new Date();
-    from.setDate(from.getDate() - this.statRange);
+    from.setDate(from.getDate() - this.statRange * 7);
     const fromIso = this.iso(from);
 
     const days = this.calDays.filter(d => d.date >= fromIso);
@@ -471,35 +537,31 @@ export class ProfileComponent implements OnInit {
   /**
    * Prosjek treninga po sedmici, unutar izabranog opsega.
    *
-   * `broj treninga u opsegu ÷ broj sedmica u opsegu`. Ništa mudrije od toga —
-   * i baš zato je tačno.
+   *     broj treninga u opsegu ÷ broj sedmica u opsegu
    *
-   * DVIJE RANIJE VERZIJE SU BILE POGREŠNE, obje na isti način: dijelile su sa
-   * vremenom proteklim od PRVOG treninga, a ne sa dužinom opsega.
+   * Djelilac je **broj sedmica koje staju u opseg** — 1, 4, 13 ili 52. Pošto su
+   * opsezi zadati u cijelim sedmicama, dijeljenje je tačno, bez razlomka.
    *
-   *   1. Ko u ponedjeljak i utorak odradi dva treninga, dobio bi **7,0** —
-   *      dva treninga podijeljena sa 2/7 sedmice. To je bila projekcija, ne
-   *      mjerenje.
-   *   2. Popravka preko „samo pune sedmice" je riješila 7,0, ali je uvela goru
-   *      zbrku: „7 dana" je znalo pokazati 0 treninga a prosjek 2,0, jer je
-   *      brojač gledao zadnjih 7 dana a prosjek prošlu punu sedmicu. Dva
-   *      različita prozora u istom redu brojki.
+   * ČETIRI RANIJE VERZIJE, SVE POGREŠNE NA ISTI NAČIN — dijelile su nečim
+   * drugim umjesto dužinom opsega:
    *
-   * Donja granica je jedna sedmica — dok istorija ne pređe sedam dana, prosjek
-   * je jednostavno broj treninga u toj prvoj sedmici. Bez granice bi trojica
-   * treninga u tri dana ispala kao 7,0.
+   *   1. `(danas − prvi trening) / 7`. Dva treninga u ponedjeljak i utorak →
+   *      2 ÷ 0,29 sedmica = **7,0**. Projekcija, ne mjerenje.
+   *   2. „Samo pune sedmice" — riješilo 7,0, ali je „7 dana" znalo pokazati
+   *      0 treninga i prosjek 2,0 istovremeno, jer su brojač i prosjek gledali
+   *      različite prozore.
+   *   3. Djelilac ograničen na dužinu istorije. Šest treninga u jednoj sedmici
+   *      uz opseg „30 dana" davalo je **6,0**, iako je to 1,5 sedmično.
+   *   4. Djelilac `30 / 7 = 4,3`. Tačnije, ali se u 30 dana ne uklapa cio broj
+   *      sedmica, pa je i sam opseg bio nezgodno definisan. Zato su opsezi sada
+   *      cijele sedmice.
    *
-   * Gornja granica je dužina istorije: ko trenira mjesec dana, a izabere
-   * „Godina", ne zaslužuje 0,1 sedmično samo zato što aplikaciju nije koristio
-   * ranije.
+   * Ko aplikaciju koristi tek sedmicu dana, uz opseg „Godina" vidjeće mali broj.
+   * To je tačno — mjere se **upisani** treninzi, a za skorašnji ritam postoje
+   * kraći opsezi.
    */
-  private computeWeekAvg(count: number, rangeDays: number): string {
-    if (this.calDays.length === 0) return '—';
-
-    const first = new Date(`${this.calDays[0].date}T12:00:00`);
-    const historyDays = (Date.now() - first.getTime()) / 86400000;
-
-    const weeks = Math.max(1, Math.min(rangeDays, historyDays) / 7);
+  private computeWeekAvg(count: number, weeks: number): string {
+    if (weeks <= 0) return '—';
     return (count / weeks).toFixed(1).replace('.', ',');
   }
 

@@ -108,7 +108,7 @@
                  [style.--seg-count]="statRanges.length" [style.--seg-index]="statRangeIndex">
               <span class="seg-thumb"></span>
               <button type="button" *ngFor="let r of statRanges"
-                      [class.on]="statRange === r.days" (click)="setStatRange(r.days)">
+                      [class.on]="statRange === r.weeks" (click)="setStatRange(r.weeks)">
                 {{ r.label }}
               </button>
             </div>
@@ -296,16 +296,37 @@
       </button>
     </header>
 
+    <!-- Trenutno stanje: krupno, jer je to jedini broj koji se traži na prvi pogled. -->
+    <div class="wm-now" *ngIf="weightCurrent !== null">
+      <div class="wm-big">
+        <span class="wm-kg num">{{ weightCurrent }}</span>
+        <span class="wm-unit">kg</span>
+      </div>
+      <div class="wm-since" *ngIf="weightTotalChange !== null">
+        <span class="wm-delta num">{{ formatDelta(weightTotalChange) }}</span>
+        <span class="wm-since-label">od prvog upisa</span>
+      </div>
+    </div>
+
     <form class="wm-form" (ngSubmit)="submitWeightLog()">
       <div class="wm-field">
         <label for="weightDate">Datum</label>
-        <input id="weightDate" type="date" name="weightDate" [(ngModel)]="newWeightDate" required>
+        <div class="wm-date">
+          <input id="weightDate" type="date" name="weightDate"
+                 [(ngModel)]="newWeightDate" required>
+          <button type="button" class="wm-today" (click)="setWeightDateToday()">danas</button>
+        </div>
       </div>
+
       <div class="wm-field">
-        <label for="weightValue">Težina (kg)</label>
-        <input id="weightValue" type="number" name="weightValue" [(ngModel)]="newWeightValue"
-               min="0" step="0.1" required>
+        <label for="weightValue">Težina</label>
+        <div class="wm-num-field">
+          <input id="weightValue" type="number" name="weightValue" [(ngModel)]="newWeightValue"
+                 min="0" step="0.1" inputmode="decimal" placeholder="0,0" required>
+          <span class="wm-suffix">kg</span>
+        </div>
       </div>
+
       <button type="submit" class="btn-primary wm-submit" [disabled]="loggingWeight">
         {{ loggingWeight ? 'Čuvam...' : 'Upiši' }}
       </button>
@@ -315,7 +336,7 @@
     <p *ngIf="weightLoading" class="empty">Učitavanje...</p>
     <p *ngIf="weightError" class="error">{{ weightError }}</p>
     <p *ngIf="!weightLoading && !weightError && weightHistory.length === 0" class="empty">
-      Još nema upisane težine.
+      Još nema upisane težine. Upiši prvu iznad.
     </p>
 
     <div class="chart-wrapper" *ngIf="weightChartPoints.length > 0">
@@ -352,6 +373,17 @@
               [attr.x]="tick.x" [attr.y]="chartHeight - chartPaddingBottom + 18"
               text-anchor="middle" class="date-label">{{ tick.label }}</text>
       </svg>
+    </div>
+
+    <div class="wm-list" *ngIf="weightRows.length > 0">
+      <h4 class="eyebrow">Upisi</h4>
+      <div class="wm-row" *ngFor="let r of weightRows; let i = index; trackBy: trackWeightRow"
+           [style.animation-delay.ms]="i * 40">
+        <span class="wm-row-date num">{{ r.label }}</span>
+        <span class="wm-row-kg num">{{ r.weight }}<em>kg</em></span>
+        <span class="wm-row-delta num" *ngIf="r.delta !== null">{{ formatDelta(r.delta) }}</span>
+        <span class="wm-row-delta first" *ngIf="r.delta === null">prvi upis</span>
+      </div>
     </div>
   </div>
 </div>

@@ -121,6 +121,7 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="number"],
+input[type="date"],
 textarea,
 select {
   width: 100%;
@@ -140,6 +141,18 @@ select {
 input::placeholder, textarea::placeholder { color: var(--dust); }
 
 input:hover, textarea:hover, select:hover { border-color: var(--line-strong); }
+
+// Nativni birač datuma. Bez ovoga polje ostaje pregledačevo — siva podloga i
+// visina od 25px usred obrasca gdje su sva ostala polja 46px. `color-scheme:
+// dark` na <html> obojo je tekst, ali ne i okvir.
+input[type="date"] { cursor: pointer; }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(.45);
+  cursor: pointer;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator { filter: invert(1) opacity(.8); }
 
 input:focus, textarea:focus, select:focus {
   border-color: var(--volt);

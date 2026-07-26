@@ -328,11 +328,100 @@
 
 .wm-close:hover { background: var(--steel); color: var(--ice); }
 
+// Trenutna težina — jedini broj koji se traži na prvi pogled, pa je krupan.
+.wm-now {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.wm-big { display: flex; align-items: baseline; gap: var(--s-1); }
+
+.wm-kg {
+  font-size: var(--t-2xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--volt);
+}
+
+.wm-unit {
+  font-family: var(--font-data);
+  font-size: var(--t-sm);
+  color: var(--mist);
+}
+
+.wm-since { display: flex; flex-direction: column; }
+
+// Bez boje koja sudi. Neko se goji namjerno, neko mršavi — „+1,2" nije ni dobro
+// ni loše dok se ne zna cilj, pa aplikacija ne pretpostavlja.
+.wm-delta {
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--ice);
+}
+
+.wm-since-label {
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+// --- Obrazac ---------------------------------------------------------------
+
 .wm-form {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   align-items: end;
   gap: var(--s-3);
+}
+
+.wm-field label {
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+// Datum + prečica „danas". Nativni birač ostaje jer je na telefonu najbrži, ali
+// se u praksi upisuje današnji dan, pa dugme štedi tri dodira.
+.wm-date { position: relative; display: flex; align-items: center; }
+
+.wm-date input { padding-right: 62px; }
+
+.wm-today {
+  position: absolute;
+  right: 6px;
+  padding: 0 var(--s-2);
+  height: 28px;
+
+  background: var(--carbon);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-family: var(--font-data);
+  font-size: 10px;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.wm-today:hover { border-color: var(--volt-a40); color: var(--volt); }
+
+.wm-num-field { position: relative; display: flex; align-items: center; }
+
+.wm-num-field input { padding-right: 38px; text-align: left; }
+
+.wm-suffix {
+  position: absolute;
+  right: var(--s-4);
+  font-family: var(--font-data);
+  font-size: var(--t-sm);
+  color: var(--dust);
+  pointer-events: none;
 }
 
 .wm-submit { min-height: 46px; }
@@ -341,6 +430,57 @@
 @media (max-width: 520px) {
   .wm-form { grid-template-columns: 1fr 1fr; }
   .wm-submit { grid-column: 1 / -1; }
+}
+
+// --- Spisak upisa ----------------------------------------------------------
+
+.wm-list { margin-top: var(--s-5); }
+
+.wm-list .eyebrow { margin-bottom: var(--s-2); }
+
+.wm-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+
+  background: var(--carbon-high);
+  border-radius: var(--r-sm);
+  animation: row-in 320ms var(--ease-out) backwards;
+}
+
+.wm-row + .wm-row { margin-top: 4px; }
+
+.wm-row-date { font-size: var(--t-xs); color: var(--mist); }
+
+.wm-row-kg {
+  font-size: var(--t-base);
+  font-weight: 700;
+  color: var(--ice);
+}
+.wm-row-kg em { font-size: 9px; font-style: normal; opacity: .6; margin-left: 1px; }
+
+.wm-row-delta {
+  min-width: 52px;
+  text-align: right;
+  font-size: var(--t-xs);
+  color: var(--mist);
+}
+
+.wm-row-delta.first {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--echo);
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wm-row { animation: none; }
 }
 
 // --- Uski ekran ------------------------------------------------------------

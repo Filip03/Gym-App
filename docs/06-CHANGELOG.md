@@ -931,3 +931,70 @@ Sve se računa iz već učitanih dana, bez novog upita pri promjeni opsega.
 **Napomene:** Prazne sesije i dalje nastaju u bazi pri otvaranju ekrana; sada se
 samo ne broje. Da se ne prave uopšte, `getOrCreateSession` bi morao da odloži
 upis dok se nešto ne upiše — veći zahvat, i te redove je korisno imati kao trag.
+
+---
+
+## [2026-07-26] Opsezi u cijelim sedmicama + unos težine u našem stilu
+**Tip:** popravka / redizajn
+**Ref:** Roadmap 1.15
+
+### 1. „Sedmično" je konačno tačno
+
+Marko: *„ne može da bude 6 puta nedeljno na 30 dana ako je u 30 dana bio samo
+jednu nedelju 6 puta"* — i bio je u pravu. Peta verzija formule, i svaka je
+prethodna griješila na isti način: dijelila je **nečim drugim umjesto dužinom
+opsega**.
+
+| # | Djelilac | Šta je davalo |
+|---|---|---|
+| 1 | `(danas − prvi trening) / 7` | 2 treninga pon+uto → **7,0** |
+| 2 | broj punih sedmica od početka | „7 dana": 0 treninga, prosjek 2,0 |
+| 3 | `min(opseg, istorija) / 7` | 6 treninga u 1 sedmici, opseg 30 dana → **6,0** |
+| 4 | `30 / 7 = 4,3` | tačno, ali opseg nije cio broj sedmica |
+| **5** | **broj sedmica u opsegu (1, 4, 13, 52)** | **tačno i bez razlomka** |
+
+Ključna izmjena: **opsezi su sada zadati u cijelim sedmicama**, ne u danima. U
+30 dana stane 4,3 sedmice, pa se broj razvodni; u 4 sedmice stane tačno 4.
+Natpisi su zaokruženi na govorni jezik — `Sedmica · Mjesec · 3 mjeseca · Godina`
+= 1 / 4 / 13 / 52 sedmice.
+
+Provjereno na poznatim ritmovima:
+
+| Stvarni ritam | Sedmica | Mjesec | 3 mjeseca | Godina |
+|---|---|---|---|---|
+| 6 treninga, sve u jednoj sedmici | 6,0 | **1,5** | 0,5 | 0,1 |
+| stabilno 3× sedmično | 3,0 | 3,0 | 3,0 | 3,0 |
+| stabilno 6× sedmično (rest četvrtak) | 6,0 | 6,0 | 6,0 | 5,9 |
+
+### 2. Unos težine prešao na naš dizajn
+
+Filipova funkcija je zadržana u cjelini, promijenjen je samo izgled — koristila
+je podrazumijevana polja i dugmad.
+
+- **Trenutna težina krupno** + ukupna promjena od prvog upisa
+- **Prečica „danas"** u polju za datum — u praksi se upisuje današnji dan
+- **Polje za kilograme** sa `kg` sufiksom i `inputmode="decimal"`
+- **Spisak upisa** sa razlikom u odnosu na prethodni (`+1,2` / `−0,8`)
+
+Razlika je namjerno **bez boje koja sudi**: neko se goji namjerno, neko mršavi,
+pa „+1,2" nije ni dobro ni loše dok se ne zna cilj.
+
+### 3. Dvije zatečene greške usput
+
+**`input[type="date"]` nije bio u globalnom pravilu za polja.** Zbog toga je
+birač datuma zadržavao pregledačev izgled — siva podloga i visina od 25px usred
+obrasca gdje su sva ostala polja 46px. Dodat u `_base.scss`, uz obrtanje boje
+ikone kalendara.
+
+**Oznake ose grafikona su se odsijecale.** `chartPaddingLeft = 46`, a oznaka se
+crta od `chartPaddingLeft − 8` unalijevo — „82.5 kg" nije stalo, pa je pisalo
+„l2.5 kg". Povećano na 62 lijevo i 34 desno (posljednja tačka nosi centriranu
+oznaku iznad sebe). Popravlja i grafikon napretka po vježbi, koji dijeli iste
+konstante.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/profile/profile.component.ts` — `STAT_RANGES` u sedmicama,
+  prepisan `computeWeekAvg`, `buildWeightRows`, `weightCurrent`,
+  `weightTotalChange`, `formatDelta`, `setWeightDateToday`, veći padding grafikona
+- `src/app/components/profile/profile.component.{html,scss}` — modal težine
+- `src/styles/_base.scss` — `input[type="date"]`
