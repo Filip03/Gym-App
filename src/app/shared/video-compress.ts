@@ -2,10 +2,15 @@
 // server (vidi CLAUDE.md), pa je ovo jedini način da se video stvarno
 // prekodira (niža rezolucija/bitrate) bez ičega van browsera.
 //
-// ffmpeg-core.wasm (~32MB) NIJE u glavnom bundle-u — kopira se iz
-// node_modules u dist preko angular.json assets glob-a i učitava lijeno,
-// tek kad korisnik prvi put otpremi video. Service worker ga onda keš-uje
-// (ngsw-config.json, "assets" grupa, installMode "lazy").
+// ffmpeg-core.wasm (~32MB) učitava se sa jsDelivr CDN-a, NE iz našeg build
+// outputa — Cloudflare Pages odbija deploy sa pojedinačnim fajlom preko 25MB
+// ("Pages only supports files up to 25 MiB in size"), pa fajl ne smije biti
+// dio dist-a. Isti princip kao Google Fonts u index.html — spoljni resurs,
+// učitava se lijeno tek kad korisnik prvi put otpremi video, i browser ga
+// sam keš-uje (CDN šalje dugotrajne cache headere).
+//
+// Verzija u URL-u (0.12.10) MORA odgovarati @ffmpeg/core verziji instaliranoj
+// u package.json — ffmpeg.wasm zahtijeva da JS wrapper i core budu iste verzije.
 
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { toBlobURL, fetchFile } from '@ffmpeg/util';
@@ -19,7 +24,7 @@ async function getFFmpeg(): Promise<FFmpeg> {
   if (!loadPromise) {
     loadPromise = (async () => {
       const ffmpeg = new FFmpeg();
-      const baseURL = `${document.baseURI.replace(/\/$/, '')}/assets/ffmpeg`;
+      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
 
       await ffmpeg.load({
         coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
