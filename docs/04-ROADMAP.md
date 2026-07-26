@@ -44,9 +44,9 @@ baze, pa može ići paralelno sa Fazom 0.
 | 1.4 | Izbor dana treninga — odvezati trening od dana u sedmici | A4 | ☐ ČEKA |
 | 1.5 | Rest day po `day_type`, ne po broju vježbi | A5 | ☐ ČEKA |
 | 1.6 | Brisanje upisane serije + preračunavanje `set_number` | A6 | ☑ GOTOVO |
-| 1.7 | `vercel.json` sa SPA rewrite-om | A9 | ☐ ČEKA |
+| 1.7 | `vercel.json` sa SPA rewrite-om | A9 | ☑ GOTOVO |
 | 1.8 | Čišćenje mrtvog koda (`WorkoutPlanService`, `@supabase/ssr`) | B1, C2 | ☑ GOTOVO |
-| 1.8b | Audio: iskoristiti za zvuk rekorda umjesto brisanja | C3 | ☐ ČEKA — vidi 2.4 |
+| 1.8b | Audio: iskoristiti za zvuk rekorda umjesto brisanja | C3 | ☑ GOTOVO |
 | 1.9 | Favicon putanja | A8 | ☑ GOTOVO |
 | 1.10 | Avatar prima video (`avatar.mp4` u `<img>`) — validacija tipa fajla | A10 | ☐ ČEKA |
 | 1.11 | Nalog bez profila ruši svaki ekran — `handle_new_user()` bez zaštite | A11, S8 | ☐ ČEKA |
@@ -69,10 +69,10 @@ Cilj: da podaci koji se već prikupljaju počnu nešto da znače.
 | 2.1b | Zamjena/dodavanje/uklanjanje vježbe samo za taj dan | — | ☑ GOTOVO |
 | 2.1c | „Echo" — vrijednosti prošlog treninga uz današnje | — | ☑ GOTOVO |
 | 2.1d | Serije/ponavljanja po sesiji, naslijeđeno iz plana | — | ☑ GOTOVO |
-| 2.2 | Istorija treninga + kalendarski pregled | D2 | ☐ ČEKA |
+| 2.2 | Istorija treninga + kalendarski pregled | D2 | ◐ U TOKU — kalendar u profilu radi, nema pregleda pojedinačnog treninga |
 | 2.3 | Izvedene metrike: procijenjeni 1RM, tonaža po treningu, volumen po mišićnoj grupi | D1 | ☐ ČEKA |
 | 2.4 | Detekcija PR-a + vizuelna potvrda u trenutku upisa | D3 | ☑ GOTOVO |
-| 2.5 | Streak / kontinuitet treniranja | D6 | ☐ ČEKA |
+| 2.5 | Streak / kontinuitet treniranja | D6 | ☑ GOTOVO — niz sedmica u profilu |
 | 2.6 | Tajmer pauze između serija | D4 | ☐ ČEKA |
 | 2.7 | Offline upis (lokalni red čekanja + sinhronizacija) | D5 | ☐ ČEKA |
 
@@ -84,11 +84,11 @@ Cilj: ono što je zapravo bila poenta — takmičenje i zabava u grupi.
 
 | | Zadatak | Ref | Status |
 |---|---|---|---|
-| 3.1 | Feed: ko je danas trenirao, čiji je PR pao | D7 | ☐ ČEKA |
+| 3.1 | Feed: ko je danas trenirao, čiji je PR pao | D7 | ☑ GOTOVO — ekran „Ekipa“ |
 | 3.2 | Blog kao prava objava — autor, opis, reakcije, brisanje | D8 | ☐ ČEKA |
 | 3.3 | Prikaz ko prati moj plan | D10 | ☐ ČEKA |
 | 3.4 | Push notifikacije (PWA infrastruktura već postoji) | D9 | ☐ ČEKA |
-| 3.5 | Proširen leaderboard: po mišićnoj grupi, po tonaži, sedmični | — | ☐ ČEKA |
+| 3.5 | Proširen leaderboard: po mišićnoj grupi, po tonaži, sedmični | — | ◐ U TOKU — opsezi i „Sve vrijeme“ gotovi |
 
 ---
 
