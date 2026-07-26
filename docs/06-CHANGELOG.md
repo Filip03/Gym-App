@@ -455,3 +455,30 @@ otežalo pokretanje kolegi.
 **Napomene:** `npm install` prijavljuje 64 ranjivosti (45 high, 1 critical),
 većinom u build alatima. Zabilježeno u `03-SIGURNOST.md` → S7. Nije dirano jer
 `npm audit fix --force` na Angular 16 projektu lako razbije build.
+
+---
+
+## [2026-07-26] Blog — prikazan datum postavljanja fajla
+**Tip:** funkcionalnost
+**Ref:** korisnički zahtjev
+
+**Problem:** Na blog stranici nije se vidjelo kad je neka slika/gif/video
+postavljen(a).
+
+**Rješenje:** Supabase Storage već sam bilježi `created_at` za svaki fajl u
+bucket-u, i `BlogService.listMedia()` ga je već čitao i sortirao po njemu
+(`blog.service.ts:23,37`) — samo se nikad nije prikazivao. Dodata oznaka datuma
+preko svake kartice u galeriji (donji lijevi ugao, kao mala pilula), i u
+fullscreen prikazu (lightbox) uz vrijeme.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/blog/blog.component.html:23,32` — dodat `.media-date`/
+  `.lightbox-date` span sa `date` pipe-om
+- `src/app/components/blog/blog.component.scss` — stilovi za oba
+
+**Efekat:** Svaka objava na blogu sad pokazuje datum kad je postavljena, i u
+galeriji i u fullscreen prikazu.
+
+**Napomene:** Datum je datum upload-a u Storage (`created_at` samog fajla), ne
+neko posebno polje koje bi korisnik mogao izmijeniti — nema tabele u bazi za
+blog objave, sve dolazi direktno iz bucket-a.

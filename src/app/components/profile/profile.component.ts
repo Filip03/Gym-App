@@ -1,15 +1,22 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ProfileService, ProgressPoint } from '../../services/profile.service';
+import { ProfileService, ProgressPoint, WeightPoint } from '../../services/profile.service';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
-import { Profile } from '../../models/models';
+import { Profile, Exercice } from '../../models/models';
 
 interface ChartPoint {
   x: number;
   y: number;
   weight: number;
   reps: number;
+  dateLabel: string;
+}
+
+interface WeightChartPoint {
+  x: number;
+  y: number;
+  weight: number;
   dateLabel: string;
 }
 
@@ -41,6 +48,7 @@ export class ProfileComponent implements OnInit {
   exerciceGroups: MuscleGroupWithExercices[] = [];
   loadingExerciceGroups = true;
   selectedExerciceId = '';
+  showExercicePicker = false;
 
   otherProfiles: { id: string; username: string }[] = [];
   compareUserId = '';
@@ -61,6 +69,21 @@ export class ProfileComponent implements OnInit {
   yGridLines: { y: number; label: string }[] = [];
   xAxisLabels: { x: number; label: string }[] = [];
   chartWidth = 400;
+
+  showWeightModal = false;
+  weightLoading = false;
+  weightError = '';
+  weightHistory: WeightPoint[] = [];
+  loggingWeight = false;
+  logWeightError = '';
+  newWeightDate = this.todayDateString();
+  newWeightValue: number | null = null;
+  weightChartPoints: WeightChartPoint[] = [];
+  weightChartLinePoints = '';
+  weightAreaPath = '';
+  weightYGridLines: { y: number; label: string }[] = [];
+  weightXAxisLabels: { x: number; label: string }[] = [];
+  weightChartWidth = 400;
 
   readonly chartHeight = 260;
   readonly chartPaddingLeft = 46;
@@ -110,11 +133,40 @@ export class ProfileComponent implements OnInit {
       // Poređenje sa drugim korisnicima jednostavno neće biti ponuđeno
     }
 
+    await this.loadWeightHistory();
+
     const preselectedExerciceId = this.route.snapshot.queryParamMap.get('exercice');
     if (preselectedExerciceId) {
       this.selectedExerciceId = preselectedExerciceId;
       await this.onProgressExerciceChange();
     }
+  }
+
+  get selectedExercice(): Exercice | null {
+    for (const group of this.exerciceGroups) {
+      const found = group.exercices.find(ex => ex.id === this.selectedExerciceId);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  getExercicePictureUrl(picture: string | null): string | null {
+    return picture ? this.exerciceService.getPublicUrl(picture) : null;
+  }
+
+  openExercicePicker() {
+    if (this.loadingExerciceGroups) return;
+    this.showExercicePicker = true;
+  }
+
+  closeExercicePicker() {
+    this.showExercicePicker = false;
+  }
+
+  selectExercice(ex: Exercice) {
+    this.selectedExerciceId = ex.id;
+    this.showExercicePicker = false;
+    this.onProgressExerciceChange();
   }
 
   async onProgressExerciceChange() {
@@ -167,6 +219,126 @@ export class ProfileComponent implements OnInit {
   selectSet(setNumber: number) {
     this.selectedSetNumber = setNumber;
     this.applySetFilter();
+  }
+
+  openWeightModal() {
+    this.showWeightModal = true;
+  }
+
+  closeWeightModal() {
+    this.showWeightModal = false;
+  }
+
+  async loadWeightHistory() {
+    if (!this.profile) return;
+
+    this.weightLoading = true;
+    this.weightError = '';
+
+    try {
+      this.weightHistory = await this.profileService.getWeightHistory(this.profile.id);
+      this.buildWeightChart();
+    } catch (err: any) {
+      this.weightError = err.message ?? 'Greška pri učitavanju težine.';
+    } finally {
+      this.weightLoading = false;
+    }
+  }
+
+  async submitWeightLog() {
+    if (!this.profile || this.loggingWeight) return;
+
+    if (!this.newWeightDate || !this.newWeightValue || this.newWeightValue <= 0) {
+      this.logWeightError = 'Unesi datum i validnu težinu.';
+      return;
+    }
+
+    this.loggingWeight = true;
+    this.logWeightError = '';
+
+    try {
+      this.profile = await this.profileService.logWeight(this.profile.id, this.newWeightDate, this.newWeightValue);
+      this.newWeightValue = null;
+      await this.loadWeightHistory();
+    } catch (err: any) {
+      this.logWeightError = err.message ?? 'Greška prilikom upisa težine.';
+    } finally {
+      this.loggingWeight = false;
+    }
+  }
+
+  private buildWeightChart() {
+    this.weightChartPoints = [];
+    this.weightChartLinePoints = '';
+    this.weightAreaPath = '';
+    this.weightYGridLines = [];
+    this.weightXAxisLabels = [];
+
+    if (this.weightHistory.length === 0) return;
+
+    this.weightChartWidth = this.chartPaddingLeft + this.chartPaddingRight
+      + Math.max(1, this.weightHistory.length - 1) * this.pointSpacing;
+
+    const weights = this.weightHistory.map(p => p.weight);
+    let minWeight = Math.min(...weights);
+    let maxWeight = Math.max(...weights);
+
+    if (minWeight === maxWeight) {
+      const pad = Math.max(minWeight * 0.1, 0.5);
+      minWeight -= pad;
+      maxWeight += pad;
+    } else {
+      const pad = (maxWeight - minWeight) * 0.15;
+      minWeight -= pad;
+      maxWeight += pad;
+    }
+    minWeight = Math.max(0, minWeight);
+
+    const step = this.computeNiceStep(maxWeight - minWeight);
+    minWeight = Math.floor(minWeight / step) * step;
+    maxWeight = Math.ceil(maxWeight / step) * step;
+    if (maxWeight === minWeight) {
+      maxWeight += step;
+    }
+
+    const innerWidth = this.weightChartWidth - this.chartPaddingLeft - this.chartPaddingRight;
+    const innerHeight = this.chartHeight - this.chartPaddingTop - this.chartPaddingBottom;
+    const xStep = this.weightHistory.length > 1 ? innerWidth / (this.weightHistory.length - 1) : 0;
+
+    const xForIndex = (i: number) => this.chartPaddingLeft
+      + (this.weightHistory.length > 1 ? i * xStep : innerWidth / 2);
+    const yForWeight = (weight: number) => this.chartPaddingTop + innerHeight
+      - ((weight - minWeight) / (maxWeight - minWeight)) * innerHeight;
+
+    this.weightChartPoints = this.weightHistory.map((p, i) => ({
+      x: xForIndex(i),
+      y: yForWeight(p.weight),
+      weight: p.weight,
+      dateLabel: this.formatDateLabel(p.date)
+    }));
+
+    this.weightChartLinePoints = this.weightChartPoints.map(p => `${p.x},${p.y}`).join(' ');
+
+    const baselineY = this.chartHeight - this.chartPaddingBottom;
+    this.weightAreaPath = this.buildAreaPath(this.weightChartPoints, baselineY);
+
+    const tickCount = Math.round((maxWeight - minWeight) / step);
+    for (let i = 0; i <= tickCount; i++) {
+      const value = minWeight + i * step;
+      const y = this.chartPaddingTop + innerHeight - (i / tickCount) * innerHeight;
+      const label = Number.isInteger(value) ? value.toString() : value.toFixed(1);
+      this.weightYGridLines.push({ y, label: `${label} kg` });
+    }
+
+    this.weightXAxisLabels = this.weightHistory.map((p, i) => ({ x: xForIndex(i), label: this.formatDateLabel(p.date) }));
+  }
+
+  private todayDateString(): string {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private applySetFilter() {
@@ -280,7 +452,7 @@ export class ProfileComponent implements OnInit {
     return Math.ceil(range / maxTicks / 500) * 500;
   }
 
-  private buildAreaPath(points: ChartPoint[], baselineY: number): string {
+  private buildAreaPath(points: { x: number; y: number }[], baselineY: number): string {
     if (points.length === 0) return '';
 
     const first = points[0];

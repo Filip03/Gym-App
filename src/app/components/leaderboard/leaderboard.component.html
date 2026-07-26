@@ -4,13 +4,22 @@
     <h2>Leaderboard</h2>
 
     <div class="exercice-select">
-      <label for="exercice">Izaberi vježbu</label>
-      <select id="exercice" [(ngModel)]="selectedExerciceId" (change)="onExerciceChange()" [disabled]="loadingExercices">
-        <option value="">-- Izaberi vježbu --</option>
-        <optgroup *ngFor="let group of exerciceGroups" [label]="group.name">
-          <option *ngFor="let ex of group.exercices" [value]="ex.id">{{ ex.name }}</option>
-        </optgroup>
-      </select>
+      <label>Izaberi vježbu</label>
+      <button
+        type="button"
+        class="exercice-picker-trigger"
+        [disabled]="loadingExercices"
+        (click)="openExercicePicker()"
+      >
+        <span class="trigger-thumb" *ngIf="selectedExercice">
+          <img *ngIf="getExercicePictureUrl(selectedExercice.picture) as url" [src]="url" [alt]="selectedExercice.name">
+          <i class="material-icons" *ngIf="!selectedExercice.picture">fitness_center</i>
+        </span>
+        <span class="trigger-label">
+          {{ loadingExercices ? 'Učitavanje...' : (selectedExercice ? selectedExercice.name : '-- Izaberi vježbu --') }}
+        </span>
+        <i class="material-icons trigger-caret">expand_more</i>
+      </button>
     </div>
 
     <p *ngIf="loadingExercices || loading">Učitavanje...</p>
@@ -83,5 +92,30 @@
 
     </ng-container>
 
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showExercicePicker" (click)="closeExercicePicker()">
+  <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
+    <h2>Izbor vježbe</h2>
+    <div class="muscle-group-section" *ngFor="let group of exerciceGroups">
+      <h3>{{ group.name }}</h3>
+      <div class="exercice-grid">
+        <button
+          type="button"
+          class="exercice-card"
+          *ngFor="let ex of group.exercices"
+          [class.selected]="ex.id === selectedExerciceId"
+          (click)="selectExercice(ex)"
+        >
+          <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name">
+          <span class="ph" *ngIf="!ex.picture"><i class="material-icons">fitness_center</i></span>
+          <h4>{{ ex.name }}</h4>
+        </button>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" (click)="closeExercicePicker()">Zatvori</button>
+    </div>
   </div>
 </div>

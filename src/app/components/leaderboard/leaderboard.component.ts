@@ -1,7 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { LeaderboardService, LeaderboardEntry } from '../../services/leaderboard.service';
-import { MuscleGroupWithExercices } from '../../services/exercice.service';
+import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
+import { Exercice } from '../../models/models';
 
 @Component({
   selector: 'app-leaderboard',
@@ -11,6 +12,7 @@ import { MuscleGroupWithExercices } from '../../services/exercice.service';
 export class LeaderboardComponent implements OnInit {
   exerciceGroups: MuscleGroupWithExercices[] = [];
   selectedExerciceId = '';
+  showExercicePicker = false;
 
   entries: LeaderboardEntry[] = [];
 
@@ -20,6 +22,7 @@ export class LeaderboardComponent implements OnInit {
 
   constructor(
     private leaderboardService: LeaderboardService,
+    private exerciceService: ExerciceService,
     private route: ActivatedRoute
   ) {}
 
@@ -38,6 +41,33 @@ export class LeaderboardComponent implements OnInit {
       this.selectedExerciceId = preselectedExerciceId;
       await this.onExerciceChange();
     }
+  }
+
+  get selectedExercice(): Exercice | null {
+    for (const group of this.exerciceGroups) {
+      const found = group.exercices.find(ex => ex.id === this.selectedExerciceId);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  getExercicePictureUrl(picture: string | null): string | null {
+    return picture ? this.exerciceService.getPublicUrl(picture) : null;
+  }
+
+  openExercicePicker() {
+    if (this.loadingExercices) return;
+    this.showExercicePicker = true;
+  }
+
+  closeExercicePicker() {
+    this.showExercicePicker = false;
+  }
+
+  selectExercice(ex: Exercice) {
+    this.selectedExerciceId = ex.id;
+    this.showExercicePicker = false;
+    this.onExerciceChange();
   }
 
   async onExerciceChange() {
