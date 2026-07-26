@@ -38,7 +38,8 @@
     <div class="exercice-row" #exRow
          *ngFor="let ex of exercices; trackBy: trackById"
          [class.done]="isComplete(ex)"
-         [class.moved]="movedId === ex.id">
+         [class.moved]="selectedId === ex.id"
+         (click)="onRowClick(ex)">
 
       <div class="exercice-main">
         <div class="exercice-info">
@@ -81,12 +82,12 @@
         </div>
 
         <div class="move-actions" *ngIf="reordering">
-          <button type="button" class="icon-btn" [disabled]="isFirst(ex) || reorderSaving"
-                  (click)="move(ex, -1)" aria-label="Pomjeri gore">
+          <button type="button" class="icon-btn" [disabled]="isFirst(ex)"
+                  (click)="move(ex, -1); $event.stopPropagation()" aria-label="Pomjeri gore">
             <i class="material-icons">keyboard_arrow_up</i>
           </button>
-          <button type="button" class="icon-btn" [disabled]="isLast(ex) || reorderSaving"
-                  (click)="move(ex, 1)" aria-label="Pomjeri dolje">
+          <button type="button" class="icon-btn" [disabled]="isLast(ex)"
+                  (click)="move(ex, 1); $event.stopPropagation()" aria-label="Pomjeri dolje">
             <i class="material-icons">keyboard_arrow_down</i>
           </button>
         </div>

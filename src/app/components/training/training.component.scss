@@ -774,14 +774,27 @@
 }
 
 // Pomjerena vježba ostaje istaknuta i nakon animacije, da se vidi šta se desilo.
+//
+// Isticanje se GASI POSTEPENO, ne naglo. Pri brzom klikanju je naglo gašenje
+// izgledalo kao treperenje.
+.exercice-row {
+  transition: border-color 420ms var(--ease),
+              box-shadow 420ms var(--ease);
+}
+
 .exercice-row.moved {
   border-color: var(--volt);
-  box-shadow: 0 0 0 1px var(--volt-a20), 0 0 24px -8px var(--volt-a40);
+  box-shadow: 0 0 0 1px var(--volt-a20), 0 0 26px -8px var(--volt-a40);
+  transition: border-color 120ms var(--ease), box-shadow 120ms var(--ease);
 }
 
 .exercice-row.moved .pos {
   background: var(--volt);
   color: var(--volt-ink);
+}
+
+.exercice-row .pos {
+  transition: background-color 320ms var(--ease), color 320ms var(--ease);
 }
 
 @media (prefers-reduced-motion: reduce) {

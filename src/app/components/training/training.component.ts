@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
@@ -57,7 +57,7 @@ interface TodayExercice extends SessionExercice {
   templateUrl: './training.component.html',
   styleUrls: ['./training.component.scss']
 })
-export class TrainingComponent implements OnInit {
+export class TrainingComponent implements OnInit, OnDestroy {
   loading = true;
   errorMessage = '';
 
@@ -78,10 +78,19 @@ export class TrainingComponent implements OnInit {
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
   reordering = false;
   reorderSaving = false;
-  /** Vježba koja se upravo pomjerila — ostaje istaknuta da se vidi šta se desilo. */
-  movedId: string | null = null;
+  /**
+   * Izabrana vježba u režimu preređivanja.
+   *
+   * Ostaje istaknuta dok se ne poništi — ranije se gasila nakon 1.4s, pa se pri
+   * bržem radu gubila iz vida taman kad je najpotrebnija. Poništava se klikom na
+   * sam red ili klikom bilo gdje van redova.
+   */
+  selectedId: string | null = null;
 
   @ViewChildren('exRow') rowEls!: QueryList<ElementRef<HTMLElement>>;
+
+  private saveTimer: any = null;
+  private readonly flipCleanup = new WeakMap<HTMLElement, (e: TransitionEvent) => void>();
 
   // Izmjena cilja za ovaj trening
   showTargetModal = false;
@@ -420,8 +429,27 @@ export class TrainingComponent implements OnInit {
   // Redoslijed vježbi
   // -------------------------------------------------------------------------
 
+  ngOnDestroy() {
+    clearTimeout(this.saveTimer);
+  }
+
+  /** Klik na sam red poništava izbor; klik na strelice ne (one pomjeraju). */
+  onRowClick(ex: TodayExercice) {
+    if (!this.reordering) return;
+    this.selectedId = this.selectedId === ex.id ? null : ex.id;
+  }
+
+  /** Klik bilo gdje van redova poništava izbor. */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (!this.reordering || !this.selectedId) return;
+    if ((event.target as HTMLElement)?.closest('.exercice-row')) return;
+    this.selectedId = null;
+  }
+
   toggleReorder() {
     this.reordering = !this.reordering;
+    this.selectedId = null;
     this.exercices.forEach(e => { e.menuOpen = false; e.showLogForm = false; });
   }
 
@@ -433,8 +461,6 @@ export class TrainingComponent implements OnInit {
    * trening istog dana — vidi TrainingService.rememberedOrder().
    */
   async move(ex: TodayExercice, direction: -1 | 1) {
-    if (this.reorderSaving) return;
-
     const from = this.exercices.indexOf(ex);
     const to = from + direction;
     if (to < 0 || to >= this.exercices.length) return;
@@ -442,70 +468,96 @@ export class TrainingComponent implements OnInit {
     const rows = this.rowEls.toArray().map(r => r.nativeElement);
     const movedEl = rows[from];
     const otherEl = rows[to];
-    if (!movedEl || !otherEl) return;
 
-    // FLIP: zapamti gdje su redovi BILI prije zamjene.
-    const movedFrom = movedEl.getBoundingClientRect().top;
-    const otherFrom = otherEl.getBoundingClientRect().top;
+    // FLIP: zapamti gdje su redovi BILI. getBoundingClientRect uračunava i
+    // transformaciju u toku, pa uzastopni klikovi nastavljaju iz zatečenog
+    // položaja umjesto da se trzaju.
+    const movedFrom = movedEl?.getBoundingClientRect().top;
+    const otherFrom = otherEl?.getBoundingClientRect().top;
 
     const list = [...this.exercices];
     [list[from], list[to]] = [list[to], list[from]];
+    list.forEach((e, i) => e.orderNum = i + 1);   // brojevi odmah, ne nakon upisa
     this.exercices = list;
-    this.movedId = ex.id;
 
-    // Angular je već premjestio čvorove; vrati ih vizuelno na staro mjesto pa
-    // pusti prelaz — tako se vidi PUTANJA, a ne samo krajnji raspored.
-    requestAnimationFrame(() => {
-      const after = this.rowEls.toArray().map(r => r.nativeElement);
-      const movedNow = after[to];
-      const otherNow = after[from];
-      if (!movedNow || !otherNow) return;
+    this.selectedId = ex.id;
 
-      const dMoved = movedFrom - movedNow.getBoundingClientRect().top;
-      const dOther = otherFrom - otherNow.getBoundingClientRect().top;
+    if (movedEl && otherEl && movedFrom != null && otherFrom != null) {
+      requestAnimationFrame(() => {
+        const after = this.rowEls.toArray().map(r => r.nativeElement);
+        const movedNow = after[to];
+        const otherNow = after[from];
+        if (!movedNow || !otherNow) return;
 
-      // Pomjerena vježba ide PREKO druge: viši sloj, blago uvećana, sa sjenkom.
-      // Druga se malo skuplja i prolazi ispod — otud osjećaj dubine.
-      this.flip(movedNow, dMoved, 1.035, 6, true);
-      this.flip(otherNow, dOther, 0.985, 1, false);
-    });
+        // Pokret NADOLJE se percipira brže od pokreta nagore pri istom trajanju
+        // — ide "niz gravitaciju". Zato spuštanje dobija više vremena, da oba
+        // smjera djeluju jednako.
+        const ms = direction === 1 ? 660 : 560;
 
+        // Pomjerena ide PREKO druge: viši sloj, uvećana, sa sjenkom.
+        this.flip(movedNow, movedFrom - movedNow.getBoundingClientRect().top, 1.05, 6, true, ms);
+        this.flip(otherNow, otherFrom - otherNow.getBoundingClientRect().top, 0.965, 1, false, ms);
+      });
+    }
+
+    // Upis se odgađa: pri brzom preređivanju nema smisla slati sedam izmjena
+    // poslije svakog klika. Ekran je već tačan, baza sustiže kad se korisnik
+    // smiri.
+    clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => this.persistOrder(), 600);
+  }
+
+  private async persistOrder() {
+    if (!this.session) return;
+
+    const snapshot = this.exercices.map((e, i) => ({ id: e.id, orderNum: i + 1 }));
     this.reorderSaving = true;
+
     try {
-      await this.trainingService.setOrder(list.map((e, i) => ({ id: e.id, orderNum: i + 1 })));
-      list.forEach((e, i) => e.orderNum = i + 1);
+      await this.trainingService.setOrder(snapshot);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom promjene redoslijeda.');
-      const back = [...this.exercices];
-      [back[from], back[to]] = [back[to], back[from]];
-      this.exercices = back;
+      await this.hydrate();   // vrati ekran na ono što baza stvarno ima
     } finally {
       this.reorderSaving = false;
-      setTimeout(() => { if (this.movedId === ex.id) this.movedId = null; }, 900);
     }
   }
 
-  /** Jedan korak FLIP animacije nad jednim redom. */
-  private flip(el: HTMLElement, dy: number, scale: number, z: number, lift: boolean) {
+  /**
+   * Jedan korak FLIP animacije nad jednim redom.
+   *
+   * Prethodni slušač se skida prije novog — inače bi kraj stare animacije
+   * obrisao stilove usred nove i red bi zatreperio.
+   */
+  private flip(el: HTMLElement, dy: number, scale: number, z: number, lift: boolean, ms: number) {
+    const prev = this.flipCleanup.get(el);
+    if (prev) { el.removeEventListener('transitionend', prev); this.flipCleanup.delete(el); }
+
     el.style.transition = 'none';
     el.style.zIndex = String(z);
     el.style.transform = `translateY(${dy}px) scale(${scale})`;
     if (lift) el.style.boxShadow = 'var(--lift-3)';
 
     requestAnimationFrame(() => {
-      el.style.transition = 'transform 380ms cubic-bezier(0.34, 1.24, 0.5, 1), box-shadow 380ms ease';
+      // Sa prebačajem — da se pomak vidi i osjeti, a ne da samo škljocne.
+      el.style.transition =
+        `transform ${ms}ms cubic-bezier(0.2, 1.5, 0.35, 1), box-shadow ${ms}ms ease-out`;
       el.style.transform = 'translateY(0) scale(1)';
       el.style.boxShadow = '';
 
-      const done = () => {
+      const done = (e: TransitionEvent) => {
+        if (e.propertyName !== 'transform') return;
         el.style.transition = '';
         el.style.zIndex = '';
         el.style.transform = '';
         el.removeEventListener('transitionend', done);
+        this.flipCleanup.delete(el);
       };
       el.addEventListener('transitionend', done);
+      this.flipCleanup.set(el, done);
     });
   }
+
 
   /** Bez ovoga Angular pri zamjeni pravi nove čvorove i animacija nema šta da pomjera. */
   trackById = (_: number, ex: TodayExercice) => ex.id;
