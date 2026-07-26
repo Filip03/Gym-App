@@ -105,6 +105,22 @@ export class ProfileService {
     return this.updateProfile(profileId, { weight: latest.weight });
   }
 
+  /** Svi članovi — za mapiranje `id → korisničko ime` (blog, poređenja). */
+  async getAllProfiles(): Promise<{ id: string; username: string; avatarUrl: string | null }[]> {
+    const { data, error } = await this.supabase.client
+      .from('profiles')
+      .select('id, username, profile_pic_url')
+      .order('username', { ascending: true });
+
+    if (error) throw error;
+
+    return ((data ?? []) as any[]).map(p => ({
+      id: p.id as string,
+      username: (p.username ?? 'Nepoznat') as string,
+      avatarUrl: p.profile_pic_url ? this.getPublicUrl(p.profile_pic_url) : null
+    }));
+  }
+
   async getOtherProfiles(excludeUserId: string): Promise<{ id: string; username: string }[]> {
     const { data, error } = await this.supabase.client
       .from('profiles')

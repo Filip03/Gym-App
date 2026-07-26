@@ -55,6 +55,7 @@ baze, pa može ići paralelno sa Fazom 0.
 | 1.14 | Ulazne animacije (vježbe, dashboard) i klizni prekidač | — | ☑ GOTOVO |
 | 1.15 | Kalendar treninga u profilu + statistika | — | ☑ GOTOVO |
 | 1.16 | Prevlačenje prstom kroz dane plana | — | ☑ GOTOVO |
+| 1.17 | Blog: feed sa autorom, grupisanje po periodu, novi pregled | — | ☑ GOTOVO |
 
 ---
 

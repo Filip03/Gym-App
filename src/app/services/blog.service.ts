@@ -8,6 +8,16 @@ export interface BlogMediaItem {
   url: string;
   type: 'image' | 'video';
   createdAt: string;
+  /**
+   * Ko je postavio. Supabase sam upisuje `owner` pri otpremanju, pa autor ne
+   * traži ni novu tabelu ni kolonu — samo mapiranje id → korisničko ime.
+   *
+   * Prazno za fajlove ubačene skriptom (lokalni seed), jer tada nema
+   * prijavljenog korisnika. Prikazuje se kao „—", ne izmišlja se.
+   */
+  ownerId: string | null;
+  /** Veličina u bajtovima — koristi se za prikaz uštede nakon kompresije. */
+  size: number;
 }
 
 @Injectable({
@@ -34,7 +44,9 @@ export class BlogService {
           name: file.name,
           url: this.getPublicUrl(file.name),
           type: isVideo ? 'video' : 'image',
-          createdAt: file.created_at ?? ''
+          createdAt: file.created_at ?? '',
+          ownerId: ((file as any).owner as string | null) || null,
+          size: Number(file.metadata?.['size'] ?? 0)
         };
       });
   }

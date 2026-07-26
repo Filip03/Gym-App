@@ -19,7 +19,7 @@ const ROUTES: Record<string, RouteMeta> = {
   '/exercices':   { title: 'Vježbe',      back: null },
   '/leaderboard': { title: 'Ekipa',       back: null },
   '/profiles':    { title: 'Profil',      back: null },
-  '/blog':        { title: 'Ekipa',       back: null }
+  '/blog':        { title: 'Blog',        back: null }
 };
 
 @Component({

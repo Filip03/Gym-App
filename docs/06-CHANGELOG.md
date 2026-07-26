@@ -1165,3 +1165,56 @@ se mjeri, plus dugme „Prikaži još" kad članova bude više od šest.
 - `src/app/components/leaderboard/*` — „Svi" naslov, `Prikaži još`
 - `src/app/components/profile/*` — `personalBest`, `CHART_RANGES`, prepisan `buildChart`
 - `src/styles/_base.scss` — `white-space: nowrap` na `.seg button`
+
+---
+
+## [2026-07-26] Blog: iz mreže u feed, sa autorom i grupisanjem
+**Tip:** redizajn / funkcionalnost
+**Ref:** Roadmap 1.17
+
+**Problem:** Posljednji ekran sa zatečenim stilom. Ravna mreža kvadrata bez
+ijednog zaglavlja — nije se vidjelo ni kad je šta objavljeno, ni ko je objavio,
+ni da je nešto novo. Marko: *„nestrukturiran, nema karaktera"*, a poslije prve
+verzije i *„budno za gledanje"*.
+
+**Rješenje:**
+
+*Autor bez ijedne nove tabele.* Supabase sam upisuje `owner` u
+`storage.objects` pri otpremanju, a `.list()` to vraća — treba samo mapiranje
+`id → korisničko ime` iz `profiles`. Dodat `ProfileService.getAllProfiles()`.
+
+> Dvije postojeće objave u lokalnom seedu nemaju autora jer ih je ubacila
+> skripta, bez prijavljenog korisnika. Prikazuju se kao „—"; **nove objave iz
+> aplikacije imaće ime**, jer se otpremaju sa korisnikovom sesijom.
+
+*Grupisanje po periodu* — Danas / Juče / Ove sedmice / pa po mjesecima. Datum
+objave već postoji u metapodacima, pa vremenska os ne košta ništa.
+
+*Feed umjesto mreže.* Prva verzija je bila mreža sa jednom „dvostrukom" pločom
+za ritam, ali je i dalje bila naporna: nekoliko slika različitog sadržaja jedna
+do druge, sve isječene na kvadrat. Sada je **jedna objava po redu** — avatar,
+ime i vrijeme iznad, pa slika. Slika se prikazuje **cijela** (`object-fit:
+contain`), ne isječena; kod nas su i uspravne fotografije s telefona i vodoravni
+snimci, a sjecanje na kvadrat je odsijecalo pola sadržaja. Gornja granica
+`62svh` sprječava da uspravna slika pojede ekran.
+
+*Pregled* dobio traku sa autorom i vremenom, brojač („3 / 12"), strelice,
+tastaturu (←/→/Esc) i prevlačenje prstom. Ranije se otvarala jedna slika bez
+načina da se pređe na sljedeću.
+
+*Kompresija i otprema* — jedna traka napretka umjesto tri odvojena reda teksta.
+Kad se napredak ne može izmjeriti, traka putuje umjesto da stoji na 100%.
+
+**Zatečena greška:** `/blog` je u zaglavlju imao naslov **„Ekipa"**. To je bilo i
+prije, ali se nije primjećivalo dok rang lista nije preimenovana u „Ekipa" — od
+tada su dva ekrana nosila isti naslov.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/blog.service.ts` — `ownerId`, `size` u `BlogMediaItem`
+- `src/app/services/profile.service.ts` — `getAllProfiles()`
+- `src/app/components/blog/*` — grupisanje, feed, pregled sa kretanjem
+- `src/app/components/header/header.component.ts:22` — naslov „Blog"
+
+**Napomene:** provjereno da svih 40 klasa iz predloška ima stil (nakon što je
+isti propust ranije napravljen kod birača osobe). Objave se i dalje ne mogu
+brisati iz aplikacije — to traži i RLS pravilo, pa ide zasebno.
