@@ -50,6 +50,7 @@ baze, pa može ići paralelno sa Fazom 0.
 | 1.9 | Favicon putanja | A8 | ☑ GOTOVO |
 | 1.10 | Avatar prima video (`avatar.mp4` u `<img>`) — validacija tipa fajla | A10 | ☐ ČEKA |
 | 1.11 | Nalog bez profila ruši svaki ekran — `handle_new_user()` bez zaštite | A11, S8 | ☐ ČEKA |
+| 1.12 | Jedinstven birač vježbe na sva četiri mjesta (trening, rang lista, napredak) | — | ☑ GOTOVO |
 
 ---
 

@@ -69,18 +69,19 @@
         <h3>Progres</h3>
 
         <div class="exercice-select">
-          <label for="progressExercice">Izaberi vježbu</label>
-          <select
-            id="progressExercice"
-            [(ngModel)]="selectedExerciceId"
-            (change)="onProgressExerciceChange()"
-            [disabled]="loadingExerciceGroups"
-          >
-            <option value="">-- Izaberi vježbu --</option>
-            <optgroup *ngFor="let group of exerciceGroups" [label]="group.name">
-              <option *ngFor="let ex of group.exercices" [value]="ex.id">{{ ex.name }}</option>
-            </optgroup>
-          </select>
+          <label>Izaberi vježbu</label>
+          <button type="button" class="pick-field" [disabled]="loadingExerciceGroups"
+                  (click)="showPicker = true">
+            <img *ngIf="selectedExercice?.picture"
+                 [src]="pictureUrl(selectedExercice!.picture)" [alt]="selectedExercice!.name">
+            <span class="pf-ph" *ngIf="!selectedExercice?.picture">
+              <i class="material-icons">fitness_center</i>
+            </span>
+            <span class="pf-name" [class.empty-choice]="!selectedExercice">
+              {{ selectedExercice ? selectedExercice.name : 'Izaberi vježbu' }}
+            </span>
+            <i class="material-icons">expand_more</i>
+          </button>
         </div>
 
         <div class="exercice-select" *ngIf="selectedExerciceId && otherProfiles.length > 0">
@@ -189,3 +190,14 @@
 
   </div>
 </div>
+
+
+<app-exercice-picker
+  *ngIf="showPicker"
+  title="Izaberi vježbu"
+  note="Grafikon prikazuje napredak po izabranoj vježbi."
+  [groups]="pickerGroups"
+  [selectedId]="selectedExerciceId"
+  (pick)="onPick($event)"
+  (dismiss)="showPicker = false">
+</app-exercice-picker>

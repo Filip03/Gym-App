@@ -270,6 +270,53 @@ button:not(:disabled):active { transform: scale(0.97); }
   border-color: var(--ember);
 }
 
+// Polje koje otvara birač vježbe (leaderboard, napredak u profilu).
+//
+// Izgleda kao `<select>` da se ne razlikuje od ostalih polja, ali otvara
+// `<app-exercice-picker>` sa slikama i pretragom umjesto sistemskog točka sa
+// pedesetak naziva, u kojem se na telefonu vježba traži naslijepo.
+.pick-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 46px;
+  padding: var(--s-2) var(--s-4) var(--s-2) var(--s-2);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  text-align: left;
+}
+
+.pick-field:hover { border-color: var(--line-strong); }
+
+.pick-field img,
+.pick-field .pf-ph {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--carbon);
+}
+
+.pick-field .pf-ph { display: grid; place-items: center; color: var(--dust); }
+.pick-field .pf-ph .material-icons { font-size: 20px; }
+
+.pick-field .pf-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  color: var(--ice);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick-field .pf-name.empty-choice { color: var(--dust); font-weight: 400; }
+.pick-field > .material-icons:last-child { flex: none; color: var(--mist); }
+
 // --- Površine --------------------------------------------------------------
 
 .panel {

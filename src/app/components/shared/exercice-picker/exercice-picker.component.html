@@ -1,0 +1,63 @@
+<div class="modal-overlay picker-overlay" (click)="dismiss.emit()">
+  <div class="modal-card picker-card" (click)="$event.stopPropagation()">
+
+    <header class="picker-head">
+      <div class="picker-title">
+        <h3>{{ title }}</h3>
+        <p class="picker-note" *ngIf="note">{{ note }}</p>
+      </div>
+      <button type="button" class="picker-close" (click)="dismiss.emit()" aria-label="Zatvori">
+        <i class="material-icons">close</i>
+      </button>
+    </header>
+
+    <div class="picker-tools">
+      <div class="scope-switch" *ngIf="suggested">
+        <button type="button" [class.on]="scope === 'suggested'" (click)="setScope('suggested')">
+          {{ suggestedLabel }}
+        </button>
+        <button type="button" [class.on]="scope === 'all'" (click)="setScope('all')">
+          {{ allLabel }}
+        </button>
+      </div>
+
+      <div class="picker-search">
+        <i class="material-icons">search</i>
+        <input #search type="text" [(ngModel)]="query" placeholder="Traži vježbu..."
+               autocomplete="off" spellcheck="false" />
+        <button type="button" class="picker-clear" *ngIf="query" (click)="query = ''"
+                aria-label="Očisti pretragu">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+    </div>
+
+    <div class="picker-body">
+
+      <p *ngIf="loading" class="empty">Učitavanje...</p>
+
+      <ng-container *ngIf="!loading">
+        <section class="picker-group" *ngFor="let g of shown; trackBy: trackGroup">
+          <h4 class="pg-name" *ngIf="g.name">{{ g.name }}</h4>
+
+          <div class="picker-grid">
+            <button type="button" class="picker-option"
+                    *ngFor="let o of g.items; trackBy: trackOption"
+                    [class.current]="o.id === selectedId"
+                    [disabled]="busy"
+                    (click)="pick.emit(o)">
+              <img *ngIf="o.picture" [src]="pictureUrl(o.picture)" [alt]="o.name" loading="lazy">
+              <span class="ph" *ngIf="!o.picture"><i class="material-icons">fitness_center</i></span>
+              <span class="po-name">{{ o.name }}</span>
+              <i class="material-icons po-check" *ngIf="o.id === selectedId">check_circle</i>
+            </button>
+          </div>
+        </section>
+
+        <p *ngIf="shown.length === 0" class="empty">{{ emptyText }}</p>
+      </ng-container>
+
+    </div>
+
+  </div>
+</div>

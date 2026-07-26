@@ -4,6 +4,9 @@ import { AuthService } from '../../services/auth.service';
 import { ProfileService, ProgressPoint } from '../../services/profile.service';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { Profile } from '../../models/models';
+import {
+  PickerGroup, PickerOption, toPickerGroups
+} from '../shared/exercice-picker/exercice-picker.component';
 
 interface ChartPoint {
   x: number;
@@ -41,6 +44,11 @@ export class ProfileComponent implements OnInit {
   exerciceGroups: MuscleGroupWithExercices[] = [];
   loadingExerciceGroups = true;
   selectedExerciceId = '';
+
+  // Birač vježbe — isti kao u treningu, umjesto sistemskog <select>.
+  pickerGroups: PickerGroup[] = [];
+  showPicker = false;
+  selectedExercice: PickerOption | null = null;
 
   otherProfiles: { id: string; username: string }[] = [];
   compareUserId = '';
@@ -98,6 +106,7 @@ export class ProfileComponent implements OnInit {
     try {
       const groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
       this.exerciceGroups = groups.filter(g => g.exercices.length > 0);
+      this.pickerGroups = toPickerGroups(this.exerciceGroups);
     } catch (err: any) {
       this.progressError = err.message ?? 'Greška pri učitavanju vježbi.';
     } finally {
@@ -110,11 +119,34 @@ export class ProfileComponent implements OnInit {
       // Poređenje sa drugim korisnicima jednostavno neće biti ponuđeno
     }
 
+    // Iz treninga se dolazi sa ?exercice=..., pa se izbor podešava unaprijed.
     const preselectedExerciceId = this.route.snapshot.queryParamMap.get('exercice');
     if (preselectedExerciceId) {
       this.selectedExerciceId = preselectedExerciceId;
+      this.selectedExercice = this.findOption(preselectedExerciceId);
       await this.onProgressExerciceChange();
     }
+  }
+
+  onPick(option: PickerOption) {
+    this.showPicker = false;
+    if (option.id === this.selectedExerciceId) return;
+
+    this.selectedExercice = option;
+    this.selectedExerciceId = option.id;
+    void this.onProgressExerciceChange();
+  }
+
+  pictureUrl(picture: string | null): string | null {
+    return picture ? this.exerciceService.getPublicUrl(picture) : null;
+  }
+
+  private findOption(id: string): PickerOption | null {
+    for (const g of this.pickerGroups) {
+      const hit = g.items.find(o => o.id === id);
+      if (hit) return hit;
+    }
+    return null;
   }
 
   async onProgressExerciceChange() {

@@ -502,3 +502,68 @@ napravljen → tihi uzorak → jedno dekodiranje (253 kB) → klip pušten.
 
 Ako se i dalje ne čuje: provjeriti bočni prekidač na iPhoneu za `<audio>` put i
 da Safari nije stariji od 16.4 (`audioSession` API).
+
+---
+
+## [2026-07-26] Jedinstven birač vježbe — jedna komponenta umjesto četiri načina
+**Tip:** funkcionalnost / refaktor
+**Ref:** Roadmap 1.12
+
+**Problem:** Vježba se bira na četiri mjesta, a svako je to radilo drukčije:
+
+| Mjesto | Prije |
+|---|---|
+| trening → „Dodaj vježbu" | grupisan katalog sa slikama, pretragom i prekidačem opsega |
+| trening → „Zamijeni" | ravna lista vježbi iz iste mišićne grupe, bez kataloga |
+| rang lista | obični `<select>` sa `<optgroup>` |
+| profil → napredak | isti obični `<select>` |
+
+Dvije stvarne posljedice, ne samo nedosljedan izgled:
+
+1. **Zamjena je bila slijepa ulica.** Nudila je samo vježbe iz iste mišićne
+   grupe. Ako željene vježbe nije bilo među njima — nije se imalo šta uraditi,
+   jer katalog nije postojao u tom modalu.
+2. **`<select>` je na telefonu sistemski točak** sa pedesetak naziva bez slika.
+   Vježba se traži naslijepo, listanjem.
+
+**Rješenje:** Izdvojena komponenta `<app-exercice-picker>` koja crta cijeli modal
+(pozadinu i karticu), pa je poziv na sva četiri mjesta isti. Nosi pretragu,
+katalog grupisan po mišićnim grupama sa slikama, i opcioni prekidač opsega kad
+postoji uži izbor:
+
+| Mjesto | Uži izbor | Katalog |
+|---|---|---|
+| „Dodaj vježbu" | „Za današnji dan" | sve, bez onih koje su već u treningu |
+| „Zamijeni" | „Slične vježbe" | sve, bez onih koje su već u treningu |
+| rang lista | — | sve |
+| napredak | — | sve |
+
+**Dodirnuti fajlovi:**
+- `src/app/components/shared/exercice-picker/*` — nova komponenta; izvozi i
+  `toPickerGroups()` / `flattenGroups()` za pretvaranje kataloga iz servisa
+- `src/app/components/training/training.component.ts:740` — `openAdd()` i
+  `openSwap()` sada oba pune `pickerGroups` + `pickerSuggested`; uklonjeni
+  `swapOptions`, `swapFilter`, `swapScope`, `swapGroups`, `swapDayIds`,
+  `filteredSwapOptions`, `visibleGroups`, `setSwapScope`
+- `src/app/components/training/training.component.html` — 55 redova modala
+  zamijenjeno jednim pozivom komponente
+- `src/app/components/training/training.component.scss` — obrisani stilovi
+  birača (15.6 kB → 14.3 kB)
+- `src/app/components/leaderboard/*`, `src/app/components/profile/*` —
+  `<select>` zamijenjen poljem `.pick-field` koje otvara birač
+- `src/styles/_base.scss` — `.pick-field`, globalna primitiva za to polje
+- `src/app/app.module.ts` — registracija komponente
+
+**Efekat:** Zamjena vježbe sada ima cijeli katalog, isti kao dodavanje. Rang
+lista i napredak imaju slike i pretragu umjesto sistemskog točka. Provjereno u
+pregledaču na sva četiri mjesta.
+
+**Napomene:**
+- Pretraga se fokusira sama **samo** na uređaju sa mišem
+  (`(hover: hover) and (pointer: fine)`). Na telefonu bi autofokus podigao
+  tastaturu i pokrio upravo mrežu sa slikama zbog koje birač postoji.
+- Kartica ima **fiksnu visinu** (88dvh / 78vh), ne visinu sadržaja — inače bi
+  ploča skakala ispod prsta na svako otkucano slovo.
+- Uži izbor zna biti prazan (vježba bez upisane mišićne grupe); tada se odmah
+  otvara katalog, jer prazan ekran sa prekidačem izgleda kao kvar.
+- Escape zatvara birač.

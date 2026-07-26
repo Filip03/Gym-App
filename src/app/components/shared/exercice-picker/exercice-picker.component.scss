@@ -1,0 +1,222 @@
+// Birač vježbe — vidi komentar u .ts za razlog postojanja.
+
+:host { display: contents; }
+
+.picker-overlay { z-index: 160; }
+
+// Kartica ima FIKSNU visinu, ne visinu sadržaja.
+//
+// Sadržaj se mijenja na svako otkucano slovo. Da kartica prati sadržaj, ploča bi
+// pri kucanju skakala gore-dolje ispod prsta. Zato je visina zadata, a skroluje
+// samo tijelo — zaglavlje sa pretragom ostaje na mjestu.
+.picker-card {
+  display: flex;
+  flex-direction: column;
+  height: 88dvh;
+  padding: 0;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .picker-card { height: min(78vh, 760px); }
+}
+
+// --- Zaglavlje -------------------------------------------------------------
+
+.picker-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-5) var(--s-5) var(--s-3);
+}
+
+.picker-title { flex: 1; min-width: 0; }
+
+.picker-head h3 {
+  font-size: var(--t-lg);
+  line-height: var(--lh-tight);
+}
+
+.picker-note {
+  margin-top: var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--mist);
+  line-height: var(--lh-snug);
+}
+
+.picker-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-full);
+  background: var(--carbon-high);
+  color: var(--mist);
+}
+
+.picker-close:hover { background: var(--steel); color: var(--ice); }
+
+// --- Alatke (opseg + pretraga) ---------------------------------------------
+// Ostaju vidljive dok se lista skroluje.
+
+.picker-tools {
+  flex: none;
+  padding: 0 var(--s-5) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.scope-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  margin-bottom: var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.scope-switch button {
+  flex: 1;
+  min-height: 36px;
+  border-radius: calc(var(--r-sm) - 2px);
+  color: var(--mist);
+  font-size: var(--t-xs);
+  font-weight: 600;
+}
+
+.scope-switch button:hover { color: var(--ice); }
+
+.scope-switch button.on {
+  background: var(--volt);
+  color: var(--volt-ink);
+}
+
+.picker-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.picker-search > .material-icons {
+  position: absolute;
+  left: var(--s-3);
+  font-size: 20px;
+  color: var(--dust);
+  pointer-events: none;
+}
+
+.picker-search input {
+  padding-left: calc(var(--s-3) + 20px + var(--s-2));
+  padding-right: var(--s-9);
+}
+
+.picker-clear {
+  position: absolute;
+  right: var(--s-2);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-full);
+  color: var(--dust);
+}
+
+.picker-clear .material-icons { font-size: 18px; }
+.picker-clear:hover { background: var(--carbon-high); color: var(--ice); }
+
+// --- Lista -----------------------------------------------------------------
+
+.picker-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--s-4) var(--s-5) calc(var(--s-6) + var(--safe-b));
+}
+
+.picker-group + .picker-group { margin-top: var(--s-5); }
+
+.pg-name {
+  margin-bottom: var(--s-2);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--volt);
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--s-3);
+}
+
+// Na telefonu tačno dvije kolone. `auto-fill` bi na 360px dao tri stisnute
+// kartice u kojima se naziv lomi u tri reda.
+@media (max-width: 560px) {
+  .picker-grid { grid-template-columns: repeat(2, 1fr); }
+  .picker-head, .picker-tools { padding-inline: var(--s-4); }
+  .picker-body { padding-inline: var(--s-4); }
+}
+
+.picker-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  text-align: left;
+
+  transition: border-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease-out),
+              background-color var(--d-fast) var(--ease);
+}
+
+.picker-option:not(:disabled):hover {
+  border-color: var(--volt-a40);
+  transform: translateY(-2px);
+}
+
+.picker-option img,
+.picker-option .ph {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--carbon);
+}
+
+.picker-option .ph {
+  display: grid;
+  place-items: center;
+  color: var(--dust);
+}
+
+.po-name {
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--ice);
+  line-height: var(--lh-snug);
+}
+
+// Trenutni izbor — da se pri ponovnom otvaranju odmah vidi na čemu si stao.
+.picker-option.current {
+  border-color: var(--volt);
+  background: var(--volt-a10);
+}
+
+.po-check {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  font-size: 22px;
+  color: var(--volt);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, .6);
+}
