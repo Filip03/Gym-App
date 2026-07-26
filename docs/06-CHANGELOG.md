@@ -1463,3 +1463,35 @@ visinu roditelja. U gridu to znači i zadan red, ne samo zadanu visinu kontejner
 
 **Dodirnuti fajlovi:** `blog`, `dashboard`, `exercices`, `landing` (scss),
 `blog.component.ts` (pokret nadolje)
+
+---
+
+## [2026-07-26] Modal težine: jednaka polja i čitljiv grafikon na telefonu
+**Tip:** popravka
+**Ref:** —
+
+**1. Datum je bio šire polje od kilaže.** Imao je osnovnu širinu 200px prema
+130px za kilažu, bez razloga — sadržaj mu je kratak. Sada su oba `130px`, pa su
+jednaka na svakoj širini (mjereno: 140/140, 185/185, 235/235).
+
+Da bi kraći zapis stao bez skraćivanja, uklonjena je ikona kalendara iz polja
+(oznaka „DATUM" je iznad) i **godina se izostavlja kad je tekuća** — u praksi se
+upisuje današnji ili jučerašnji dan, pa „2026." samo troši širinu.
+
+**2. Grafikon je na uskom ekranu bio nečitljiv.** SVG se razvlači na širinu
+kartice, pa se sa njim skalira i **tekst**. Sa fiksnom koordinatnom mrežom od
+560 na uskom telefonu ispadao je odnos **0,46** — natpisi ose od 10px postajali
+su 4,6px.
+
+Sada je crtež uži na uskom ekranu (`viewBox` 360 umjesto 560), pa odnos ostaje
+blizu jedan. Mjereno na 390px: odnos **0,80**, tekst 8,0px. Sadržaj se ne
+mijenja, samo koordinatna mreža. Crtež se ponovo slaže na promjenu širine
+prozora.
+
+**Provjereno na 300 / 360 / 430 / 520 / 620 px:** nijedan element ne prelijeva
+karticu i nijedan ne nestaje.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/profile/profile.component.ts` — `chartSpan` postao getter
+  ovisan o širini ekrana, `weightDateLabel`, `@HostListener('window:resize')`
+- `src/app/components/profile/profile.component.{html,scss}`

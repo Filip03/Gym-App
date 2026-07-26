@@ -645,7 +645,9 @@
 }
 
 .wm-field { min-width: 0; }
-.wm-field:nth-child(1) { flex: 1 1 200px; }   // datum traži više mjesta
+// Oba polja jednaka. Ranije je datum imao 200px a kilaža 130px, pa je datum
+// bio vidno šire polje bez razloga — sadržaj mu je kratak („26.07.").
+.wm-field:nth-child(1),
 .wm-field:nth-child(2) { flex: 1 1 130px; }
 
 .wm-field label {
@@ -658,9 +660,8 @@
 
 // Datum + prečica „danas". Nativni birač ostaje jer je na telefonu najbrži, ali
 // se u praksi upisuje današnji dan, pa dugme štedi tri dodira.
-.wm-date { position: relative; display: flex; align-items: center; }
 
-.wm-date input { padding-right: 62px; }
+
 
 .wm-today {
   position: absolute;
