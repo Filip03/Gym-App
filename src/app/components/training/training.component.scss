@@ -962,3 +962,36 @@
 }
 
 .note-shown:hover { background: var(--steel); }
+
+// --- Odloženi upisi --------------------------------------------------------
+//
+// Teretane imaju loš signal. Do sada je pad mreže značio crvenu poruku i
+// izgubljenu seriju; sada upis ide u red u `localStorage` i šalje se čim mreža
+// proradi. Ova traka postoji da se to VIDI — inače bi korisnik mislio da serija
+// nije zapamćena i upisao je ponovo.
+
+.offline-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--gold);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  color: var(--ice);
+}
+
+.offline-bar .material-icons { font-size: 18px; color: var(--gold); }
+
+.ob-text { flex: 1; }
+.ob-note { font-size: var(--t-2xs); color: var(--dust); }
+
+// Serija koja čeka slanje — isprekidan obrub, kao „još nije konačno".
+.set.pending {
+  border-style: dashed;
+  border-color: var(--gold);
+  opacity: .85;
+}

@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
+import { OfflineQueueService } from './offline-queue.service';
 import { DashboardService } from './dashboard.service';
 import { ExerciceLog } from '../models/models';
 
@@ -54,8 +55,23 @@ export class TrainingService {
 
   constructor(
     private supabase: SupabaseService,
-    private dashboardService: DashboardService
-  ) {}
+    private dashboardService: DashboardService,
+    private queue: OfflineQueueService
+  ) {
+    // Red čekanja ne poznaje bazu — ovdje mu se kaže kako se upis stvarno šalje.
+    // Registruje se i pri pokretanju aplikacije, pa se zaostali upisi iz
+    // prethodne sesije pošalju čim ima mreže, i bez otvaranja ekrana treninga.
+    this.queue.registerSender(entry => this.insertLog({
+      userId: entry.userId,
+      sessionId: entry.sessionId,
+      exerciceId: entry.exerciceId,
+      planId: entry.planId,
+      date: entry.date,
+      setNumber: entry.setNumber,
+      reps: entry.reps,
+      weight: entry.weight
+    }));
+  }
 
   // -------------------------------------------------------------------------
   // Plan
@@ -377,6 +393,19 @@ export class TrainingService {
   }
 
   async logSet(entry: {
+    userId: string;
+    sessionId: string;
+    exerciceId: string;
+    planId: string | null;
+    date: string;
+    setNumber: number;
+    reps: number;
+    weight: number;
+  }): Promise<ExerciceLog> {
+    return this.insertLog(entry);
+  }
+
+  private async insertLog(entry: {
     userId: string;
     sessionId: string;
     exerciceId: string;

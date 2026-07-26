@@ -30,6 +30,16 @@
     </div>
   </div>
 
+  <!-- Upisi koji čekaju mrežu. Bez ovoga bi korisnik mislio da je serija
+       izgubljena, pa bi je upisao ponovo. -->
+  <div class="offline-bar" *ngIf="queue.pending > 0">
+    <i class="material-icons">{{ queue.online ? 'sync' : 'cloud_off' }}</i>
+    <span class="ob-text">
+      {{ queue.online ? 'Šaljem…' : pendingLabel }}
+    </span>
+    <span class="ob-note" *ngIf="!queue.online">Sačuvano na telefonu</span>
+  </div>
+
   <!-- Bilješka uz TAJ dan treninga (kolona `note`, jedna po danu). -->
   <div class="note-box" *ngIf="showNote">
     <textarea [(ngModel)]="noteText" rows="2" maxlength="280"
@@ -164,7 +174,9 @@
           <button type="button" class="set" *ngIf="!set.editing" [disabled]="isFinished"
                   [class.up]="set.delta === 'up'"
                   [class.down]="set.delta === 'down'"
-                  [title]="set.prevLabel ?? 'Prvi put ova serija'"
+                  [class.pending]="set.pending"
+                  [title]="set.pending ? 'Čeka mrežu — sačuvano na telefonu'
+                                       : (set.prevLabel ?? 'Prvi put ova serija')"
                   (click)="startEditSet(set)">
             <span class="set-n num">{{ set.setNumber }}</span>
 

@@ -795,8 +795,11 @@
   place-items: center;
   width: 30px;
   height: 30px;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  color: var(--mist);
+  color: var(--ice);
 }
 
 .cal-nav button:not(:disabled):hover { background: var(--carbon-high); color: var(--ice); }
@@ -804,13 +807,32 @@
 .cal-nav .material-icons { font-size: 20px; }
 
 .cal-title {
-  min-width: 118px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 138px;
+
   font-family: var(--font-data);
   font-size: var(--t-xs);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
   color: var(--ice);
+}
+
+// Broj treninga u PRIKAZANOM mjesecu.
+//
+// Bez njega listanje mjeseci nije davalo nikakav brojčani odgovor — mijenjala
+// se samo mreža, pa je izgledalo kao da strelice ne rade. Ostale brojke prate
+// klizni opseg i namjerno se ne mijenjaju sa mjesecom.
+.cal-count {
+  padding: 1px 7px;
+  background: var(--volt-a10);
+  border-radius: var(--r-full);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--volt);
 }
 
 // Polja su namjerno MALA i mreža je ograničena po širini.

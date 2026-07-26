@@ -56,6 +56,7 @@ baze, pa može ići paralelno sa Fazom 0.
 | 1.15 | Kalendar treninga u profilu + statistika | — | ☑ GOTOVO |
 | 1.16 | Prevlačenje prstom kroz dane plana | — | ☑ GOTOVO |
 | 1.17 | Blog: feed sa autorom, grupisanje po periodu, novi pregled | — | ☑ GOTOVO |
+| 1.18 | Ko trenira sada + bilješka uz trening | — | ☑ GOTOVO |
 
 ---
 
@@ -74,7 +75,7 @@ Cilj: da podaci koji se već prikupljaju počnu nešto da znače.
 | 2.4 | Detekcija PR-a + vizuelna potvrda u trenutku upisa | D3 | ☑ GOTOVO |
 | 2.5 | Streak / kontinuitet treniranja | D6 | ☑ GOTOVO — niz sedmica u profilu |
 | 2.6 | Tajmer pauze između serija | D4 | ☐ ČEKA |
-| 2.7 | Offline upis (lokalni red čekanja + sinhronizacija) | D5 | ☐ ČEKA |
+| 2.7 | Offline upis (lokalni red čekanja + sinhronizacija) | D5 | ☑ GOTOVO |
 
 ---
 

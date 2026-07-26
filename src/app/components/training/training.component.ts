@@ -2,6 +2,7 @@ import { Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, View
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
+import { OfflineQueueService } from '../../services/offline-queue.service';
 import {
   PickerGroup, PickerOption, toPickerGroups, flattenGroups
 } from '../shared/exercice-picker/exercice-picker.component';
@@ -27,6 +28,8 @@ interface LoggedSet {
   repsDelta: Delta;
   /** Prošli rezultat te serije, za opis pri prelasku mišem. */
   prevLabel: string | null;
+  /** Upisano bez mreže — čeka slanje. Ne može se mijenjati dok ne prođe. */
+  pending?: boolean;
   editing: boolean;
   editReps: number | null;
   editWeight: number | null;
@@ -122,6 +125,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
     private exerciceService: ExerciceService,
     private authService: AuthService,
     private audio: AudioService,
+    public queue: OfflineQueueService,
     private router: Router
   ) {}
 
@@ -134,6 +138,10 @@ export class TrainingComponent implements OnInit, OnDestroy {
     }
 
     this.currentUserId = user.id;
+
+    // Kad red prođe, upisi dobijaju prave id-jeve iz baze — ekran se osvježava
+    // da bi izmjena i brisanje serije radili nad stvarnim redovima.
+    this.queue.onFlushed = () => { void this.reloadAfterSync(); };
     this.todayDate = this.todayString();
 
     try {
@@ -346,25 +354,26 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
     ex.saving = true;
 
-    try {
-      const setNumber = this.nextSetNumber(ex);
-      const saved = await this.trainingService.logSet({
-        userId: this.currentUserId,
-        sessionId: this.session.id,
-        exerciceId: ex.exerciceId,
-        planId: this.session.planId,
-        date: this.todayDate,
-        setNumber,
-        reps: ex.repsInput,
-        weight: ex.weightInput
-      });
+    const setNumber = this.nextSetNumber(ex);
+    const entry = {
+      userId: this.currentUserId,
+      sessionId: this.session.id,
+      exerciceId: ex.exerciceId,
+      planId: this.session.planId,
+      date: this.todayDate,
+      setNumber,
+      reps: ex.repsInput,
+      weight: ex.weightInput
+    };
 
+    const accept = (id: string, pending: boolean) => {
       ex.loggedSets.push({
-        id: saved.id,
-        setNumber: saved.set_number,
-        reps: saved.reps,
-        weight: saved.weight,
-        ...this.compare(ex.echo, saved.set_number, saved.weight, saved.reps),
+        id,
+        setNumber,
+        reps: entry.reps,
+        weight: entry.weight,
+        ...this.compare(ex.echo, setNumber, entry.weight, entry.reps),
+        pending,
         editing: false,
         editReps: null,
         editWeight: null,
@@ -372,18 +381,55 @@ export class TrainingComponent implements OnInit, OnDestroy {
       });
 
       this.refreshPr(ex);
-
       ex.showLogForm = false;
       ex.repsInput = null;
       ex.weightInput = null;
+    };
+
+    // Bez mreže se ni ne pokušava — odmah u red, bez čekanja na istek veze.
+    if (!navigator.onLine) {
+      accept(this.queue.enqueue(entry).id, true);
+      ex.saving = false;
+      return;
+    }
+
+    try {
+      const saved = await this.trainingService.logSet(entry);
+      accept(saved.id, false);
     } catch (err: any) {
-      this.errorMessage = humanError(err, 'Greška prilikom upisa rezultata.');
+      // Samo pad MREŽE ide u red. Odbijanje od baze (npr. prekršeno pravilo)
+      // bi se pri ponovnom slanju odbilo opet — takva greška mora da se vidi.
+      if (this.isNetworkError(err)) {
+        accept(this.queue.enqueue(entry).id, true);
+      } else {
+        this.errorMessage = humanError(err, 'Greška prilikom upisa rezultata.');
+      }
     } finally {
       ex.saving = false;
     }
   }
 
+  /** „1 upis čeka" / „2 upisa čekaju" / „5 upisa čeka" — brojivost, ne „1 upisa". */
+  get pendingLabel(): string {
+    const n = this.queue.pending;
+    const last = n % 10, teen = n % 100;
+    const word = (last === 1 && teen !== 11) ? 'upis' : 'upisa';
+    const verb = (last === 1 && teen !== 11) ? 'čeka'
+               : (last >= 2 && last <= 4 && (teen < 12 || teen > 14)) ? 'čekaju' : 'čeka';
+    return `${n} ${word} ${verb} mrežu`;
+  }
+
+  /** Pad mreže se prepoznaje po poruci — Supabase klijent ne daje kod za to. */
+  private isNetworkError(err: any): boolean {
+    const msg = String(err?.message ?? err ?? '').toLowerCase();
+    return !navigator.onLine
+      || msg.includes('failed to fetch')
+      || msg.includes('networkerror')
+      || msg.includes('load failed');
+  }
+
   startEditSet(set: LoggedSet) {
+    if (set.pending) return;   // još nije u bazi — nema šta da se mijenja
     set.editing = true;
     set.editReps = set.reps;
     set.editWeight = set.weight;
@@ -447,6 +493,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
   // -------------------------------------------------------------------------
 
   ngOnDestroy() {
+    this.queue.onFlushed = null;
     clearTimeout(this.saveTimer);
   }
 
@@ -748,6 +795,20 @@ export class TrainingComponent implements OnInit, OnDestroy {
   }
 
   /** Dodavanje vježbe koje nema u planu — vrijedi samo za današnji trening. */
+  /** Ponovo učitava sesiju poslije sinhronizacije odloženih upisa. */
+  private async reloadAfterSync() {
+    if (!this.session) return;
+    try {
+      this.session = await this.trainingService.getOrCreateSession(
+        this.currentUserId, this.todayDate, null
+      );
+      await this.hydrate();
+    } catch {
+      // Neuspjeh osvježavanja nije kritičan — upisi su prošli, ekran će se
+      // uskladiti pri sljedećem otvaranju.
+    }
+  }
+
   toggleNote() {
     this.showNote = !this.showNote;
     if (this.showNote) this.noteText = this.session?.note ?? '';

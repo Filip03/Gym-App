@@ -1218,3 +1218,75 @@ tada su dva ekrana nosila isti naslov.
 **Napomene:** provjereno da svih 40 klasa iz predloška ima stil (nakon što je
 isti propust ranije napravljen kod birača osobe). Objave se i dalje ne mogu
 brisati iz aplikacije — to traži i RLS pravilo, pa ide zasebno.
+
+---
+
+## [2026-07-26] Ko trenira sada, bilješka uz trening, offline upis
+**Tip:** funkcionalnost
+**Ref:** Roadmap 1.18, 2.7
+
+Tri stvari, sve **bez ijedne izmjene baze**. Dvije od njih koriste kolone koje
+su postojale otkad je tabela napravljena, a nikad se nisu koristile.
+
+### 1. Ko trenira sada
+
+`workout_sessions.started_at` ima `default now()`, a prazan `finished_at` znači
+da trening traje. Ni jedno ni drugo se nigdje nije čitalo.
+
+**Uslov nije samo otvorena sesija.** Red nastaje već pri otvaranju ekrana
+treninga, pa bi inače pisalo da trenira i onaj ko je samo bacio pogled. Traži se
+i **bar jedna upisana serija danas**, plus granica od 4 sata — `finished_at`
+ostane prazan i kad neko zaboravi da pritisne „Trening gotov".
+
+Stoji na **dnu dashboarda**, poslije planova. Prva verzija je bila uz dugme za
+trening, ali je tamo djelovala nakalemljeno. Prikazuje se i kad nema nikoga
+(„Trenutno niko ne trenira") — nestanak cijelog polja izgledao bi kao kvar.
+Osvježava se na minut, interval se čisti u `ngOnDestroy`.
+
+### 2. Bilješka uz trening
+
+Kolona `note` je stajala neiskorišćena. Ključ je `UNIQUE (user_id, date)`, pa je
+bilješka **po danu treninga** — jedna po treningu, ne po vježbi. Vidi se i kad
+se dan kasnije ponovo otvori; klik na nju je otvara za izmjenu.
+
+### 3. Offline upis serija
+
+Teretane imaju loš signal. Do sada je pad mreže značio crvenu poruku i
+**izgubljenu seriju** — čovjek je odradio set, otkucao brojeve, a aplikacija ih
+nije zapamtila nigdje.
+
+Sada takav upis ide u red u `localStorage` i šalje se čim mreža proradi.
+
+Odluke:
+- **Odlažu se samo upisi serija.** Brisanje, zamjena vježbe i preređivanje se ne
+  odlažu — mijenjaju stanje koje bi se pri kasnijoj sinhronizaciji moglo sudariti
+  sa stvarnim stanjem baze, a nisu hitni.
+- **Samo pad mreže ide u red.** Odbijanje od baze (prekršeno pravilo) bi se pri
+  ponovnom slanju odbilo opet, pa takva greška mora da se vidi odmah.
+- **Šalje se jedan po jedan, redom.** `set_number` zavisi od prethodnih serija,
+  pa bi paralelno slanje umjelo da ih ispremješta.
+- **`localStorage`, ne IndexedDB** — red je mali i piše se jednom po seriji.
+- Serija koja čeka ima **isprekidan obrub** i ne može se mijenjati dok ne prođe
+  (nema je još u bazi). Traka na vrhu kaže koliko ih čeka.
+
+**Provjereno u pregledaču punim ciklusom:** simuliran pad mreže → serija
+upisana, traka se pojavila, obrub isprekidan, red u `localStorage` = 1 → mreža
+vraćena → red = 0, red u bazi potvrđen SQL-om.
+
+### Usput
+
+- **Sedmica na rang listi je kalendarska** (pon–ned preko `mondayOfThisWeek`),
+  ne „zadnjih 7 dana" — provjereno na traženje.
+- **Strelice za mjesec u profilu su radile** (`Jul → Jun → Maj`), ali se to nije
+  vidjelo jer se **nijedna brojka nije mijenjala** — sve prate klizni opseg.
+  Dodat broj treninga za prikazani mjesec uz naslov („JUL 2026 · 6") i vidljiv
+  okvir oko strelica.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/offline-queue.service.ts` — nov servis
+- `src/app/services/training.service.ts` — `saveNote`, `note` u modelu,
+  registracija pošiljaoca za red
+- `src/app/services/leaderboard.service.ts` — `getLiveSessions`
+- `src/app/components/dashboard/*` — sekcija „Trenira sada"
+- `src/app/components/training/*` — bilješka, traka odloženih upisa, `pending`
+- `src/app/components/profile/*` — broj treninga uz naslov mjeseca

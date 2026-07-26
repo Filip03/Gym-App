@@ -76,7 +76,10 @@
             <button type="button" (click)="prevMonth()" aria-label="Prethodni mjesec">
               <i class="material-icons">chevron_left</i>
             </button>
-            <span class="cal-title">{{ calTitle }}</span>
+            <span class="cal-title">
+              {{ calTitle }}
+              <em class="cal-count num">{{ monthCount }}</em>
+            </span>
             <button type="button" (click)="nextMonth()" [disabled]="calAtCurrentMonth"
                     aria-label="Sljedeći mjesec">
               <i class="material-icons">chevron_right</i>
