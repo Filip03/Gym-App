@@ -1190,20 +1190,23 @@
 // serija — red u sesiji nastane već pri otvaranju ekrana, pa bi inače pisalo da
 // trenira i onaj ko je samo bacio pogled.
 //
-// Stoji odmah ispod dugmeta za trening, jer je to jedino mjesto gdje podatak
-// nešto mijenja: ako neko već radi, veća je šansa da i ti kreneš.
+// Stoji na DNU, poslije planova. Uz dugme za trening je djelovalo nakalemljeno
+// — nije to zbog čega se ekran otvara. Prikazuje se i kad nema nikoga, jer bi
+// nestanak cijelog polja izgledao kao da funkcija ne radi.
 // ---------------------------------------------------------------------------
 
 .live {
   width: 100%;
-  max-width: 420px;
-  margin: var(--s-4) auto 0;
-  padding: var(--s-3) var(--s-4) var(--s-2);
+  margin-top: var(--s-8);
+  padding: var(--s-4);
 
   background: color-mix(in srgb, var(--carbon) 90%, transparent);
-  border: 1px solid var(--volt-a20);
+  border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
+
+// Obrub u boji samo kad neko stvarno trenira.
+.live:has(.live-row) { border-color: var(--volt-a20); }
 
 .live-head {
   display: flex;
@@ -1230,6 +1233,19 @@
   background: var(--volt);
   box-shadow: 0 0 0 0 var(--volt-a40);
   animation: live-pulse 1.8s ease-out infinite;
+}
+
+// Niko ne trenira — tačka miruje i gasi se. Bez toga bi kucala u prazno.
+.dot-live.off {
+  background: var(--steel);
+  box-shadow: none;
+  animation: none;
+}
+
+.live-none {
+  padding: var(--s-2) 0 var(--s-1);
+  font-size: var(--t-sm);
+  color: var(--dust);
 }
 
 @keyframes live-pulse {
