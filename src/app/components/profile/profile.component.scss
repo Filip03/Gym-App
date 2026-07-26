@@ -554,7 +554,7 @@
 
 // --- Modal: težina ---------------------------------------------------------
 
-.weight-card { max-width: 620px; }
+.weight-card { max-width: 620px; }   // visinu i skrol nosi globalna `.modal-card`
 
 .wm-head {
   display: flex;
@@ -629,12 +629,26 @@
 
 // --- Obrazac ---------------------------------------------------------------
 
+// Obrazac se lomi SAM, bez tačke prekida.
+//
+// Ranije je bio mreža sa tri kolone i posebnim pravilom za uski ekran. To je
+// značilo da postoji tačno jedna širina na kojoj izgleda dobro, a na 360px se
+// polje za kilažu skupljalo na 56px i dugme je ispadalo iz kartice.
+//
+// `flex-wrap` sa osnovnom širinom po polju radi na svakoj širini: dok ima
+// mjesta stoje u redu, kad nema — prelome se. Bez ijednog `@media`.
 .wm-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: end;
   gap: var(--s-3);
 }
+
+.wm-field { min-width: 0; }
+// Oba polja jednaka. Ranije je datum imao 200px a kilaža 130px, pa je datum
+// bio vidno šire polje bez razloga — sadržaj mu je kratak („26.07.").
+.wm-field:nth-child(1),
+.wm-field:nth-child(2) { flex: 1 1 130px; }
 
 .wm-field label {
   font-family: var(--font-data);
@@ -646,9 +660,8 @@
 
 // Datum + prečica „danas". Nativni birač ostaje jer je na telefonu najbrži, ali
 // se u praksi upisuje današnji dan, pa dugme štedi tri dodira.
-.wm-date { position: relative; display: flex; align-items: center; }
 
-.wm-date input { padding-right: 62px; }
+
 
 .wm-today {
   position: absolute;
@@ -683,11 +696,7 @@
 
 .wm-submit { min-height: 46px; }
 
-// Na telefonu tri kolone daju polja od šezdesetak piksela; dugme ide u svoj red.
-@media (max-width: 520px) {
-  .wm-form { grid-template-columns: 1fr 1fr; }
-  .wm-submit { grid-column: 1 / -1; }
-}
+.wm-submit { flex: 0 0 auto; }
 
 // --- Spisak upisa ----------------------------------------------------------
 

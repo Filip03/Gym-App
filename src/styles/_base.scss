@@ -435,9 +435,20 @@ button:not(:disabled):active { transform: scale(0.97); }
 // Na telefonu izlaze odozdo kao ploča (nema smisla centrirati na 5" ekranu),
 // na širem ekranu su centrirani.
 
+// Modal ne pokriva cio ekran nego SAMO POLJE IZMEĐU ZAGLAVLJA I FUTERA.
+//
+// Ranije je bio `inset: 0`, pa je kartica računala visinu prema cijelom ekranu
+// iako se dvije trake nikad ne sklanjaju. Posljedica: sadržaj se raspoređivao
+// na visinu koje nema, vrh je završavao ispod zaglavlja a dno ispod futera.
+//
+// Ovako kartica dobija tačno onoliko prostora koliko ga stvarno ima, pa
+// `max-height: 100%` znači „koliko staje", bez ijedne procjene u `vh`.
 .modal-overlay {
   position: fixed;
-  inset: 0;
+  top: calc(var(--header-h) + var(--safe-t));
+  bottom: calc(var(--footer-h) + var(--safe-b));
+  left: 0;
+  right: 0;
   z-index: 100;
   display: flex;
   align-items: flex-end;
@@ -453,11 +464,13 @@ button:not(:disabled):active { transform: scale(0.97); }
 .modal-card {
   width: 100%;
   max-width: var(--page-max);
-  max-height: min(88vh, 900px);
+  // 100% = visina praznog polja između zaglavlja i futera, koju postavlja
+  // `.modal-overlay`. Nikakav `vh` ni `svh` — nema šta da se procjenjuje.
+  max-height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
 
-  padding: var(--s-6) var(--s-5) calc(var(--s-6) + var(--safe-b));
+  padding: var(--s-6) var(--s-5);
   background: var(--carbon);
   border: 1px solid var(--line);
   border-bottom: none;

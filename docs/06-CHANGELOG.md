@@ -1319,3 +1319,179 @@ cijeloj širini, skaliranje je 1:1.
 
 **Dodirnuti fajlovi:**
 - `src/app/components/profile/profile.component.ts` — `weightChartWidth = this.chartSpan`
+
+---
+
+## [2026-07-26] Modali: `svh` umjesto `vh`, obrazac koji se lomi sam
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Na telefonu se modal za upis težine sjekao — vrh ispod zaglavlja,
+dno ispod futera — a polja su se preklapala.
+
+**Uzrok 1 — `vh` na telefonu.** Globalna `.modal-card` je imala
+`max-height: min(88vh, 900px)`. `vh` je **velika** visina ekrana, onakva kakva
+bi bila da je traka sa adresom sakrivena. Otkad stranica ne skroluje (vidi
+`app.component.scss`), traka se **nikad** ne sakriva, pa je `88vh` bio viši od
+onoga što se stvarno vidi. Modal je zato ispadao izvan vidljivog dijela na oba
+kraja.
+
+Ispravljeno na `svh` — mala, stabilna visina ekrana. Isto u biraču vježbe
+(`88dvh` → `88svh`, `78vh` → `78svh`).
+
+**Uzrok 2 — obrazac na fiksne tačke prekida.** Bio je mreža `1fr 1fr auto` uz
+poseban `@media (max-width: 520px)`. To znači da postoji tačno jedna širina na
+kojoj izgleda dobro: mjereno, na 360px se polje za kilažu skupljalo na **56px**
+a dugme „Upiši" je **ispadalo iz kartice**.
+
+Zamijenjeno `flex-wrap`-om sa osnovnom širinom po polju (datum `200px`, kilaža
+`130px`). Dok ima mjesta stoje u redu, kad nema — prelome se. **Bez ijednog
+`@media`.**
+
+**Provjereno mjerenjem** na 300 / 340 / 380 / 500 px: nijedan element ne
+prelijeva karticu, polje za kilažu ostaje 152–232px, kartica staje u ekran i
+skroluje iznutra kad sadržaj preraste.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_base.scss` — `.modal-card` na `svh`
+- `src/app/components/shared/exercice-picker/exercice-picker.component.scss` — `svh`
+- `src/app/components/profile/profile.component.scss` — `.wm-form` na `flex-wrap`,
+  uklonjen `@media`, `.weight-card` više ne postavlja svoju visinu
+
+---
+
+## [2026-07-26] Modali žive u polju između zaglavlja i futera
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Sadržaj modala se nije lijepo uklapao — pokušavao je da se rasporedi
+na **cijelu visinu ekrana**, iako se zaglavlje i futer nikad ne sklanjaju.
+Posljedica na telefonu: vrh kartice ispod zaglavlja, dno ispod futera.
+
+Prethodna popravka (`vh` → `svh`) je smanjila grešku ali je nije uklonila —
+i dalje je bila **procjena** visine umjesto stvarne mjere.
+
+**Rješenje:** `.modal-overlay` više nije `inset: 0`, nego:
+
+```scss
+top:    calc(var(--header-h) + var(--safe-t));
+bottom: calc(var(--footer-h) + var(--safe-b));
+```
+
+Kartica onda ima `max-height: 100%` — a 100% je tačno onoliko prostora koliko
+ga stvarno ima. Nema više nikakvog `vh`, `svh` ni `dvh` u modalima; nema šta da
+se procjenjuje.
+
+Isto važi za birač vježbe (`height: 100%` umjesto `88dvh`) i za rezervu za
+sigurnu zonu u dnu kartice, koja je postala suvišna — futer je već izvan polja
+modala i sam vodi računa o njoj.
+
+**Izmjereno poslije popravke** (ekran 500×641):
+
+| | od | do |
+|---|---|---|
+| zaglavlje | 0 | 86 |
+| **polje modala** | **86** | **577** |
+| kartica | 86 | 577 |
+| futer | 577 | 641 |
+
+Kartica ne ulazi ni pod zaglavlje ni pod futer, a skroluje iznutra (sadržaj 665,
+okvir 490).
+
+**Napomena:** pregled slika u blogu (`.lb`) namjerno ostaje preko cijelog ekrana
+— to je pregledač fotografija, ne obrazac.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_base.scss` — `.modal-overlay`, `.modal-card`
+- `src/app/components/shared/exercice-picker/exercice-picker.component.scss`
+
+---
+
+## [2026-07-26] Sistemska popravka: sve preko ekrana staje u polje između zaglavlja i futera
+**Tip:** popravka
+**Ref:** —
+
+**Povod:** iz pregleda slike u blogu se nije moglo izaći na telefonu. Marko je
+pretpostavio da je uzrok isti kao ranije sa zaglavljem i futerom — i bio je u
+pravu. Zatraženo je da se **provjeri svuda**.
+
+### Nalazi audita
+
+`grep` po svim `position: fixed` slojevima i svim visinama vezanim za ekran:
+
+| Mjesto | Problem |
+|---|---|
+| `blog` `.lb` | `inset: 0` — dugme za izlaz uz samu ivicu, ispod pregledačeve trake |
+| **`dashboard` `.modal-overlay`** | **naslijeđeno lokalno pravilo** (`inset: 0`, `z-index: 1000`, stara pozadina) koje je poništavalo globalno |
+| `dashboard` `.modal-card` | isto — `rgba(20,20,20,.9)`, `backdrop-filter`, `width: 400px` |
+| `dashboard` `.modal-card-large` | `85vh` / `90vh` |
+| `exercices` `.detail-card` | `88vh`, slika `46vh` |
+| `landing` | `100vh` |
+
+Zbog lokalnih pravila na dashboardu **modal plana nije pratio nijednu raniju
+popravku** — ni prelazak na dizajn sistem, ni ograničavanje na vidljivo polje.
+
+### Urađeno
+
+Sve fiksirano sada koristi isto polje kao modali:
+`top: header-h + safe-t`, `bottom: footer-h + safe-b`. Lokalna pravila na
+dashboardu su obrisana; izgled dolazi iz globalnog sloja.
+
+**U projektu više nema nijednog golog `vh`** — provjereno `grep`-om.
+
+### Tri zamke sa procentualnom visinom (redom kako su otkrivane)
+
+Slika u pregledu je i dalje prelijevala ekran, u tri koraka:
+
+1. `align-items: center` na `.lb` → red se mjeri po sadržaju, pa `max-height:
+   100%` nema prema čemu da se izračuna. → `stretch`.
+2. `grid-template-rows` nije bio zadat → implicitni red je `auto`, pa ga slika
+   od 1920px razvuče. → `minmax(0, 1fr)`.
+3. **`.lb-stage` je i sam bio grid** sa `auto` redom — ista zamka jedan nivo
+   niže. → običan blok.
+
+Tek sa sva tri: polje 1008px, slika **1644×928**, staje.
+
+Pravilo koje iz ovoga slijedi: `height: 100%` na djetetu traži **određenu**
+visinu roditelja. U gridu to znači i zadan red, ne samo zadanu visinu kontejnera.
+
+### Izlaz iz pregleda
+
+- Dugme X sa 38 na **44px**, sa obrubom i punom podlogom, pomjereno od ivice
+- **Povlačenje nadolje zatvara** — jedini izlaz koji ne traži pogađanje dugmeta
+- Uputstvo u dnu to i kaže
+
+**Dodirnuti fajlovi:** `blog`, `dashboard`, `exercices`, `landing` (scss),
+`blog.component.ts` (pokret nadolje)
+
+---
+
+## [2026-07-26] Modal težine: jednaka polja i čitljiv grafikon na telefonu
+**Tip:** popravka
+**Ref:** —
+
+**1. Datum je bio šire polje od kilaže.** Imao je osnovnu širinu 200px prema
+130px za kilažu, bez razloga — sadržaj mu je kratak. Sada su oba `130px`, pa su
+jednaka na svakoj širini (mjereno: 140/140, 185/185, 235/235).
+
+Da bi kraći zapis stao bez skraćivanja, uklonjena je ikona kalendara iz polja
+(oznaka „DATUM" je iznad) i **godina se izostavlja kad je tekuća** — u praksi se
+upisuje današnji ili jučerašnji dan, pa „2026." samo troši širinu.
+
+**2. Grafikon je na uskom ekranu bio nečitljiv.** SVG se razvlači na širinu
+kartice, pa se sa njim skalira i **tekst**. Sa fiksnom koordinatnom mrežom od
+560 na uskom telefonu ispadao je odnos **0,46** — natpisi ose od 10px postajali
+su 4,6px.
+
+Sada je crtež uži na uskom ekranu (`viewBox` 360 umjesto 560), pa odnos ostaje
+blizu jedan. Mjereno na 390px: odnos **0,80**, tekst 8,0px. Sadržaj se ne
+mijenja, samo koordinatna mreža. Crtež se ponovo slaže na promjenu širine
+prozora.
+
+**Provjereno na 300 / 360 / 430 / 520 / 620 px:** nijedan element ne prelijeva
+karticu i nijedan ne nestaje.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/profile/profile.component.ts` — `chartSpan` postao getter
+  ovisan o širini ekrana, `weightDateLabel`, `@HostListener('window:resize')`
+- `src/app/components/profile/profile.component.{html,scss}`

@@ -198,8 +198,17 @@ export class BlogComponent implements OnInit {
   onTouchEnd(event: TouchEvent) {
     const t = event.changedTouches[0];
     if (!t) return;
+
     const dx = t.clientX - this.touchX;
     const dy = t.clientY - this.touchY;
+
+    // Povlačenje NADOLJE zatvara — uobičajen pokret za pregled slike na
+    // telefonu, i jedini izlaz koji ne traži pogađanje malog dugmeta u uglu.
+    if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+      this.closeLightbox();
+      return;
+    }
+
     if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
     if (dx < 0) this.next(); else this.prev();
   }
