@@ -57,21 +57,12 @@ export class AudioService {
 
       // Kontekst zna da se uspava kad je kartica dugo neaktivna.
       if (ctx.state === 'suspended') await ctx.resume();
-      if (ctx.state !== 'running') return;   // još nema dodira — tiho odustani
+      if (ctx.state !== 'running') return;
 
       const buffer = await this.load(name);
       if (!buffer) return;
 
-      this.stop();
-
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(this.gain!);
-      source.onended = () => {
-        if (this.playing === source) this.playing = null;
-      };
-      source.start(0);
-      this.playing = source;
+      this.startBuffer(ctx, buffer);
     } catch {
       // Zvuk je ukras. Nijedna greška ovdje ne smije zaustaviti aplikaciju.
     }
@@ -95,28 +86,62 @@ export class AudioService {
   playOrArm(name: SoundName): () => void {
     let cancelled = false;
 
-    const attempt = () => {
-      if (!cancelled) this.play(name);
-    };
+    // Snimak se dekodira ODMAH, prije ijednog dodira. To je ključno: kad dodir
+    // stigne, u rukovaocu se smije raditi samo ono što traje trenutak.
+    void this.load(name).catch(() => {});
 
     const ctx = this.context();
     if (ctx?.state === 'running') {
-      attempt();
+      this.play(name);
       return () => { cancelled = true; };
     }
 
     const events: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'keydown'];
+
     const onGesture = () => {
       cleanup();
-      // Otključavanje konteksta ide kroz isti dodir; kratko odgađanje daje mu
-      // da završi prije nego što tražimo puštanje.
-      setTimeout(attempt, 0);
-    };
-    const cleanup = () => events.forEach(e => document.removeEventListener(e, onGesture));
+      if (cancelled) return;
 
+      // SINHRONO, unutar samog dodira — bez setTimeout i bez await.
+      //
+      // Ovo je bio uzrok zašto zvuk na ekranu za prijavu nije radio pri prvom
+      // otvaranju: ranije se `resume()` i puštanje odgađalo kroz setTimeout i
+      // await na preuzimanje snimka. Pregledači, a Safari strogo, priznaju
+      // odobrenje samo ako se traži unutar zadatka koji je pokrenuo dodir.
+      // Sve poslije toga tretiraju kao autoplay i tiho odbiju.
+      const c = this.context();
+      if (!c) return;
+
+      c.resume();
+
+      const buffer = this.buffers.get(name);
+      if (buffer) {
+        this.startBuffer(c, buffer);
+      } else {
+        // Snimak još nije dekodiran — kontekst je ipak otključan ovim dodirom,
+        // pa puštanje prolazi i kad stigne.
+        void this.play(name);
+      }
+    };
+
+    const cleanup = () => events.forEach(e => document.removeEventListener(e, onGesture));
     events.forEach(e => document.addEventListener(e, onGesture, { once: true, passive: true }));
 
     return () => { cancelled = true; cleanup(); };
+  }
+
+  /** Kreiranje i pokretanje izvora — jedino mjesto koje stvarno pušta zvuk. */
+  private startBuffer(ctx: AudioContext, buffer: AudioBuffer) {
+    this.stop();
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.gain!);
+    source.onended = () => {
+      if (this.playing === source) this.playing = null;
+    };
+    source.start(0);
+    this.playing = source;
   }
 
   /** Prekid trenutnog zvuka — npr. da klip ne pređe na sljedeći ekran. */
