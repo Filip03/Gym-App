@@ -208,7 +208,7 @@
           <div class="carousel-nav" *ngIf="isMobile">
             <button type="button" class="arrow-btn" (click)="prevDay()" [disabled]="currentDayIndex === 0" aria-label="Prethodni dan">‹</button>
             <span class="carousel-label">{{ viewedPlan.workout_days[currentDayIndex]?.name }} <small>({{ currentDayIndex + 1 }}/{{ viewedPlan.workout_days.length }})</small></span>
-            <button type="button" class="arrow-btn" (click)="nextDay(viewedPlan.workout_days.length)" [disabled]="currentDayIndex === viewedPlan.workout_days.length - 1" aria-label="Sledeći dan">›</button>
+            <button type="button" class="arrow-btn" (click)="nextDay(viewedPlan.workout_days.length)" [disabled]="currentDayIndex === viewedPlan.workout_days.length - 1" aria-label="Sljedeći dan">›</button>
           </div>
 
           <div class="day-row" *ngFor="let day of viewedPlan.workout_days; let i = index" [class.active-day]="i === currentDayIndex" [class.day-hidden]="isMobile && i !== currentDayIndex">
