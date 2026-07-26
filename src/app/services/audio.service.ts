@@ -96,7 +96,7 @@ export class AudioService {
       return () => { cancelled = true; };
     }
 
-    const events: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'keydown'];
+    const events: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'click', 'keydown'];
 
     const onGesture = () => {
       cleanup();
@@ -169,6 +169,19 @@ export class AudioService {
     const Ctor = window.AudioContext ?? (window as any).webkitAudioContext;
     if (!Ctor) return null;
 
+    // NA IPHONEU: bez ovoga zvuk NE IDE kad je bočni prekidač na tiho.
+    //
+    // Web Audio se podrazumijevano vodi kao "ambijentalni" zvuk, a taj kanal
+    // fizički prekidač utišava — zato je na računaru radilo a na telefonu nije,
+    // iako je kod isti. Oznaka "playback" ga svrstava među reprodukciju, kao
+    // muziku ili video, pa prekidač na njega ne utiče.
+    try {
+      const session = (navigator as any).audioSession;
+      if (session) session.type = 'playback';
+    } catch {
+      // Podržano tek od Safarija 16.4; drugdje se jednostavno preskače.
+    }
+
     this.ctx = new Ctor();
     this.gain = this.ctx.createGain();
     this.gain.gain.value = 0.5;
@@ -185,7 +198,7 @@ export class AudioService {
    * okidanja (`once`), pa nema trajnog troška.
    */
   private armUnlock() {
-    const events: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'keydown'];
+    const events: (keyof DocumentEventMap)[] = ['pointerdown', 'touchend', 'click', 'keydown'];
 
     const unlock = async () => {
       if (this.unlocked) return;
