@@ -17,6 +17,6 @@ const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0
 // pri produkcijskom buildu (fileReplacements u angular.json).
 export const environment = {
   production: false,
-  supabaseUrl: `http://${host}:54321`,
-  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
-};
+  supabaseUrl: 'https://nsiwfwjpzyzfzxejewar.supabase.co',
+  supabaseKey: 'sb_publishable_CbJq3HcEN3pE7Gr_hWSkCw_jeooBZ0m'
+}
