@@ -8,12 +8,29 @@
       <span class="eyebrow">{{ session.dayLabel }}</span>
       <h2>{{ session.planName ?? 'Trening' }}</h2>
     </div>
-    <span class="day-type-badge" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
+    <div class="header-right">
+      <span class="day-type-badge" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
+      <button type="button" class="reorder-btn" *ngIf="!reordering"
+              (click)="openAdd()" title="Dodaj vježbu za danas">
+        <i class="material-icons">add</i>
+        Dodaj
+      </button>
+      <button type="button" class="reorder-btn" [class.on]="reordering"
+              *ngIf="!isRestDay" (click)="toggleReorder()">
+        <i class="material-icons">{{ reordering ? 'done' : 'swap_vert' }}</i>
+        {{ reordering ? 'Gotovo' : 'Preredi' }}
+      </button>
+    </div>
   </div>
+
+  <p class="reorder-hint" *ngIf="reordering">
+    Redoslijed vrijedi za današnji trening i pamti se za sljedeći isti dan.
+    Plan i raniji treninzi ostaju nepromijenjeni.
+  </p>
 
   <div class="rest-day" *ngIf="isRestDay">
     <p>Danas je rest day.</p>
-    <button type="button" class="btn-ghost" (click)="openSwap(exercices[0] || null, 'add')" *ngIf="false">Dodaj vježbu</button>
+    <button type="button" class="btn-ghost" (click)="openAdd()">Ipak treniram</button>
   </div>
 
   <div class="exercice-list" *ngIf="!isRestDay">
@@ -22,6 +39,7 @@
       <div class="exercice-main">
         <div class="exercice-info">
           <div class="exercice-name-row">
+            <span class="pos num" *ngIf="reordering">{{ ex.orderNum }}</span>
             <span class="exercice-name">{{ ex.name }}</span>
 
             <!-- Lični rekord: jedan po vježbi, ne po seriji -->
@@ -42,19 +60,30 @@
             <span class="tag extra" *ngIf="ex.isExtra">dodano</span>
           </div>
 
-          <div class="exercice-meta">
+          <div class="exercice-meta" *ngIf="!reordering">
             <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
             <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
           </div>
         </div>
 
-        <div class="exercice-actions">
+        <div class="exercice-actions" *ngIf="!reordering">
           <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
             {{ ex.showLogForm ? 'Otkaži' : 'Upiši' }}
           </button>
 
           <button type="button" class="icon-btn" (click)="toggleMenu(ex)" aria-label="Opcije">
             <i class="material-icons">more_vert</i>
+          </button>
+        </div>
+
+        <div class="move-actions" *ngIf="reordering">
+          <button type="button" class="icon-btn" [disabled]="isFirst(ex) || reorderSaving"
+                  (click)="move(ex, -1)" aria-label="Pomjeri gore">
+            <i class="material-icons">keyboard_arrow_up</i>
+          </button>
+          <button type="button" class="icon-btn" [disabled]="isLast(ex) || reorderSaving"
+                  (click)="move(ex, 1)" aria-label="Pomjeri dolje">
+            <i class="material-icons">keyboard_arrow_down</i>
           </button>
         </div>
       </div>
@@ -82,7 +111,7 @@
       </div>
 
       <!-- Serije: današnje pune, prošle kao duh -->
-      <div class="sets" *ngIf="ex.loggedSets.length > 0 || ex.echo">
+      <div class="sets" *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
         <ng-container *ngFor="let set of ex.loggedSets">
 
           <button type="button" class="set" *ngIf="!set.editing"
@@ -154,7 +183,11 @@
 <div class="modal-overlay" *ngIf="showSwapModal" (click)="closeSwap()">
   <div class="modal-card" (click)="$event.stopPropagation()">
     <h3>{{ swapMode === 'replace' ? 'Zamijeni ' + swapTarget?.name : 'Dodaj vježbu' }}</h3>
-    <p class="modal-note">Mijenja se samo današnji trening. Plan ostaje isti.</p>
+    <p class="modal-note">
+      {{ swapMode === 'replace'
+          ? 'Mijenja se samo današnji trening. Plan ostaje isti.'
+          : 'Vježba se dodaje samo u današnji trening. Plan ostaje isti.' }}
+    </p>
 
     <input type="text" [(ngModel)]="swapFilter" placeholder="Traži vježbu..." class="swap-search" />
 

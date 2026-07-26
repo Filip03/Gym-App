@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
+import { humanError } from '../../shared/errors';
 import { Router } from '@angular/router';
 import {
   TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet
@@ -67,6 +68,10 @@ export class TrainingComponent implements OnInit {
   swapFilter = '';
   swapSaving = false;
 
+  /** Režim preređivanja: redovi se svode na naziv + strelice. */
+  reordering = false;
+  reorderSaving = false;
+
   // Izmjena cilja za ovaj trening
   showTargetModal = false;
   targetTarget: TodayExercice | null = null;
@@ -107,7 +112,7 @@ export class TrainingComponent implements OnInit {
 
       await this.hydrate();
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju treninga.';
+      this.errorMessage = humanError(err, 'Greška pri učitavanju treninga.');
     } finally {
       this.loading = false;
     }
@@ -314,7 +319,7 @@ export class TrainingComponent implements OnInit {
       ex.repsInput = null;
       ex.weightInput = null;
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom upisa rezultata.';
+      this.errorMessage = humanError(err, 'Greška prilikom upisa rezultata.');
     } finally {
       ex.saving = false;
     }
@@ -346,7 +351,7 @@ export class TrainingComponent implements OnInit {
       // pri upisu, uključujući i animaciju.
       this.refreshPr(ex);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom izmjene rezultata.';
+      this.errorMessage = humanError(err, 'Greška prilikom izmjene rezultata.');
     } finally {
       set.saving = false;
     }
@@ -374,9 +379,59 @@ export class TrainingComponent implements OnInit {
 
       this.refreshPr(ex);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom brisanja serije.';
+      this.errorMessage = humanError(err, 'Greška prilikom brisanja serije.');
       set.saving = false;
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Redoslijed vježbi
+  // -------------------------------------------------------------------------
+
+  toggleReorder() {
+    this.reordering = !this.reordering;
+    this.exercices.forEach(e => { e.menuOpen = false; e.showLogForm = false; });
+  }
+
+  /**
+   * Pomjeranje vježbe gore ili dolje.
+   *
+   * Mijenja se SAMO današnja sesija. Plan ostaje isti, a ranije sesije čuvaju
+   * poredak kojim su tada rađene. Novi poredak se nasljeđuje na sljedeći
+   * trening istog dana — vidi TrainingService.rememberedOrder().
+   */
+  async move(ex: TodayExercice, direction: -1 | 1) {
+    if (this.reorderSaving) return;
+
+    const from = this.exercices.indexOf(ex);
+    const to = from + direction;
+    if (to < 0 || to >= this.exercices.length) return;
+
+    // Prvo na ekranu, pa u bazi — pomjeranje mora djelovati trenutno.
+    const list = [...this.exercices];
+    [list[from], list[to]] = [list[to], list[from]];
+    this.exercices = list;
+
+    this.reorderSaving = true;
+    try {
+      await this.trainingService.setOrder(
+        list.map((e, i) => ({ id: e.id, orderNum: i + 1 }))
+      );
+      list.forEach((e, i) => e.orderNum = i + 1);
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom promjene redoslijeda.');
+      // Vrati na staro da ekran ne laže o onome što je u bazi.
+      const back = [...this.exercices];
+      [back[from], back[to]] = [back[to], back[from]];
+      this.exercices = back;
+    } finally {
+      this.reorderSaving = false;
+    }
+  }
+
+  isFirst(ex: TodayExercice): boolean { return this.exercices.indexOf(ex) === 0; }
+  isLast(ex: TodayExercice): boolean {
+    return this.exercices.indexOf(ex) === this.exercices.length - 1;
   }
 
   // -------------------------------------------------------------------------
@@ -387,6 +442,28 @@ export class TrainingComponent implements OnInit {
     const open = ex.menuOpen;
     this.exercices.forEach(e => e.menuOpen = false);
     ex.menuOpen = !open;
+  }
+
+  /** Dodavanje vježbe koje nema u planu — vrijedi samo za današnji trening. */
+  async openAdd() {
+    this.swapTarget = null;
+    this.swapMode = 'add';
+    this.showSwapModal = true;
+    this.swapLoading = true;
+    this.swapFilter = '';
+    this.swapOptions = [];
+    this.errorMessage = '';
+    this.exercices.forEach(e => e.menuOpen = false);
+
+    try {
+      const all = await this.trainingService.getAllExercices();
+      const already = new Set(this.exercices.map(e => e.exerciceId));
+      this.swapOptions = all.filter(o => !already.has(o.id));
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška pri učitavanju vježbi.');
+    } finally {
+      this.swapLoading = false;
+    }
   }
 
   async openSwap(ex: TodayExercice, mode: 'replace' | 'add') {
@@ -412,7 +489,7 @@ export class TrainingComponent implements OnInit {
     try {
       this.swapOptions = await this.trainingService.getAlternatives(ex.exerciceId);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju zamjena.';
+      this.errorMessage = humanError(err, 'Greška pri učitavanju zamjena.');
     } finally {
       this.swapLoading = false;
     }
@@ -430,13 +507,14 @@ export class TrainingComponent implements OnInit {
   }
 
   async confirmSwap(option: { id: string; name: string; picture: string | null }) {
-    if (!this.swapTarget || !this.session || this.swapSaving) return;
+    if (!this.session || this.swapSaving) return;
+    if (this.swapMode === 'replace' && !this.swapTarget) return;
     this.swapSaving = true;
 
     try {
       if (this.swapMode === 'replace') {
         await this.trainingService.replaceExercice(
-          this.swapTarget.id, option.id, this.swapTarget.exerciceId
+          this.swapTarget!.id, option.id, this.swapTarget!.exerciceId
         );
       } else {
         const nextOrder = Math.max(0, ...this.exercices.map(e => e.orderNum)) + 1;
@@ -449,7 +527,7 @@ export class TrainingComponent implements OnInit {
       await this.hydrate();
       this.closeSwap();
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom zamjene vježbe.';
+      this.errorMessage = humanError(err, 'Greška prilikom zamjene vježbe.');
     } finally {
       this.swapSaving = false;
     }
@@ -470,7 +548,7 @@ export class TrainingComponent implements OnInit {
       );
       await this.hydrate();
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom uklanjanja vježbe.';
+      this.errorMessage = humanError(err, 'Greška prilikom uklanjanja vježbe.');
     }
   }
 
@@ -502,7 +580,7 @@ export class TrainingComponent implements OnInit {
       this.targetTarget.targetReps = this.targetRepsInput;
       this.closeTargets();
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška prilikom izmjene cilja.';
+      this.errorMessage = humanError(err, 'Greška prilikom izmjene cilja.');
     }
   }
 

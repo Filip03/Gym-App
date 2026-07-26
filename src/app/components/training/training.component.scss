@@ -632,3 +632,67 @@
   .pr-burst { display: none; }
   .pr.celebrate { animation: none; }
 }
+
+// --- Preređivanje vježbi ---------------------------------------------------
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+
+.reorder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 32px;
+  padding: 0 var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  color: var(--mist);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.reorder-btn .material-icons { font-size: 16px; }
+.reorder-btn:hover { color: var(--ice); border-color: var(--line-strong); }
+
+.reorder-btn.on {
+  background: var(--volt);
+  border-color: var(--volt);
+  color: var(--volt-ink);
+}
+
+.reorder-hint {
+  margin: calc(var(--s-3) * -1) 0 var(--s-4);
+  font-size: var(--t-xs);
+  color: var(--mist);
+  line-height: var(--lh-snug);
+}
+
+.move-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+}
+
+// Redni broj se vidi samo u režimu preređivanja — inače je šum.
+.pos {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: var(--volt-a10);
+  color: var(--volt);
+  font-size: var(--t-2xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
