@@ -1,0 +1,139 @@
+// Birač datuma — vidi komentar u .ts za razlog postojanja.
+//
+// Namjerno isti jezik kao kalendar treninga u profilu: ista mreža, iste
+// skraćenice dana, isti radijusi. Dva kalendara u istoj aplikaciji ne smiju
+// izgledati kao da su iz dva programa.
+
+:host { display: contents; }
+
+.dp-overlay { z-index: 170; }   // iznad modala težine, koji ga otvara
+
+.dp-card {
+  width: 100%;
+  max-width: 340px;
+  padding: var(--s-5);
+}
+
+.dp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.dp-head h3 { font-size: var(--t-md); }
+
+.dp-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  background: var(--carbon-high);
+  color: var(--mist);
+}
+
+.dp-close:hover { background: var(--steel); color: var(--ice); }
+
+.dp-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+}
+
+.dp-nav button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  color: var(--mist);
+}
+
+.dp-nav button:hover { background: var(--carbon-high); color: var(--ice); }
+
+.dp-month {
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--ice);
+}
+
+.dp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.dp-wd {
+  padding-bottom: 2px;
+  text-align: center;
+  font-family: var(--font-data);
+  font-size: 9px;
+  color: var(--dust);
+}
+
+.dp-pad { aspect-ratio: 1; }
+
+.dp-day {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+
+  background: var(--carbon-high);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  color: var(--mist);
+
+  animation: dp-in 220ms var(--ease-out) backwards;
+  transition: background-color var(--d-fast) var(--ease),
+              color var(--d-fast) var(--ease);
+}
+
+.dp-day:not(:disabled):hover { background: var(--steel); color: var(--ice); }
+
+.dp-day.today { border-color: var(--line-strong); color: var(--ice); }
+
+.dp-day.selected {
+  background: var(--volt);
+  border-color: var(--volt);
+  color: var(--volt-ink);
+  font-weight: 700;
+  box-shadow: 0 0 14px -4px var(--volt);
+}
+
+// Budući datumi: težina se ne može izmjeriti unaprijed.
+.dp-day:disabled { opacity: .25; cursor: not-allowed; }
+
+.dp-today {
+  width: 100%;
+  min-height: 40px;
+  margin-top: var(--s-4);
+
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.dp-today:hover { border-color: var(--volt-a40); color: var(--volt); }
+
+@keyframes dp-in {
+  from { opacity: 0; transform: scale(.7); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-day { animation: none; }
+}

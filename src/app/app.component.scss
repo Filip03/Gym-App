@@ -1,29 +1,53 @@
+// ---------------------------------------------------------------------------
+// OKVIR APLIKACIJE
+//
+// SKROLUJE SADRŽAJ, NE STRANICA.
+//
+// Na iPhoneu se pri skrolu nadolje traka sa adresom skuplja. Fiksirani futer se
+// pozicionira prema *layout* viewportu, koji se u tom trenutku još nije proširio,
+// pa futer ostane gdje je bio i **između njega i donje trake nastane rupa**. Na
+// skrol nagore izgleda uredno, jer se traka vraća.
+//
+// To se ne može popraviti CSS-om dok stranica skroluje — probano je sa `svh`
+// umjesto `dvh` (pomaže kod visine, ne kod ovoga) i sa `overscroll-behavior`.
+//
+// Jedini pouzdan način: stranica se **uopšte ne skroluje**. Okvir je visine
+// ekrana, zaglavlje i futer su obična djeca u toku, a skroluje samo srednji
+// element. Traka sa adresom se tada nikad ne skuplja, pa nema ni rupe.
+//
+// Cijena: traka ostaje stalno vidljiva, pa se gubi tridesetak piksela visine.
+// Stabilan futer to vrijedi — ovo je aplikacija koja se koristi jednom rukom
+// između serija.
+// ---------------------------------------------------------------------------
+
 .shell {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 100dvh;   // dvh, ne vh — vh na mobilnom Safariju uračunava i
-                        // traku adresne linije, pa dno sadržaja ispadne ispod
-                        // vidljivog dijela ekrana
+  height: 100svh;
+  overflow: hidden;   // stranica nema šta da skroluje
+}
+
+.scroll-area {
+  flex: 1;
+  min-height: 0;      // bez ovoga flex dijete ne pušta skrol nego raste
+
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+
+  // Skrol se ne prenosi na stranicu iza — na iOS-u bi inače „rubber band"
+  // povukao cio okvir.
+  overscroll-behavior-y: contain;
 }
 
 .content {
-  flex: 1;
   width: 100%;
   max-width: var(--page-max);
   margin: 0 auto;
   padding-top: var(--s-5);
   padding-inline: var(--s-5);
-}
-
-// Rezerva za fiksni footer i sigurnu zonu telefona.
-//
-// MORA stajati ovdje, u stilu komponente. Ranije je bila u globalnom
-// _base.scss, ali `.content` je istovremeno postavljao `padding: ... 0` —
-// a Angular ubacuje stilove komponente POSLIJE globalnih, pa je nula
-// pobjeđivala. Posljedica: footer je prekrivao zadnju vježbu i njen upis.
-.content.app-scroll {
-  padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-10));
+  padding-bottom: var(--s-8);
 }
 
 // Ekrani sa mrežom kartica (planovi, vježbe, ekipa) — na telefonu isto,
@@ -33,6 +57,3 @@
 @media (min-width: 900px) {
   .content { padding-inline: var(--s-6); }
 }
-
-// Na uskom ekranu razmak od ivice OSTAJE isti (20px). Smanjivanje bi kartice
-// zalijepilo za ivice ekrana, a upravo to je smetalo.

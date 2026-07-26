@@ -208,6 +208,112 @@
 
 .exercice-select { margin-top: var(--s-4); }
 
+// Lični rekord za izabranu vježbu.
+//
+// Stoji iznad grafikona jer je to broj koji se traži prvi — grafikon je priča,
+// rekord je odgovor. Na rang listi se sopstveni maksimum lako izgubi: ko je
+// slabiji od ostalih, nikad ne dođe na podijum pa svoj broj ne vidi nigdje.
+//
+// Vatra je ista ikona kao oznaka rekorda u treningu, namjerno — ista stvar
+// treba da izgleda isto na oba mjesta.
+.pb {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--gold) 12%, var(--carbon-high)) 0%,
+    var(--carbon-high) 55%
+  );
+  border: 1px solid var(--gold-a20, rgba(255, 201, 74, .22));
+  border-left: 2px solid var(--gold);
+  border-radius: var(--r-sm);
+}
+
+.pb-icon {
+  color: var(--gold);
+  font-size: 24px;
+  filter: drop-shadow(0 0 8px rgba(255, 201, 74, .45));
+  animation: pb-flame 2.6s ease-in-out infinite;
+}
+
+@keyframes pb-flame {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 8px rgba(255, 201, 74, .45)); }
+  50%      { transform: scale(1.08); filter: drop-shadow(0 0 14px rgba(255, 201, 74, .7)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-icon { animation: none; }
+}
+
+.pb-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.pb-label {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ice);
+}
+
+.pb-when { font-family: var(--font-data); font-size: var(--t-2xs); color: var(--dust); }
+
+.pb-num { flex: none; text-align: right; }
+
+.pb-kg {
+  display: block;
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--gold);
+}
+.pb-kg em { font-size: var(--t-2xs); font-style: normal; opacity: .7; margin-left: 1px; }
+
+.pb-reps { font-size: var(--t-2xs); color: var(--mist); }
+
+// --- Prozor grafikona ------------------------------------------------------
+
+.chart-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+
+.chart-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.chart-nav button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--mist);
+}
+
+.chart-nav button:not(:disabled):hover { background: var(--carbon-high); color: var(--ice); }
+.chart-nav button:disabled { opacity: .3; }
+.chart-nav .material-icons { font-size: 20px; }
+
+.chart-window {
+  flex: 1;
+  text-align: center;
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--dust);
+}
+
+// Crtež ima stalnu širinu (560), a ovdje se skalira na širinu kartice —
+// zato `max-width` na samom SVG-u, a ne skrol.
+.progress-chart { width: 100%; height: auto; max-width: 100%; }
+
 .chart-wrapper {
   margin-top: var(--s-4);
   padding: var(--s-3) 0;
@@ -229,18 +335,67 @@
 
 .reps-label { fill: var(--mist); }
 
+// Linija se CRTA, ne pojavljuje.
+//
+// `pathLength="1"` u predlošku normalizuje dužinu putanje na 1, pa se
+// `stroke-dasharray` i `stroke-dashoffset` mogu zadati u CSS-u bez mjerenja
+// dužine u JavaScriptu (`getTotalLength()`), koje bi tražilo pristup elementu i
+// ponovno računanje pri svakoj promjeni podataka.
 .progress-line {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: line-draw 900ms var(--ease-out) 120ms forwards;
 }
 
-.progress-line.me { stroke: var(--volt); }
-.progress-line.compare { stroke: var(--gold); stroke-dasharray: 5 4; }
+.progress-line.me {
+  stroke: var(--volt);
+  filter: drop-shadow(0 0 6px var(--volt-a40));
+}
+
+// Tuđa linija je isprekidana i bez sjaja — na prvi pogled se vidi koja je čija,
+// i bez legende ispod grafikona.
+.progress-line.compare {
+  stroke: var(--gold);
+  stroke-width: 2;
+  stroke-dasharray: 0.012 0.01;
+  stroke-dashoffset: 0;
+  animation: line-fade 700ms var(--ease-out) 220ms backwards;
+}
+
+// Površina ispod linije stiže poslije nje, da se ne vidi kako „raste" ispred.
+.progress-area { animation: area-in 600ms var(--ease-out) 620ms backwards; }
 
 .progress-point.me { fill: var(--volt); stroke: var(--void); stroke-width: 2; }
 .progress-point.compare { fill: var(--gold); stroke: var(--void); stroke-width: 2; }
+
+// Tačka + njen natpis ulaze zajedno, sa kašnjenjem iz predloška.
+.pt { animation: pt-in 340ms var(--ease-spring) backwards; }
+
+@keyframes line-draw { to { stroke-dashoffset: 0; } }
+@keyframes line-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes area-in   { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes pt-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// `transform` na SVG grupi računa se od koordinatnog početka crteža, ne od
+// same tačke — bez ovoga bi tačke uletjele iz gornjeg lijevog ugla.
+.pt { transform-box: fill-box; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-line, .progress-area, .pt {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
 
 .chart-legend {
   display: flex;
@@ -295,6 +450,108 @@
   color: var(--dust);
 }
 
+// --- Modal: sa kim se poredi -----------------------------------------------
+//
+// Zamijenio posljednji `<select>` u aplikaciji. Spisak je kratak (nas nekoliko),
+// pa nema pretrage — samo redovi sa kvačicom na izabranom.
+
+.cmp-overlay { z-index: 150; }
+
+.cmp-card {
+  width: 100%;
+  max-width: 380px;
+  padding: var(--s-5);
+}
+
+.cmp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.cmp-head h3 { font-size: var(--t-md); }
+
+.cmp-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  background: var(--carbon-high);
+  color: var(--mist);
+}
+
+.cmp-close:hover { background: var(--steel); color: var(--ice); }
+
+.cmp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--s-2) var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  text-align: left;
+
+  animation: cmp-in 300ms var(--ease-out) backwards;
+  transition: border-color var(--d-fast) var(--ease),
+              background-color var(--d-fast) var(--ease);
+}
+
+.cmp-row + .cmp-row { margin-top: var(--s-2); }
+
+.cmp-row:hover { border-color: var(--line-strong); }
+
+.cmp-row.on {
+  background: var(--volt-a10);
+  border-color: var(--volt);
+}
+
+.cmp-av {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-full);
+  background: var(--carbon);
+  border: 1px solid var(--line-strong);
+  color: var(--dust);
+}
+
+.cmp-av .material-icons { font-size: 18px; }
+.cmp-av.none { border-style: dashed; }
+
+.cmp-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ice);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmp-check { flex: none; color: var(--volt); font-size: 20px; }
+
+.cmp-row.on .cmp-av { border-color: var(--volt); color: var(--volt); }
+
+@keyframes cmp-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp-row { animation: none; }
+}
+
 // --- Modal: težina ---------------------------------------------------------
 
 .weight-card { max-width: 620px; }
@@ -328,11 +585,100 @@
 
 .wm-close:hover { background: var(--steel); color: var(--ice); }
 
+// Trenutna težina — jedini broj koji se traži na prvi pogled, pa je krupan.
+.wm-now {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.wm-big { display: flex; align-items: baseline; gap: var(--s-1); }
+
+.wm-kg {
+  font-size: var(--t-2xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--volt);
+}
+
+.wm-unit {
+  font-family: var(--font-data);
+  font-size: var(--t-sm);
+  color: var(--mist);
+}
+
+.wm-since { display: flex; flex-direction: column; }
+
+// Bez boje koja sudi. Neko se goji namjerno, neko mršavi — „+1,2" nije ni dobro
+// ni loše dok se ne zna cilj, pa aplikacija ne pretpostavlja.
+.wm-delta {
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--ice);
+}
+
+.wm-since-label {
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+// --- Obrazac ---------------------------------------------------------------
+
 .wm-form {
   display: grid;
   grid-template-columns: 1fr 1fr auto;
   align-items: end;
   gap: var(--s-3);
+}
+
+.wm-field label {
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+// Datum + prečica „danas". Nativni birač ostaje jer je na telefonu najbrži, ali
+// se u praksi upisuje današnji dan, pa dugme štedi tri dodira.
+.wm-date { position: relative; display: flex; align-items: center; }
+
+.wm-date input { padding-right: 62px; }
+
+.wm-today {
+  position: absolute;
+  right: 6px;
+  padding: 0 var(--s-2);
+  height: 28px;
+
+  background: var(--carbon);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-family: var(--font-data);
+  font-size: 10px;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.wm-today:hover { border-color: var(--volt-a40); color: var(--volt); }
+
+.wm-num-field { position: relative; display: flex; align-items: center; }
+
+.wm-num-field input { padding-right: 38px; text-align: left; }
+
+.wm-suffix {
+  position: absolute;
+  right: var(--s-4);
+  font-family: var(--font-data);
+  font-size: var(--t-sm);
+  color: var(--dust);
+  pointer-events: none;
 }
 
 .wm-submit { min-height: 46px; }
@@ -341,6 +687,57 @@
 @media (max-width: 520px) {
   .wm-form { grid-template-columns: 1fr 1fr; }
   .wm-submit { grid-column: 1 / -1; }
+}
+
+// --- Spisak upisa ----------------------------------------------------------
+
+.wm-list { margin-top: var(--s-5); }
+
+.wm-list .eyebrow { margin-bottom: var(--s-2); }
+
+.wm-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+
+  background: var(--carbon-high);
+  border-radius: var(--r-sm);
+  animation: row-in 320ms var(--ease-out) backwards;
+}
+
+.wm-row + .wm-row { margin-top: 4px; }
+
+.wm-row-date { font-size: var(--t-xs); color: var(--mist); }
+
+.wm-row-kg {
+  font-size: var(--t-base);
+  font-weight: 700;
+  color: var(--ice);
+}
+.wm-row-kg em { font-size: 9px; font-style: normal; opacity: .6; margin-left: 1px; }
+
+.wm-row-delta {
+  min-width: 52px;
+  text-align: right;
+  font-size: var(--t-xs);
+  color: var(--mist);
+}
+
+.wm-row-delta.first {
+  font-family: var(--font-body);
+  font-size: 10px;
+  color: var(--echo);
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wm-row { animation: none; }
 }
 
 // --- Uski ekran ------------------------------------------------------------
@@ -398,8 +795,11 @@
   place-items: center;
   width: 30px;
   height: 30px;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  color: var(--mist);
+  color: var(--ice);
 }
 
 .cal-nav button:not(:disabled):hover { background: var(--carbon-high); color: var(--ice); }
@@ -407,13 +807,32 @@
 .cal-nav .material-icons { font-size: 20px; }
 
 .cal-title {
-  min-width: 118px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 138px;
+
   font-family: var(--font-data);
   font-size: var(--t-xs);
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
   color: var(--ice);
+}
+
+// Broj treninga u PRIKAZANOM mjesecu.
+//
+// Bez njega listanje mjeseci nije davalo nikakav brojčani odgovor — mijenjala
+// se samo mreža, pa je izgledalo kao da strelice ne rade. Ostale brojke prate
+// klizni opseg i namjerno se ne mijenjaju sa mjesecom.
+.cal-count {
+  padding: 1px 7px;
+  background: var(--volt-a10);
+  border-radius: var(--r-full);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  color: var(--volt);
 }
 
 // Polja su namjerno MALA i mreža je ograničena po širini.
@@ -443,6 +862,17 @@
   }
   .cal-grid { justify-content: start; }
 }
+
+// Prekidač opsega + brojke idu zajedno, da se vidi da brojke pripadaju njemu.
+.cal-stats-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+// Izgled prekidača nosi `.seg` u _base.scss. Ovdje su samo sitnija slova —
+// četiri natpisa u uskoj koloni pored kalendara.
 
 .cal-wd {
   padding-bottom: 2px;
@@ -496,12 +926,12 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--s-2);
-  margin-top: var(--s-4);
+  margin-top: 0;
 }
 
 @media (min-width: 640px) {
   .cal-stats {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     margin-top: 0;
   }
 }
@@ -525,6 +955,13 @@
   font-weight: 700;
   line-height: 1;
   color: var(--volt);
+}
+
+// Jedina brojka koja NE prati prekidač opsega — niz teče od danas unazad bez
+// obzira šta je izabrano. Obrub to nagovještava bez dodatnog teksta.
+.cal-stat.global {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
 }
 
 .cs-label {

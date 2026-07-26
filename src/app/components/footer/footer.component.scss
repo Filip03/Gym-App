@@ -1,8 +1,8 @@
 .footer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    // NIJE `position: fixed`. Okvir aplikacije je visine ekrana i futer je
+    // njegovo posljednje dijete, pa stoji na dnu sam od sebe — bez veze sa
+    // trakom adrese na telefonu. Vidi app.component.scss.
+    flex: none;
     z-index: 60;
 
     display: flex;

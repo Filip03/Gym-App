@@ -1,6 +1,7 @@
 .header {
-  position: sticky;
-  top: 0;
+  // `sticky` je bio potreban dok je skrolovala stranica. Sada je zaglavlje prvo
+  // dijete okvira visine ekrana, pa stoji na vrhu bez ikakvog trika.
+  flex: none;
   z-index: 50;
 
   display: flex;

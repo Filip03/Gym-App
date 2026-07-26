@@ -76,7 +76,10 @@
             <button type="button" (click)="prevMonth()" aria-label="Prethodni mjesec">
               <i class="material-icons">chevron_left</i>
             </button>
-            <span class="cal-title">{{ calTitle }}</span>
+            <span class="cal-title">
+              {{ calTitle }}
+              <em class="cal-count num">{{ monthCount }}</em>
+            </span>
             <button type="button" (click)="nextMonth()" [disabled]="calAtCurrentMonth"
                     aria-label="Sljedeći mjesec">
               <i class="material-icons">chevron_right</i>
@@ -103,30 +106,41 @@
             </span>
           </div>
 
-          <div class="cal-stats">
-            <div class="cal-stat">
-              <span class="cs-num num">{{ monthCount }}</span>
-              <span class="cs-label">ovog mjeseca</span>
+          <div class="cal-stats-wrap">
+            <div class="seg range-seg"
+                 [style.--seg-count]="statRanges.length" [style.--seg-index]="statRangeIndex">
+              <span class="seg-thumb"></span>
+              <button type="button" *ngFor="let r of statRanges"
+                      [class.on]="statRange === r.weeks" (click)="setStatRange(r.weeks)">
+                {{ r.label }}
+              </button>
             </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ weekStreak }}</span>
-              <span class="cs-label">niz sedmica</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ weekAvg }}</span>
-              <span class="cs-label">sedmično</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ bestMonth }}</span>
-              <span class="cs-label">najbolji mjesec</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ yearCount }}</span>
-              <span class="cs-label">treninga (12 mj.)</span>
-            </div>
-            <div class="cal-stat">
-              <span class="cs-num num">{{ yearSets }}</span>
-              <span class="cs-label">serija (12 mj.)</span>
+
+            <div class="cal-stats">
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeCount }}</span>
+                <span class="cs-label">treninga</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeSets }}</span>
+                <span class="cs-label">serija</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeAvg }}</span>
+                <span class="cs-label">sedmično</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangePerDay }}</span>
+                <span class="cs-label">serija/trening</span>
+              </div>
+              <div class="cal-stat">
+                <span class="cs-num num">{{ rangeBestDay }}</span>
+                <span class="cs-label">najbolji dan</span>
+              </div>
+              <div class="cal-stat global">
+                <span class="cs-num num">{{ weekStreak }}</span>
+                <span class="cs-label">niz sedmica</span>
+              </div>
             </div>
           </div>
           </div>
@@ -153,11 +167,47 @@
         </div>
 
         <div class="exercice-select" *ngIf="selectedExerciceId && otherProfiles.length > 0">
-          <label for="compareUser">Uporedi sa</label>
-          <select id="compareUser" [(ngModel)]="compareUserId" (change)="onCompareUserChange()">
-            <option value="">-- Niko --</option>
-            <option *ngFor="let p of otherProfiles" [value]="p.id">{{ p.username }}</option>
-          </select>
+          <label>Uporedi sa</label>
+          <button type="button" class="pick-field" (click)="showComparePicker = true">
+            <span class="pf-ph"><i class="material-icons">group</i></span>
+            <span class="pf-name" [class.empty-choice]="!compareUserId">{{ compareLabel }}</span>
+            <i class="material-icons">expand_more</i>
+          </button>
+        </div>
+
+        <!-- Lični rekord: najveća kilaža IKAD, ne u prikazanom prozoru. -->
+        <div class="pb" *ngIf="personalBest && !progressLoading">
+          <i class="material-icons pb-icon">local_fire_department</i>
+          <div class="pb-body">
+            <span class="pb-label">Moj rekord · sve vrijeme</span>
+            <span class="pb-when">{{ personalBestLabel }}</span>
+          </div>
+          <div class="pb-num">
+            <span class="pb-kg num">{{ personalBest.weight }}<em>kg</em></span>
+            <span class="pb-reps num">×{{ personalBest.reps }}</span>
+          </div>
+        </div>
+
+        <div class="chart-controls" *ngIf="selectedExerciceId">
+          <div class="seg chart-seg"
+               [style.--seg-count]="chartRanges.length" [style.--seg-index]="chartRangeIndex">
+            <span class="seg-thumb"></span>
+            <button type="button" *ngFor="let r of chartRanges"
+                    [class.on]="chartRange === r.days" (click)="setChartRange(r.days)">
+              {{ r.label }}
+            </button>
+          </div>
+
+          <div class="chart-nav" *ngIf="chartRange !== 0">
+            <button type="button" (click)="shiftChart(1)" aria-label="Ranije">
+              <i class="material-icons">chevron_left</i>
+            </button>
+            <span class="chart-window num">{{ chartWindowLabel }}</span>
+            <button type="button" (click)="shiftChart(-1)" [disabled]="!canShiftForward"
+                    aria-label="Kasnije">
+              <i class="material-icons">chevron_right</i>
+            </button>
+          </div>
         </div>
 
         <p *ngIf="progressLoading">Učitavanje...</p>
@@ -182,12 +232,12 @@
             >
               <defs>
                 <linearGradient id="progressAreaGradientMe" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#199e70" stop-opacity="0.4" />
-                  <stop offset="100%" stop-color="#199e70" stop-opacity="0" />
+                  <stop offset="0%" stop-color="#C6FF3B" stop-opacity="0.28" />
+                  <stop offset="100%" stop-color="#C6FF3B" stop-opacity="0" />
                 </linearGradient>
                 <linearGradient id="progressAreaGradientCompare" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e66767" stop-opacity="0.4" />
-                  <stop offset="100%" stop-color="#e66767" stop-opacity="0" />
+                  <stop offset="0%" stop-color="#FFC94A" stop-opacity="0.20" />
+                  <stop offset="100%" stop-color="#FFC94A" stop-opacity="0" />
                 </linearGradient>
               </defs>
 
@@ -204,13 +254,16 @@
                 </text>
               </g>
 
-              <path [attr.d]="compareAreaPath" class="progress-area compare" />
-              <path [attr.d]="areaPath" class="progress-area me" />
+              <path [attr.d]="compareAreaPath" fill="url(#progressAreaGradientCompare)"
+                    stroke="none" class="progress-area compare" />
+              <path [attr.d]="areaPath" fill="url(#progressAreaGradientMe)"
+                    stroke="none" class="progress-area me" />
 
-              <polyline [attr.points]="compareLinePoints" class="progress-line compare" />
-              <polyline [attr.points]="chartLinePoints" class="progress-line me" />
+              <polyline [attr.points]="compareLinePoints" pathLength="1" class="progress-line compare" />
+              <polyline [attr.points]="chartLinePoints" pathLength="1" class="progress-line me" />
 
-              <g *ngFor="let point of comparePoints">
+              <g *ngFor="let point of comparePoints; let i = index"
+                 class="pt" [style.animation-delay.ms]="520 + i * 45">
                 <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
                   {{ point.reps }} rep.
                 </text>
@@ -219,7 +272,8 @@
                 </circle>
               </g>
 
-              <g *ngFor="let point of chartPoints">
+              <g *ngFor="let point of chartPoints; let i = index"
+                 class="pt" [style.animation-delay.ms]="560 + i * 45">
                 <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
                   {{ point.reps }} rep.
                 </text>
@@ -285,16 +339,38 @@
       </button>
     </header>
 
+    <!-- Trenutno stanje: krupno, jer je to jedini broj koji se traži na prvi pogled. -->
+    <div class="wm-now" *ngIf="weightCurrent !== null">
+      <div class="wm-big">
+        <span class="wm-kg num">{{ weightCurrent }}</span>
+        <span class="wm-unit">kg</span>
+      </div>
+      <div class="wm-since" *ngIf="weightTotalChange !== null">
+        <span class="wm-delta num">{{ formatDelta(weightTotalChange) }}</span>
+        <span class="wm-since-label">od prvog upisa</span>
+      </div>
+    </div>
+
     <form class="wm-form" (ngSubmit)="submitWeightLog()">
       <div class="wm-field">
         <label for="weightDate">Datum</label>
-        <input id="weightDate" type="date" name="weightDate" [(ngModel)]="newWeightDate" required>
+        <button type="button" class="pick-field wm-date-field"
+                (click)="showDatePicker = true">
+          <span class="pf-ph"><i class="material-icons">event</i></span>
+          <span class="pf-name num">{{ weightDateLabel }}</span>
+          <i class="material-icons">expand_more</i>
+        </button>
       </div>
+
       <div class="wm-field">
-        <label for="weightValue">Težina (kg)</label>
-        <input id="weightValue" type="number" name="weightValue" [(ngModel)]="newWeightValue"
-               min="0" step="0.1" required>
+        <label for="weightValue">Težina</label>
+        <div class="wm-num-field">
+          <input id="weightValue" type="number" name="weightValue" [(ngModel)]="newWeightValue"
+                 min="0" step="0.1" inputmode="decimal" placeholder="0,0" required>
+          <span class="wm-suffix">kg</span>
+        </div>
       </div>
+
       <button type="submit" class="btn-primary wm-submit" [disabled]="loggingWeight">
         {{ loggingWeight ? 'Čuvam...' : 'Upiši' }}
       </button>
@@ -304,7 +380,7 @@
     <p *ngIf="weightLoading" class="empty">Učitavanje...</p>
     <p *ngIf="weightError" class="error">{{ weightError }}</p>
     <p *ngIf="!weightLoading && !weightError && weightHistory.length === 0" class="empty">
-      Još nema upisane težine.
+      Još nema upisane težine. Upiši prvu iznad.
     </p>
 
     <div class="chart-wrapper" *ngIf="weightChartPoints.length > 0">
@@ -326,9 +402,10 @@
         </g>
 
         <path [attr.d]="weightAreaPath" fill="url(#weightAreaGradient)" stroke="none" />
-        <polyline [attr.points]="weightChartLinePoints" class="progress-line me" />
+        <polyline [attr.points]="weightChartLinePoints" pathLength="1" class="progress-line me" />
 
-        <g *ngFor="let point of weightChartPoints">
+        <g *ngFor="let point of weightChartPoints; let i = index"
+           class="pt" [style.animation-delay.ms]="560 + i * 45">
           <text [attr.x]="point.x" [attr.y]="point.y - 14" text-anchor="middle" class="reps-label">
             {{ point.weight }} kg
           </text>
@@ -342,5 +419,53 @@
               text-anchor="middle" class="date-label">{{ tick.label }}</text>
       </svg>
     </div>
+
+    <div class="wm-list" *ngIf="weightRows.length > 0">
+      <h4 class="eyebrow">Upisi</h4>
+      <div class="wm-row" *ngFor="let r of weightRows; let i = index; trackBy: trackWeightRow"
+           [style.animation-delay.ms]="i * 40">
+        <span class="wm-row-date num">{{ r.label }}</span>
+        <span class="wm-row-kg num">{{ r.weight }}<em>kg</em></span>
+        <span class="wm-row-delta num" *ngIf="r.delta !== null">{{ formatDelta(r.delta) }}</span>
+        <span class="wm-row-delta first" *ngIf="r.delta === null">prvi upis</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Birač datuma za upis težine -->
+<app-date-picker
+  *ngIf="showDatePicker"
+  title="Datum mjerenja"
+  [value]="newWeightDate"
+  [max]="todayIso"
+  (pick)="onDatePick($event)"
+  (dismiss)="showDatePicker = false">
+</app-date-picker>
+
+<!-- Sa kim se poredi napredak -->
+<div class="modal-overlay cmp-overlay" *ngIf="showComparePicker" (click)="showComparePicker = false">
+  <div class="modal-card cmp-card" (click)="$event.stopPropagation()">
+    <header class="cmp-head">
+      <h3>Uporedi sa</h3>
+      <button type="button" class="cmp-close" (click)="showComparePicker = false" aria-label="Zatvori">
+        <i class="material-icons">close</i>
+      </button>
+    </header>
+
+    <button type="button" class="cmp-row" [class.on]="!compareUserId" (click)="chooseCompare('')">
+      <span class="cmp-av none"><i class="material-icons">block</i></span>
+      <span class="cmp-name">Niko</span>
+      <i class="material-icons cmp-check" *ngIf="!compareUserId">check</i>
+    </button>
+
+    <button type="button" class="cmp-row" *ngFor="let p of otherProfiles; let i = index"
+            [class.on]="compareUserId === p.id"
+            [style.animation-delay.ms]="(i + 1) * 45"
+            (click)="chooseCompare(p.id)">
+      <span class="cmp-av"><i class="material-icons">person</i></span>
+      <span class="cmp-name">{{ p.username }}</span>
+      <i class="material-icons cmp-check" *ngIf="compareUserId === p.id">check</i>
+    </button>
   </div>
 </div>

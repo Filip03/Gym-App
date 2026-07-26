@@ -1,40 +1,112 @@
-<div class="blog-wrapper">
-  <div class="blog-container">
-
-    <div class="header">
-      <h2>Blog</h2>
-      <span id="add" class="material-icons" (click)="triggerUpload()">add_box</span>
+<section class="sec">
+  <div class="sec-head">
+    <div>
+      <h2 class="eyebrow">Blog</h2>
+      <span class="sec-note" *ngIf="!loading">
+        {{ total }} {{ total === 1 ? 'objava' : (total >= 2 && total <= 4 ? 'objave' : 'objava') }}
+      </span>
     </div>
-    <input #fileInput type="file" accept="image/*,video/*" hidden (change)="onFileSelected($event)">
 
-    <p *ngIf="loading">Učitavanje...</p>
-    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
-    <p *ngIf="compressing">
-      {{ compressProgress > 0 ? 'Kompresujem... ' + (compressProgress * 100 | number:'1.0-0') + '%' : 'Kompresujem...' }}
-    </p>
-    <p *ngIf="uploading">Otpremam...</p>
-    <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
-
-    <ng-container *ngIf="!loading && !errorMessage">
-      <p *ngIf="mediaItems.length === 0" class="no-entries">
-        Još nema objava. Klikni na + da dodaš prvu sliku, gif ili video.
-      </p>
-
-      <div class="media-grid" *ngIf="mediaItems.length > 0">
-        <div class="media-card" *ngFor="let item of mediaItems" (click)="openLightbox(item)">
-          <video *ngIf="item.type === 'video'" [src]="item.url" muted playsinline></video>
-          <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name">
-          <span class="media-date" *ngIf="item.createdAt">{{ item.createdAt | date:'dd.MM.yyyy' }}</span>
-        </div>
-      </div>
-    </ng-container>
-
+    <button type="button" class="add-btn" [disabled]="uploading || compressing"
+            (click)="triggerUpload()">
+      <i class="material-icons">add_photo_alternate</i>
+      <span>Dodaj</span>
+    </button>
   </div>
-</div>
 
-<div class="lightbox-overlay" *ngIf="selectedItem as item" (click)="closeLightbox()">
-  <span class="material-icons lightbox-close" (click)="closeLightbox()">close</span>
-  <span class="lightbox-date" *ngIf="item.createdAt">{{ item.createdAt | date:'dd.MM.yyyy. HH:mm' }}</span>
-  <video *ngIf="item.type === 'video'" [src]="item.url" controls autoplay playsinline (click)="$event.stopPropagation()"></video>
-  <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name" (click)="$event.stopPropagation()">
+  <input #fileInput type="file" accept="image/*,video/*" hidden (change)="onFileSelected($event)">
+
+  <!-- Kompresija i otprema: jedna traka umjesto tri odvojena reda teksta -->
+  <div class="work" *ngIf="compressing || uploading">
+    <div class="work-top">
+      <i class="material-icons">{{ compressing ? 'compress' : 'cloud_upload' }}</i>
+      <span>{{ compressing ? 'Smanjujem fajl' : 'Otpremam' }}</span>
+      <span class="work-pct num" *ngIf="compressing && compressProgress > 0">
+        {{ compressProgress * 100 | number:'1.0-0' }}%
+      </span>
+    </div>
+    <div class="work-track">
+      <span class="work-bar" [class.indeterminate]="!compressing || compressProgress === 0"
+            [style.width.%]="compressing && compressProgress > 0 ? compressProgress * 100 : 100"></span>
+    </div>
+  </div>
+
+  <p *ngIf="loading" class="empty">Učitavanje...</p>
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+  <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
+
+  <ng-container *ngIf="!loading && !errorMessage">
+
+    <div class="blank" *ngIf="total === 0">
+      <i class="material-icons">photo_camera</i>
+      <p>Ovdje idu slike i snimci iz teretane.</p>
+      <span>Nema još nijedne — budi prvi.</span>
+    </div>
+
+    <div class="group" *ngFor="let g of groups; let gi = index">
+      <h3 class="group-label">{{ g.label }}</h3>
+
+      <article class="post" *ngFor="let item of g.items; let i = index"
+               [class.mine]="isMine(item)"
+               [style.animation-delay.ms]="Math.min(gi * 90 + i * 60, 700)">
+
+        <header class="post-head">
+          <div class="pa">
+            <img *ngIf="avatarOf(item)" [src]="avatarOf(item)" alt="">
+            <i class="material-icons" *ngIf="!avatarOf(item)">person</i>
+          </div>
+          <div class="post-who">
+            <span class="post-name">{{ authorOf(item) }}</span>
+            <span class="post-when num">{{ item.createdAt | date:'dd.MM.yyyy. HH:mm' }}</span>
+          </div>
+          <span class="post-kind" *ngIf="item.type === 'video'">
+            <i class="material-icons">videocam</i>
+          </span>
+        </header>
+
+        <button type="button" class="post-media" (click)="openLightbox(item)">
+          <video *ngIf="item.type === 'video'" [src]="item.url" muted playsinline preload="metadata"></video>
+          <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name" loading="lazy">
+
+          <span class="play" *ngIf="item.type === 'video'">
+            <i class="material-icons">play_arrow</i>
+          </span>
+        </button>
+      </article>
+    </div>
+
+  </ng-container>
+</section>
+
+<!-- Pregled -->
+<div class="lb" *ngIf="selectedItem as item" (click)="closeLightbox()"
+     (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
+
+  <header class="lb-bar" (click)="$event.stopPropagation()">
+    <div class="lb-who">
+      <span class="lb-name">{{ authorOf(item) }}</span>
+      <span class="lb-date num">{{ item.createdAt | date:'dd.MM.yyyy. HH:mm' }}</span>
+    </div>
+    <span class="lb-count num">{{ selectedIndex + 1 }} / {{ total }}</span>
+    <button type="button" class="lb-close" (click)="closeLightbox()" aria-label="Zatvori">
+      <i class="material-icons">close</i>
+    </button>
+  </header>
+
+  <button type="button" class="lb-nav prev" *ngIf="selectedIndex > 0"
+          (click)="$event.stopPropagation(); prev()" aria-label="Prethodna">
+    <i class="material-icons">chevron_left</i>
+  </button>
+
+  <div class="lb-stage" (click)="$event.stopPropagation()">
+    <video *ngIf="item.type === 'video'" [src]="item.url" controls autoplay playsinline></video>
+    <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name">
+  </div>
+
+  <button type="button" class="lb-nav next" *ngIf="selectedIndex < total - 1"
+          (click)="$event.stopPropagation(); next()" aria-label="Sljedeća">
+    <i class="material-icons">chevron_right</i>
+  </button>
+
+  <span class="lb-hint" *ngIf="total > 1">Prevuci ili strelice</span>
 </div>

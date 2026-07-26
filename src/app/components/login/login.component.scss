@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100dvh - var(--header-h) - var(--s-10));
+  min-height: calc(100svh - var(--header-h) - var(--s-10));
   padding: var(--s-4) 0;
 }
 

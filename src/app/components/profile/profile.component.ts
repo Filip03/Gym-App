@@ -7,6 +7,7 @@ import { Profile } from '../../models/models';
 import {
   PickerGroup, PickerOption, toPickerGroups
 } from '../shared/exercice-picker/exercice-picker.component';
+import { formatIsoDate } from '../shared/date-picker/date-picker.component';
 
 /** Jedno polje u kalendaru treninga. */
 interface CalCell {
@@ -19,6 +20,15 @@ interface CalCell {
   future: boolean;
 }
 
+/** Jedan red u spisku upisa težine. */
+interface WeightRow {
+  date: string;
+  label: string;
+  weight: number;
+  /** Razlika u odnosu na PRETHODNI upis. `null` za najstariji. */
+  delta: number | null;
+}
+
 /** Tačka na grafikonu tjelesne težine (Filipova funkcija, zadržana pri spajanju). */
 interface WeightChartPoint {
   x: number;
@@ -26,6 +36,37 @@ interface WeightChartPoint {
   weight: number;
   dateLabel: string;
 }
+
+/**
+ * Opsezi za statistiku ispod kalendara — zadati u CIJELIM SEDMICAMA.
+ *
+ * Nisu 30 / 90 / 365 dana, jer se tada „sedmično" ne može tačno podijeliti:
+ * u 30 dana stane 4,3 sedmice, pa djelilac postaje razlomak i broj se razvodni.
+ * Ovako je djelilac tačno 1, 4, 13 ili 52 — koliko sedmica stvarno staje.
+ *
+ * Natpisi su zaokruženi na ono kako se o tome govori: 4 sedmice se u teretani
+ * zovu mjesec, 13 sedmica tri mjeseca.
+ */
+/**
+ * Opsezi za grafikon napretka, u danima. `0` = sve vrijeme.
+ *
+ * Grafikon je ranije prikazivao samo dane koji imaju upis, ravnomjerno
+ * razmaknute — dva upisa razmaknuta tri sedmice izgledala su isto kao dva
+ * uzastopna dana. Sada osa nosi VRIJEME, pa prozor mora biti zadat.
+ */
+const CHART_RANGES: { days: number; label: string }[] = [
+  { days: 30,  label: '1m' },
+  { days: 90,  label: '3m' },
+  { days: 180, label: '6m' },
+  { days: 0,   label: 'Sve' }
+];
+
+const STAT_RANGES: { weeks: number; label: string }[] = [
+  { weeks: 1,  label: '1s' },
+  { weeks: 4,  label: '1m' },
+  { weeks: 13, label: '3m' },
+  { weeks: 52, label: '1g' }
+];
 
 const MONTHS = [
   'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
@@ -76,12 +117,20 @@ export class ProfileComponent implements OnInit {
   calLead = 0;                       // prazna polja prije prvog u mjesecu
   calTitle = '';
   calAtCurrentMonth = true;
+  // Statistika ispod kalendara. Sve osim niza sedmica prati izabrani opseg.
+  readonly statRanges = STAT_RANGES;
+  /** Izabrani opseg, u sedmicama. */
+  statRange = 4;
+
+  rangeCount = 0;      // dana sa treningom
+  rangeSets = 0;       // upisanih serija
+  rangeAvg = '—';      // prosjek po punoj sedmici
+  rangePerDay = '—';   // serija po treningu
+  rangeBestDay = 0;    // najviše serija u jednom danu
+  weekStreak = 0;      // trenutni niz — jedini koji NE zavisi od opsega
+
+  /** Dana sa treningom u prikazanom mjesecu (prati strelice, ne opseg). */
   monthCount = 0;
-  weekStreak = 0;
-  yearCount = 0;
-  yearSets = 0;
-  weekAvg = '0';
-  bestMonth = 0;
   readonly weekLabels = ['P', 'U', 'S', 'Č', 'P', 'S', 'N'];
   private calCursor = new Date();
 
@@ -97,6 +146,7 @@ export class ProfileComponent implements OnInit {
   loggingWeight = false;
   logWeightError = '';
   newWeightDate = this.iso(new Date());
+  showDatePicker = false;
   newWeightValue: number | null = null;
   weightChartPoints: WeightChartPoint[] = [];
   weightChartLinePoints = '';
@@ -104,6 +154,8 @@ export class ProfileComponent implements OnInit {
   weightYGridLines: { y: number; label: string }[] = [];
   weightXAxisLabels: { x: number; label: string }[] = [];
   weightChartWidth = 400;
+  /** Spisak upisa, najnoviji prvi. */
+  weightRows: WeightRow[] = [];
 
   exerciceGroups: MuscleGroupWithExercices[] = [];
   loadingExerciceGroups = true;
@@ -114,8 +166,19 @@ export class ProfileComponent implements OnInit {
   showPicker = false;
   selectedExercice: PickerOption | null = null;
 
+  // --- Grafikon napretka ------------------------------------------------------
+  readonly chartRanges = CHART_RANGES;
+  chartRange = 90;
+  /** Pomjeraj prozora unazad, u koracima dužine opsega. 0 = do danas. */
+  chartShift = 0;
+  chartWindowLabel = '';
+
+  /** Lični rekord za izabranu vježbu — najveća kilaža IKAD, bez obzira na opseg. */
+  personalBest: { weight: number; reps: number; date: string } | null = null;
+
   otherProfiles: { id: string; username: string }[] = [];
   compareUserId = '';
+  showComparePicker = false;
   compareUsername = '';
   private compareAllPoints: ProgressPoint[] = [];
 
@@ -135,11 +198,17 @@ export class ProfileComponent implements OnInit {
   chartWidth = 400;
 
   readonly chartHeight = 260;
-  readonly chartPaddingLeft = 46;
-  readonly chartPaddingRight = 20;
+  // Lijevo mora stati najduža oznaka ose („102.5 kg" = 8 znakova monospace-a),
+  // a crta se od `chartPaddingLeft - 8` unalijevo. Sa 46 je ispadalo „l2.5 kg".
+  readonly chartPaddingLeft = 62;
+  // Desno: posljednja tačka nosi centriranu oznaku vrijednosti iznad sebe, pa
+  // joj treba pola širine natpisa da ne bude odsječena.
+  readonly chartPaddingRight = 34;
   readonly chartPaddingTop = 30;
   readonly chartPaddingBottom = 34;
   private readonly pointSpacing = 70;
+  /** Stalna širina crteža. Mijenja se gustina tačaka, ne dužina grafikona. */
+  private readonly chartSpan = 560;
 
   constructor(
     private authService: AuthService,
@@ -210,6 +279,7 @@ export class ProfileComponent implements OnInit {
     try {
       this.weightHistory = await this.profileService.getWeightHistory(this.profile.id);
       this.buildWeightChart();
+      this.buildWeightRows();
     } catch (err: any) {
       this.weightError = err.message ?? 'Greška pri učitavanju težine.';
     } finally {
@@ -241,6 +311,54 @@ export class ProfileComponent implements OnInit {
     }
   }
 
+  /** Spisak upisa sa razlikom u odnosu na prethodni. Najnoviji prvi. */
+  private buildWeightRows() {
+    this.weightRows = this.weightHistory
+      .map((p, i) => ({
+        date: p.date,
+        label: this.formatDateLabel(p.date),
+        weight: p.weight,
+        delta: i === 0 ? null : +(p.weight - this.weightHistory[i - 1].weight).toFixed(1)
+      }))
+      .reverse();
+  }
+
+  /** Posljednja upisana težina. */
+  get weightCurrent(): number | null {
+    return this.weightHistory.length
+      ? this.weightHistory[this.weightHistory.length - 1].weight
+      : null;
+  }
+
+  /** Ukupna promjena od prvog upisa do danas. */
+  get weightTotalChange(): number | null {
+    if (this.weightHistory.length < 2) return null;
+    const first = this.weightHistory[0].weight;
+    const last = this.weightHistory[this.weightHistory.length - 1].weight;
+    return +(last - first).toFixed(1);
+  }
+
+  /** „+1,2" / „−0,8" — minus je pravi minus (U+2212), ne crtica. */
+  formatDelta(value: number): string {
+    const s = Math.abs(value).toFixed(1).replace('.', ',');
+    if (value > 0) return `+${s}`;
+    if (value < 0) return `−${s}`;
+    return '0,0';
+  }
+
+  /** Prikaz izabranog datuma u polju koje otvara birač. */
+  get weightDateLabel(): string { return formatIsoDate(this.newWeightDate); }
+
+  /** Gornja granica u biraču — težina se ne mjeri unaprijed. */
+  get todayIso(): string { return this.iso(new Date()); }
+
+  onDatePick(iso: string) {
+    this.newWeightDate = iso;
+    this.showDatePicker = false;
+  }
+
+  trackWeightRow = (_: number, r: WeightRow) => r.date;
+
   private buildWeightChart() {
     this.weightChartPoints = [];
     this.weightChartLinePoints = '';
@@ -250,8 +368,13 @@ export class ProfileComponent implements OnInit {
 
     if (this.weightHistory.length === 0) return;
 
-    this.weightChartWidth = this.chartPaddingLeft + this.chartPaddingRight
-      + Math.max(1, this.weightHistory.length - 1) * this.pointSpacing;
+    // Ista STALNA širina kao grafikon vježbe.
+    //
+    // Ranije se računala iz broja upisa (`62 + 34 + (n-1)*70`), pa je za dva
+    // upisa ispadala 166px. Pošto se SVG u CSS-u razvlači na širinu kartice
+    // (`width: 100%`), taj crtež se uvećavao trostruko — a sa njim i visina,
+    // pa je grafikon težine bio ogroman u odnosu na sve ostalo.
+    this.weightChartWidth = this.chartSpan;
 
     const weights = this.weightHistory.map(p => p.weight);
     let minWeight = Math.min(...weights);
@@ -318,11 +441,8 @@ export class ProfileComponent implements OnInit {
 
     try {
       this.calDays = await this.profileService.getTrainingCalendar(userId, this.iso(since));
-      this.yearCount = this.calDays.length;
-      this.yearSets = this.calDays.reduce((n, d) => n + d.sets, 0);
       this.weekStreak = this.computeWeekStreak();
-      this.weekAvg = this.computeWeekAvg();
-      this.bestMonth = this.computeBestMonth();
+      this.computeRangeStats();
       this.buildMonth();
     } catch {
       // Kalendar je dodatak; greška ovdje ne smije oboriti ostatak profila.
@@ -330,6 +450,41 @@ export class ProfileComponent implements OnInit {
     } finally {
       this.calLoading = false;
     }
+  }
+
+  setStatRange(weeks: number) {
+    if (this.statRange === weeks) return;
+    this.statRange = weeks;
+    this.computeRangeStats();
+  }
+
+  get statRangeIndex(): number {
+    return Math.max(0, this.statRanges.findIndex(r => r.weeks === this.statRange));
+  }
+
+  /**
+   * Sve brojke za izabrani opseg, iz već učitanih dana — bez novog upita.
+   *
+   * Opseg je klizni prozor unazad od danas, u cijelim sedmicama, ne kalendarski
+   * mjesec. Kalendarski mjesec ima svoju brojku („ovog mjeseca") koja prati
+   * strelice iznad mreže.
+   */
+  private computeRangeStats() {
+    const from = new Date();
+    from.setDate(from.getDate() - this.statRange * 7);
+    const fromIso = this.iso(from);
+
+    const days = this.calDays.filter(d => d.date >= fromIso);
+
+    this.rangeCount = days.length;
+    this.rangeSets = days.reduce((n, d) => n + d.sets, 0);
+    this.rangeBestDay = days.reduce((m, d) => Math.max(m, d.sets), 0);
+
+    this.rangePerDay = this.rangeCount
+      ? (this.rangeSets / this.rangeCount).toFixed(1).replace('.', ',')
+      : '—';
+
+    this.rangeAvg = this.computeWeekAvg(this.rangeCount, this.statRange);
   }
 
   prevMonth() { this.shiftMonth(-1); }
@@ -422,27 +577,34 @@ export class ProfileComponent implements OnInit {
   }
 
   /**
-   * Prosjek treninga po sedmici, od prvog upisanog dana do danas.
+   * Prosjek treninga po sedmici, unutar izabranog opsega.
    *
-   * Ne dijeli se sa 52 — ko je počeo prije mjesec dana ne zaslužuje prosjek od
-   * 0.5 samo zato što ranije nije koristio aplikaciju.
+   *     broj treninga u opsegu ÷ broj sedmica u opsegu
+   *
+   * Djelilac je **broj sedmica koje staju u opseg** — 1, 4, 13 ili 52. Pošto su
+   * opsezi zadati u cijelim sedmicama, dijeljenje je tačno, bez razlomka.
+   *
+   * ČETIRI RANIJE VERZIJE, SVE POGREŠNE NA ISTI NAČIN — dijelile su nečim
+   * drugim umjesto dužinom opsega:
+   *
+   *   1. `(danas − prvi trening) / 7`. Dva treninga u ponedjeljak i utorak →
+   *      2 ÷ 0,29 sedmica = **7,0**. Projekcija, ne mjerenje.
+   *   2. „Samo pune sedmice" — riješilo 7,0, ali je „7 dana" znalo pokazati
+   *      0 treninga i prosjek 2,0 istovremeno, jer su brojač i prosjek gledali
+   *      različite prozore.
+   *   3. Djelilac ograničen na dužinu istorije. Šest treninga u jednoj sedmici
+   *      uz opseg „30 dana" davalo je **6,0**, iako je to 1,5 sedmično.
+   *   4. Djelilac `30 / 7 = 4,3`. Tačnije, ali se u 30 dana ne uklapa cio broj
+   *      sedmica, pa je i sam opseg bio nezgodno definisan. Zato su opsezi sada
+   *      cijele sedmice.
+   *
+   * Ko aplikaciju koristi tek sedmicu dana, uz opseg „Godina" vidjeće mali broj.
+   * To je tačno — mjere se **upisani** treninzi, a za skorašnji ritam postoje
+   * kraći opsezi.
    */
-  private computeWeekAvg(): string {
-    if (this.calDays.length === 0) return '0';
-
-    const first = new Date(`${this.calDays[0].date}T12:00:00`);
-    const days = Math.max(7, (Date.now() - first.getTime()) / 86400000);
-    return (this.calDays.length / (days / 7)).toFixed(1).replace('.', ',');
-  }
-
-  /** Najviše treninga u jednom kalendarskom mjesecu unutar učitane godine. */
-  private computeBestMonth(): number {
-    const byMonth = new Map<string, number>();
-    for (const d of this.calDays) {
-      const key = d.date.slice(0, 7);
-      byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
-    }
-    return Math.max(0, ...byMonth.values());
+  private computeWeekAvg(count: number, weeks: number): string {
+    if (weeks <= 0) return '—';
+    return (count / weeks).toFixed(1).replace('.', ',');
   }
 
   private mondayIso(d: Date): string {
@@ -459,6 +621,18 @@ export class ProfileComponent implements OnInit {
   }
 
   trackCell = (_: number, c: CalCell) => c.iso;
+
+  get compareLabel(): string {
+    if (!this.compareUserId) return 'Niko';
+    return this.otherProfiles.find(p => p.id === this.compareUserId)?.username ?? 'Niko';
+  }
+
+  chooseCompare(id: string) {
+    this.showComparePicker = false;
+    if (this.compareUserId === id) return;
+    this.compareUserId = id;
+    void this.onCompareUserChange();
+  }
 
   onPick(option: PickerOption) {
     this.showPicker = false;
@@ -499,6 +673,8 @@ export class ProfileComponent implements OnInit {
       this.allProgressPoints = await this.profileService.getProgress(this.profile.id, this.selectedExerciceId);
       this.availableSetNumbers = [...new Set(this.allProgressPoints.map(p => p.set_number))].sort((a, b) => a - b);
       this.selectedSetNumber = this.availableSetNumbers[0] ?? null;
+      this.personalBest = this.computePersonalBest();
+      this.chartShift = 0;
       this.applySetFilter();
     } catch (err: any) {
       this.progressError = err.message ?? 'Greška pri učitavanju progresa.';
@@ -528,21 +704,94 @@ export class ProfileComponent implements OnInit {
     }
   }
 
+  /**
+   * Najveća kilaža ikad na izabranoj vježbi, sa najviše ponavljanja na toj kilaži.
+   *
+   * Računa se iz CIJELE istorije, ne iz prozora grafikona — rekord ne ističe.
+   * `getProgress` ionako vraća sve, bez vremenskog ograničenja.
+   */
+  private computePersonalBest(): { weight: number; reps: number; date: string } | null {
+    let best: { weight: number; reps: number; date: string } | null = null;
+
+    for (const p of this.allProgressPoints) {
+      const weight = Number(p.weight ?? 0);
+      if (!weight) continue;
+
+      if (!best || weight > best.weight) {
+        best = { weight, reps: Number(p.reps ?? 0), date: p.date };
+        continue;
+      }
+      // Ista kilaža: pamti se najbolja serija i NAJRANIJI datum kad je dostignuta.
+      if (weight === best.weight) {
+        if (Number(p.reps ?? 0) > best.reps) best.reps = Number(p.reps ?? 0);
+        if (p.date < best.date) best.date = p.date;
+      }
+    }
+
+    return best;
+  }
+
+  get personalBestLabel(): string {
+    return this.personalBest ? this.formatDateLabel(this.personalBest.date) : '';
+  }
+
+  // --- Prozor grafikona -------------------------------------------------------
+
+  setChartRange(days: number) {
+    if (this.chartRange === days) return;
+    this.chartRange = days;
+    this.chartShift = 0;
+    this.applySetFilter();
+  }
+
+  get chartRangeIndex(): number {
+    return Math.max(0, this.chartRanges.findIndex(r => r.days === this.chartRange));
+  }
+
+  /** Pomjeranje prozora: jedan korak = jedna dužina opsega. */
+  shiftChart(by: number) {
+    if (this.chartRange === 0) return;          // „Sve" nema šta da pomjera
+    const next = this.chartShift + by;
+    if (next < 0) return;                       // ne ide u budućnost
+    this.chartShift = next;
+    this.applySetFilter();
+  }
+
+  get canShiftForward(): boolean {
+    return this.chartRange !== 0 && this.chartShift > 0;
+  }
+
+  /** Granice prozora, `null` kad je opseg „Sve". */
+  private chartWindow(): { from: string; to: string } | null {
+    if (this.chartRange === 0) return null;
+
+    const to = new Date();
+    to.setDate(to.getDate() - this.chartShift * this.chartRange);
+
+    const from = new Date(to);
+    from.setDate(from.getDate() - this.chartRange);
+
+    return { from: this.iso(from), to: this.iso(to) };
+  }
+
   selectSet(setNumber: number) {
     this.selectedSetNumber = setNumber;
     this.applySetFilter();
   }
 
   private applySetFilter() {
+    const win = this.chartWindow();
+    const inWindow = (p: ProgressPoint) => !win || (p.date >= win.from && p.date <= win.to);
+
     const mine = this.selectedSetNumber === null
       ? []
-      : this.allProgressPoints.filter(p => p.set_number === this.selectedSetNumber);
+      : this.allProgressPoints.filter(p => p.set_number === this.selectedSetNumber && inWindow(p));
 
     const theirs = this.selectedSetNumber === null || !this.compareUserId
       ? []
-      : this.compareAllPoints.filter(p => p.set_number === this.selectedSetNumber);
+      : this.compareAllPoints.filter(p => p.set_number === this.selectedSetNumber && inWindow(p));
 
-    this.buildChart(mine, theirs);
+    this.buildChart(mine, theirs, win);
   }
 
   private resetChart() {
@@ -556,18 +805,44 @@ export class ProfileComponent implements OnInit {
     this.xAxisLabels = [];
   }
 
-  private buildChart(myPoints: ProgressPoint[], theirPoints: ProgressPoint[]) {
-    const unionDates = [...new Set([...myPoints.map(p => p.date), ...theirPoints.map(p => p.date)])].sort();
+  /**
+   * Crta grafikon sa VREMENSKOM X osom.
+   *
+   * Ranije su tačke stajale po rednom broju upisa, ravnomjerno razmaknute. Dva
+   * upisa razmaknuta tri sedmice izgledala su isto kao dva uzastopna dana, a
+   * kad je bio samo jedan upis grafikon je bio jedna tačka u praznini.
+   *
+   * Sada osa pokriva cio izabrani prozor, pa razmak između tačaka odgovara
+   * stvarnom razmaku u danima. Širina je stalna (`chartSpan`) — mijenja se
+   * gustina, ne dužina crteža, pa nema vodoravnog skrola.
+   */
+  private buildChart(
+    myPoints: ProgressPoint[],
+    theirPoints: ProgressPoint[],
+    win: { from: string; to: string } | null
+  ) {
+    const all = [...myPoints, ...theirPoints];
 
-    if (unionDates.length === 0) {
+    if (all.length === 0) {
       this.resetChart();
+      this.chartWindowLabel = win
+        ? `${this.formatDateLabel(win.from)} – ${this.formatDateLabel(win.to)}`
+        : 'Sve vrijeme';
       return;
     }
 
-    this.chartWidth = this.chartPaddingLeft + this.chartPaddingRight
-      + Math.max(1, unionDates.length - 1) * this.pointSpacing;
+    // Kad je opseg „Sve", granice su prvi i posljednji upis.
+    const dates = all.map(p => p.date).sort();
+    const fromIso = win ? win.from : dates[0];
+    const toIso = win ? win.to : dates[dates.length - 1];
 
-    const allWeights = [...myPoints, ...theirPoints].map(p => p.weight);
+    this.chartWindowLabel = win
+      ? `${this.formatDateLabel(fromIso)} – ${this.formatDateLabel(toIso)}`
+      : `${this.formatDateLabel(fromIso)} – ${this.formatDateLabel(toIso)}`;
+
+    this.chartWidth = this.chartSpan;
+
+    const allWeights = all.map(p => p.weight);
     let minWeight = Math.min(...allWeights);
     let maxWeight = Math.max(...allWeights);
 
@@ -582,23 +857,29 @@ export class ProfileComponent implements OnInit {
     }
     minWeight = Math.max(0, minWeight);
 
-    // Poravnaj opseg na "lep" korak (multiplikator od 2.5kg) da Y osa ne ispisuje čudne decimale
+    // Opseg se poravnava na „lijep" korak (višekratnik 2.5 kg — standardni
+    // tegovi) da Y osa ne ispisuje čudne decimale.
     const step = this.computeNiceStep(maxWeight - minWeight);
     minWeight = Math.floor(minWeight / step) * step;
     maxWeight = Math.ceil(maxWeight / step) * step;
-    if (maxWeight === minWeight) {
-      maxWeight += step;
-    }
+    if (maxWeight === minWeight) maxWeight += step;
 
     const innerWidth = this.chartWidth - this.chartPaddingLeft - this.chartPaddingRight;
     const innerHeight = this.chartHeight - this.chartPaddingTop - this.chartPaddingBottom;
-    const xStep = unionDates.length > 1 ? innerWidth / (unionDates.length - 1) : 0;
 
-    const dateIndex = new Map<string, number>();
-    unionDates.forEach((d, i) => dateIndex.set(d, i));
+    const t0 = new Date(`${fromIso}T12:00:00`).getTime();
+    const t1 = new Date(`${toIso}T12:00:00`).getTime();
+    const span = Math.max(1, t1 - t0);
 
-    const xForDate = (date: string) => this.chartPaddingLeft
-      + (unionDates.length > 1 ? dateIndex.get(date)! * xStep : innerWidth / 2);
+    // Jedan jedini upis: umjesto da visi na lijevoj ivici, stoji na sredini.
+    const single = all.length === 1 || t1 === t0;
+
+    const xForDate = (date: string) => {
+      if (single) return this.chartPaddingLeft + innerWidth / 2;
+      const t = new Date(`${date}T12:00:00`).getTime();
+      const ratio = Math.min(1, Math.max(0, (t - t0) / span));
+      return this.chartPaddingLeft + ratio * innerWidth;
+    };
     const yForWeight = (weight: number) => this.chartPaddingTop + innerHeight
       - ((weight - minWeight) / (maxWeight - minWeight)) * innerHeight;
 
@@ -629,7 +910,22 @@ export class ProfileComponent implements OnInit {
       this.yGridLines.push({ y, label: `${label} kg` });
     }
 
-    this.xAxisLabels = unionDates.map(d => ({ x: xForDate(d), label: this.formatDateLabel(d) }));
+    // Oznake na X osi su sada RAVNOMJERNE PO VREMENU, ne po upisima — inače bi
+    // se pri više upisa u istoj sedmici natpisi preklopili.
+    this.xAxisLabels = [];
+    if (single) {
+      this.xAxisLabels.push({ x: this.chartPaddingLeft + innerWidth / 2, label: this.formatDateLabel(dates[0]) });
+    } else {
+      const ticks = 4;
+      for (let i = 0; i <= ticks; i++) {
+        const t = t0 + (span * i) / ticks;
+        const d = new Date(t);
+        this.xAxisLabels.push({
+          x: this.chartPaddingLeft + (innerWidth * i) / ticks,
+          label: this.formatDateLabel(this.iso(d))
+        });
+      }
+    }
   }
 
   // Bira "lep" korak (multiplikator od 2.5kg - standardni tegovi) tako da stane ~4-5 gridlines
