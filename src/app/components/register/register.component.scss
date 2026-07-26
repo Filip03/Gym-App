@@ -23,7 +23,7 @@
   flex-direction: column;
   gap: var(--s-5);
 
-  padding: var(--s-8) var(--s-6);
+  padding: var(--s-8) var(--s-6) var(--s-6);
 
   background: color-mix(in srgb, var(--carbon) 90%, transparent);
   backdrop-filter: blur(16px) saturate(1.2);
@@ -42,24 +42,41 @@
 
 .holder {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
   gap: var(--s-4);
 }
 
-.holder h2 {
-  font-size: var(--t-xl);
-  letter-spacing: var(--ls-tight);
+// Logo je nosilac ekrana za prijavu — jedina slika, pa nosi identitet.
+// Prsten oko njega je jedini ukras: tanka volt linija i mek sjaj koji ga
+// odvaja od pozadinske fotografije bez tvrde ivice.
+.j {
+  width: clamp(112px, 32vw, 148px);
+  height: clamp(112px, 32vw, 148px);
+
+  border-radius: var(--r-xl);
+  object-fit: cover;
+
+  border: 1px solid var(--volt-a40);
+  box-shadow:
+    0 0 0 6px rgba(198, 255, 59, .05),
+    0 18px 50px -18px rgba(0, 0, 0, .9),
+    0 0 40px -12px var(--volt-a20);
+
+  animation: mark-in var(--d-slower) var(--ease-spring) both;
 }
 
-// Logo. Ranije 50px i stisnut uz naslov — sad je dovoljno velik da se vidi.
-.j {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--r-md);
-  object-fit: cover;
-  border: 1px solid var(--line-strong);
-  box-shadow: var(--lift-1);
+@keyframes mark-in {
+  from { opacity: 0; transform: scale(.88); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.holder h2 {
+  font-size: var(--t-lg);
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--mist);
+  text-align: center;
 }
 
 form {
