@@ -35,7 +35,10 @@
   </div>
 
   <div class="exercice-list" *ngIf="!isRestDay">
-    <div class="exercice-row" *ngFor="let ex of exercices" [class.done]="isComplete(ex)">
+    <div class="exercice-row" #exRow
+         *ngFor="let ex of exercices; trackBy: trackById"
+         [class.done]="isComplete(ex)"
+         [class.moved]="movedId === ex.id">
 
       <div class="exercice-main">
         <div class="exercice-info">

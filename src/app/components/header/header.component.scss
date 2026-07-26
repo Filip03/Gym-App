@@ -34,10 +34,10 @@
 .back .material-icons { font-size: 24px; }
 
 .mark {
-  // Uvećan sa 30px. Veći od ovoga počinje da guta prostor zaglavlja na
-  // telefonu, gdje je i onako uska traka.
-  width: 46px;
-  height: 46px;
+  // 30px -> 46px -> 62px. Logo je jedina slika u zaglavlju i nosi identitet,
+  // pa je zaglavlje prošireno da ga primi umjesto da se on stiska.
+  width: 62px;
+  height: 62px;
   border-radius: var(--r-md);
   object-fit: cover;
   border: 1px solid var(--line);

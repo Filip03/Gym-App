@@ -761,3 +761,29 @@
   text-transform: uppercase;
   color: var(--dust);
 }
+
+// --- Animacija preređivanja ------------------------------------------------
+//
+// Zamjena je ranije bila trenutna, pa se nije moglo pratiti šta se pomjerilo.
+// Sada se redovi vraćaju na staro mjesto i puštaju da otklize (FLIP), pri čemu
+// pomjerena vježba ide PREKO druge — viši sloj, blago uvećana, sa sjenkom.
+
+.exercice-row {
+  position: relative;   // bez ovoga z-index tokom animacije ne radi
+  will-change: transform;
+}
+
+// Pomjerena vježba ostaje istaknuta i nakon animacije, da se vidi šta se desilo.
+.exercice-row.moved {
+  border-color: var(--volt);
+  box-shadow: 0 0 0 1px var(--volt-a20), 0 0 24px -8px var(--volt-a40);
+}
+
+.exercice-row.moved .pos {
+  background: var(--volt);
+  color: var(--volt-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exercice-row { will-change: auto; }
+}

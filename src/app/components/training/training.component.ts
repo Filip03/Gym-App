@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
@@ -78,6 +78,10 @@ export class TrainingComponent implements OnInit {
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
   reordering = false;
   reorderSaving = false;
+  /** Vježba koja se upravo pomjerila — ostaje istaknuta da se vidi šta se desilo. */
+  movedId: string | null = null;
+
+  @ViewChildren('exRow') rowEls!: QueryList<ElementRef<HTMLElement>>;
 
   // Izmjena cilja za ovaj trening
   showTargetModal = false;
@@ -435,27 +439,76 @@ export class TrainingComponent implements OnInit {
     const to = from + direction;
     if (to < 0 || to >= this.exercices.length) return;
 
-    // Prvo na ekranu, pa u bazi — pomjeranje mora djelovati trenutno.
+    const rows = this.rowEls.toArray().map(r => r.nativeElement);
+    const movedEl = rows[from];
+    const otherEl = rows[to];
+    if (!movedEl || !otherEl) return;
+
+    // FLIP: zapamti gdje su redovi BILI prije zamjene.
+    const movedFrom = movedEl.getBoundingClientRect().top;
+    const otherFrom = otherEl.getBoundingClientRect().top;
+
     const list = [...this.exercices];
     [list[from], list[to]] = [list[to], list[from]];
     this.exercices = list;
+    this.movedId = ex.id;
+
+    // Angular je već premjestio čvorove; vrati ih vizuelno na staro mjesto pa
+    // pusti prelaz — tako se vidi PUTANJA, a ne samo krajnji raspored.
+    requestAnimationFrame(() => {
+      const after = this.rowEls.toArray().map(r => r.nativeElement);
+      const movedNow = after[to];
+      const otherNow = after[from];
+      if (!movedNow || !otherNow) return;
+
+      const dMoved = movedFrom - movedNow.getBoundingClientRect().top;
+      const dOther = otherFrom - otherNow.getBoundingClientRect().top;
+
+      // Pomjerena vježba ide PREKO druge: viši sloj, blago uvećana, sa sjenkom.
+      // Druga se malo skuplja i prolazi ispod — otud osjećaj dubine.
+      this.flip(movedNow, dMoved, 1.035, 6, true);
+      this.flip(otherNow, dOther, 0.985, 1, false);
+    });
 
     this.reorderSaving = true;
     try {
-      await this.trainingService.setOrder(
-        list.map((e, i) => ({ id: e.id, orderNum: i + 1 }))
-      );
+      await this.trainingService.setOrder(list.map((e, i) => ({ id: e.id, orderNum: i + 1 })));
       list.forEach((e, i) => e.orderNum = i + 1);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom promjene redoslijeda.');
-      // Vrati na staro da ekran ne laže o onome što je u bazi.
       const back = [...this.exercices];
       [back[from], back[to]] = [back[to], back[from]];
       this.exercices = back;
     } finally {
       this.reorderSaving = false;
+      setTimeout(() => { if (this.movedId === ex.id) this.movedId = null; }, 900);
     }
   }
+
+  /** Jedan korak FLIP animacije nad jednim redom. */
+  private flip(el: HTMLElement, dy: number, scale: number, z: number, lift: boolean) {
+    el.style.transition = 'none';
+    el.style.zIndex = String(z);
+    el.style.transform = `translateY(${dy}px) scale(${scale})`;
+    if (lift) el.style.boxShadow = 'var(--lift-3)';
+
+    requestAnimationFrame(() => {
+      el.style.transition = 'transform 380ms cubic-bezier(0.34, 1.24, 0.5, 1), box-shadow 380ms ease';
+      el.style.transform = 'translateY(0) scale(1)';
+      el.style.boxShadow = '';
+
+      const done = () => {
+        el.style.transition = '';
+        el.style.zIndex = '';
+        el.style.transform = '';
+        el.removeEventListener('transitionend', done);
+      };
+      el.addEventListener('transitionend', done);
+    });
+  }
+
+  /** Bez ovoga Angular pri zamjeni pravi nove čvorove i animacija nema šta da pomjera. */
+  trackById = (_: number, ex: TodayExercice) => ex.id;
 
   isFirst(ex: TodayExercice): boolean { return this.exercices.indexOf(ex) === 0; }
   isLast(ex: TodayExercice): boolean {
