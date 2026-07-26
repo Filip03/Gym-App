@@ -685,6 +685,42 @@ export class TrainingComponent implements OnInit, OnDestroy {
   /** Bez ovoga Angular pri zamjeni pravi nove čvorove i animacija nema šta da pomjera. */
   trackById = (_: number, ex: TodayExercice) => ex.id;
 
+  /** Vrati redoslijed na onaj iz plana — za slučaj da je sesija zastarjela. */
+  async resetOrder() {
+    if (!this.session || this.reorderSaving) return;
+
+    // Otkaži odgođeni upis iz preuređivanja. Bez ovoga bi on završio POSLIJE
+    // reseta i vratio stari raspored — trka koja se javi kad se "Vrati po planu"
+    // pritisne ubrzo nakon pomjeranja.
+    clearTimeout(this.saveTimer);
+
+    this.reorderSaving = true;
+
+    try {
+      const plan = await this.trainingService.getPlanForUser(this.currentUserId);
+      const day = (plan?.workout_days ?? []).find(
+        (d: any) => d.name === this.session!.dayLabel
+      );
+
+      if (!day) {
+        this.errorMessage = 'Plan nema taj dan, pa nema po čemu vratiti redoslijed.';
+        return;
+      }
+
+      await this.trainingService.resetOrderToPlan(this.session.id, day.day_exercice ?? []);
+      this.session = await this.trainingService.getOrCreateSession(
+        this.currentUserId, this.todayDate, null
+      );
+      await this.hydrate();
+      this.reordering = true;   // ostani u režimu da se vidi rezultat
+      this.selectedId = null;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom vraćanja redoslijeda.');
+    } finally {
+      this.reorderSaving = false;
+    }
+  }
+
   isFirst(ex: TodayExercice): boolean { return this.exercices.indexOf(ex) === 0; }
   isLast(ex: TodayExercice): boolean {
     return this.exercices.indexOf(ex) === this.exercices.length - 1;

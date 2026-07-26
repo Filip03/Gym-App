@@ -955,3 +955,33 @@
   font-weight: 400;
   margin-right: 2px;
 }
+
+// Izlaz iz situacije kad je sesija zastarjela u odnosu na plan.
+.reorder-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.reset-order {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  flex-shrink: 0;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  color: var(--mist);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.reset-order:hover { color: var(--volt); border-color: var(--volt-a40); }
+.reset-order .material-icons { font-size: 15px; }

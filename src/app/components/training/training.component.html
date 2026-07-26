@@ -24,10 +24,16 @@
     </div>
   </div>
 
-  <p class="reorder-hint" *ngIf="reordering">
-    Vrijedi samo za današnji trening. Ako ti se novi raspored svidi, promijeni ga
-    u planu (Planovi → Izmijeni) pa vrijedi za svaki sljedeći put.
-  </p>
+  <div class="reorder-hint" *ngIf="reordering">
+    <p>
+      Vrijedi samo za današnji trening. Ako ti se novi raspored svidi, promijeni ga
+      u planu (Planovi → Izmijeni) pa vrijedi za svaki sljedeći put.
+    </p>
+    <button type="button" class="reset-order" [disabled]="reorderSaving" (click)="resetOrder()">
+      <i class="material-icons">restart_alt</i>
+      Vrati po planu
+    </button>
+  </div>
 
   <div class="finished-bar" *ngIf="isFinished">
     <i class="material-icons">check_circle</i>
