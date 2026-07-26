@@ -16,7 +16,14 @@ interface LoggedSet {
   setNumber: number;
   reps: number;
   weight: number;
+
+  /** Ukupna ocjena serije — boji obrub i strelicu. */
   delta: Delta;
+  /** Šta se tačno promijenilo, da se može naglasiti baš taj broj. */
+  weightDelta: Delta;
+  repsDelta: Delta;
+  /** Prošli rezultat te serije, za opis pri prelasku mišem. */
+  prevLabel: string | null;
   editing: boolean;
   editReps: number | null;
   editWeight: number | null;
@@ -142,7 +149,7 @@ export class TrainingComponent implements OnInit {
         setNumber: l.set_number,
         reps: l.reps,
         weight: l.weight,
-        delta: this.deltaFor(ec, l.set_number, l.weight, l.reps),
+        ...this.compare(ec, l.set_number, l.weight, l.reps),
         editing: false,
         editReps: null,
         editWeight: null,
@@ -173,17 +180,38 @@ export class TrainingComponent implements OnInit {
 
   /**
    * Poređenje SERIJE sa istom serijom prošlog treninga.
-   * Gore = teže, ili isto teško uz više ponavljanja.
+   *
+   * Pravilo: kilaža je jača od ponavljanja. Veća kilaža je uvijek napredak;
+   * ista kilaža uz više ponavljanja je takođe napredak; manja kilaža je nazadak
+   * bez obzira na ponavljanja.
+   *
+   * Pored ukupne ocjene vraća i pojedinačne, da se u prikazu može naglasiti
+   * BAŠ ono što je poraslo — inače se iz "95kg × 11" ne vidi da li je porasla
+   * kilaža ili broj ponavljanja.
    */
-  private deltaFor(echo: Echo | null, setNumber: number, weight: number, reps: number): Delta {
+  private compare(echo: Echo | null, setNumber: number, weight: number, reps: number): {
+    delta: Delta; weightDelta: Delta; repsDelta: Delta; prevLabel: string | null;
+  } {
     const prev = echo?.sets.find(s => s.setNumber === setNumber);
-    if (!prev) return null;
+    if (!prev) {
+      return { delta: null, weightDelta: null, repsDelta: null, prevLabel: null };
+    }
 
-    if (weight > prev.weight) return 'up';
-    if (weight < prev.weight) return 'down';
-    if (reps > prev.reps) return 'up';
-    if (reps < prev.reps) return 'down';
-    return 'same';
+    const cmp = (a: number, b: number): Delta => a > b ? 'up' : a < b ? 'down' : 'same';
+
+    const weightDelta = cmp(weight, prev.weight);
+    const repsDelta = cmp(reps, prev.reps);
+
+    const delta: Delta =
+      weightDelta !== 'same' ? weightDelta :
+      repsDelta;
+
+    return {
+      delta,
+      weightDelta,
+      repsDelta,
+      prevLabel: `Prošli put: ${prev.weight}kg × ${prev.reps}`
+    };
   }
 
   /**
@@ -306,7 +334,7 @@ export class TrainingComponent implements OnInit {
         setNumber: saved.set_number,
         reps: saved.reps,
         weight: saved.weight,
-        delta: this.deltaFor(ex.echo, saved.set_number, saved.weight, saved.reps),
+        ...this.compare(ex.echo, saved.set_number, saved.weight, saved.reps),
         editing: false,
         editReps: null,
         editWeight: null,
@@ -344,7 +372,7 @@ export class TrainingComponent implements OnInit {
       const updated = await this.trainingService.updateLog(set.id, set.editReps, set.editWeight);
       set.reps = updated.reps;
       set.weight = updated.weight;
-      set.delta = this.deltaFor(ex.echo, set.setNumber, set.weight, set.reps);
+      Object.assign(set, this.compare(ex.echo, set.setNumber, set.weight, set.reps));
       set.editing = false;
 
       // Izmjena može i stvoriti i poništiti rekord — zato ista provjera kao
@@ -371,9 +399,9 @@ export class TrainingComponent implements OnInit {
         if (ex.loggedSets[i].setNumber !== wanted) {
           await this.trainingService.renumberSet(ex.loggedSets[i].id, wanted);
           ex.loggedSets[i].setNumber = wanted;
-          ex.loggedSets[i].delta = this.deltaFor(
+          Object.assign(ex.loggedSets[i], this.compare(
             ex.echo, wanted, ex.loggedSets[i].weight, ex.loggedSets[i].reps
-          );
+          ));
         }
       }
 

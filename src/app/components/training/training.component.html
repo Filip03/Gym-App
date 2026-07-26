@@ -117,9 +117,21 @@
           <button type="button" class="set" *ngIf="!set.editing"
                   [class.up]="set.delta === 'up'"
                   [class.down]="set.delta === 'down'"
+                  [title]="set.prevLabel ?? 'Prvi put ova serija'"
                   (click)="startEditSet(set)">
             <span class="set-n num">{{ set.setNumber }}</span>
-            <span class="set-v num">{{ set.weight }}<small>kg</small> × {{ set.reps }}</span>
+
+            <!-- Naglašava se BAŠ ono što se promijenilo, da se iz "95kg × 11"
+                 vidi je li porasla kilaža ili broj ponavljanja. -->
+            <span class="set-v num">
+              <span class="part"
+                    [class.up]="set.weightDelta === 'up'"
+                    [class.down]="set.weightDelta === 'down'">{{ set.weight }}<small>kg</small></span><span
+                    class="times">×</span><span class="part"
+                    [class.up]="set.repsDelta === 'up'"
+                    [class.down]="set.repsDelta === 'down'">{{ set.reps }}</span>
+            </span>
+
             <i class="material-icons arrow" *ngIf="set.delta === 'up'"
                title="Bolje nego prošli put">arrow_upward</i>
             <i class="material-icons arrow" *ngIf="set.delta === 'down'"

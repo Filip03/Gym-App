@@ -696,3 +696,31 @@
   font-weight: 700;
   flex-shrink: 0;
 }
+
+// --- Naglašavanje onoga što je poraslo -------------------------------------
+//
+// Obrub i strelica govore da je serija bolja ili slabija; ovo govori U ČEMU.
+// Bez toga se iz "95kg × 11" ne vidi je li porasla kilaža ili ponavljanja.
+
+.set-v { display: inline-flex; align-items: baseline; gap: 3px; }
+
+.set-v .times { color: var(--dust); font-size: .85em; }
+
+.set-v .part {
+  font-weight: 500;
+  transition: color var(--d-base) var(--ease);
+}
+
+.set-v .part.up {
+  color: var(--volt);
+  font-weight: 700;
+}
+
+.set-v .part.down {
+  color: var(--ember);
+  font-weight: 600;
+}
+
+// Kad je jedan dio porastao, drugi se prigušuje da kontrast radi posao.
+.set.up .set-v .part:not(.up),
+.set.down .set-v .part:not(.down) { color: var(--mist); font-weight: 500; }
