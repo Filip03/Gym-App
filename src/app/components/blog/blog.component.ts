@@ -1,6 +1,8 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { BlogService, BlogMediaItem } from '../../services/blog.service';
+import { compressImage } from '../../shared/image-compress';
+import { compressVideo } from '../../shared/video-compress';
 
 @Component({
   selector: 'app-blog',
@@ -17,6 +19,8 @@ export class BlogComponent implements OnInit {
 
   uploading = false;
   uploadError = '';
+  compressing = false;
+  compressProgress = 0;
 
   selectedItem: BlogMediaItem | null = null;
 
@@ -50,6 +54,7 @@ export class BlogComponent implements OnInit {
   }
 
   triggerUpload() {
+    if (this.uploading || this.compressing) return;
     this.fileInputRef.nativeElement.click();
   }
 
@@ -68,11 +73,31 @@ export class BlogComponent implements OnInit {
 
     if (!file) return;
 
-    this.uploading = true;
     this.uploadError = '';
 
+    let toUpload = file;
+
     try {
-      await this.blogService.uploadMedia(file);
+      if (file.type.startsWith('image/')) {
+        this.compressing = true;
+        toUpload = await compressImage(file);
+      } else if (file.type.startsWith('video/')) {
+        this.compressing = true;
+        this.compressProgress = 0;
+        toUpload = await compressVideo(file, ratio => this.compressProgress = ratio);
+      }
+    } catch {
+      // Kompresija ne uspije (npr. stariji browser bez podrške) — otpremi original
+      // umjesto da korisniku blokiraš upload zbog neobavezne optimizacije.
+      toUpload = file;
+    } finally {
+      this.compressing = false;
+    }
+
+    this.uploading = true;
+
+    try {
+      await this.blogService.uploadMedia(toUpload);
       await this.loadMedia();
     } catch (err: any) {
       this.uploadError = err.message ?? 'Greška prilikom otpremanja fajla.';

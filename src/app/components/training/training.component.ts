@@ -2,6 +2,9 @@ import { Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, View
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
+import {
+  PickerGroup, PickerOption, toPickerGroups, flattenGroups
+} from '../shared/exercice-picker/exercice-picker.component';
 import { humanError } from '../../shared/errors';
 import { Router } from '@angular/router';
 import {
@@ -70,15 +73,14 @@ export class TrainingComponent implements OnInit, OnDestroy {
   showSwapModal = false;
   swapTarget: TodayExercice | null = null;
   swapMode: 'replace' | 'add' = 'replace';
-  swapOptions: { id: string; name: string; picture: string | null }[] = [];
   swapLoading = false;
-  swapFilter = '';
   swapSaving = false;
-  /** U modalu za dodavanje: samo vježbe za današnji tip, ili cijeli katalog. */
-  swapScope: 'day' | 'all' = 'day';
-  /** Vježbe grupisane po mišićnoj grupi — za pregled cijelog kataloga. */
-  swapGroups: { name: string; items: { id: string; name: string; picture: string | null }[] }[] = [];
-  private swapDayIds = new Set<string>();
+
+  // Ulazi za <app-exercice-picker>. Katalog je isti u oba načina; razlikuje se
+  // samo uži izbor — „slične vježbe" pri zamjeni, „za današnji dan" pri dodavanju.
+  pickerGroups: PickerGroup[] = [];
+  pickerSuggested: PickerOption[] | null = null;
+  pickerSuggestedLabel = 'Preporučeno';
 
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
   reordering = false;
@@ -685,6 +687,42 @@ export class TrainingComponent implements OnInit, OnDestroy {
   /** Bez ovoga Angular pri zamjeni pravi nove čvorove i animacija nema šta da pomjera. */
   trackById = (_: number, ex: TodayExercice) => ex.id;
 
+  /** Vrati redoslijed na onaj iz plana — za slučaj da je sesija zastarjela. */
+  async resetOrder() {
+    if (!this.session || this.reorderSaving) return;
+
+    // Otkaži odgođeni upis iz preuređivanja. Bez ovoga bi on završio POSLIJE
+    // reseta i vratio stari raspored — trka koja se javi kad se "Vrati po planu"
+    // pritisne ubrzo nakon pomjeranja.
+    clearTimeout(this.saveTimer);
+
+    this.reorderSaving = true;
+
+    try {
+      const plan = await this.trainingService.getPlanForUser(this.currentUserId);
+      const day = (plan?.workout_days ?? []).find(
+        (d: any) => d.name === this.session!.dayLabel
+      );
+
+      if (!day) {
+        this.errorMessage = 'Plan nema taj dan, pa nema po čemu vratiti redoslijed.';
+        return;
+      }
+
+      await this.trainingService.resetOrderToPlan(this.session.id, day.day_exercice ?? []);
+      this.session = await this.trainingService.getOrCreateSession(
+        this.currentUserId, this.todayDate, null
+      );
+      await this.hydrate();
+      this.reordering = true;   // ostani u režimu da se vidi rezultat
+      this.selectedId = null;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom vraćanja redoslijeda.');
+    } finally {
+      this.reorderSaving = false;
+    }
+  }
+
   isFirst(ex: TodayExercice): boolean { return this.exercices.indexOf(ex) === 0; }
   isLast(ex: TodayExercice): boolean {
     return this.exercices.indexOf(ex) === this.exercices.length - 1;
@@ -704,14 +742,8 @@ export class TrainingComponent implements OnInit, OnDestroy {
   async openAdd() {
     this.swapTarget = null;
     this.swapMode = 'add';
-    this.showSwapModal = true;
-    this.swapLoading = true;
-    this.swapFilter = '';
-    this.swapOptions = [];
-    this.errorMessage = '';
-    this.exercices.forEach(e => e.menuOpen = false);
-
-    this.swapScope = 'day';
+    this.pickerSuggestedLabel = 'Za današnji dan';
+    this.openPicker();
 
     try {
       const already = new Set(this.exercices.map(e => e.exerciceId));
@@ -724,31 +756,23 @@ export class TrainingComponent implements OnInit, OnDestroy {
         this.trainingService.getRelatedToAll([...already])
       ]);
 
-      this.swapDayIds = related;
-
-      // Cijeli katalog se prikazuje GRUPISAN po mišićnim grupama — ravna lista
-      // od pedesetak vježbi se ne može pregledati.
-      this.swapGroups = grouped
-        .map(g => ({
-          name: g.name,
-          items: g.exercices
-            .filter(e => !already.has(e.id))
-            .map(e => ({ id: e.id, name: e.name ?? '', picture: e.picture }))
-        }))
-        .filter(g => g.items.length > 0);
-
-      // Ista vježba može biti u više grupa; za "za današnji dan" treba jedinstven spisak.
-      const seen = new Set<string>();
-      this.swapOptions = this.swapGroups.flatMap(g => g.items).filter(o => {
-        if (seen.has(o.id)) return false;
-        seen.add(o.id);
-        return true;
-      });
+      this.pickerGroups = toPickerGroups(grouped, already);
+      this.pickerSuggested = flattenGroups(this.pickerGroups).filter(o => related.has(o.id));
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri učitavanju vježbi.');
     } finally {
       this.swapLoading = false;
     }
+  }
+
+  /** Zajednički početak za oba načina — modal se otvara prazan i puni se poslije. */
+  private openPicker() {
+    this.showSwapModal = true;
+    this.swapLoading = true;
+    this.pickerGroups = [];
+    this.pickerSuggested = null;
+    this.errorMessage = '';
+    this.exercices.forEach(e => e.menuOpen = false);
   }
 
   async openSwap(ex: TodayExercice, mode: 'replace' | 'add') {
@@ -762,17 +786,28 @@ export class TrainingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.errorMessage = '';
     this.swapTarget = ex;
     this.swapMode = mode;
-    this.showSwapModal = true;
-    this.swapLoading = true;
-    this.swapFilter = '';
-    this.swapOptions = [];
-    ex.menuOpen = false;
+    this.pickerSuggestedLabel = 'Slične vježbe';
+    this.openPicker();
 
     try {
-      this.swapOptions = await this.trainingService.getAlternatives(ex.exerciceId);
+      // Zamjena je ranije nudila SAMO vježbe iz iste mišićne grupe, kao ravnu
+      // listu bez grupisanja. Ako tražena vježba nije bila među njima, nije se
+      // imalo šta uraditi. Sada je uži izbor samo prvi opseg, a cijeli katalog
+      // stoji uz njega — isto kao kod dodavanja.
+      const already = new Set(
+        this.exercices.filter(e => e.id !== ex.id).map(e => e.exerciceId)
+      );
+      already.add(ex.exerciceId);   // sama sebe ne mijenja
+
+      const [alternatives, grouped] = await Promise.all([
+        this.trainingService.getAlternatives(ex.exerciceId),
+        this.exerciceService.getExercicesGroupedByMuscleGroup()
+      ]);
+
+      this.pickerGroups = toPickerGroups(grouped, already);
+      this.pickerSuggested = alternatives.filter(o => !already.has(o.id));
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri učitavanju zamjena.');
     } finally {
@@ -785,30 +820,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
     this.swapTarget = null;
   }
 
-  get filteredSwapOptions() {
-    let list = this.swapOptions;
-
-    if (this.swapMode === 'add' && this.swapScope === 'day' && this.swapDayIds.size > 0) {
-      list = list.filter(o => this.swapDayIds.has(o.id));
-    }
-
-    const q = this.swapFilter.trim().toLowerCase();
-    if (q) list = list.filter(o => o.name.toLowerCase().includes(q));
-
-    return list;
-  }
-
-  setSwapScope(scope: 'day' | 'all') { this.swapScope = scope; }
-
-  /** Grupe za prikaz — filtrirane pretragom, prazne se izostavljaju. */
-  get visibleGroups() {
-    const q = this.swapFilter.trim().toLowerCase();
-    return this.swapGroups
-      .map(g => ({ name: g.name, items: g.items.filter(o => !q || o.name.toLowerCase().includes(q)) }))
-      .filter(g => g.items.length > 0);
-  }
-
-  async confirmSwap(option: { id: string; name: string; picture: string | null }) {
+  async confirmSwap(option: PickerOption) {
     if (!this.session || this.swapSaving) return;
     if (this.swapMode === 'replace' && !this.swapTarget) return;
     this.swapSaving = true;

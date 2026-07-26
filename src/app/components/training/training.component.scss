@@ -380,58 +380,13 @@
   font-weight: 600;
 }
 
-// --- Modal zamjene ---------------------------------------------------------
+// Stilovi birača vježbe žive u exercice-picker.component.scss — koriste ga i
+// leaderboard i profil, pa ne mogu ostati ovdje.
 
 .modal-note {
   margin: var(--s-2) 0 var(--s-4);
   font-size: var(--t-sm);
   color: var(--mist);
-}
-
-.swap-search { margin-bottom: var(--s-4); }
-
-.swap-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: var(--s-3);
-}
-
-.swap-option {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-2);
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  text-align: left;
-}
-
-.swap-option:hover {
-  border-color: var(--volt-a40);
-  transform: translateY(-2px);
-}
-
-.swap-option img,
-.swap-option .ph {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-radius: var(--r-sm);
-  background: var(--carbon);
-}
-
-.swap-option .ph {
-  display: grid;
-  place-items: center;
-  color: var(--dust);
-}
-
-.swap-name {
-  font-size: var(--t-sm);
-  font-weight: 500;
-  color: var(--ice);
-  line-height: var(--lh-snug);
 }
 
 // --- Modal cilja -----------------------------------------------------------
@@ -783,32 +738,6 @@
 // dodirom vidi cijeli katalog — da se biceps može ubaciti u leg day ako se
 // tako odluči.
 
-.scope-switch {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  margin-bottom: var(--s-3);
-  background: var(--carbon-high);
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-}
-
-.scope-switch button {
-  flex: 1;
-  min-height: 36px;
-  border-radius: calc(var(--r-sm) - 2px);
-  color: var(--mist);
-  font-size: var(--t-xs);
-  font-weight: 600;
-}
-
-.scope-switch button:hover { color: var(--ice); }
-
-.scope-switch button.on {
-  background: var(--volt);
-  color: var(--volt-ink);
-}
-
 // Kad je trening završen, upis je zaključan — inače oznaka "gotovo" ne znači
 // ništa. Otključava se dugmetom "Otvori ponovo".
 .exercice-row .set:disabled { opacity: 1; cursor: default; }
@@ -898,24 +827,6 @@
 
 .sum-close { width: 100%; }
 
-// --- Katalog grupisan po mišićnim grupama ----------------------------------
-
-.swap-groups {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-5);
-}
-
-.sg-name {
-  margin-bottom: var(--s-2);
-  font-family: var(--font-data);
-  font-size: var(--t-2xs);
-  font-weight: 600;
-  letter-spacing: var(--ls-wider);
-  text-transform: uppercase;
-  color: var(--volt);
-}
-
 // --- Ishod po vježbama u sažetku -------------------------------------------
 //
 // Umjesto ukupne kilaže, koja ne govori ništa jer zavisi od toga koje su vježbe
@@ -955,3 +866,33 @@
   font-weight: 400;
   margin-right: 2px;
 }
+
+// Izlaz iz situacije kad je sesija zastarjela u odnosu na plan.
+.reorder-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.reset-order {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  flex-shrink: 0;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  color: var(--mist);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.reset-order:hover { color: var(--volt); border-color: var(--volt-a40); }
+.reset-order .material-icons { font-size: 15px; }

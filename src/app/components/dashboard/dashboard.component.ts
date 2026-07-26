@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { Router } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
@@ -59,6 +59,16 @@ export class DashboardComponent implements OnInit {
 
   isMobile = false;
   currentDayIndex = 0;
+
+  /**
+   * Visina okvira karusela prati AKTIVNI dan.
+   *
+   * Sve stranice stoje jedna pored druge u traci, pa bi bez ovoga okvir bio
+   * visok koliko najduži dan i ispod kratkih dana bi zjapila praznina.
+   */
+  viewportHeight = 0;
+
+  @ViewChildren('daySlide') daySlides!: QueryList<ElementRef<HTMLElement>>;
 
   showExercicePicker = false;
   pickerDay: DayEntry | null = null;
@@ -137,6 +147,18 @@ export class DashboardComponent implements OnInit {
     }
   }
 
+  /**
+   * Kašnjenje ulazne animacije kartice plana, u milisekundama.
+   *
+   * `section` je 0 za „Moji planovi", 1 za „Planovi ostalih" — druga kolona
+   * kreće nešto kasnije, pa se vidi da su to dvije grupe a ne jedna. Kašnjenje
+   * unutar grupe je ograničeno, da posljednja kartica ne čeka predugo kad neko
+   * ima desetak planova.
+   */
+  cardDelay(section: number, index: number): number {
+    return 260 + section * 90 + Math.min(index * 55, 330);
+  }
+
   goToTraining() {
     this.router.navigate(['/training']);
   }
@@ -169,16 +191,159 @@ export class DashboardComponent implements OnInit {
     this.closeExercicePicker();
   }
 
+  // --- Prevlačenje prstom ----------------------------------------------------
+  //
+  // Na telefonu su strelice ispod špila jedini način da se promijeni dan, a
+  // prirodan pokret je prevlačenje po samim kartama. Namjerno se NE koristi
+  // `touchmove` sa praćenjem prsta: karte bi tada morale da prate pomjeraj, a
+  // to se tuče sa 3D transformacijama špila. Ovdje se samo mjeri odakle dokle
+  // je prst otišao.
+
+  private touchX = 0;
+  private touchY = 0;
+  private touchTracking = false;
+
+  onDeckTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1) return;   // štipanje za uvećanje nije prevlačenje
+    this.touchX = event.touches[0].clientX;
+    this.touchY = event.touches[0].clientY;
+    this.touchTracking = true;
+  }
+
+  onDeckTouchEnd(event: TouchEvent, totalDays: number) {
+    if (!this.touchTracking) return;
+    this.touchTracking = false;
+
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+
+    const dx = touch.clientX - this.touchX;
+    const dy = touch.clientY - this.touchY;
+
+    // Prag od 50px da slučajan dodir ne preskoči dan, i uslov da je pokret
+    // pretežno vodoravan — inače bi svako skrolovanje kroz duži dan mijenjalo
+    // stranicu.
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+
+    if (dx < 0) this.nextDay(totalDays);
+    else this.prevDay();
+  }
+
   nextDay(totalDays: number) {
-    if (this.currentDayIndex < totalDays - 1) {
-      this.currentDayIndex++;
-    }
+    if (this.currentDayIndex < totalDays - 1) { this.currentDayIndex++; this.syncHeight(); }
   }
 
   prevDay() {
-    if (this.currentDayIndex > 0) {
-      this.currentDayIndex--;
+    if (this.currentDayIndex > 0) { this.currentDayIndex--; this.syncHeight(); }
+  }
+
+  goToDay(index: number) {
+    this.currentDayIndex = index;
+    this.syncHeight();
+  }
+
+  /**
+   * Položaj jedne stranice u špilu.
+   *
+   * Dani stoje jedan iza drugog kao karte: aktivni je sprijeda, naredna dva
+   * proviruju ispod njega sve manja i bljeđa, prethodni su odletjeli ulijevo.
+   * Time se vidi da lista ima nastavak, umjesto ranijeg ukrasa od dvije lažne
+   * "stranice" koje se nikad nisu mijenjale.
+   */
+  slideStyle(index: number): Record<string, string> {
+    const offset = index - this.currentDayIndex;
+
+    // Odigrana karta odlijeće ulijevo uz zaokret — kao kad se karta baci sa
+    // vrha špila, a ne kao da je neko povukao klizač.
+    if (offset < 0) {
+      return {
+        transform: 'translateX(-128%) translateZ(60px) rotate(-9deg) rotateY(22deg)',
+        opacity: '0',
+        zIndex: '0',
+        pointerEvents: 'none'
+      };
     }
+
+    const depth = Math.min(offset, 3);
+
+    // Blagi nagib koji se smjenjuje po dubini — špil složen rukom, ne mašinom.
+    const tilt = depth === 0 ? 0 : (depth % 2 === 1 ? 0.7 : -0.55) * depth;
+
+    const shrink = 1 - depth * 0.045;
+    const push = depth * 46;          // udaljenost u dubinu
+
+    // Pomak nadolje mora NADOKNADITI sve što kartu skuplja, inače joj donja
+    // ivica završi IZNAD prednje i špil se uopšte ne vidi. Skupljaju je dvije
+    // stvari: samo smanjenje (transform-origin je gornja ivica) i perspektiva,
+    // koja udaljeni objekat prikazuje manjim za p / (p + z).
+    const PERSPECTIVE = 1500;
+    const H = this.viewportHeight || 0;
+
+    const scaleLoss = H * (1 - shrink);
+    const depthLoss = H * (push / (PERSPECTIVE + push));
+    const lift = scaleLoss + depthLoss + depth * 15;   // 15px stvarnog provirivanja
+
+    return {
+      // SVE karte imaju visinu prednje. Bez toga kraći dan potpuno nestane iza
+      // dužeg i špil se ne vidi — a koji je dan kraći zavisi od plana.
+      height: this.viewportHeight ? this.viewportHeight + 'px' : 'auto',
+      transform:
+        `translateY(${lift}px) translateZ(${-push}px) rotateX(${depth * 1.6}deg) rotate(${tilt}deg) scale(${shrink})`,
+      opacity: offset === 0 ? '1' : offset === 1 ? '.7' : offset === 2 ? '.4' : '0',
+      filter: offset === 0 ? 'none' : `brightness(${1 - depth * 0.14}) blur(${depth * 0.4}px)`,
+      zIndex: String(20 - depth),
+      pointerEvents: offset === 0 ? 'auto' : 'none'
+    };
+  }
+
+  /** "Ponedeljak" -> "PON". Kartice dana moraju stati u jedan red na telefonu. */
+  shortDay(name: string | null): string {
+    return (name ?? '').slice(0, 3).toUpperCase();
+  }
+
+  /**
+   * Uskladi visinu okvira sa aktivnim danom.
+   *
+   * Mjeri se izvan ciklusa provjere (setTimeout), jer postavljanje vrijednosti
+   * unutar ngAfterViewChecked ne pokreće novo iscrtavanje — okvir je zbog toga
+   * ostajao na nuli i sadržaj se uopšte nije vidio.
+   */
+  /**
+   * Visina okvira dana prije prvog mjerenja, u pikselima.
+   *
+   * MORA biti broj, ne `auto`. Ranije je stajalo `height: auto` dok podaci ne
+   * stignu, a `auto → 610px` se u CSS-u **ne interpolira** — visina je zato
+   * skakala u jednom kadru, bez obzira što `transition: height` postoji. To je
+   * bio onaj trzaj pri otvaranju plana.
+   */
+  readonly deckStartHeight = 320;
+
+  /** Da li je prva izmjerena visina već primijenjena. */
+  deckReady = false;
+
+  private syncHeight(attempt = 0) {
+    setTimeout(() => {
+      const slide = this.daySlides?.get(this.currentDayIndex)?.nativeElement;
+      const h = slide?.offsetHeight ?? 0;
+
+      if (h) {
+        // Prvi put: početna visina mora biti ISCRTANA prije nego što se pređe na
+        // izmjerenu, inače pregledač spoji obje promjene u jedan kadar i nema
+        // šta da se animira. Dva `requestAnimationFrame`-a to garantuju.
+        if (!this.deckReady) {
+          this.deckReady = true;
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => { this.viewportHeight = h; })
+          );
+        } else {
+          this.viewportHeight = h;
+        }
+        return;
+      }
+
+      // Slike vježbi i fontovi mogu stići poslije; par pokušaja je dovoljno.
+      if (attempt < 5) this.syncHeight(attempt + 1);
+    }, attempt === 0 ? 0 : 120);
   }
 
   closeCreateModal() {
@@ -405,6 +570,7 @@ export class DashboardComponent implements OnInit {
 
   async openViewModal(planId: string) {
     this.showViewModal = true;
+    this.deckReady = false;
     this.viewLoading = true;
     this.viewError = '';
     this.viewedPlan = null;
@@ -422,6 +588,8 @@ export class DashboardComponent implements OnInit {
       this.viewedPlan.workout_days.forEach((day: any) => {
         day.day_exercice.sort((a: any, b: any) => a.order_num - b.order_num);
       });
+
+      this.syncHeight();
 
       if (user) {
         this.isOwnPlan = this.viewedPlan.created_by === user.id;
@@ -489,6 +657,7 @@ export class DashboardComponent implements OnInit {
 
   closeViewModal() {
     this.showViewModal = false;
+    this.viewportHeight = 0;
     this.viewedPlan = null;
     this.viewError = '';
     this.isOwnPlan = false;

@@ -241,6 +241,42 @@ export class TrainingService {
     if (error) throw error;
   }
 
+  /**
+   * Vraća redoslijed vježbi u sesiji na onaj iz plana.
+   *
+   * Sesija je SNIMAK plana napravljen pri prvom otvaranju treninga. Ako se plan
+   * poslije toga izmijeni — ili je sesija nastala prije neke ispravke — trening
+   * i dalje prikazuje stari raspored, jer se snimak namjerno ne osvježava sam
+   * (inače bi izmjena plana usred dana pomjerila ono što se upravo radi).
+   *
+   * Ovo je izlaz iz te situacije. Vježbe koje su zamijenjene ili ručno dodane
+   * nemaju mjesto u planu, pa idu na kraj umjesto da se izgube.
+   */
+  async resetOrderToPlan(sessionId: string, planDayExercices: any[]): Promise<void> {
+    const rank = new Map<string, number>();
+    [...planDayExercices]
+      .sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0))
+      .forEach((de, i) => rank.set(de.exercice_id, i));
+
+    const { data, error } = await this.supabase.client
+      .from('session_exercices')
+      .select('id, exercice_id, order_num')
+      .eq('session_id', sessionId);
+
+    if (error) throw error;
+
+    const sorted = [...(data ?? [])].sort((a: any, b: any) => {
+      const ra = rank.get(a.exercice_id);
+      const rb = rank.get(b.exercice_id);
+      if (ra == null && rb == null) return (a.order_num ?? 0) - (b.order_num ?? 0);
+      if (ra == null) return 1;
+      if (rb == null) return -1;
+      return ra - rb;
+    });
+
+    await this.setOrder(sorted.map((r: any, i) => ({ id: r.id, orderNum: i + 1 })));
+  }
+
   /** Novi redoslijed vježbi u sesiji. Plan ostaje netaknut. */
   async setOrder(entries: { id: string; orderNum: number }[]): Promise<void> {
     for (const e of entries) {

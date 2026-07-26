@@ -14,7 +14,14 @@ html, body, app-root {
   min-height: 100%;
 }
 
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+
+  // Nativne kontrole (birač datuma, klizači, trake za skrol) crtaju se po
+  // sistemskoj šemi. Bez ovoga polje `type="date"` ostaje bijelo usred tamnog
+  // modala, sa vlastitim tekstom koji se ne može obojiti CSS-om.
+  color-scheme: dark;
+}
 
 body {
   background-color: var(--void);
@@ -268,6 +275,118 @@ button:not(:disabled):active { transform: scale(0.97); }
 .btn-danger:not(:disabled):hover {
   background: var(--ember-a15);
   border-color: var(--ember);
+}
+
+// Polje koje otvara birač vježbe (leaderboard, napredak u profilu).
+//
+// Izgleda kao `<select>` da se ne razlikuje od ostalih polja, ali otvara
+// `<app-exercice-picker>` sa slikama i pretragom umjesto sistemskog točka sa
+// pedesetak naziva, u kojem se na telefonu vježba traži naslijepo.
+.pick-field {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 46px;
+  padding: var(--s-2) var(--s-4) var(--s-2) var(--s-2);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  text-align: left;
+}
+
+.pick-field:hover { border-color: var(--line-strong); }
+
+.pick-field img,
+.pick-field .pf-ph {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--carbon);
+}
+
+.pick-field .pf-ph { display: grid; place-items: center; color: var(--dust); }
+.pick-field .pf-ph .material-icons { font-size: 20px; }
+
+.pick-field .pf-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  color: var(--ice);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick-field .pf-name.empty-choice { color: var(--dust); font-weight: 400; }
+.pick-field > .material-icons:last-child { flex: none; color: var(--mist); }
+
+// Segmentni prekidač („Svi / Moji", periodi, opseg u biraču vježbi).
+//
+// Ranije je aktivna boja samo preskakala s jednog dugmeta na drugo — bez ikakve
+// veze između dva stanja. Sada se ispod dugmadi klizi jedna podloga, pa se vidi
+// ODAKLE je izbor otišao i KUDA.
+//
+// Poziciju nosi `--seg-index`, broj polja `--seg-count`; oboje postavlja
+// komponenta. Podloga je zaseban element, ne `background` na dugmetu, jer se
+// `background-color` ne može animirati po položaju.
+//
+//   <div class="seg" [style.--seg-count]="2" [style.--seg-index]="0">
+//     <span class="seg-thumb"></span>
+//     <button class="on">Svi</button><button>Moji</button>
+//   </div>
+.seg {
+  position: relative;
+  display: flex;
+  padding: 3px;
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--seg-count, 2));
+
+  background: var(--volt);
+  border-radius: calc(var(--r-sm) - 2px);
+  box-shadow: 0 0 14px -4px var(--volt);
+
+  transform: translateX(calc(var(--seg-index, 0) * 100%));
+  transition: transform var(--d-slow) var(--ease-spring);
+}
+
+.seg button {
+  position: relative;   // iznad podloge
+  z-index: 1;
+  flex: 1;
+  min-height: 34px;
+  padding: 0 var(--s-2);
+
+  color: var(--mist);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+
+  transition: color var(--d-base) var(--ease);
+}
+
+.seg button:hover { color: var(--ice); }
+.seg button.on { color: var(--volt-ink); }
+
+// Dugme se već pomjera zajedno sa podlogom; dodatno skupljanje na dodir bi
+// izgledalo kao da se prekidač lomi.
+.seg button:not(:disabled):active { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .seg-thumb { transition: none; }
 }
 
 // --- Površine --------------------------------------------------------------

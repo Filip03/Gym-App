@@ -1,9 +1,36 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { ProfileService, ProgressPoint } from '../../services/profile.service';
+import { ProfileService, ProgressPoint, TrainingDay, WeightPoint } from '../../services/profile.service';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { Profile } from '../../models/models';
+import {
+  PickerGroup, PickerOption, toPickerGroups
+} from '../shared/exercice-picker/exercice-picker.component';
+
+/** Jedno polje u kalendaru treninga. */
+interface CalCell {
+  iso: string;
+  day: number;
+  /** 0 = nije trenirano, 1–4 = jačina zelene po broju serija. */
+  level: number;
+  sets: number;
+  today: boolean;
+  future: boolean;
+}
+
+/** Tačka na grafikonu tjelesne težine (Filipova funkcija, zadržana pri spajanju). */
+interface WeightChartPoint {
+  x: number;
+  y: number;
+  weight: number;
+  dateLabel: string;
+}
+
+const MONTHS = [
+  'Januar', 'Februar', 'Mart', 'April', 'Maj', 'Jun',
+  'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
+];
 
 interface ChartPoint {
   x: number;
@@ -38,9 +65,54 @@ export class ProfileComponent implements OnInit {
   editHeight: number | null = null;
   editWeight: number | null = null;
 
+  // --- Kalendar treninga ------------------------------------------------------
+  //
+  // Ne traži novu tabelu: `workout_sessions` postoji otkad je dodato dugme
+  // „Trening gotov". Cijela godina se povlači jednom, pa je listanje mjeseci
+  // trenutno i bez ijednog novog upita.
+  calLoading = true;
+  calDays: TrainingDay[] = [];
+  calCells: CalCell[] = [];
+  calLead = 0;                       // prazna polja prije prvog u mjesecu
+  calTitle = '';
+  calAtCurrentMonth = true;
+  monthCount = 0;
+  weekStreak = 0;
+  yearCount = 0;
+  yearSets = 0;
+  weekAvg = '0';
+  bestMonth = 0;
+  readonly weekLabels = ['P', 'U', 'S', 'Č', 'P', 'S', 'N'];
+  private calCursor = new Date();
+
+  // --- Tjelesna težina --------------------------------------------------------
+  //
+  // Filipova funkcija sa `main` grane, zadržana pri spajanju. `profiles.weight`
+  // i dalje drži trenutnu vrijednost, a `weight_logs` istoriju — vidi migraciju
+  // `20260726010000_weight_logs.sql`.
+  showWeightModal = false;
+  weightLoading = false;
+  weightError = '';
+  weightHistory: WeightPoint[] = [];
+  loggingWeight = false;
+  logWeightError = '';
+  newWeightDate = this.iso(new Date());
+  newWeightValue: number | null = null;
+  weightChartPoints: WeightChartPoint[] = [];
+  weightChartLinePoints = '';
+  weightAreaPath = '';
+  weightYGridLines: { y: number; label: string }[] = [];
+  weightXAxisLabels: { x: number; label: string }[] = [];
+  weightChartWidth = 400;
+
   exerciceGroups: MuscleGroupWithExercices[] = [];
   loadingExerciceGroups = true;
   selectedExerciceId = '';
+
+  // Birač vježbe — isti kao u treningu, umjesto sistemskog <select>.
+  pickerGroups: PickerGroup[] = [];
+  showPicker = false;
+  selectedExercice: PickerOption | null = null;
 
   otherProfiles: { id: string; username: string }[] = [];
   compareUserId = '';
@@ -86,9 +158,12 @@ export class ProfileComponent implements OnInit {
 
     this.email = user.email ?? '';
 
+    void this.loadCalendar(user.id);   // ne čeka profil, puni se paralelno
+
     try {
       this.profile = await this.profileService.getProfile(user.id);
       this.updateAvatarUrl();
+      void this.loadWeightHistory();
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju profila.';
     } finally {
@@ -98,6 +173,7 @@ export class ProfileComponent implements OnInit {
     try {
       const groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
       this.exerciceGroups = groups.filter(g => g.exercices.length > 0);
+      this.pickerGroups = toPickerGroups(this.exerciceGroups);
     } catch (err: any) {
       this.progressError = err.message ?? 'Greška pri učitavanju vježbi.';
     } finally {
@@ -110,11 +186,299 @@ export class ProfileComponent implements OnInit {
       // Poređenje sa drugim korisnicima jednostavno neće biti ponuđeno
     }
 
+    // Iz treninga se dolazi sa ?exercice=..., pa se izbor podešava unaprijed.
     const preselectedExerciceId = this.route.snapshot.queryParamMap.get('exercice');
     if (preselectedExerciceId) {
       this.selectedExerciceId = preselectedExerciceId;
+      this.selectedExercice = this.findOption(preselectedExerciceId);
       await this.onProgressExerciceChange();
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tjelesna težina
+
+  openWeightModal() { this.showWeightModal = true; }
+  closeWeightModal() { this.showWeightModal = false; }
+
+  async loadWeightHistory() {
+    if (!this.profile) return;
+
+    this.weightLoading = true;
+    this.weightError = '';
+
+    try {
+      this.weightHistory = await this.profileService.getWeightHistory(this.profile.id);
+      this.buildWeightChart();
+    } catch (err: any) {
+      this.weightError = err.message ?? 'Greška pri učitavanju težine.';
+    } finally {
+      this.weightLoading = false;
+    }
+  }
+
+  async submitWeightLog() {
+    if (!this.profile || this.loggingWeight) return;
+
+    if (!this.newWeightDate || !this.newWeightValue || this.newWeightValue <= 0) {
+      this.logWeightError = 'Unesi datum i validnu težinu.';
+      return;
+    }
+
+    this.loggingWeight = true;
+    this.logWeightError = '';
+
+    try {
+      this.profile = await this.profileService.logWeight(
+        this.profile.id, this.newWeightDate, this.newWeightValue
+      );
+      this.newWeightValue = null;
+      await this.loadWeightHistory();
+    } catch (err: any) {
+      this.logWeightError = err.message ?? 'Greška prilikom upisa težine.';
+    } finally {
+      this.loggingWeight = false;
+    }
+  }
+
+  private buildWeightChart() {
+    this.weightChartPoints = [];
+    this.weightChartLinePoints = '';
+    this.weightAreaPath = '';
+    this.weightYGridLines = [];
+    this.weightXAxisLabels = [];
+
+    if (this.weightHistory.length === 0) return;
+
+    this.weightChartWidth = this.chartPaddingLeft + this.chartPaddingRight
+      + Math.max(1, this.weightHistory.length - 1) * this.pointSpacing;
+
+    const weights = this.weightHistory.map(p => p.weight);
+    let minWeight = Math.min(...weights);
+    let maxWeight = Math.max(...weights);
+
+    // Tjelesna težina se mijenja u uskom rasponu; bez ovog razmaka bi grafikon
+    // od 73 do 74 kg izgledao kao vertikalni skok.
+    if (minWeight === maxWeight) {
+      const pad = Math.max(minWeight * 0.1, 0.5);
+      minWeight -= pad;
+      maxWeight += pad;
+    } else {
+      const pad = (maxWeight - minWeight) * 0.15;
+      minWeight -= pad;
+      maxWeight += pad;
+    }
+    minWeight = Math.max(0, minWeight);
+
+    const step = this.computeNiceStep(maxWeight - minWeight);
+    minWeight = Math.floor(minWeight / step) * step;
+    maxWeight = Math.ceil(maxWeight / step) * step;
+    if (maxWeight === minWeight) maxWeight += step;
+
+    const innerWidth = this.weightChartWidth - this.chartPaddingLeft - this.chartPaddingRight;
+    const innerHeight = this.chartHeight - this.chartPaddingTop - this.chartPaddingBottom;
+    const xStep = this.weightHistory.length > 1 ? innerWidth / (this.weightHistory.length - 1) : 0;
+
+    const xForIndex = (i: number) => this.chartPaddingLeft
+      + (this.weightHistory.length > 1 ? i * xStep : innerWidth / 2);
+    const yForWeight = (weight: number) => this.chartPaddingTop + innerHeight
+      - ((weight - minWeight) / (maxWeight - minWeight)) * innerHeight;
+
+    this.weightChartPoints = this.weightHistory.map((p, i) => ({
+      x: xForIndex(i),
+      y: yForWeight(p.weight),
+      weight: p.weight,
+      dateLabel: this.formatDateLabel(p.date)
+    }));
+
+    this.weightChartLinePoints = this.weightChartPoints.map(p => `${p.x},${p.y}`).join(' ');
+    this.weightAreaPath = this.buildAreaPath(
+      this.weightChartPoints, this.chartHeight - this.chartPaddingBottom
+    );
+
+    const tickCount = Math.round((maxWeight - minWeight) / step);
+    for (let i = 0; i <= tickCount; i++) {
+      const value = minWeight + i * step;
+      const y = this.chartPaddingTop + innerHeight - (i / tickCount) * innerHeight;
+      const label = Number.isInteger(value) ? value.toString() : value.toFixed(1);
+      this.weightYGridLines.push({ y, label: `${label} kg` });
+    }
+
+    this.weightXAxisLabels = this.weightHistory.map((p, i) => ({
+      x: xForIndex(i), label: this.formatDateLabel(p.date)
+    }));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Kalendar treninga
+
+  private async loadCalendar(userId: string) {
+    const since = new Date();
+    since.setFullYear(since.getFullYear() - 1);
+
+    try {
+      this.calDays = await this.profileService.getTrainingCalendar(userId, this.iso(since));
+      this.yearCount = this.calDays.length;
+      this.yearSets = this.calDays.reduce((n, d) => n + d.sets, 0);
+      this.weekStreak = this.computeWeekStreak();
+      this.weekAvg = this.computeWeekAvg();
+      this.bestMonth = this.computeBestMonth();
+      this.buildMonth();
+    } catch {
+      // Kalendar je dodatak; greška ovdje ne smije oboriti ostatak profila.
+      this.calDays = [];
+    } finally {
+      this.calLoading = false;
+    }
+  }
+
+  prevMonth() { this.shiftMonth(-1); }
+  nextMonth() { if (!this.calAtCurrentMonth) this.shiftMonth(1); }
+
+  private shiftMonth(by: number) {
+    this.calCursor = new Date(
+      this.calCursor.getFullYear(), this.calCursor.getMonth() + by, 1
+    );
+    this.buildMonth();
+  }
+
+  /**
+   * Sastavlja mrežu za mjesec na koji pokazuje `calCursor`.
+   *
+   * Sedmica počinje ponedjeljkom, pa se `getDay()` (0 = nedjelja) pomjera.
+   * Prazna polja prije prvog u mjesecu nose samo razmak, nisu dani.
+   */
+  private buildMonth() {
+    const year = this.calCursor.getFullYear();
+    const month = this.calCursor.getMonth();
+
+    const setsByDate = new Map(this.calDays.map(d => [d.date, d.sets]));
+    const todayIso = this.iso(new Date());
+
+    const first = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    this.calLead = (first.getDay() + 6) % 7;
+    this.calTitle = `${MONTHS[month]} ${year}`;
+
+    const now = new Date();
+    this.calAtCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+
+    this.calCells = [];
+    let inMonth = 0;
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const iso = this.iso(new Date(year, month, day));
+      const sets = setsByDate.get(iso);
+      const trained = sets !== undefined;
+      if (trained) inMonth++;
+
+      this.calCells.push({
+        iso,
+        day,
+        sets: sets ?? 0,
+        // Nula serija znači „bio u teretani, ali ništa nije upisano" — to je i
+        // dalje odrađen dan, pa dobija najsvjetliji nivo, ne prazno polje.
+        level: trained ? 1 + Math.min(3, Math.floor((sets ?? 0) / 8)) : 0,
+        today: iso === todayIso,
+        future: iso > todayIso
+      });
+    }
+
+    this.monthCount = inMonth;
+  }
+
+  /**
+   * Uzastopne sedmice sa bar jednim treningom.
+   *
+   * Niz po DANIMA nema smisla u teretani — svaki dan odmora bi ga prekinuo, pa
+   * bi skoro uvijek pisalo 1. Sedmica je jedinica koja stvarno mjeri da li se
+   * održava ritam.
+   *
+   * Tekuća sedmica se ne računa kao prekid ako u njoj još nema treninga: tek je
+   * počela, pa bi nuliranje niza u ponedjeljak ujutro bilo kažnjavanje ni za šta.
+   */
+  private computeWeekStreak(): number {
+    if (this.calDays.length === 0) return 0;
+
+    const weeks = new Set(this.calDays.map(d => this.mondayIso(new Date(`${d.date}T12:00:00`))));
+
+    const cursor = new Date();
+    let key = this.mondayIso(cursor);
+    let streak = 0;
+
+    if (!weeks.has(key)) {
+      cursor.setDate(cursor.getDate() - 7);   // tekuća sedmica još ne broji
+      key = this.mondayIso(cursor);
+    }
+
+    while (weeks.has(key)) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 7);
+      key = this.mondayIso(cursor);
+    }
+
+    return streak;
+  }
+
+  /**
+   * Prosjek treninga po sedmici, od prvog upisanog dana do danas.
+   *
+   * Ne dijeli se sa 52 — ko je počeo prije mjesec dana ne zaslužuje prosjek od
+   * 0.5 samo zato što ranije nije koristio aplikaciju.
+   */
+  private computeWeekAvg(): string {
+    if (this.calDays.length === 0) return '0';
+
+    const first = new Date(`${this.calDays[0].date}T12:00:00`);
+    const days = Math.max(7, (Date.now() - first.getTime()) / 86400000);
+    return (this.calDays.length / (days / 7)).toFixed(1).replace('.', ',');
+  }
+
+  /** Najviše treninga u jednom kalendarskom mjesecu unutar učitane godine. */
+  private computeBestMonth(): number {
+    const byMonth = new Map<string, number>();
+    for (const d of this.calDays) {
+      const key = d.date.slice(0, 7);
+      byMonth.set(key, (byMonth.get(key) ?? 0) + 1);
+    }
+    return Math.max(0, ...byMonth.values());
+  }
+
+  private mondayIso(d: Date): string {
+    const m = new Date(d);
+    m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
+    return this.iso(m);
+  }
+
+  /** Lokalni datum kao `YYYY-MM-DD`. `toISOString()` uveče vraća sjutrašnji dan. */
+  iso(d: Date): string {
+    const mm = `${d.getMonth() + 1}`.padStart(2, '0');
+    const dd = `${d.getDate()}`.padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+
+  trackCell = (_: number, c: CalCell) => c.iso;
+
+  onPick(option: PickerOption) {
+    this.showPicker = false;
+    if (option.id === this.selectedExerciceId) return;
+
+    this.selectedExercice = option;
+    this.selectedExerciceId = option.id;
+    void this.onProgressExerciceChange();
+  }
+
+  pictureUrl(picture: string | null): string | null {
+    return picture ? this.exerciceService.getPublicUrl(picture) : null;
+  }
+
+  private findOption(id: string): PickerOption | null {
+    for (const g of this.pickerGroups) {
+      const hit = g.items.find(o => o.id === id);
+      if (hit) return hit;
+    }
+    return null;
   }
 
   async onProgressExerciceChange() {
@@ -280,7 +644,8 @@ export class ProfileComponent implements OnInit {
     return Math.ceil(range / maxTicks / 500) * 500;
   }
 
-  private buildAreaPath(points: ChartPoint[], baselineY: number): string {
+  // Traži samo koordinate, pa prima i tačke grafikona vježbe i tačke težine.
+  private buildAreaPath(points: { x: number; y: number }[], baselineY: number): string {
     if (points.length === 0) return '';
 
     const first = points[0];

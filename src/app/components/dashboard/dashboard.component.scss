@@ -489,22 +489,6 @@
   cursor: not-allowed;
 }
 
-.days-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 0.75rem;
-}
-
-.day-row {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 0.6rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-width: 0; // sprečava da sadržaj gura karticu širom grid ćelije
-}
-
 .day-header {
   display: flex;
   flex-direction: column;
@@ -725,127 +709,12 @@
     padding: 1.25rem;
   }
 
-  // Raspored dana - 2 kolone umesto 7
-  .days-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.6rem;
-  }
+  
 
-  .day-row {
-    padding: 0.5rem;
-  }
-
-  // Raspored dana na mobilnom - špil karata, jedan dan vidljiv, listanje strelicama
-  .days-grid.mobile-carousel {
-    display: block;
-    position: relative;
-    grid-template-columns: none;
-    padding-bottom: 18px;
-  }
-
-  .days-grid.mobile-carousel::before,
-  .days-grid.mobile-carousel::after {
-    content: '';
-    position: absolute;
-    left: 50%;
-    width: 90%;
-    height: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.03);
-    z-index: 0;
-    pointer-events: none;
-  }
-
-  .days-grid.mobile-carousel::before {
-    bottom: 0;
-    transform: translateX(-50%) scale(0.96);
-  }
-
-  .days-grid.mobile-carousel::after {
-    bottom: -6px;
-    transform: translateX(-50%) scale(0.9);
-    opacity: 0.6;
-  }
-
-  .days-grid.mobile-carousel .day-row {
-    position: relative;
-    z-index: 1;
-    background: rgba(20, 20, 20, 0.9);
-  }
-
-  .days-grid.mobile-carousel .day-row.day-hidden {
-    display: none !important;
-  }
-
-  .days-grid.mobile-carousel .day-row.active-day {
-    animation: cardSlideIn 0.25s ease;
-  }
-
-  .carousel-nav {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .carousel-label {
-    flex: 1;
-    text-align: center;
-    font-weight: 600;
-    color: greenyellow;
-  }
-
-  .carousel-label small {
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: 400;
-    margin-left: 0.3rem;
-  }
-
-  @keyframes cardSlideIn {
-    from {
-      opacity: 0;
-      transform: translateX(16px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  .day-name {
-    font-size: 0.75rem;
-  }
-
-  .form-actions {
-    flex-direction: column-reverse;
-    gap: 0.5rem;
-  }
-
-  .form-actions button {
-    width: 100%;
-  }
 }
 
-@media (max-width: 480px) {
 
-  .days-grid {
-    grid-template-columns: repeat(1, 1fr);
-  }
-
-  #add {
-    font-size: 28px;
-  }
-
-  .modal-card-large {
-    padding: 1rem;
-  }
-
-  .selected-exercice-row input {
-    width: 100%;
-  }
-}
+  
 // --- Redoslijed vježbi u danu plana ----------------------------------------
 //
 // Jedino mjesto gdje se redoslijed mijenja TRAJNO. Preređivanje u toku treninga
@@ -940,3 +809,375 @@
 }
 
 .start-btn.done .material-icons { font-size: 19px; }
+
+// ===========================================================================
+// PREGLED PLANA PO DANIMA
+//
+// Ranije: na širokom ekranu sedam kolona jedna do druge, pa se naziv vježbe
+// lomio u četiri reda; na telefonu karusel koji je stranice sakrivao sa
+// `display: none`, pa listanje nije moglo biti animirano. Ispod je stajao ukras
+// od dvije "stranice" koje se nikad nisu mijenjale.
+//
+// Sada: isti karusel na svim veličinama, sa stvarnim klizanjem i karticama
+// dana koje istovremeno pokazuju gdje si i služe za skok.
+// ===========================================================================
+
+.days-carousel { width: 100%; }
+
+// --- Kartice dana ----------------------------------------------------------
+
+.day-tabs {
+  display: flex;
+  gap: var(--s-1);
+  margin-bottom: var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.day-tabs::-webkit-scrollbar { display: none; }
+
+.day-tab {
+  flex: 1 0 auto;
+  min-width: 44px;
+  padding: var(--s-2) var(--s-2) var(--s-1);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--dust);
+
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: .06em;
+
+  transition: color var(--d-base) var(--ease),
+              border-color var(--d-base) var(--ease),
+              background-color var(--d-base) var(--ease);
+}
+
+.day-tab:hover { color: var(--mist); border-color: var(--line-strong); }
+
+.day-tab.on {
+  background: var(--volt-a10);
+  border-color: var(--volt);
+  color: var(--volt);
+}
+
+// Tačka odaje ima li dan vježbi, bez otvaranja.
+.dt-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-full);
+  background: var(--volt-soft);
+  transition: background-color var(--d-base) var(--ease);
+}
+
+.day-tab.rest .dt-dot { background: var(--steel); }
+.day-tab.on .dt-dot   { background: var(--volt); }
+
+// --- Klizanje --------------------------------------------------------------
+
+// Špil karata: dani stoje jedan iza drugog, aktivni sprijeda.
+//
+// `perspective` je ono što razliku čini fizičkom — bez nje su karte samo
+// smanjeni pravougaonici, s njom stvarno stoje jedna IZA druge.
+.day-deck {
+  position: relative;
+  // Uspravno skrolovanje ostaje pregledaču, vodoravno hvata `onDeckTouch*`.
+  touch-action: pan-y;
+  perspective: 1500px;
+  perspective-origin: 50% 0%;
+  transform-style: preserve-3d;
+  // 460ms, ne 320: pri otvaranju plana okvir pređe i po 300 piksela odjednom,
+  // a na toj razlici je kraći prelaz djelovao kao trzaj.
+  transition: height 460ms var(--ease-out);
+}
+
+.day-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  padding: var(--s-4);
+
+  // Topla siva umjesto hladne plavo-crne — ranije je odskakala od ostatka.
+  background: #17161A;
+  border: 1px solid rgba(255, 250, 240, .07);
+  border-radius: var(--r-lg);
+  box-shadow: 0 14px 34px -14px rgba(0, 0, 0, .75);
+
+  transform-origin: 50% 0;
+  backface-visibility: hidden;
+  overflow: hidden;   // karta iza može imati više vježbi nego prednja
+
+  // Duže od uobičajenog i sa prebačajem — karta treba da "sjedne", ne da
+  // škljocne. Prozirnost i zamućenje idu brže, da se karta ispod otkrije prije
+  // nego što gornja završi put.
+  transition: transform 620ms cubic-bezier(0.22, 1.12, 0.28, 1),
+              opacity 340ms var(--ease),
+              filter 340ms var(--ease);
+}
+
+// Prednja karta: tanka volt linija na gornjoj ivici i dublja sjenka — ono što
+// je razdvaja od ostatka špila.
+.day-slide::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: linear-gradient(90deg, var(--volt-a40), transparent 65%);
+  opacity: 0;
+  transition: opacity var(--d-slow) var(--ease);
+}
+
+.day-slide[style*="z-index: 20"]::before { opacity: 1; }
+.day-slide[style*="z-index: 20"] {
+  box-shadow: 0 26px 60px -22px rgba(0, 0, 0, .9),
+              0 2px 0 0 rgba(255, 250, 240, .04) inset;
+}
+
+// Vezano za .day-slide jer postoji i stariji .day-header u editoru plana koji
+// slaže sadržaj u kolonu. Bez `flex-direction: row` ovdje bi se naslijedila
+// kolona i naziv dana bi ostao iznad značke umjesto pored nje.
+.day-slide .day-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.day-slide .day-header .day-name {
+  font-family: var(--font-display);
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--ice);
+}
+
+.day-type-badge {
+  padding: 2px var(--s-3);
+  background: var(--volt-a10);
+  border: 1px solid var(--volt-a40);
+  border-radius: var(--r-full);
+  color: var(--volt);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+// --- Navigacija ------------------------------------------------------------
+
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  margin-top: var(--s-3);
+}
+
+.arrow-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-full);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  color: var(--ice);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.arrow-btn:not(:disabled):hover { border-color: var(--volt-a40); color: var(--volt); }
+.arrow-btn:disabled { opacity: .3; }
+
+.carousel-label {
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  color: var(--dust);
+  min-width: 46px;
+  text-align: center;
+}
+
+// --- Vježbe unutar pregleda plana ------------------------------------------
+//
+// U pregledu plana redovi su bili zasebne tamne kutije, pa je dan izgledao kao
+// gomila crnih blokova koji ne pripadaju ostatku aplikacije. Ovdje su to redovi
+// jedne liste — bez podloge, razdvojeni tankom crtom, i krupniji, jer se plan
+// čita a ne dodiruje.
+
+.day-slide .exercice-view-list {
+  gap: 0;
+  margin-top: 0;
+}
+
+.day-slide .exercice-view-item {
+  padding: var(--s-3) var(--s-1);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  font-size: var(--t-base);
+  gap: var(--s-3);
+}
+
+.day-slide .exercice-view-item:last-child { border-bottom: none; }
+
+.day-slide .exercice-view-item .ord {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  background: var(--volt-a10);
+  font-size: var(--t-2xs);
+}
+
+.day-slide .exercice-view-item .exercice-name {
+  font-size: var(--t-base);
+  font-weight: 500;
+  white-space: normal;      // naziv smije u dva reda, ima mjesta
+  line-height: var(--lh-snug);
+}
+
+.day-slide .exercice-view-item .exercice-sets-reps {
+  font-size: var(--t-sm);
+  color: var(--mist);
+  padding: 2px var(--s-2);
+  background: var(--carbon-high);
+  border-radius: var(--r-sm);
+}
+
+.day-slide .no-exercices {
+  padding: var(--s-8) 0;
+  text-align: center;
+  color: var(--dust);
+  font-size: var(--t-sm);
+}
+
+// Naizmjenične trake — pomažu oku da prati red do kraja na širokom ekranu.
+.day-slide .exercice-view-item:nth-child(odd) {
+  background: rgba(255, 250, 240, .022);
+}
+
+.day-slide .exercice-view-item {
+  border-bottom-color: rgba(255, 250, 240, .06);
+  border-radius: var(--r-sm);
+  padding-inline: var(--s-3);
+}
+
+.day-slide .exercice-view-item .exercice-sets-reps {
+  background: rgba(255, 250, 240, .06);
+  color: var(--mist);
+}
+
+.day-slide .day-header { border-bottom-color: rgba(255, 250, 240, .09); }
+
+// --- Ulaz ------------------------------------------------------------------
+//
+// Ekran se ranije pojavljivao odjednom. Sada dugme za trening ulazi prvo (ono
+// je razlog zbog kojeg se aplikacija otvara), pa naslovi sekcija, pa kartice
+// planova stepenasto. Kašnjenje kartica računa komponenta i postavlja ga inline.
+//
+// `backwards`, NE `both` — `both` bi zadržao završno stanje ključnog kadra i
+// time zaključao `transform`, pa `:hover` na karticama poslije animacije više
+// ne bi radio.
+
+.start-block { animation: start-in 520ms var(--ease-spring) backwards; }
+.start-today { animation: start-in 520ms var(--ease-spring) 90ms backwards; }
+
+.my-plans    > .header,
+.other-plans > h2 { animation: head-in 420ms var(--ease-out) 180ms backwards; }
+.other-plans > h2 { animation-delay: 270ms; }
+
+.plan-card { animation: card-in 460ms var(--ease-spring) backwards; }
+
+.section-divider { animation: head-in 420ms var(--ease-out) 240ms backwards; }
+
+@keyframes start-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes head-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(16px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-block, .start-today, .my-plans > .header,
+  .other-plans > h2, .plan-card, .section-divider { animation: none; }
+}
+
+// Placeholder dok plan stiže. Nema sadržaja, samo drži prostor u istom obliku
+// koji će sadržaj zauzeti — kartica se time otvara odmah u punoj veličini,
+// umjesto da bude niska pa da poskoči.
+.view-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-2) 0;
+}
+
+.vl-bar,
+.vl-deck {
+  display: block;
+  border-radius: var(--r-md);
+  background: linear-gradient(
+    100deg,
+    var(--carbon-high) 0%,
+    var(--steel) 40%,
+    var(--carbon-high) 80%
+  );
+  background-size: 300% 100%;
+  animation: vl-sweep 1.4s ease-in-out infinite;
+}
+
+.vl-bar  { height: 56px; }
+.vl-deck { height: 320px; }   // isto kao `deckStartHeight`, da nema skoka
+
+@keyframes vl-sweep {
+  from { background-position: 120% 0; }
+  to   { background-position: -40% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vl-bar, .vl-deck { animation: none; }
+}
+
+// Uputstvo za prevlačenje samo tamo gdje prevlačenja i ima — na uređaju sa
+// mišem su strelice očigledne, pa bi tekst bio suvišan.
+.swipe-hint { display: none; }
+
+@media (hover: none) {
+  .swipe-hint {
+    display: block;
+    margin-top: var(--s-2);
+    text-align: center;
+    font-family: var(--font-data);
+    font-size: 10px;
+    letter-spacing: var(--ls-wide);
+    text-transform: uppercase;
+    color: var(--echo);
+  }
+}

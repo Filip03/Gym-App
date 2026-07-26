@@ -9,6 +9,9 @@
 
     <p *ngIf="loading">Učitavanje...</p>
     <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+    <p *ngIf="compressing">
+      {{ compressProgress > 0 ? 'Kompresujem... ' + (compressProgress * 100 | number:'1.0-0') + '%' : 'Kompresujem...' }}
+    </p>
     <p *ngIf="uploading">Otpremam...</p>
     <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
 
@@ -21,6 +24,7 @@
         <div class="media-card" *ngFor="let item of mediaItems" (click)="openLightbox(item)">
           <video *ngIf="item.type === 'video'" [src]="item.url" muted playsinline></video>
           <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name">
+          <span class="media-date" *ngIf="item.createdAt">{{ item.createdAt | date:'dd.MM.yyyy' }}</span>
         </div>
       </div>
     </ng-container>
@@ -30,6 +34,7 @@
 
 <div class="lightbox-overlay" *ngIf="selectedItem as item" (click)="closeLightbox()">
   <span class="material-icons lightbox-close" (click)="closeLightbox()">close</span>
+  <span class="lightbox-date" *ngIf="item.createdAt">{{ item.createdAt | date:'dd.MM.yyyy. HH:mm' }}</span>
   <video *ngIf="item.type === 'video'" [src]="item.url" controls autoplay playsinline (click)="$event.stopPropagation()"></video>
   <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name" (click)="$event.stopPropagation()">
 </div>

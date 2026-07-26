@@ -10,11 +10,13 @@
     <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 
     <ng-container *ngIf="!loading && !errorMessage">
-      <div class="muscle-group-section" *ngFor="let group of groups">
-        <h3>{{ group.name }}</h3>
+      <div class="muscle-group-section" *ngFor="let group of groups; let gi = index">
+        <h3 [style.animation-delay.ms]="groupDelay(gi)">{{ group.name }}</h3>
 
         <div class="exercice-grid" *ngIf="group.exercices.length > 0; else noExercices">
-          <button type="button" class="exercice-card" *ngFor="let ex of group.exercices"
+          <button type="button" class="exercice-card"
+                  *ngFor="let ex of group.exercices; let ci = index"
+                  [style.animation-delay.ms]="cardDelay(gi, ci)"
                   (click)="openDetail(ex)">
             <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name">
             <span class="ph" *ngIf="!ex.picture"><i class="material-icons">fitness_center</i></span>
