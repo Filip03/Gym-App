@@ -58,19 +58,19 @@
   margin-top: -12px;
   padding: calc(var(--s-2) + 12px) var(--s-4) var(--s-3);
 
-  // Prelaz ide ODOZGO NADOLJE, od prozirnog ka zelenom: pri vrhu se stapa sa
-  // tamnom pozadinom aplikacije, a zelenilo se skuplja pri dnu — kao da svjetlo
-  // dolazi ispod. Suprotno od prvog pokušaja, gdje je zeleno bilo gore i traka
-  // je izgledala kao da curi iz dugmeta.
-  background: linear-gradient(180deg,
-    rgba(198, 255, 59, 0.02) 0%,
-    var(--volt-a10) 55%,
-    var(--volt-a20) 88%,
-    rgba(198, 255, 59, 0.26) 100%);
+  // Traka je POZADINSKI dio, ne druga akcija. Zato je prigušena: tamna podloga
+  // i tek naznaka zelenog pri dnu, koliko da se vidi da pripada dugmetu.
+  // Istaknut je samo tekst.
+  background:
+    linear-gradient(180deg,
+      rgba(198, 255, 59, 0.00) 0%,
+      rgba(198, 255, 59, 0.035) 65%,
+      rgba(198, 255, 59, 0.085) 100%),
+    color-mix(in srgb, var(--void) 55%, transparent);
 
-  border: 1px solid var(--volt-a10);
+  border: 1px solid rgba(198, 255, 59, 0.06);
   border-top: none;
-  border-bottom-color: var(--volt-a40);
+  border-bottom-color: rgba(198, 255, 59, 0.16);
   border-radius: 0 0 var(--r-md) var(--r-md);
 }
 
@@ -82,6 +82,8 @@
   text-transform: uppercase;
   color: var(--ice);
 }
+
+.start-today { --pad-top: calc(var(--s-2) + 12px); }
 
 .st-sep { color: var(--volt-soft); }
 
