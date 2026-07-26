@@ -1086,3 +1086,82 @@ liniju.
 
 **Napomena za ubuduće:** kad se doda markup sa novim klasama, provjeriti
 `grep -c "nova-klasa" *.scss` prije commita. Ovdje bi to odmah dalo nulu.
+
+---
+
+## [2026-07-26] Sve vrijeme, lični rekord, vremenska osa grafikona, futer bez rupe
+**Tip:** funkcionalnost / popravka
+**Ref:** Roadmap 1.13, 1.15
+
+### 1. Futer na iPhoneu — strukturna popravka
+
+Simptom: pri skrolu nadolje traka sa adresom se skupi, fiksirani futer ostane
+gdje je bio, i **između njega i donje trake nastane rupa**. Na skrol nagore
+izgleda uredno.
+
+Uzrok: `position: fixed` se pozicionira prema *layout* viewportu, koji se u
+trenutku skupljanja trake još nije proširio. To se **ne može** popraviti CSS-om
+dok stranica skroluje — probano sa `svh` umjesto `dvh` (pomaže kod visine, ne
+kod ovoga) i sa `overscroll-behavior`.
+
+Rješenje: **stranica se više uopšte ne skroluje.** `.shell` je visine ekrana sa
+`overflow: hidden`, zaglavlje i futer su obična djeca u toku (`flex: none`), a
+skroluje samo srednji `.scroll-area`. Traka sa adresom se tada nikad ne skuplja.
+
+Cijena: traka ostaje stalno vidljiva, gubi se tridesetak piksela. Provjereno da
+se ništa ne oslanja na skrol prozora (`window.scrollTo`, `scrollIntoView` — nema
+nijednog poziva), a modali su `position: fixed` u globalnom sloju pa ih
+`overflow: hidden` na pretku ne siječe.
+
+### 2. „Sve vrijeme" na rang listi
+
+`PeriodDays` dobio vrijednost `0` = bez donje granice; upit tada izostavlja
+`.gte('date', …)`. Rekord u tom pogledu ne ističe — vidi se ko je **ikad**
+najviše digao.
+
+### 3. Lični rekord u profilu
+
+Na rang listi se sopstveni maksimum lako izgubi: ko je slabiji od ostalih, nikad
+ne dođe na podijum pa svoj broj ne vidi nigdje — čak ni pod „Sve".
+
+Zato profil, uz izabranu vježbu, prikazuje **Moj rekord · sve vrijeme**: najveća
+kilaža ikad sa najviše ponavljanja na njoj i datumom. Vatra je ista ikona kao
+oznaka rekorda u treningu — ista stvar treba da izgleda isto na oba mjesta.
+
+Računa se iz cijele istorije, ne iz prozora grafikona; `getProgress` ionako
+vraća sve bez vremenskog ograničenja.
+
+### 4. Grafikon dobio vremensku osu
+
+Ranije su tačke stajale po **rednom broju upisa**, ravnomjerno razmaknute — dva
+upisa razmaknuta tri sedmice izgledala su isto kao dva uzastopna dana, a jedan
+jedini upis bio je tačka u praznini. Zato je grafikon „bio čudan na početku".
+
+Sada X osa nosi **vrijeme**, preko cijelog izabranog prozora. Dodat prekidač
+`1m / 3m / 6m / Sve` i strelice za pomjeranje prozora unazad po jednoj dužini
+opsega. Širina crteža je stalna (560), pa se mijenja gustina a ne dužina — nema
+vodoravnog skrola. Oznake na X osi su ravnomjerne po vremenu (5 tačaka), ne po
+upisima, inače bi se pri više upisa u istoj sedmici preklopile.
+
+### 5. Kratki natpisi na prekidačima
+
+`30 dana / 2 mjeseca / 6 mjeseci / Godina / Sve` je bilo preširoko — pet natpisa
+se grčilo u širini telefona. Sada `1m / 2m / 6m / 1g / Sve`, a pun tekst je
+pomjeren u rečenicu ispod liste („Najveća kilaža u posljednjih 30 dana."), gdje
+ima mjesta. Isto u profilu, za oba prekidača.
+
+Mjereno na uskom ekranu: polje 103px, natpis 15–22px.
+
+### 6. Puna lista dobila naslov
+
+Lista ispod podijuma je **oduvijek** prikazivala sve članove, ali je bez naslova
+izgledala kao slučajno ponavljanje podijuma. Dodat naslov „Svi" i napomena šta
+se mjeri, plus dugme „Prikaži još" kad članova bude više od šest.
+
+**Dodirnuti fajlovi:**
+- `src/app/app.component.{html,scss}` — okvir sa unutrašnjim skrolom
+- `src/app/components/footer/footer.component.scss`, `header.component.scss` — bez `fixed`/`sticky`
+- `src/app/services/leaderboard.service.ts` — `PeriodDays = 0`, `full` natpisi
+- `src/app/components/leaderboard/*` — „Svi" naslov, `Prikaži još`
+- `src/app/components/profile/*` — `personalBest`, `CHART_RANGES`, prepisan `buildChart`
+- `src/styles/_base.scss` — `white-space: nowrap` na `.seg button`

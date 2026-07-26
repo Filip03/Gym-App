@@ -172,6 +172,41 @@
           </button>
         </div>
 
+        <!-- Lični rekord: najveća kilaža IKAD, ne u prikazanom prozoru. -->
+        <div class="pb" *ngIf="personalBest && !progressLoading">
+          <i class="material-icons pb-icon">local_fire_department</i>
+          <div class="pb-body">
+            <span class="pb-label">Moj rekord · sve vrijeme</span>
+            <span class="pb-when">{{ personalBestLabel }}</span>
+          </div>
+          <div class="pb-num">
+            <span class="pb-kg num">{{ personalBest.weight }}<em>kg</em></span>
+            <span class="pb-reps num">×{{ personalBest.reps }}</span>
+          </div>
+        </div>
+
+        <div class="chart-controls" *ngIf="selectedExerciceId">
+          <div class="seg chart-seg"
+               [style.--seg-count]="chartRanges.length" [style.--seg-index]="chartRangeIndex">
+            <span class="seg-thumb"></span>
+            <button type="button" *ngFor="let r of chartRanges"
+                    [class.on]="chartRange === r.days" (click)="setChartRange(r.days)">
+              {{ r.label }}
+            </button>
+          </div>
+
+          <div class="chart-nav" *ngIf="chartRange !== 0">
+            <button type="button" (click)="shiftChart(1)" aria-label="Ranije">
+              <i class="material-icons">chevron_left</i>
+            </button>
+            <span class="chart-window num">{{ chartWindowLabel }}</span>
+            <button type="button" (click)="shiftChart(-1)" [disabled]="!canShiftForward"
+                    aria-label="Kasnije">
+              <i class="material-icons">chevron_right</i>
+            </button>
+          </div>
+        </div>
+
         <p *ngIf="progressLoading">Učitavanje...</p>
         <p *ngIf="progressError" class="error">{{ progressError }}</p>
 

@@ -33,13 +33,20 @@ import { ProfileService } from './profile.service';
  * sedmice. (`A3` u `docs/02-STANJE-KODA.md`.)
  */
 
-export type PeriodDays = 30 | 60 | 180 | 365;
+/** Broj dana unazad. `0` = bez vremenskog ograničenja („Sve vrijeme"). */
+export type PeriodDays = 0 | 30 | 60 | 180 | 365;
 
-export const PERIODS: { days: PeriodDays; label: string }[] = [
-  { days: 30,  label: '30 dana' },
-  { days: 60,  label: '2 mjeseca' },
-  { days: 180, label: '6 mjeseci' },
-  { days: 365, label: 'Godina' }
+/**
+ * `label` je ono što stoji NA dugmetu — kratko, jer pet natpisa mora stati u
+ * širinu telefona. Puni tekst („2 mjeseca") se ponavljao i lomio, pa je pomjeren
+ * u `full`, koji se koristi u rečenici ispod liste.
+ */
+export const PERIODS: { days: PeriodDays; label: string; full: string }[] = [
+  { days: 30,  label: '1m',  full: '30 dana' },
+  { days: 60,  label: '2m',  full: '2 mjeseca' },
+  { days: 180, label: '6m',  full: '6 mjeseci' },
+  { days: 365, label: '1g',  full: 'godinu dana' },
+  { days: 0,   label: 'Sve', full: 'sve vrijeme' }
 ];
 
 export interface LeaderEntry {
@@ -130,7 +137,9 @@ export class LeaderboardService {
    * poruka nego da te uopšte nema na spisku.
    */
   async getLeaderboard(exerciceId: string, days: PeriodDays): Promise<LeaderEntry[]> {
-    const since = this.daysAgo(days);
+    // `days === 0` znači „Sve vrijeme" — bez donje granice. Rekord tada ne
+    // ističe, pa se vidi ko je ikad najviše digao, a ne ko trenutno brani mjesto.
+    const since = days === 0 ? null : this.daysAgo(days);
 
     const [profiles, logs] = await Promise.all([
       this.allProfiles(),
@@ -347,13 +356,15 @@ export class LeaderboardService {
     }));
   }
 
-  private async logsFor(exerciceId: string, since: string) {
-    const { data, error } = await this.supabase.client
+  private async logsFor(exerciceId: string, since: string | null) {
+    let query = this.supabase.client
       .from('exercice_logs')
       .select('user_id, weight, reps, date')
-      .eq('exercice_id', exerciceId)
-      .gte('date', since);
+      .eq('exercice_id', exerciceId);
 
+    if (since) query = query.gte('date', since);
+
+    const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as any[];
   }

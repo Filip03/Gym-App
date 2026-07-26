@@ -208,6 +208,112 @@
 
 .exercice-select { margin-top: var(--s-4); }
 
+// Lični rekord za izabranu vježbu.
+//
+// Stoji iznad grafikona jer je to broj koji se traži prvi — grafikon je priča,
+// rekord je odgovor. Na rang listi se sopstveni maksimum lako izgubi: ko je
+// slabiji od ostalih, nikad ne dođe na podijum pa svoj broj ne vidi nigdje.
+//
+// Vatra je ista ikona kao oznaka rekorda u treningu, namjerno — ista stvar
+// treba da izgleda isto na oba mjesta.
+.pb {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--gold) 12%, var(--carbon-high)) 0%,
+    var(--carbon-high) 55%
+  );
+  border: 1px solid var(--gold-a20, rgba(255, 201, 74, .22));
+  border-left: 2px solid var(--gold);
+  border-radius: var(--r-sm);
+}
+
+.pb-icon {
+  color: var(--gold);
+  font-size: 24px;
+  filter: drop-shadow(0 0 8px rgba(255, 201, 74, .45));
+  animation: pb-flame 2.6s ease-in-out infinite;
+}
+
+@keyframes pb-flame {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 8px rgba(255, 201, 74, .45)); }
+  50%      { transform: scale(1.08); filter: drop-shadow(0 0 14px rgba(255, 201, 74, .7)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb-icon { animation: none; }
+}
+
+.pb-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.pb-label {
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ice);
+}
+
+.pb-when { font-family: var(--font-data); font-size: var(--t-2xs); color: var(--dust); }
+
+.pb-num { flex: none; text-align: right; }
+
+.pb-kg {
+  display: block;
+  font-size: var(--t-md);
+  font-weight: 700;
+  color: var(--gold);
+}
+.pb-kg em { font-size: var(--t-2xs); font-style: normal; opacity: .7; margin-left: 1px; }
+
+.pb-reps { font-size: var(--t-2xs); color: var(--mist); }
+
+// --- Prozor grafikona ------------------------------------------------------
+
+.chart-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+
+.chart-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.chart-nav button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--mist);
+}
+
+.chart-nav button:not(:disabled):hover { background: var(--carbon-high); color: var(--ice); }
+.chart-nav button:disabled { opacity: .3; }
+.chart-nav .material-icons { font-size: 20px; }
+
+.chart-window {
+  flex: 1;
+  text-align: center;
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  color: var(--dust);
+}
+
+// Crtež ima stalnu širinu (560), a ovdje se skalira na širinu kartice —
+// zato `max-width` na samom SVG-u, a ne skrol.
+.progress-chart { width: 100%; height: auto; max-width: 100%; }
+
 .chart-wrapper {
   margin-top: var(--s-4);
   padding: var(--s-3) 0;
@@ -745,7 +851,6 @@
 
 // Izgled prekidača nosi `.seg` u _base.scss. Ovdje su samo sitnija slova —
 // četiri natpisa u uskoj koloni pored kalendara.
-.range-seg button { font-size: 10px; letter-spacing: 0.04em; padding: 0 var(--s-1); }
 
 .cal-wd {
   padding-bottom: 2px;

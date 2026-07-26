@@ -392,6 +392,10 @@ button:not(:disabled):active { transform: scale(0.97); }
   font-weight: 600;
   letter-spacing: var(--ls-wide);
 
+  // Natpisi su kratki („1m", „6m", „Sve") baš zato da nikad ne moraju da se
+  // lome ni skupljaju. `nowrap` je osigurač ako neko doda duži.
+  white-space: nowrap;
+
   transition: color var(--d-base) var(--ease);
 }
 
