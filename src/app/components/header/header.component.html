@@ -12,4 +12,15 @@
   <img class="mark" *ngIf="!backTo" src="assets/logo.png" alt="">
 
   <h1 class="title">{{ title }}</h1>
+
+  <button
+    type="button"
+    class="sound"
+    (click)="toggleSound()"
+    [class.off]="audio.muted"
+    [attr.aria-label]="audio.muted ? 'Uključi zvuk' : 'Isključi zvuk'"
+    [title]="audio.muted ? 'Zvuk isključen' : 'Zvuk uključen'"
+  >
+    <i class="material-icons">{{ audio.muted ? 'volume_off' : 'volume_up' }}</i>
+  </button>
 </header>

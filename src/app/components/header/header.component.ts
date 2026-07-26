@@ -1,6 +1,7 @@
 import { Component, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subscription, filter } from 'rxjs';
+import { AudioService } from '../../services/audio.service';
 
 interface RouteMeta {
   title: string;
@@ -32,7 +33,7 @@ export class HeaderComponent implements OnDestroy {
 
   private sub: Subscription;
 
-  constructor(private router: Router) {
+  constructor(private router: Router, public audio: AudioService) {
     this.apply(this.router.url);
 
     this.sub = this.router.events
@@ -50,6 +51,10 @@ export class HeaderComponent implements OnDestroy {
 
   goBack() {
     if (this.backTo) this.router.navigate([this.backTo]);
+  }
+
+  toggleSound() {
+    this.audio.toggleMute();
   }
 
   ngOnDestroy() {

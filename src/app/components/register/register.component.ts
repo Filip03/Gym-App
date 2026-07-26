@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { Router, RouterLink } from '@angular/router';
+import { AudioService } from '../../services/audio.service';
 
 @Component({
   selector: 'app-register',
@@ -21,21 +22,11 @@ export class RegisterComponent{
   successMessage = '';
   loading = false;
 
-  constructor(private authService: AuthService, private router: Router) {}
-
-  playAudio():Promise<void> {
-    return new Promise((resolve) => {
-      const audio = new Audio('assets/imun na batine.m4a');
-
-      audio.volume = 0.5;
-
-      audio.onended = () => {
-        resolve();
-      };
-
-      audio.play();
-    });
-}
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private audio: AudioService
+  ) {}
 
   async onSubmit() {
     this.errorMessage = '';
@@ -44,8 +35,14 @@ export class RegisterComponent{
 
     try {
       await this.authService.signUp(this.email, this.password, this.username, this.weight, this.height);
-      await this.playAudio();
-      this.router.navigate(['/login'])
+
+      // Zvuk se pušta, ali se NE čeka. Ranije je ovdje stajalo `await` na
+      // obećanje koje se ispuni tek na `onended` — pa je blokiran autoplay
+      // značio da se obećanje nikad ne ispuni i da korisnik nakon uspješne
+      // registracije zauvijek ostane na ovom ekranu. A i kad je prolazilo,
+      // čekalo se punih 13 sekundi.
+      this.audio.play('register');
+      this.router.navigate(['/login']);
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška prilikom registracije.';
     } finally {

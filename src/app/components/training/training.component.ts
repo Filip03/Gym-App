@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
+import { AudioService } from '../../services/audio.service';
 import { Router } from '@angular/router';
 import {
   TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet
@@ -78,6 +79,7 @@ export class TrainingComponent implements OnInit {
     private trainingService: TrainingService,
     private exerciceService: ExerciceService,
     private authService: AuthService,
+    private audio: AudioService,
     private router: Router
   ) {}
 
@@ -219,6 +221,7 @@ export class TrainingComponent implements OnInit {
     ex.prShown = best;
     ex.celebrateKey = Date.now();
     ex.celebrating = true;
+    this.audio.play('record');
     setTimeout(() => ex.celebrating = false, 1800);   // dužina snimka
   }
 

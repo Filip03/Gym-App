@@ -144,6 +144,20 @@ input:focus, textarea:focus, select:focus {
 
 textarea { min-height: 88px; resize: vertical; line-height: var(--lh-snug); }
 
+// Chrome/Safari na automatski popunjena polja lijepe svijetlu pozadinu i tamni
+// tekst, pa polje ispadne bijelo usred tamnog ekrana. Boja se ne može
+// postaviti direktno — jedini način je unutrašnja sjenka preko cijelog polja,
+// uz `transition` koji sprječava da pregledač vrati svoju boju.
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--ice);
+  -webkit-box-shadow: 0 0 0 1000px var(--carbon-high) inset;
+  caret-color: var(--ice);
+  transition: background-color 100000s ease-in-out 0s;
+}
+
 // Brojčana polja: krupna, monospace, centrirana — kucaju se u teretani.
 input[type="number"] {
   font-family: var(--font-data);

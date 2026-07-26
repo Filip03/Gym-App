@@ -47,3 +47,21 @@
   text-transform: uppercase;
   color: var(--ice);
 }
+
+// Prekidač zvuka. Aplikacija se koristi u teretani, gdje se ne želi uvijek da
+// telefon viče — a klipovi su dugi (10-13 s).
+.sound {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-full);
+  color: var(--dust);
+  transition: color var(--d-fast) var(--ease),
+              background-color var(--d-fast) var(--ease);
+}
+
+.sound:hover { color: var(--ice); background: var(--carbon-high); }
+.sound:not(.off) { color: var(--volt); }
+.sound .material-icons { font-size: 20px; }
