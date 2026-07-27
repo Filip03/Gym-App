@@ -32,6 +32,11 @@ Migracije su pisane tako da se mogu pustiti i dvaput — koriste
 | `20260725000002_grants.sql` | ✅ | ✅ već postojalo — **ne puštati** |
 | `20260726000000_workout_sessions.sql` | ✅ | ⬜ **treba pustiti** |
 | `20260726010000_weight_logs.sql` | ✅ | ❔ **provjeriti sa Filipom** |
+| `20260726020000_blog_media.sql` | ✅ | ❔ Filipova (R2) |
+| `20260726030000_blog_media_size.sql` | ✅ | ❔ Filipova (R2) |
+| `20260726040000_exercices_bodyweight.sql` | ✅ | ❔ Filipova |
+| `20260727000000_dropset_logs.sql` | ✅ | ❔ Filipova |
+| `20260727010000_mark_bodyweight_exercices.sql` | ✅ | ⬜ **treba pustiti** |
 
 Prve tri migracije su **izvedene iz** cloud baze (iz `pg_dump`-a), pa tamo već
 postoje. Puštanje nema smisla i samo pravi buku.
