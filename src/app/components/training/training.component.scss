@@ -1,3 +1,7 @@
+// Uvlačenje grane dropseta ispod svoje serije — isti broj služi i za uvlačenje
+// i za širinu spojnice, pa stoji na jednom mjestu.
+$branch-indent: 16px;
+
 // Ekran treninga — najkorišćeniji ekran aplikacije.
 //
 // Koristi se stojeći, jednom rukom, između serija. Zato: krupne dodirne mete,
@@ -268,6 +272,7 @@
 .sets {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--s-2);
   margin-top: var(--s-3);
   padding-top: var(--s-3);
@@ -376,18 +381,91 @@
 
 .dropset-form input { width: 56px; }
 
-.set.add-dropset {
-  background: transparent;
-  border: 1px dashed var(--line-strong);
-  color: var(--mist);
+// Serija i njeni dropsetovi kao jedna grana.
+//
+// Dok su svi bili stavke istog reda, dropset je samo „stajao negdje iza" svoje
+// serije — a kad se red prelomi, umio je da završi ispod tuđe. Sada grupa ide u
+// kolonu, a spojnica sa lijeve strane povlači granu od serije nadole pa udesno
+// u dropset, pa se pripadnost vidi bez čitanja.
+.set-group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.set-group .dropset,
+.set-group .dropset-form {
+  position: relative;
+  margin-left: $branch-indent;
+}
+
+.set-group .dropset::before,
+.set-group .dropset-form::before {
+  content: '';
+  position: absolute;
+  left: -$branch-indent;
+  width: $branch-indent;
+  // Gore ulazi u razmak do elementa iznad, dolje staje na sredini pilule — pa
+  // spojnica kreće ispod serije i ulazi tačno u sredinu dropseta.
+  top: calc(-1 * var(--s-2));
+  bottom: 50%;
+  border-left: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  border-bottom-left-radius: 8px;
+  pointer-events: none;
+}
+
+// Rep sa „+" uz upisanu seriju — jedini put do dropseta.
+//
+// Ranije je ispod svake serije stajalo puno dugme „+ Dropset": sa tri serije to
+// su tri dugmeta u istom redu, a dropset se radi rijetko. Sakriti ga u izmjenu
+// serije nije pomoglo — tamo se ne vidi da postoji.
+//
+// Sada je „+" prišiven uz samu seriju: dijeli okvir sa njom pa se vidi kome
+// pripada, tih je dok se ne dodirne, i zauzima jedan znak umjesto cijele pilule.
+.set-wrap {
+  display: inline-flex;
+  align-items: stretch;
+
+  // Animacija ulaska ide na OMOTAČ, ne na polovine. Kad je svaka imala svoju,
+  // `scale(.9)` je stezao samo seriju pa je između nje i repa zjapila rupa.
+  animation: set-in var(--d-slow) var(--ease-spring) both;
+}
+.set-wrap .set,
+.set-wrap .set-drop { animation: none; }
+
+// Spoj se ravna samo kad rep stvarno postoji (odrađen trening, serija poslata).
+.set-wrap.has-drop .set {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.set-drop {
+  display: inline-flex;
+  align-items: center;
+  // Šire nego što „+" traži — dodirna meta na telefonu, ne veličina znaka.
+  padding: 0 var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  // Ista boja kao redni broj serije — „+" se čita kao dio pilule, ne kao poziv.
+  color: var(--dust);
   cursor: pointer;
 }
-.set.add-dropset .material-icons { font-size: 16px; }
-.set.add-dropset:hover { color: var(--ice); border-color: var(--volt-a40); }
+.set-drop .material-icons { font-size: 14px; }
+.set-drop:hover { color: var(--volt); border-color: var(--volt-a40); }
+.set-wrap:hover .set { border-color: var(--line-strong); }
 
 // --- Upis serije -----------------------------------------------------------
 
+// Razmak od reda sa upisanim serijama.
+//
+// `.sets` ima svoju gornju marginu i liniju, ali `.log-form` nije imao nijednu
+// — pa je polje za upis nalijegalo na red serija, linija uz liniju.
 .log-form {
+  margin-top: var(--s-3);
   display: grid;
   grid-template-columns: auto 1fr 1fr auto;
   align-items: center;

@@ -530,8 +530,26 @@ export class TrainingComponent implements OnInit, OnDestroy {
   // Dropset — vezan za working seriju, ne ulazi u leaderboard/progres/PR.
   // -------------------------------------------------------------------------
 
-  toggleDropsetForm(set: LoggedSet) {
+  /**
+   * Otvaranje unosa dropseta — iz reda za izmjenu serije, ne iz stalnog dugmeta.
+   *
+   * Ranije je ispod SVAKE upisane serije stajalo dugme „+ Dropset". Sa tri
+   * serije to su tri dugmeta u istom redu, pa se nije vidjelo šta je odrađena
+   * serija a šta ponuda — a dropset je ionako rijedak.
+   *
+   * Sada je put: dodir na seriju → red za izmjenu → strelica. Dropset je time
+   * vezan baš za seriju na koju si pritisnuo, i ne zauzima mjesto dok ne treba.
+   */
+  startDropset(set: LoggedSet) {
     if (set.pending) return;   // još nije u bazi — nema na šta da se veže
+    set.editing = false;
+    set.addingDropset = true;
+    set.dropsetWeightInput = null;
+    set.dropsetRepsInput = null;
+  }
+
+  toggleDropsetForm(set: LoggedSet) {
+    if (set.pending) return;
     set.addingDropset = !set.addingDropset;
     set.dropsetWeightInput = null;
     set.dropsetRepsInput = null;
@@ -557,6 +575,13 @@ export class TrainingComponent implements OnInit, OnDestroy {
       set.dropsetRepsInput = null;
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom upisa dropseta.');
+
+      // Serije nema u bazi, a ekran je i dalje pokazuje. Bez osvježavanja bi
+      // ostala na spisku i svaki sljedeći pokušaj bi pao na isti način.
+      if (/dropset_logs_exercice_log_id_fkey/i.test(String(err?.message ?? ''))) {
+        set.addingDropset = false;
+        void this.reloadAfterSync();
+      }
     } finally {
       set.savingDropset = false;
     }

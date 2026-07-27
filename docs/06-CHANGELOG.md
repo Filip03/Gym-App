@@ -1552,3 +1552,124 @@ moralo posebno, a prvi `db:reset` bi obrisao trud.
 Test-podaci (Pull Ups serija, dropset, dodavanje u sesiju) obrisani nakon provjere.
 
 **Napomena:** pet novih migracija čeka na cloudu — vidi `supabase/cloud/README.md`.
+
+---
+
+## [2026-07-27] Dropset prišiven uz seriju; razmak ispred polja za upis
+**Tip:** popravka
+**Ref:** Roadmap — doradа ekrana treninga
+
+**Problem:** Dvije stvari na ekranu treninga, obje uočene tek pri stvarnom
+treningu na telefonu.
+
+Prva: `.log-form` nije imao nijednu gornju marginu, a `.sets` iznad njega ima
+svoju donju ivicu. Čim je upisana prva serija, polje za upis sljedeće naliježe
+na red sa upisanima — linija uz liniju, bez ijednog piksela razmaka, pa se ne
+vidi gdje prestaje istorija a gdje počinje unos.
+
+Druga: dropset se dodavao punim dugmetom „+ Dropset" koje se crtalo **ispod
+svake** upisane serije. Sa tri serije to su tri identična dugmeta u istom redu,
+širih od samih serija — a dropset se radi rijetko. Red je izgledao kao da je pun
+poziva na akciju, i nije se vidjelo šta je odrađeno a šta ponuda.
+
+**Rješenje:** Polje za upis dobilo je `margin-top`.
+
+Za dropset su isprobana dva rješenja. Prvo je akciju sakrilo u red za izmjenu
+serije (dodir na seriju → strelica pored sačuvaj/otkaži/obriši). To je uklonilo
+gužvu, ali je napravilo goru zamjenu: četiri dugmeta u redu za izmjenu, i nigdje
+nagovještaja da se seriju uopšte dodiruje.
+
+Usvojeno je drugo: uz svaku upisanu seriju stoji sitan „+" koji **dijeli okvir
+sa njom** — `.set-wrap` drži seriju i njen rep kao jednu pilulu, spojene ivice
+bez zaobljenja na spoju. Time se vidi kome „+" pripada, zauzima jedan znak
+umjesto cijele pilule, i obojen je kao redni broj serije (`--dust`) pa se čita
+kao dio pilule a ne kao poziv. Dodir na brojeve i dalje otvara izmjenu.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html:174` — `.set-wrap` omotač
+  oko serije; `*ngIf="!set.editing"` prebačen sa dugmeta na omotač; dodat
+  `.set-drop` rep, sakriven dok serija čeka mrežu (`set.pending`) i kad je
+  trening završen
+- `src/app/components/training/training.component.html` — uklonjeno stalno dugme
+  `.set.add-dropset` ispod svake serije
+- `src/app/components/training/training.component.ts:533` — `startDropset(set)`,
+  otvara formu bez prebacivanja (za razliku od `toggleDropsetForm`, koji ostaje
+  za zatvaranje)
+- `src/app/components/training/training.component.scss:390` — `.log-form`
+  dobio `margin-top: var(--s-3)`
+- `src/app/components/training/training.component.scss` — stilovi `.set-wrap` /
+  `.set-drop` umjesto `.set.add-dropset`
+
+**Efekat:** Red serija je tiši i kraći, a dropset je vezan za tačno onu seriju
+uz koju stoji. Provjereno u pregledaču: spoj serije i repa je 0px, dropset se
+upisuje na seriju čiji je „+" pritisnut (serija 1 ostaje netaknuta), a na širini
+od 390px se red prelama bez prelivanja i bez cijepanja pilule napola.
+
+**Napomene:** Animacija ulaska (`set-in`) je premještena sa `.set` na `.set-wrap`.
+Dok je stajala na obje polovine, `scale(.9)` je stezao samo seriju pa je između
+nje i repa zjapila rupa od 7px — polovine moraju dijeliti jedan `transform`.
+
+Dodirna meta „+" je 35×34px. Manje je od preporučenih 44px, ali je izjednačena sa
+ostalim pilulama serija na ovom ekranu; povećanje bi rep učinilo krupnijim od
+same serije, što je bila poenta da se izbjegne.
+
+---
+
+## [2026-07-27] Dropset kao grana svoje serije; greška o nepostojećoj seriji; skidanje zaostalog service workera
+**Tip:** popravka
+**Ref:** nastavak unosa od istog dana
+
+**Problem:** Tri stvari, sve uočene pri probanju na telefonu.
+
+1. Upis dropseta na drugu seriju je vraćao sirovu poruku iz baze:
+   `insert or update on table "dropset_logs" violates foreign key constraint
+   "dropset_logs_exercice_log_id_fkey"`. Reprodukovano u pregledaču: greška je
+   doslovno ista kad se red iz `exercice_logs` obriše dok ekran i dalje pokazuje
+   tu seriju — dakle rad na dva uređaja istovremeno. Poruka nije bila prevedena,
+   a fantomska serija je ostajala na spisku pa je svaki naredni pokušaj padao
+   isto.
+2. Dropset je bio samo sljedeća stavka u istom `flex-wrap` redu kao i serije.
+   Vidjelo se da stoji „negdje iza" svoje serije, ali ne i da joj pripada — a kad
+   se red prelomi, umio je da završi ispod tuđe serije.
+3. Telefon nije vidio izmjene sa dev servera. Provjereno: `main.js` i preko LAN
+   adrese sadrži nov kod, dakle server je bio ispravan.
+
+**Rješenje:**
+
+1. `humanError` prevodi tu grešku; `saveDropset` na nju osvježava ekran, pa
+   serija koje nema nestaje sa spiska.
+2. Serija i njeni dropsetovi su spakovani u `.set-group` koja ide u **kolonu**.
+   Dropset je uvučen za `$branch-indent` i dobija spojnicu — `::before` sa lijevom
+   i donjom ivicom i zaobljenim uglom, koja kreće iz razmaka iznad i ulazi u
+   sredinu pilule. Ikona `subdirectory_arrow_right` je izbačena iz pilule i iz
+   forme: spojnica već kaže isto.
+3. `main.ts` u razvoju odjavljuje svaki zatečeni service worker i briše njegov
+   keš. `ServiceWorkerModule` je već bio gašen u dev-u (`enabled: !isDevMode()`),
+   ali to sprečava samo NOVU registraciju — već registrovan worker nastavlja da
+   poslužuje iz keša, pa zahtjev do servera ni ne stigne.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/errors.ts:31` — prevod greške o stranom ključu `dropset_logs`
+- `src/app/components/training/training.component.ts` — `saveDropset` na tu
+  grešku zatvara formu i zove `reloadAfterSync()`
+- `src/app/components/training/training.component.html:171` — `.set-group` oko
+  serije, njenog reda za izmjenu, dropsetova i forme za dropset; `<ng-container>`
+  zamijenjen `<div>`-om jer grupa sada nosi stil
+- `src/app/components/training/training.component.scss:3` — `$branch-indent`
+- `src/app/components/training/training.component.scss` — `.set-group` u kolonu,
+  spojnica na `.dropset` i `.dropset-form`, `.sets` dobio `align-items: flex-start`
+- `src/main.ts` — odjava zaostalog service workera u razvoju
+
+**Efekat:** Dropset vidno visi o svojoj seriji. Provjereno u pregledaču sa tri
+serije, dvije sa dropsetovima: uvlačenje je 16px, forma za dropset se uvlači isto
+i ne preliva preko reda, a dropsetovi ostaju vidljivi i dok se serija iznad njih
+mijenja. Produkcijski build ne nosi kod za odjavu workera (0 pojava u
+`dist/gym-app/main.*.js`) — tiče se samo razvoja.
+
+**Napomene:** Odjava workera djeluje tek kad telefon jednom učita nov `main.js`.
+Ako je stari worker već zaglavio, prvo učitavanje mora proći ručno: u iOS-u
+Podešavanja → Safari → Napredno → Podaci sajtova → ukloniti tu adresu.
+
+Drugi i treći dropset u istoj grupi kače se spojnicom za dropset iznad sebe, a ne
+za samu seriju. Za dva-tri dropseta to se čita kao lanac i radi; da ih bude više,
+trebalo bi povući jednu neprekidnu okomitu liniju kroz cijelu grupu.
