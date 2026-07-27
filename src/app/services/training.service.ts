@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
 import { OfflineQueueService } from './offline-queue.service';
 import { DashboardService } from './dashboard.service';
-import { ExerciceLog } from '../models/models';
+import { ExerciceLog, DropsetLog } from '../models/models';
 
 /** Vježba unutar današnjeg treninga, sa svime što ekran treba da prikaže. */
 export interface SessionExercice {
@@ -15,6 +15,8 @@ export interface SessionExercice {
   targetReps: number | null;
   replacedName: string | null;      // naziv vježbe koju je zamijenila
   isExtra: boolean;
+  /** Osnovno se radi tjelesnom težinom (zgibovi...) — vidi exercices.is_bodyweight. */
+  isBodyweight: boolean;
 }
 
 export interface WorkoutSession {
@@ -185,7 +187,7 @@ export class TrainingService {
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
-          exercices:exercice_id ( name, picture ),
+          exercices:exercice_id ( name, picture, is_bodyweight ),
           replaced:replaced_exercice_id ( name )
         )
       `)
@@ -218,7 +220,8 @@ export class TrainingService {
           targetSets: se.target_sets,
           targetReps: se.target_reps,
           replacedName: se.replaced?.name ?? null,
-          isExtra: se.is_extra
+          isExtra: se.is_extra,
+          isBodyweight: se.exercices?.is_bodyweight ?? false
         }))
     };
   }
@@ -444,6 +447,66 @@ export class TrainingService {
 
     if (error) throw error;
     return data as ExerciceLog;
+  }
+
+  // -------------------------------------------------------------------------
+  // Dropset — vezan za jednu working seriju, van exercice_logs (vidi
+  // 20260727000000_dropset_logs.sql).
+  // -------------------------------------------------------------------------
+
+  /** Svi dropsetovi za sesiju, grupisani po working seriji kojoj pripadaju. */
+  async getSessionDropsets(sessionId: string): Promise<Map<string, DropsetLog[]>> {
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .select('id, exercice_log_id, order_num, reps, weight, exercice_logs!inner(session_id)')
+      .eq('exercice_logs.session_id', sessionId)
+      .order('order_num', { ascending: true });
+
+    if (error) throw error;
+
+    const result = new Map<string, DropsetLog[]>();
+    for (const row of (data ?? []) as any[]) {
+      const list = result.get(row.exercice_log_id) ?? [];
+      list.push({
+        id: row.id,
+        exercice_log_id: row.exercice_log_id,
+        order_num: row.order_num,
+        reps: row.reps,
+        weight: row.weight
+      });
+      result.set(row.exercice_log_id, list);
+    }
+    return result;
+  }
+
+  async logDropset(entry: {
+    exerciceLogId: string;
+    orderNum: number;
+    reps: number;
+    weight: number;
+  }): Promise<DropsetLog> {
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .insert({
+        exercice_log_id: entry.exerciceLogId,
+        order_num: entry.orderNum,
+        reps: entry.reps,
+        weight: entry.weight
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as DropsetLog;
+  }
+
+  async deleteDropset(id: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('dropset_logs')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   }
 
   /** Brisanje pogrešno upisane serije. Preostale se prenumerišu na frontu. */

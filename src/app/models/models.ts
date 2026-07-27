@@ -41,6 +41,7 @@ export interface Exercice {
   name: string | null;
   picture: string | null;
   description: string | null;
+  is_bodyweight: boolean;
 }
 
 export interface ExerciceMuscle {
@@ -65,6 +66,14 @@ export interface ExerciceLog {
   plan_id: string;
   date: string;
   set_number: number;
+  reps: number;
+  weight: number;
+}
+
+export interface DropsetLog {
+  id: string;
+  exercice_log_id: string;
+  order_num: number;
   reps: number;
   weight: number;
 }

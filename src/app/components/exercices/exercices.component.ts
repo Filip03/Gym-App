@@ -27,6 +27,7 @@ export class ExercicesComponent implements OnInit {
   newDescription = '';
   newPictureFile: File | null = null;
   newPicturePreviewUrl: string | null = null;
+  newIsBodyweight = false;
   selectedMuscleGroupIds: string[] = [];
 
   constructor(private exerciceService: ExerciceService) {}
@@ -88,6 +89,7 @@ export class ExercicesComponent implements OnInit {
     this.newDescription = '';
     this.newPictureFile = null;
     this.newPicturePreviewUrl = null;
+    this.newIsBodyweight = false;
     this.selectedMuscleGroupIds = [];
     this.createError = '';
   }
@@ -140,7 +142,8 @@ export class ExercicesComponent implements OnInit {
         name: this.newName,
         description: this.newDescription,
         muscleGroupIds: this.selectedMuscleGroupIds,
-        pictureFile: this.newPictureFile
+        pictureFile: this.newPictureFile,
+        isBodyweight: this.newIsBodyweight
       });
 
       await this.loadExercices();

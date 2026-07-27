@@ -351,6 +351,40 @@
 .mini.save { color: var(--volt); }
 .mini.danger { color: var(--ember); }
 
+// --- Dropset -----------------------------------------------------------------
+//
+// Vizuelno pripada working seriji ispred sebe (strelica + prigušeniji ton),
+// ali ostaje pill u istom flex-wrap redu kao i sve ostale serije — ne
+// pravi novi red niti mijenja postojeći raspored `.sets`.
+
+.drop-icon { font-size: 15px; color: var(--dust); }
+
+.set.dropset {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line);
+  color: var(--mist);
+}
+
+.set.dropset .del {
+  font-size: 16px;
+  color: var(--dust);
+  cursor: pointer;
+}
+.set.dropset .del:hover { color: var(--ember); }
+.set.dropset .del.disabled { pointer-events: none; opacity: .4; }
+
+.dropset-form input { width: 56px; }
+
+.set.add-dropset {
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  color: var(--mist);
+  cursor: pointer;
+}
+.set.add-dropset .material-icons { font-size: 16px; }
+.set.add-dropset:hover { color: var(--ice); border-color: var(--volt-a40); }
+
 // --- Upis serije -----------------------------------------------------------
 
 .log-form {
@@ -379,6 +413,29 @@
   color: var(--echo);
   font-weight: 600;
 }
+
+// Bodyweight vježbe: polje za kilažu je sakriveno dok se ne klikne ovo dugme.
+.add-weight-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  min-height: 44px;
+  padding: 0 var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.add-weight-btn .material-icons { font-size: 16px; }
+.add-weight-btn:hover { color: var(--ice); border-color: var(--volt-a40); }
 
 // Stilovi birača vježbe žive u exercice-picker.component.scss — koriste ga i
 // leaderboard i profil, pa ne mogu ostati ovdje.

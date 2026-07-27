@@ -55,6 +55,13 @@
         <img *ngIf="newPicturePreviewUrl" [src]="newPicturePreviewUrl" class="picture-preview" alt="Pregled slike">
       </div>
 
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" name="exIsBodyweight" [(ngModel)]="newIsBodyweight" />
+          Radi se tjelesnom težinom (npr. zgibovi, sklekovi)
+        </label>
+      </div>
+
       <div class="form-group">
         <label>Mišićne grupe</label>
         <div class="muscle-group-picker">

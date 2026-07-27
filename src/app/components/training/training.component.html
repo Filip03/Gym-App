@@ -181,12 +181,13 @@
             <span class="set-n num">{{ set.setNumber }}</span>
 
             <!-- Naglašava se BAŠ ono što se promijenilo, da se iz "95kg × 11"
-                 vidi je li porasla kilaža ili broj ponavljanja. -->
+                 vidi je li porasla kilaža ili broj ponavljanja. Kilaža 0 (čist
+                 bodyweight, npr. zgibovi bez tega) se ne ispisuje kao "0kg ×". -->
             <span class="set-v num">
-              <span class="part"
+              <ng-container *ngIf="set.weight > 0"><span class="part"
                     [class.up]="set.weightDelta === 'up'"
                     [class.down]="set.weightDelta === 'down'">{{ set.weight }}<small>kg</small></span><span
-                    class="times">×</span><span class="part"
+                    class="times">×</span></ng-container><span class="part"
                     [class.up]="set.repsDelta === 'up'"
                     [class.down]="set.repsDelta === 'down'">{{ set.reps }}</span>
             </span>
@@ -212,13 +213,41 @@
             </button>
           </div>
 
+          <!-- Dropset(ovi) odrađeni odmah nakon ove working serije -->
+          <span class="set dropset" *ngFor="let d of set.dropsets">
+            <i class="material-icons drop-icon">subdirectory_arrow_right</i>
+            <span class="set-v num">{{ d.weight }}<small>kg</small> × {{ d.reps }}</span>
+            <i class="material-icons del" *ngIf="!isFinished"
+               [class.disabled]="d.deleting" (click)="deleteDropset(set, d)">close</i>
+          </span>
+
+          <div class="set-edit dropset-form" *ngIf="set.addingDropset">
+            <i class="material-icons drop-icon">subdirectory_arrow_right</i>
+            <input type="number" [(ngModel)]="set.dropsetWeightInput" step="0.5" placeholder="kg" />
+            <input type="number" [(ngModel)]="set.dropsetRepsInput" min="1" placeholder="pon." />
+            <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(set)">
+              <i class="material-icons">check</i>
+            </button>
+            <button type="button" class="mini" (click)="set.addingDropset = false">
+              <i class="material-icons">close</i>
+            </button>
+          </div>
+
+          <button type="button" class="set add-dropset"
+                  *ngIf="!set.editing && !set.addingDropset && !set.pending && !isFinished"
+                  (click)="toggleDropsetForm(set)">
+            <i class="material-icons">add</i> Dropset
+          </button>
+
         </ng-container>
 
         <!-- Duh: serije prošlog treninga koje danas još nisu odrađene -->
         <span class="set ghost" *ngFor="let g of ex.echo?.sets"
               [class.hidden]="g.setNumber <= ex.loggedSets.length">
           <span class="set-n num">{{ g.setNumber }}</span>
-          <span class="set-v num">{{ g.weight }}<small>kg</small> × {{ g.reps }}</span>
+          <span class="set-v num">
+            <ng-container *ngIf="g.weight > 0">{{ g.weight }}<small>kg</small> × </ng-container>{{ g.reps }}
+          </span>
         </span>
       </div>
 
@@ -226,11 +255,16 @@
       <div class="log-form" *ngIf="ex.showLogForm && !isFinished">
         <span class="set-label">Serija {{ nextSetNumber(ex) }}</span>
 
-        <label class="field">
+        <label class="field" *ngIf="ex.showWeightInput">
           <input type="number" [(ngModel)]="ex.weightInput" step="0.5"
                  [placeholder]="echoPlaceholder(ex, 'weight')" />
           <span class="unit">kg</span>
         </label>
+
+        <button type="button" class="add-weight-btn" *ngIf="ex.isBodyweight && !ex.showWeightInput"
+                (click)="revealWeightInput(ex)">
+          <i class="material-icons">add</i> Kilaža
+        </button>
 
         <label class="field">
           <input type="number" [(ngModel)]="ex.repsInput" min="1"
@@ -239,7 +273,7 @@
         </label>
 
         <button type="button" class="save-log-btn"
-                [disabled]="ex.saving || ex.repsInput == null || ex.weightInput == null"
+                [disabled]="ex.saving || ex.repsInput == null || (ex.weightInput == null && !ex.isBodyweight)"
                 (click)="saveLog(ex)">
           {{ ex.saving ? '...' : 'Sačuvaj' }}
         </button>

@@ -11,9 +11,15 @@ import { Router } from '@angular/router';
 import {
   TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet
 } from '../../services/training.service';
+import { DropsetLog } from '../../models/models';
 
 /** Poređenje jedne serije sa istom serijom prošlog treninga. */
 type Delta = 'up' | 'down' | 'same' | null;
+
+/** Dropset prikazan na ekranu — server podaci plus stanje brisanja. */
+interface DropsetEntry extends DropsetLog {
+  deleting: boolean;
+}
 
 interface LoggedSet {
   id: string;
@@ -34,6 +40,13 @@ interface LoggedSet {
   editReps: number | null;
   editWeight: number | null;
   saving: boolean;
+
+  /** Dropset(ovi) odrađeni odmah nakon ove working serije. */
+  dropsets: DropsetEntry[];
+  addingDropset: boolean;
+  dropsetWeightInput: number | null;
+  dropsetRepsInput: number | null;
+  savingDropset: boolean;
 }
 
 interface TodayExercice extends SessionExercice {
@@ -54,6 +67,8 @@ interface TodayExercice extends SessionExercice {
   showLogForm: boolean;
   repsInput: number | null;
   weightInput: number | null;
+  /** Za bodyweight vježbe: da li je polje za kilažu otkriveno (podrazumijevano sakriveno). */
+  showWeightInput: boolean;
   saving: boolean;
   menuOpen: boolean;
 }
@@ -170,11 +185,12 @@ export class TrainingComponent implements OnInit, OnDestroy {
     const exerciceIds = this.session.exercices.map(e => e.exerciceId);
     this.isRestDay = exerciceIds.length === 0;
 
-    // Tri nezavisna upita — paralelno, da ekran ne čeka lanac.
-    const [logs, echo, bests] = await Promise.all([
+    // Četiri nezavisna upita — paralelno, da ekran ne čeka lanac.
+    const [logs, echo, bests, dropsetsByLog] = await Promise.all([
       this.trainingService.getSessionLogs(this.session.id),
       this.trainingService.getEcho(this.currentUserId, exerciceIds, this.todayDate),
-      this.trainingService.getPersonalBests(this.currentUserId, exerciceIds, this.todayDate)
+      this.trainingService.getPersonalBests(this.currentUserId, exerciceIds, this.todayDate),
+      this.trainingService.getSessionDropsets(this.session.id)
     ]);
 
     this.exercices = this.session.exercices.map(se => {
@@ -191,7 +207,12 @@ export class TrainingComponent implements OnInit, OnDestroy {
         editing: false,
         editReps: null,
         editWeight: null,
-        saving: false
+        saving: false,
+        dropsets: (dropsetsByLog.get(l.id) ?? []).map(d => ({ ...d, deleting: false })),
+        addingDropset: false,
+        dropsetWeightInput: null,
+        dropsetRepsInput: null,
+        savingDropset: false
       }));
 
       const isPr = this.hasPr(sets, previousBest);
@@ -210,6 +231,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
         showLogForm: false,
         repsInput: null,
         weightInput: null,
+        showWeightInput: false,
         saving: false,
         menuOpen: false
       };
@@ -345,12 +367,23 @@ export class TrainingComponent implements OnInit, OnDestroy {
     const prev = this.echoFor(ex, this.nextSetNumber(ex));
     ex.repsInput = ex.showLogForm ? prev?.reps ?? null : null;
     ex.weightInput = ex.showLogForm ? prev?.weight ?? null : null;
+
+    // Bodyweight vježbe: polje za kilažu je sakriveno dok korisnik eksplicitno
+    // ne doda teg — OSIM ako je prošli put nešto dodavao, tada ostaje otkriveno.
+    ex.showWeightInput = !ex.isBodyweight || (prev?.weight ?? 0) > 0;
+  }
+
+  /** Otkrivanje polja za dodatnu kilažu kod bodyweight vježbi. */
+  revealWeightInput(ex: TodayExercice) {
+    ex.showWeightInput = true;
   }
 
   async saveLog(ex: TodayExercice) {
     if (!this.session) return;
-    if (ex.repsInput == null || ex.weightInput == null || ex.saving) return;
-    if (ex.weightInput < 0 || ex.weightInput > 1000) return;
+
+    const weight = ex.weightInput ?? (ex.isBodyweight ? 0 : null);
+    if (ex.repsInput == null || weight == null || ex.saving) return;
+    if (weight < 0 || weight > 1000) return;
 
     ex.saving = true;
 
@@ -363,7 +396,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
       date: this.todayDate,
       setNumber,
       reps: ex.repsInput,
-      weight: ex.weightInput
+      weight
     };
 
     const accept = (id: string, pending: boolean) => {
@@ -377,7 +410,12 @@ export class TrainingComponent implements OnInit, OnDestroy {
         editing: false,
         editReps: null,
         editWeight: null,
-        saving: false
+        saving: false,
+        dropsets: [],
+        addingDropset: false,
+        dropsetWeightInput: null,
+        dropsetRepsInput: null,
+        savingDropset: false
       });
 
       this.refreshPr(ex);
@@ -485,6 +523,55 @@ export class TrainingComponent implements OnInit, OnDestroy {
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom brisanja serije.');
       set.saving = false;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Dropset — vezan za working seriju, ne ulazi u leaderboard/progres/PR.
+  // -------------------------------------------------------------------------
+
+  toggleDropsetForm(set: LoggedSet) {
+    if (set.pending) return;   // još nije u bazi — nema na šta da se veže
+    set.addingDropset = !set.addingDropset;
+    set.dropsetWeightInput = null;
+    set.dropsetRepsInput = null;
+  }
+
+  async saveDropset(set: LoggedSet) {
+    if (set.dropsetRepsInput == null || set.dropsetWeightInput == null || set.savingDropset) return;
+    if (set.dropsetWeightInput < 0 || set.dropsetWeightInput > 1000) return;
+
+    set.savingDropset = true;
+
+    try {
+      const saved = await this.trainingService.logDropset({
+        exerciceLogId: set.id,
+        orderNum: set.dropsets.length + 1,
+        reps: set.dropsetRepsInput,
+        weight: set.dropsetWeightInput
+      });
+
+      set.dropsets.push({ ...saved, deleting: false });
+      set.addingDropset = false;
+      set.dropsetWeightInput = null;
+      set.dropsetRepsInput = null;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom upisa dropseta.');
+    } finally {
+      set.savingDropset = false;
+    }
+  }
+
+  async deleteDropset(set: LoggedSet, dropset: DropsetEntry) {
+    if (dropset.deleting) return;
+    dropset.deleting = true;
+
+    try {
+      await this.trainingService.deleteDropset(dropset.id);
+      set.dropsets = set.dropsets.filter(d => d.id !== dropset.id);
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom brisanja dropseta.');
+      dropset.deleting = false;
     }
   }
 
