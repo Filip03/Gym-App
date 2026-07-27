@@ -1495,3 +1495,60 @@ karticu i nijedan ne nestaje.
 - `src/app/components/profile/profile.component.ts` — `chartSpan` postao getter
   ovisan o širini ekrana, `weightDateLabel`, `@HostListener('window:resize')`
 - `src/app/components/profile/profile.component.{html,scss}`
+
+---
+
+## [2026-07-27] Spajanje `main`: R2, dropset, vježbe tjelesnom težinom
+**Tip:** infrastruktura / funkcionalnost
+**Ref:** —
+
+**Spajanje bez ijednog konflikta.** Filip je prethodno spojio našu granu u `main`
+(`a630763`), pa je `origin/main..XFactor` bilo **0 commitova** — spajanje je bilo
+pravolinijsko.
+
+### Šta je Filip donio
+
+| Commit | Šta |
+|---|---|
+| `65f509f r2` | blog media na Cloudflare R2 + edge funkcija `r2-presign` + 2 migracije |
+| `ce28fd6 ffmpeg` | izbačena jedna zavisnost, promijenjen `video-compress` |
+| `dfd47f6 dropset` | dropset u zasebnoj tabeli + `exercices.is_bodyweight` |
+| `185209c summary card` | `max-height: 100%` na kartici rezimea |
+
+Migracije su dobro osmišljene: **dropset ide u zasebnu tabelu** (`dropset_logs`)
+umjesto u `exercice_logs`, pa ne kvari `set_number`, rang listu, lični rekord ni
+grafikon progresa. Stilovi koje je napisao već koriste naše tokene i pisani su
+u istom stilu komentara — nije bilo šta da se prilagođava.
+
+### Vraćeno na naše
+
+`env.ts` je **opet** bio prebačen na cloud, uz komentar u istom fajlu koji kaže
+da gađa lokalni Docker. Vraćen na lokalni; `r2PublicUrl` je zadržan jer je nov
+i potreban u oba okruženja.
+
+### Popravljeno
+
+**Nijedna vježba nije bila označena kao tjelesna težina.** Migracija
+`20260726040000` je dodala kolonu `is_bodyweight`, ali je ostavila sve na
+`false` — pa se funkcija nije vidjela nigdje, a zgibovi su i dalje tražili
+kilažu. To je bilo baš ono na šta je Filip tražio da obratimo pažnju.
+
+Dodata migracija `20260727010000_mark_bodyweight_exercices.sql` koja označava
+zgibove (i, unaprijed, sklekove/propadanja/zgibove pothvatom kad se dodaju).
+Označavanje ide **migracijom, ne ručnim upisom** — inače bi svako okruženje
+moralo posebno, a prvi `db:reset` bi obrisao trud.
+
+### Provjereno u pregledaču
+
+- **Rezime treninga staje na telefonu.** Simulirano polje 390×694, 375×517 i
+  360×430 sa 3 rekorda i 7 redova ishoda — staje u sva tri i skroluje iznutra.
+  Ovo je riješila Filipova izmjena; korisnik je nije imao dok nismo spojili.
+- **Zgibovi:** polje za kilažu zamijenjeno dugmetom „+ KILAŽA", upis prolazi bez
+  kilaže (`weight = 0`), serija se prikazuje kao „1 · 8" bez „kg".
+- **Dropset:** upisan ispod working serije kao `↳ 10 kg × 6`, u bazi u
+  `dropset_logs` — `exercice_logs` ostaje sa jednim redom, pa rang lista i
+  rekordi nisu dirnuti.
+
+Test-podaci (Pull Ups serija, dropset, dodavanje u sesiju) obrisani nakon provjere.
+
+**Napomena:** pet novih migracija čeka na cloudu — vidi `supabase/cloud/README.md`.
