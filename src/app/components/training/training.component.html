@@ -169,9 +169,14 @@
 
       <!-- Serije: današnje pune, prošle kao duh -->
       <div class="sets" *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
-        <ng-container *ngFor="let set of ex.loggedSets">
+        <!-- Grupa = jedna working serija sa svojim dropsetovima ispod nje.
+             Dropset se ne smije naći u istom redu kao tuđa serija, pa grupa ide
+             u kolonu, a spojnica ih crta kao granu. -->
+        <div class="set-group" *ngFor="let set of ex.loggedSets">
 
-          <button type="button" class="set" *ngIf="!set.editing" [disabled]="isFinished"
+          <span class="set-wrap" *ngIf="!set.editing"
+                [class.has-drop]="!set.pending && !isFinished">
+          <button type="button" class="set" [disabled]="isFinished"
                   [class.up]="set.delta === 'up'"
                   [class.down]="set.delta === 'down'"
                   [class.pending]="set.pending"
@@ -198,6 +203,14 @@
                title="Slabije nego prošli put">arrow_downward</i>
           </button>
 
+            <!-- Rep uz seriju: jedini put do dropseta, i vidi se da pripada
+                 baš ovoj seriji jer dijeli okvir sa njom. -->
+            <button type="button" class="set-drop" *ngIf="!set.pending && !isFinished"
+                    title="Dodaj dropset na ovu seriju" (click)="startDropset(set)">
+              <i class="material-icons">add</i>
+            </button>
+          </span>
+
           <div class="set-edit" *ngIf="set.editing">
             <span class="set-n num">{{ set.setNumber }}</span>
             <input type="number" [(ngModel)]="set.editWeight" step="0.5" placeholder="kg" />
@@ -213,16 +226,16 @@
             </button>
           </div>
 
-          <!-- Dropset(ovi) odrađeni odmah nakon ove working serije -->
+          <!-- Dropset(ovi) odrađeni odmah nakon ove working serije.
+               Bez ikone strelice — spojnica sa lijeve strane već kaže čemu
+               pripadaju, pa bi strelica bila isto rečeno dvaput. -->
           <span class="set dropset" *ngFor="let d of set.dropsets">
-            <i class="material-icons drop-icon">subdirectory_arrow_right</i>
             <span class="set-v num">{{ d.weight }}<small>kg</small> × {{ d.reps }}</span>
             <i class="material-icons del" *ngIf="!isFinished"
                [class.disabled]="d.deleting" (click)="deleteDropset(set, d)">close</i>
           </span>
 
           <div class="set-edit dropset-form" *ngIf="set.addingDropset">
-            <i class="material-icons drop-icon">subdirectory_arrow_right</i>
             <input type="number" [(ngModel)]="set.dropsetWeightInput" step="0.5" placeholder="kg" />
             <input type="number" [(ngModel)]="set.dropsetRepsInput" min="1" placeholder="pon." />
             <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(set)">
@@ -233,13 +246,7 @@
             </button>
           </div>
 
-          <button type="button" class="set add-dropset"
-                  *ngIf="!set.editing && !set.addingDropset && !set.pending && !isFinished"
-                  (click)="toggleDropsetForm(set)">
-            <i class="material-icons">add</i> Dropset
-          </button>
-
-        </ng-container>
+        </div>
 
         <!-- Duh: serije prošlog treninga koje danas još nisu odrađene -->
         <span class="set ghost" *ngFor="let g of ex.echo?.sets"
