@@ -809,6 +809,15 @@
   margin: auto var(--s-4);
   padding: var(--s-8) var(--s-6) var(--s-6);
 
+  // `.modal-overlay` (globalno, _base.scss) već ograničava svoj sadržaj na
+  // prostor između headera i footera preko `top`/`bottom` na overlay-u — ali
+  // .summary-card ne koristi `.modal-card`, pa to ograničenje nikad nije
+  // stiglo do same kartice. Bez ovoga, kartica sa više obarenih rekorda i
+  // redova ishoda naraste preko footera na telefonu.
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
   background: var(--carbon);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-xl);
