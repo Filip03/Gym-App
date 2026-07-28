@@ -1838,3 +1838,76 @@ aplikaciji — serije, grafikone, rekorde — a to nije traženo.
 Pošto polja više nisu `type="number"`, pregledač na njima ne radi nikakvu svoju
 provjeru (`min`, `step`). Granice i dalje provjerava kod u komponentama (npr.
 kilaža 0–1000 u `saveLog`), kao i do sada.
+
+---
+
+## [2026-07-28] Duh prošlog treninga sada obuhvata i dropsetove
+**Tip:** funkcionalnost
+**Ref:** —
+
+**Problem:** Ekran treninga već pokazuje „duh" prošlog treninga — serije koje su
+prošli put odrađene stoje blijedo dok se ne ponove, pa se u toku treninga zna
+prema čemu se radi. Dropsetovi u tome nisu učestvovali: prošli dropset se nije
+vidio nigdje. U teretani se, dakle, za dropset nije imalo prema čemu raditi —
+čovjek se morao sjećati sa koliko je kilograma prošli put išao u drop.
+
+**Rješenje:** Tri dijela.
+
+**1. Servis donosi dropsetove uz duh.** `getEcho` sada uz svaku seriju prethodnog
+treninga vraća i njene dropsetove. Nov tip `EchoDropset`, a `EchoSet` je dobio
+polje `dropsets`.
+
+Dropsetovi se dovlače **zasebnim upitom** (nova privatna metoda
+`attachEchoDropsets`), a ne ugniježđenim `select`-om. Razlog: `getEcho` čita
+serije za **sve** vježbe dana pa zadržava samo najskoriji datum po vježbi —
+ugniježđeni upit bi, dakle, povlačio dropsetove i za sve one treninge koji se
+odmah odbacuju. Zato upit sada bira i `id` reda iz `exercice_logs`, i drži se
+veza red → duh serije, da bi se dropsetovi poslije zakačili na pravu seriju.
+
+**2. Komponenta zna koliko duhova još stoji.** Nova metoda
+`ghostDropsets(ex, setNumber, doneCount)` vraća prošle dropsetove te serije
+umanjene za onoliko koliko je danas već upisano — `prev.slice(doneCount)`. To je
+ono što daje ponašanje „upisani staje na mjesto duha": kad se upiše prvi dropset,
+prvi duh nestaje, a ostali ostaju.
+
+**3. Šablon crta duhove uz obje vrste serija.** Uz svaku današnju seriju, iza
+stvarnih dropsetova, crtaju se blijedi duhovi. Serije koje danas još nisu
+odrađene više nisu obična pilula nego `.set-group`, pa i njihovi dropsetovi vise
+ispod njih sa istom spojnicom kao kod odrađenih serija. Zbog toga se skrivanje
+već odrađene serije premjestilo sa same pilule (`.set.ghost.hidden`) na grupu
+(`.set-group.hidden`).
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts:42` — nov tip `EchoDropset`
+- `src/app/services/training.service.ts:53` — `EchoSet` dobio `dropsets`
+- `src/app/services/training.service.ts:559,563,590,593` — `getEcho` bira i `id`
+  reda i drži vezu red → duh serije, pa na kraju zove `attachEchoDropsets`
+- `src/app/services/training.service.ts:604` — nova privatna metoda
+  `attachEchoDropsets`, sa komentarom zašto ide zasebnim upitom
+- `src/app/components/training/training.component.ts:350` — nova
+  `ghostDropsets(ex, setNumber, doneCount)`
+- `src/app/components/training/training.component.html:242` — duhovi dropsetova
+  uz današnju, već upisanu seriju
+- `src/app/components/training/training.component.html:267` — duh serije je sada
+  `.set-group`, sa svojim dropsetovima ispod
+- `src/app/components/training/training.component.scss:325` — skrivanje
+  odrađene serije prešlo sa `.set.ghost.hidden` na `.set-group.hidden`
+- `src/app/components/training/training.component.scss:405` — nova pravila
+  `.set.dropset.ghost`: isprekidan okvir i boja `--echo`, jer duh dropseta mora
+  biti bljeđi i od običnog dropseta i od duha serije — stoji odmah uz oba
+- `src/app/components/training/training.component.scss:413` — spojnica ka duhu
+  koristi `--line` umjesto `--line-strong`, kao grana koja tek čeka
+
+**Efekat:** Provjereno u pregledaču nad napravljenim prošlim treningom (serija 1:
+60 kg × 10 sa dva dropseta, 40×8 i 25×6; serija 2: 60 kg × 8 sa jednim
+dropsetom, 35×7). Prije ijednog upisa oba duha dropseta vise ispod duha serije 1,
+a treći ispod duha serije 2. Poslije upisa serije 1 i **jednog** dropseta
+(42 kg × 8) upisani dropset je zamijenio prvi duh i prikazuje se jasno, dok je
+drugi duh (25 kg × 6) ostao blijed ispod njega. Duh serije 2 i njen dropset
+ostaju netaknuti. Ukratko: u teretani se sada vidi i koliko je bilo u dropu, ne
+samo u radnoj seriji.
+
+**Napomene:** `ghostDropsets` se poziva iz šablona, dakle pri svakom ciklusu
+provjere promjena. Posao je `find` po nekoliko serija plus `slice`, i isto tako
+već rade `echoFor` i `echoPlaceholder` — dosljedno je postojećem kodu. Ali ako se
+lista serija ikad znatno poveća, ovo je mjesto koje se prvo osjeti.

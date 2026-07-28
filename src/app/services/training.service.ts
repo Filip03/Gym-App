@@ -38,11 +38,19 @@ export interface WorkoutSession {
   exercices: SessionExercice[];
 }
 
+/** Dropset odrađen uz seriju prethodnog treninga. */
+export interface EchoDropset {
+  reps: number;
+  weight: number;
+}
+
 /** Rezultat jedne serije iz prethodnog treninga — "duh" u polju za unos. */
 export interface EchoSet {
   setNumber: number;
   reps: number;
   weight: number;
+  /** Dropsetovi te serije prošli put, redom kojim su rađeni. */
+  dropsets: EchoDropset[];
 }
 
 export interface Echo {
@@ -547,9 +555,12 @@ export class TrainingService {
     const result = new Map<string, Echo>();
     if (exerciceIds.length === 0) return result;
 
+    // Veza red-iz-baze → duh serije, da se dropsetovi poslije zakače na pravu.
+    const byLogId = new Map<string, EchoSet>();
+
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
-      .select('exercice_id, date, set_number, reps, weight')
+      .select('id, exercice_id, date, set_number, reps, weight')
       .eq('user_id', userId)
       .in('exercice_id', exerciceIds)
       .lt('date', beforeDate)
@@ -569,14 +580,45 @@ export class TrainingService {
         result.set(row.exercice_id, { date: row.date, sets: [] });
       }
 
-      result.get(row.exercice_id)!.sets.push({
+      const set: EchoSet = {
         setNumber: row.set_number,
+        reps: row.reps,
+        weight: row.weight,
+        dropsets: []
+      };
+      result.get(row.exercice_id)!.sets.push(set);
+      byLogId.set(row.id, set);
+    }
+
+    await this.attachEchoDropsets(byLogId);
+    return result;
+  }
+
+  /**
+   * Dokačinje dropsetove na serije prethodnog treninga.
+   *
+   * Ide zasebnim upitom, a ne ugniježđenim `select`-om: `getEcho` čita serije za
+   * SVE vježbe dana pa odbacuje sve osim najskorijeg datuma po vježbi. Vučenje
+   * dropsetova u istom upitu značilo bi povlačiti ih i za sve odbačene treninge.
+   */
+  private async attachEchoDropsets(byLogId: Map<string, EchoSet>): Promise<void> {
+    const ids = [...byLogId.keys()];
+    if (ids.length === 0) return;
+
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .select('exercice_log_id, order_num, reps, weight')
+      .in('exercice_log_id', ids)
+      .order('order_num', { ascending: true });
+
+    if (error) throw error;
+
+    for (const row of (data ?? []) as any[]) {
+      byLogId.get(row.exercice_log_id)?.dropsets.push({
         reps: row.reps,
         weight: row.weight
       });
     }
-
-    return result;
   }
 
   /**

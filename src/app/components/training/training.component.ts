@@ -9,7 +9,7 @@ import {
 import { humanError } from '../../shared/errors';
 import { Router } from '@angular/router';
 import {
-  TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet
+  TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet, EchoDropset
 } from '../../services/training.service';
 import { DropsetLog } from '../../models/models';
 
@@ -335,6 +335,21 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
   nextSetNumber(ex: TodayExercice): number {
     return ex.loggedSets.length + 1;
+  }
+
+  /**
+   * Dropsetovi prošlog treninga koji danas još nisu ponovljeni.
+   *
+   * Prikazuju se blijedo, uz seriju kojoj su pripadali — isto kao što se duh
+   * serije prikazuje uz polje za upis. Bez ovoga se prošli dropset nije vidio
+   * nigdje, pa se u toku treninga nije imalo prema čemu raditi.
+   *
+   * Odbacuje se onoliko sa početka koliko je danas već upisano: kad se upiše
+   * prvi dropset, on staje na mjesto prvog duha, a ostali duhovi ostaju.
+   */
+  ghostDropsets(ex: TodayExercice, setNumber: number, doneCount: number): EchoDropset[] {
+    const prev = this.echoFor(ex, setNumber)?.dropsets ?? [];
+    return doneCount >= prev.length ? [] : prev.slice(doneCount);
   }
 
   /** Tekst u polju prije nego što korisnik išta ukuca. */

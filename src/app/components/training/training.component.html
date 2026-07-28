@@ -237,6 +237,16 @@
                [class.disabled]="d.deleting" (click)="deleteDropset(set, d)">close</i>
           </span>
 
+          <!-- Duh: dropsetovi te serije iz prošlog treninga koji danas još nisu
+               ponovljeni. Prvi upisani dropset staje na mjesto prvog duha. -->
+          <span class="set dropset ghost"
+                *ngFor="let gd of ghostDropsets(ex, set.setNumber, set.dropsets.length)"
+                title="Prošli put ovdje">
+            <span class="set-v num">
+              <ng-container *ngIf="gd.weight > 0">{{ gd.weight }}<small>kg</small> × </ng-container>{{ gd.reps }}
+            </span>
+          </span>
+
           <div class="set-edit dropset-form" *ngIf="set.addingDropset">
             <input appNumField [(ngModel)]="set.dropsetWeightInput" placeholder="kg"
                    (keydown.enter)="dropReps.focus()" />
@@ -252,14 +262,24 @@
 
         </div>
 
-        <!-- Duh: serije prošlog treninga koje danas još nisu odrađene -->
-        <span class="set ghost" *ngFor="let g of ex.echo?.sets"
-              [class.hidden]="g.setNumber <= ex.loggedSets.length">
-          <span class="set-n num">{{ g.setNumber }}</span>
-          <span class="set-v num">
-            <ng-container *ngIf="g.weight > 0">{{ g.weight }}<small>kg</small> × </ng-container>{{ g.reps }}
+        <!-- Duh: serije prošlog treninga koje danas još nisu odrađene, sa
+             svojim dropsetovima ispod — ista grana kao kod odrađenih serija -->
+        <div class="set-group" *ngFor="let g of ex.echo?.sets"
+             [class.hidden]="g.setNumber <= ex.loggedSets.length">
+          <span class="set ghost">
+            <span class="set-n num">{{ g.setNumber }}</span>
+            <span class="set-v num">
+              <ng-container *ngIf="g.weight > 0">{{ g.weight }}<small>kg</small> × </ng-container>{{ g.reps }}
+            </span>
           </span>
-        </span>
+
+          <span class="set dropset ghost" *ngFor="let gd of g.dropsets"
+                title="Prošli put ovdje">
+            <span class="set-v num">
+              <ng-container *ngIf="gd.weight > 0">{{ gd.weight }}<small>kg</small> × </ng-container>{{ gd.reps }}
+            </span>
+          </span>
+        </div>
       </div>
 
       <!-- Upis: polja su predpunjena prošlim rezultatom -->

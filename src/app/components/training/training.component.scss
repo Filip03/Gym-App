@@ -322,7 +322,7 @@ $branch-indent: 16px;
 }
 .set.ghost .set-n,
 .set.ghost .set-v small { color: var(--echo); }
-.set.ghost.hidden { display: none; }
+.set-group.hidden { display: none; }
 
 // --- Izmjena serije --------------------------------------------------------
 
@@ -398,6 +398,21 @@ $branch-indent: 16px;
 .set-group .dropset-form {
   position: relative;
   margin-left: $branch-indent;
+}
+
+// Duh dropseta — prošli trening, još neponovljen. Mora biti bljeđi i od običnog
+// dropseta i od duha serije, jer stoji odmah uz oba.
+.set.dropset.ghost {
+  border-style: dashed;
+  border-color: var(--steel);
+  color: var(--echo);
+}
+.set.dropset.ghost .set-v small { color: var(--echo); }
+
+// Spojnica ka duhu je tiša od one ka upisanom dropsetu — grana koja tek čeka.
+.set-group .dropset.ghost::before {
+  border-left-color: var(--line);
+  border-bottom-color: var(--line);
 }
 
 .set-group .dropset::before,
