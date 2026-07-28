@@ -2604,3 +2604,9 @@ zaboravi: kad prvi nativni fičer uđe u web kod (recimo tajmer odmora koji zove
 `Haptics`/`LocalNotifications` iza provjere `Capacitor.isNativePlatform()`),
 `@capacitor` paketi moraju ući i u `package.json` na `main` grani — taj kod se
 gradi na Vercelu i bez njih build pada.
+
+**Dopuna istog dana:** upisana stvarna produkcijska adresa u `capacitor.config.ts`
+(`server` blok otkomentarisan) i sinhronizovana u oba nativna projekta. Usput
+utvrđeno da je produkcija na **Cloudflare Pages** (`gym-app-1gm.pages.dev`), ne
+na Vercelu kako dokumentacija na više mjesta tvrdi — princip deploya je isti
+(push na `main`), ali dokumentaciju treba jednom proći i ispraviti platformu.

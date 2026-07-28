@@ -1,5 +1,11 @@
 # ADR-0002 — Nativna ljuska (Capacitor) koja učitava produkciju sa Vercela
 
+> **Ispravka (28.07.2026):** produkcija je u stvarnosti na **Cloudflare Pages**
+> (`https://gym-app-1gm.pages.dev`), ne na Vercelu kako starija dokumentacija
+> tvrdi. Princip je isti — push na `main` objavi novu verziju — samo je
+> platforma druga. Adresa je već upisana u `capacitor.config.ts`.
+
+
 **Datum:** 2026-07-28
 **Status:** prihvaćeno
 

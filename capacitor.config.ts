@@ -4,7 +4,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * Nativna ljuska (iOS/Android) oko postojeće web aplikacije.
  *
  * ARHITEKTURA: ljuska NE nosi kod aplikacije. Kad je `server.url` uključen,
- * WKWebView učitava produkciju sa Vercela — dakle svaki `git push` na main
+ * WKWebView učitava produkciju — dakle svaki `git push` na main
  * stiže u aplikaciju SAM, bez novog builda i bez ponovnog sideload-a. Nov
  * build ljuske treba tek kad se doda novi nativni dodatak (plugin).
  *
@@ -16,11 +16,11 @@ const config: CapacitorConfig = {
   appName: 'GymApp',
   webDir: 'dist/gym-app',
 
-  // TODO(marko): upisati PRAVU produkcijsku adresu (Vercel → projekat →
-  // Domains, ona stalna, ne adresa pojedinačnog deploya!) pa otkomentarisati.
-  // server: {
-  //   url: 'https://OVDJE-PRODUKCIJSKA-ADRESA.vercel.app'
-  // },
+  // Stalna produkcijska adresa. NAPOMENA: produkcija je na Cloudflare Pages,
+  // ne na Vercelu kako starija dokumentacija tvrdi — provjereno 28.07.2026.
+  server: {
+    url: 'https://gym-app-1gm.pages.dev'
+  },
 
   ios: {
     // Sadržaj se sam sklanja ispod statusne trake — isto što aplikacija

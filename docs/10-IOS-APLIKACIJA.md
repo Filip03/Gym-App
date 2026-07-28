@@ -1,5 +1,11 @@
 # 10 — iOS aplikacija (i Android)
 
+> **Ispravka (28.07.2026):** produkcija je u stvarnosti na **Cloudflare Pages**
+> (`https://gym-app-1gm.pages.dev`), ne na Vercelu kako starija dokumentacija
+> tvrdi. Princip je isti — push na `main` objavi novu verziju — samo je
+> platforma druga. Adresa je već upisana u `capacitor.config.ts`.
+
+
 Kako od web aplikacije napraviti pravu aplikaciju na telefonu, bez plaćenog
 Apple naloga. Ako ti se žuri, dovoljna su prva dva reda:
 
@@ -72,7 +78,8 @@ npm install
 ### 2. Upiši produkcijsku adresu
 
 U `capacitor.config.ts` stoji zakomentarisan `server` blok sa `TODO`. Otvori
-Vercel → projekat → **Domains** i uzmi **stalnu** adresu (npr.
+**Ovaj korak je već odrađen** — upisana je `https://gym-app-1gm.pages.dev`.
+Ako se adresa ikad promijeni: uzmi **stalnu** adresu (npr.
 `gym-app.vercel.app`), **ne** adresu pojedinačnog deploya (one sa nasumičnim
 znakovima u imenu — te umiru).
 
