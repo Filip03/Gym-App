@@ -2543,3 +2543,64 @@ se samo nastanak; izmjena postoji baš da se jedna strana ispravi.
 
 **Efekat:** Provjereno: dropset 10×5 na lijevoj preslikan na desnu, izmjena
 desnog na 8×6 ne dira lijevi; radi i u kolonama jednoručnog prikaza.
+
+---
+
+## [2026-07-28] Nativna ljuska (Capacitor) na grani `native-app`
+**Tip:** infrastruktura
+
+**Problem:** Aplikacija je PWA, a na iPhoneu je to tavan sa niskom tavanicom.
+Nema haptike — nijedan upis serije ne može da se potvrdi vibracijom. Notifikacije
+iz web aplikacije na iOS-u nisu pouzdane. Najgore, tajmer odmora ne preživljava
+pozadinu: čim se telefon zaključa ili se pređe u drugu aplikaciju, brojanje stane
+ili zvuk izostane — a u teretani telefon leži zaključan između serija. Sve troje
+traži nativni sloj. Pritom plaćeni Apple developer nalog ne dolazi u obzir:
+aplikacija nije javna, koristi je nekoliko prijatelja i ne ide na App Store, pa
+sve mora da radi sa besplatnim Apple ID-em.
+
+**Rješenje:** Otvorena nova grana `native-app` (iz `XFactor`) i na njoj dodata
+Capacitor 8.4.2 ljuska. Ključna odluka je da je ljuska **tanka**: ne nosi kod
+aplikacije, nego kroz `server.url` učitava produkciju sa Vercela. Upakovan
+`webDir` ostaje samo kao rezerva dok je taj blok zakomentarisan, za prvu probu da
+li sideload uopšte prolazi. iOS projekat je generisan Swift Package Managerom
+(`npx cap add ios --packagemanager SPM`) jer CocoaPods nije instaliran i ne treba
+ga instalirati; Android projekat je standardni. `npx cap sync` prolazi za obje
+platforme. Dodati paketi: `@capacitor/core`, `@capacitor/ios`, `@capacitor/android`,
+`@capacitor/haptics` 8.0.2, `@capacitor/local-notifications` 8.2.1,
+`@capacitor/app`, plus `@capacitor/cli` kao razvojna zavisnost.
+
+**Dodirnuti fajlovi:**
+- `capacitor.config.ts` — novo: `appId` `com.gymapp.mobile`, `appName` `GymApp`,
+  `webDir` `dist/gym-app`, `ios.contentInset: 'never'` (aplikacija već sama
+  računa safe-area, pa ljuska ne smije da dodaje svoje razmake). `server.url` je
+  zakomentarisan placeholder sa TODO
+- `ios/` — novo: Xcode projekat sa SPM zavisnostima (`ios/App/App.xcodeproj`,
+  `ios/App/CapApp-SPM`), bez ijednog Podfile-a
+- `android/` — novo: standardni Gradle projekat
+- `package.json`, `package-lock.json` — šest `@capacitor` paketa u zavisnostima,
+  `@capacitor/cli` u razvojnim
+
+Nijedan fajl iz `src/` nije dirnut — u pregledaču se aplikacija ponaša identično.
+
+**Efekat:** Postoji ljuska koja se sideload-uje na telefon i otvara istu
+aplikaciju, ali sa nativnim mogućnostima na dohvat: haptika, zakazane lokalne
+notifikacije i — najvažnije — tajmer odmora koji se oglasi zvukom i kad je telefon
+zaključan, jer notifikacija bude zakazana unaprijed pa je sistem isporuči.
+Instalacija bez plaćenog naloga: Xcode (besplatan, iz App Store-a) potpiše
+aplikaciju besplatnim Apple ID-em, SideStore je drži živom (sam obnavlja potpis
+na 7 dana, limit tri aplikacije), a LiveContainer je opcija ako taj limit zasmeta.
+Zato što ljuska učitava Vercel, svaki `git push` na `main` stiže korisnicima sam
+— nov build i ponovni sideload trebaju SAMO kad se doda novi nativni dodatak.
+
+**Napomene:** Ograničenje bez zaobilaska: **push notifikacije sa servera nisu
+moguće** bez plaćenog Apple developer naloga, jer APNs traži plaćeni nalog.
+Zamjena je provjera pri otvaranju aplikacije (ko je trenirao, ko je oborio
+rekord), ne poruka koja sama stigne. Ponašanje lokalnih notifikacija **unutar
+LiveContainera nije provjereno** — prvo probati čist SideStore, pa tek onda
+LiveContainer ako zatreba. Ostaje i TODO u `capacitor.config.ts`: upisati stalnu
+produkcijsku adresu iz Vercela (projekat → Domains), ne adresu pojedinačnog
+deploya, jer se ona mijenja sa svakim buildom. I budući korak koji se lako
+zaboravi: kad prvi nativni fičer uđe u web kod (recimo tajmer odmora koji zove
+`Haptics`/`LocalNotifications` iza provjere `Capacitor.isNativePlatform()`),
+`@capacitor` paketi moraju ući i u `package.json` na `main` grani — taj kod se
+gradi na Vercelu i bez njih build pada.

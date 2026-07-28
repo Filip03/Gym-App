@@ -13,6 +13,7 @@ kako sistem radi, bez čitanja diffova.
 | Autor originalnog koda | `06-CHANGELOG.md` → `04-ROADMAP.md` |
 | Došao da pišeš kod | `08-KONVENCIJE.md` → `02-STANJE-KODA.md` |
 | Ne znaš koju komandu pokrenuti | `09-KOJU-KOMANDU-KADA.md` |
+| Praviš aplikaciju za telefon | `10-IOS-APLIKACIJA.md` |
 
 ## Sadržaj
 
@@ -28,6 +29,7 @@ kako sistem radi, bez čitanja diffova.
 | `07-LOCAL-SETUP.md` | Pokretanje lokalno, korak po korak |
 | `08-KONVENCIJE.md` | Kodni standardi, dizajn tokeni, pravila imenovanja |
 | `09-KOJU-KOMANDU-KADA.md` | Koju komandu kada — lokalno, cloud, deploy, migracije |
+| `10-IOS-APLIKACIJA.md` | Nativna ljuska: build u Xcode-u, SideStore, Android, česti problemi |
 
 ## Kako se dokumentacija održava
 
