@@ -12,7 +12,9 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * korisno samo za prvu probu da li sideload uopšte radi.
  */
 const config: CapacitorConfig = {
-  appId: 'com.gymapp.mobile',
+  // Jedinstven ID: com.gymapp.mobile je već zauzet kod Apple-a, pa registracija
+  // besplatnim nalogom pada. Ovaj je vezan za Markov nalog i slobodan.
+  appId: 'com.markovucinic66.gymapp',
   appName: 'GymApp',
   webDir: 'dist/gym-app',
 

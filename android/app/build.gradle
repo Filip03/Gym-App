@@ -4,7 +4,7 @@ android {
     namespace = "com.gymapp.mobile"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.gymapp.mobile"
+        applicationId "com.markovucinic66.gymapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
