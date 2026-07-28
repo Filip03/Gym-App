@@ -557,6 +557,18 @@ export class TrainingService {
     return data as DropsetLog;
   }
 
+  async updateDropset(id: string, reps: number, weight: number): Promise<DropsetLog> {
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .update({ reps, weight })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as DropsetLog;
+  }
+
   async deleteDropset(id: string): Promise<void> {
     const { error } = await this.supabase.client
       .from('dropset_logs')

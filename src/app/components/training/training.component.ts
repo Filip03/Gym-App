@@ -16,9 +16,13 @@ import { DropsetLog } from '../../models/models';
 /** Poređenje jedne serije sa istom serijom prošlog treninga. */
 type Delta = 'up' | 'down' | 'same' | null;
 
-/** Dropset prikazan na ekranu — server podaci plus stanje brisanja. */
+/** Dropset prikazan na ekranu — server podaci plus stanje izmjene i brisanja. */
 interface DropsetEntry extends DropsetLog {
   deleting: boolean;
+  editing?: boolean;
+  editWeight?: number | null;
+  editReps?: number | null;
+  saving?: boolean;
 }
 
 interface LoggedSet {
@@ -701,6 +705,42 @@ export class TrainingComponent implements OnInit, OnDestroy {
       }
     } finally {
       set.savingDropset = false;
+    }
+  }
+
+  /**
+   * Izmjena dropseta — isti tok kao izmjena serije: dodir na pilulu, polja,
+   * sačuvaj/otkaži. Namjerno se NE preslikava na drugu ruku: preslikava se
+   * samo nastanak (da se ne kuca dvaput), a izmjena postoji baš zato da se
+   * jedna strana ispravi kad se razlikovala.
+   */
+  startEditDropset(dropset: DropsetEntry) {
+    if (this.isFinished || dropset.deleting) return;
+    dropset.editing = true;
+    dropset.editWeight = dropset.weight;
+    dropset.editReps = dropset.reps;
+  }
+
+  cancelEditDropset(dropset: DropsetEntry) {
+    dropset.editing = false;
+  }
+
+  async saveEditDropset(dropset: DropsetEntry) {
+    if (dropset.editReps == null || dropset.editWeight == null || dropset.saving) return;
+    if (dropset.editWeight < 0 || dropset.editWeight > 1000) return;
+
+    dropset.saving = true;
+    try {
+      const updated = await this.trainingService.updateDropset(
+        dropset.id, dropset.editReps, dropset.editWeight
+      );
+      dropset.reps = updated.reps;
+      dropset.weight = updated.weight;
+      dropset.editing = false;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška prilikom izmjene dropseta.');
+    } finally {
+      dropset.saving = false;
     }
   }
 

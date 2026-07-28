@@ -255,11 +255,27 @@
           <!-- Dropset(ovi) odrađeni odmah nakon ove working serije.
                Bez ikone strelice — spojnica sa lijeve strane već kaže čemu
                pripadaju, pa bi strelica bila isto rečeno dvaput. -->
-          <span class="set dropset" *ngFor="let d of set.dropsets">
-            <span class="set-v num">{{ d.weight }}<small>kg</small> × {{ d.reps }}</span>
-            <i class="material-icons del" *ngIf="!isFinished"
-               [class.disabled]="d.deleting" (click)="deleteDropset(set, d)">close</i>
-          </span>
+          <ng-container *ngFor="let d of set.dropsets">
+            <button type="button" class="set dropset" *ngIf="!d.editing" [disabled]="isFinished"
+                    title="Dodirni za izmjenu" (click)="startEditDropset(d)">
+              <span class="set-v num">{{ d.weight }}<small>kg</small> × {{ d.reps }}</span>
+              <i class="material-icons del" *ngIf="!isFinished" [class.disabled]="d.deleting"
+                 (click)="deleteDropset(set, d); $event.stopPropagation()">close</i>
+            </button>
+
+            <div class="set-edit dropset-form" *ngIf="d.editing">
+              <input appNumField keyboard="text" [(ngModel)]="d.editWeight" placeholder="kg"
+                     (keydown.enter)="dropEditReps.focus()" />
+              <input #dropEditReps appNumField="integer" keyboard="text" [(ngModel)]="d.editReps" placeholder="pon."
+                     (keydown.enter)="saveEditDropset(d)" />
+              <button type="button" class="mini save" [disabled]="d.saving" (click)="saveEditDropset(d)">
+                <i class="material-icons">check</i>
+              </button>
+              <button type="button" class="mini" (click)="cancelEditDropset(d)">
+                <i class="material-icons">close</i>
+              </button>
+            </div>
+          </ng-container>
 
           <!-- Duh: dropsetovi te serije iz prošlog treninga koji danas još nisu
                ponovljeni. Prvi upisani dropset staje na mjesto prvog duha. -->

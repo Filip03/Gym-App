@@ -2518,3 +2518,28 @@ serije imaju svaka svoj redni broj, pa se za njih ništa ne mijenja.
   `set_number`, `side`; brojanje preko skupa ključeva
 
 **Efekat:** Provjereno: par 12kg×3 (L+D) se sada vodi kao „1 serija".
+
+---
+
+## [2026-07-28] Dropset se može mijenjati dodirom, kao serija
+**Tip:** funkcionalnost
+
+**Problem:** Dropset se mogao samo obrisati (X), ne i izmijeniti — a kod
+jednoručnih vježbi se pri nastanku preslikava na drugu ruku, pa je izmjena
+upravo način da se druga strana ispravi kad se razlikovala. Jedini put je bio
+obriši-pa-upiši-ponovo.
+
+**Rješenje:** Dodir na pilulu dropseta otvara istu formu kao kod serije
+(kg, ponavljanja, sačuvaj/otkaži; Enter prolazi kroz polja). X za brisanje
+ostaje na piluli. Izmjena se namjerno NE preslikava na drugu ruku — preslikava
+se samo nastanak; izmjena postoji baš da se jedna strana ispravi.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts` — `updateDropset`
+- `src/app/components/training/training.component.ts` — `startEditDropset`,
+  `cancelEditDropset`, `saveEditDropset`; `DropsetEntry` polja za izmjenu
+- `src/app/components/training/training.component.html` — pilula je dugme,
+  forma za izmjenu u grani dropseta
+
+**Efekat:** Provjereno: dropset 10×5 na lijevoj preslikan na desnu, izmjena
+desnog na 8×6 ne dira lijevi; radi i u kolonama jednoručnog prikaza.
