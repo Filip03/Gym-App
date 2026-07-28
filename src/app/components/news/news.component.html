@@ -1,0 +1,25 @@
+<section class="sec">
+  <div class="sec-head">
+    <h2 class="eyebrow">Novosti</h2>
+  </div>
+
+  <p *ngIf="loading" class="empty">Učitavanje...</p>
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+  <ng-container *ngIf="!loading && !errorMessage">
+    <div class="blank" *ngIf="items.length === 0">
+      <i class="material-icons">campaign</i>
+      <p>Još nema objavljenih novosti.</p>
+    </div>
+
+    <div class="news-list" *ngIf="items.length > 0">
+      <article class="news-item" *ngFor="let item of items">
+        <div class="ni-head">
+          <h3 class="ni-title">{{ item.title }}</h3>
+          <span class="ni-date num">{{ item.created_at | date:'dd.MM.yyyy.' }}</span>
+        </div>
+        <p class="ni-body">{{ item.body }}</p>
+      </article>
+    </div>
+  </ng-container>
+</section>

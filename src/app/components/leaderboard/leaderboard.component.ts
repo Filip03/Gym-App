@@ -84,6 +84,9 @@ export class LeaderboardComponent implements OnInit {
   errorMessage = '';
   currentUserId = '';
 
+  /** Korisnik čiji se pregled profila trenutno prikazuje (klik na profilnu sliku). */
+  previewUserId: string | null = null;
+
   /** Mijenja se pri svakoj promjeni izbora — vidi komentar o animacijama. */
   renderKey = 0;
 
@@ -101,6 +104,14 @@ export class LeaderboardComponent implements OnInit {
     private authService: AuthService,
     private route: ActivatedRoute
   ) {}
+
+  openProfilePreview(userId: string) {
+    this.previewUserId = userId;
+  }
+
+  closeProfilePreview() {
+    this.previewUserId = null;
+  }
 
   async ngOnInit() {
     this.currentUserId = this.authService.getCurrentUser()?.id ?? '';

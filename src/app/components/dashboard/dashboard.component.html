@@ -86,7 +86,7 @@
         <div class="live-row" *ngFor="let l of live; let i = index; trackBy: trackLive"
              [class.me]="l.userId === currentUserId"
              [style.animation-delay.ms]="i * 80">
-            <div class="live-av">
+            <div class="live-av clickable" (click)="openProfilePreview(l.userId)">
                 <img *ngIf="l.avatarUrl" [src]="l.avatarUrl" alt="">
                 <i class="material-icons" *ngIf="!l.avatarUrl">person</i>
             </div>
@@ -137,6 +137,7 @@
               <span class="day-name">{{ day.dayName }}</span>
 
               <select
+                *ngIf="!isCustomPlanType"
                 [(ngModel)]="day.dayTypeId"
                 [name]="'dayType_' + day.dayNumber"
                 (change)="onDayTypeChange(day)"
@@ -144,6 +145,8 @@
                 <option [ngValue]="null">-- Izaberi tip dana --</option>
                 <option *ngFor="let type of filteredDayTypes" [value]="type.id">{{ type.name }}</option>
               </select>
+
+              <span class="custom-day-badge" *ngIf="isCustomPlanType">Sve vježbe</span>
 
               <button
                 type="button"
@@ -313,7 +316,32 @@
   <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
     <h2>{{ pickerDay?.dayName }} — izbor vježbi</h2>
 
-    <div class="exercice-grid">
+    <!-- Custom plan: vježbe grupisane po mišićnoj grupi, isto kao na /exercices -->
+    <ng-container *ngIf="isCustomPlanType">
+      <div class="muscle-group-section" *ngFor="let group of customExerciceGroups">
+        <h3>{{ group.name }}</h3>
+        <div class="exercice-grid">
+          <div class="exercice-picker-item" *ngFor="let ex of group.exercices">
+            <div
+              class="exercice-card"
+              [class.selected]="isExercicePicked(ex.id)"
+              (click)="toggleExercicePick(ex)"
+            >
+              <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name">
+              <h4>{{ ex.name }}</h4>
+            </div>
+
+            <div class="exercice-picker-inputs" *ngIf="getPickedInfo(ex.id) as picked" (click)="$event.stopPropagation()">
+              <input appNumField="integer" [(ngModel)]="picked.targetSets" placeholder="Serije" />
+              <input appNumField="integer" [(ngModel)]="picked.targetReps" placeholder="Ponavljanja" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Ostali tipovi dana: ravna mreža, vježbe već filtrirane po tipu dana -->
+    <div class="exercice-grid" *ngIf="!isCustomPlanType">
       <div class="exercice-picker-item" *ngFor="let ex of pickerDay?.availableExercices">
         <div
           class="exercice-card"
@@ -333,6 +361,21 @@
 
     <div class="form-actions">
       <button type="button" (click)="closeExercicePicker()">Gotovo</button>
+    </div>
+  </div>
+</div>
+
+<app-profile-preview [userId]="previewUserId" (closed)="closeProfilePreview()"></app-profile-preview>
+
+<div class="modal-overlay" *ngIf="showNewsPopup && latestNews" (click)="closeNewsPopup()">
+  <div class="modal-card news-popup-card" (click)="$event.stopPropagation()">
+    <span class="news-popup-eyebrow">
+      <i class="material-icons">campaign</i> Novo
+    </span>
+    <h2>{{ latestNews.title }}</h2>
+    <p class="news-popup-body">{{ latestNews.body }}</p>
+    <div class="form-actions">
+      <button type="button" (click)="closeNewsPopup()">Razumijem</button>
     </div>
   </div>
 </div>

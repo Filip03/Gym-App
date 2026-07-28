@@ -19,7 +19,8 @@ const ROUTES: Record<string, RouteMeta> = {
   '/exercices':   { title: 'Vježbe',      back: null },
   '/leaderboard': { title: 'Ekipa',       back: null },
   '/profiles':    { title: 'Profil',      back: null },
-  '/blog':        { title: 'Blog',        back: null }
+  '/blog':        { title: 'Blog',        back: null },
+  '/news':        { title: 'Novosti',     back: '/dashboard' }
 };
 
 @Component({
@@ -55,6 +56,10 @@ export class HeaderComponent implements OnDestroy {
 
   toggleSound() {
     this.audio.toggleMute();
+  }
+
+  openNews() {
+    this.router.navigate(['/news']);
   }
 
   ngOnDestroy() {

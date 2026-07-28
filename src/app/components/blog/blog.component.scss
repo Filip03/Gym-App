@@ -183,6 +183,9 @@
 .pa img { width: 100%; height: 100%; object-fit: cover; }
 .pa .material-icons { font-size: 18px; }
 
+.pa.clickable { cursor: pointer; transition: border-color var(--d-fast) var(--ease); }
+.pa.clickable:hover { border-color: var(--volt-a40); }
+
 .post-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 .post-name {

@@ -76,6 +76,9 @@
 .avatar.sm { width: 32px; height: 32px; }
 .avatar.sm .material-icons { font-size: 18px; }
 
+.avatar.clickable { cursor: pointer; transition: border-color var(--d-fast) var(--ease); }
+.avatar.clickable:hover { border-color: var(--volt-a40); }
+
 .avatar.lg { width: 54px; height: 54px; }
 .avatar.lg .material-icons { font-size: 26px; }
 

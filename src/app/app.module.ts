@@ -20,6 +20,8 @@ import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
 import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
 import { DatePickerComponent } from './components/shared/date-picker/date-picker.component';
+import { ProfilePreviewComponent } from './components/profile-preview/profile-preview.component';
+import { NewsComponent } from './components/news/news.component';
 
 @NgModule({
   declarations: [
@@ -34,7 +36,9 @@ import { DatePickerComponent } from './components/shared/date-picker/date-picker
     ProfileComponent,
     BlogComponent,
     ExercicePickerComponent,
-    DatePickerComponent
+    DatePickerComponent,
+    ProfilePreviewComponent,
+    NewsComponent
   ],
   imports: [
     BrowserModule,

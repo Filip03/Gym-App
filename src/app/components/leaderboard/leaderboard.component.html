@@ -53,7 +53,7 @@
 
           <i class="crown material-icons" *ngIf="e.rank === 1">workspace_premium</i>
 
-          <div class="avatar lg">
+          <div class="avatar lg clickable" (click)="openProfilePreview(e.userId)">
             <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
             <i class="material-icons" *ngIf="!e.avatarUrl">person</i>
           </div>
@@ -87,7 +87,7 @@
 
           <span class="place num">{{ e.rank ?? '–' }}</span>
 
-          <div class="avatar sm">
+          <div class="avatar sm clickable" (click)="openProfilePreview(e.userId)">
             <img *ngIf="e.avatarUrl" [src]="e.avatarUrl" alt="">
             <i class="material-icons" *ngIf="!e.avatarUrl">person</i>
           </div>
@@ -135,7 +135,7 @@
          [class.me]="m.userId === currentUserId"
          [style.animation-delay.ms]="i * 60">
 
-      <div class="avatar">
+      <div class="avatar clickable" (click)="openProfilePreview(m.userId)">
         <img *ngIf="m.avatarUrl" [src]="m.avatarUrl" alt="">
         <i class="material-icons" *ngIf="!m.avatarUrl">person</i>
       </div>
@@ -193,7 +193,7 @@
            [class.me]="r.userId === currentUserId"
            [style.animation-delay.ms]="(i % 8) * 70">
 
-        <div class="avatar sm">
+        <div class="avatar sm clickable" (click)="openProfilePreview(r.userId)">
           <img *ngIf="r.avatarUrl" [src]="r.avatarUrl" alt="">
           <i class="material-icons" *ngIf="!r.avatarUrl">person</i>
         </div>
@@ -229,3 +229,5 @@
   (pick)="onPick($event)"
   (dismiss)="showPicker = false">
 </app-exercice-picker>
+
+<app-profile-preview [userId]="previewUserId" (closed)="closeProfilePreview()"></app-profile-preview>

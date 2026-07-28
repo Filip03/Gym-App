@@ -47,6 +47,9 @@ export class BlogComponent implements OnInit {
 
   selectedIndex = -1;
 
+  /** Korisnik čiji se pregled profila trenutno prikazuje (klik na profilnu sliku). */
+  previewUserId: string | null = null;
+
   private userId = '';
 
   constructor(
@@ -61,6 +64,14 @@ export class BlogComponent implements OnInit {
   }
 
   get total(): number { return this.flat.length; }
+
+  openProfilePreview(userId: string) {
+    this.previewUserId = userId;
+  }
+
+  closeProfilePreview() {
+    this.previewUserId = null;
+  }
 
   async ngOnInit() {
     const user = this.authService.getCurrentUser();

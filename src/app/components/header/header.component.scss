@@ -52,10 +52,27 @@
   color: var(--ice);
 }
 
+// Novosti + prekidač zvuka idu zajedno, gurnuti na desni kraj zaglavlja —
+// margin-left:auto samo na prvom od njih, razmak između njih dvoje daje
+// gap na .header.
+.news-btn {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-full);
+  color: var(--dust);
+  transition: color var(--d-fast) var(--ease),
+              background-color var(--d-fast) var(--ease);
+}
+
+.news-btn:hover { color: var(--ice); background: var(--carbon-high); }
+.news-btn .material-icons { font-size: 20px; }
+
 // Prekidač zvuka. Aplikacija se koristi u teretani, gdje se ne želi uvijek da
 // telefon viče — a klipovi su dugi (10-13 s).
 .sound {
-  margin-left: auto;
   display: grid;
   place-items: center;
   width: 38px;
