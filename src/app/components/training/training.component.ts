@@ -793,6 +793,8 @@ export class TrainingComponent implements OnInit, OnDestroy {
   summary: {
     tone: 'record' | 'progress' | 'steady' | 'down' | 'plain';
     headline: string;
+    /** "42 min" / "1 h 15 min" — koliko je trening trajao, od početka do kraja. */
+    elapsedLabel: string | null;
     line: string;
     records: { name: string; weight: number; previous: number | null }[];
     rows: { name: string; outcome: 'up' | 'same' | 'down'; detail: string }[];
@@ -854,7 +856,22 @@ export class TrainingComponent implements OnInit, OnDestroy {
       line = `Isto kao prošli put na ${same} ${same === 1 ? 'vježbi' : 'vježbe'}. I to je posao.`;
     }
 
-    this.summary = { tone, headline, line, records, rows };
+    const elapsedLabel = (this.session?.startedAt && this.session?.finishedAt)
+      ? this.formatElapsed(this.session.startedAt, this.session.finishedAt)
+      : null;
+
+    this.summary = { tone, headline, elapsedLabel, line, records, rows };
+  }
+
+  /** "42 min" / "1 h 15 min" — isti format kao "Trenira sada" na dashboardu. */
+  private formatElapsed(startedAt: string, finishedAt: string): string {
+    const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
+    const minutes = Math.max(0, Math.round(ms / 60_000));
+
+    if (minutes < 60) return `${minutes} min`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m === 0 ? `${h} h` : `${h} h ${m} min`;
   }
 
   closeSummary() { this.showSummary = false; }

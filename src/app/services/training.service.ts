@@ -30,6 +30,7 @@ export interface WorkoutSession {
   planName: string | null;
   dayLabel: string | null;
   dayTypeName: string | null;
+  startedAt: string | null;
   finishedAt: string | null;
   /**
    * Bilješka uz TAJ dan treninga.
@@ -210,7 +211,7 @@ export class TrainingService {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
       .select(`
-        id, date, plan_id, day_label, day_type_name, finished_at, note,
+        id, date, plan_id, day_label, day_type_name, started_at, finished_at, note,
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
@@ -235,6 +236,7 @@ export class TrainingService {
       planName: row.workout_plan?.name ?? null,
       dayLabel: row.day_label,
       dayTypeName: row.day_type_name,
+      startedAt: row.started_at,
       finishedAt: row.finished_at,
       note: row.note ?? null,
       exercices: ((row.session_exercices ?? []) as any[])

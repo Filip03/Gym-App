@@ -460,6 +460,9 @@
     </div>
 
     <h2 class="sum-headline">{{ summary.headline }}</h2>
+    <span class="sum-elapsed num" *ngIf="summary.elapsedLabel">
+      <i class="material-icons">schedule</i> {{ summary.elapsedLabel }}
+    </span>
     <p class="sum-line">{{ summary.line }}</p>
 
     <!-- Oboreni rekordi -->

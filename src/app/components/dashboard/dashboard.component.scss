@@ -1361,6 +1361,11 @@
 
 .news-popup-card {
   max-width: 420px;
+  // Globalni .modal-overlay je na mobilnom align-items:flex-end (bottom-sheet
+  // za velike forme) — ovo je mala najava, ne sheet, pa margin:auto na obje
+  // strane centrira karticu i ostavlja razmak i gore i dolje (isto rješenje
+  // kao .summary-card u training.component.scss).
+  margin: auto var(--s-4);
   text-align: center;
 }
 

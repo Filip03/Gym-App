@@ -1067,6 +1067,20 @@ $branch-indent: 16px;
 }
 [data-tone="record"] .sum-headline { color: var(--gold); }
 
+.sum-elapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+  padding: var(--s-1) var(--s-3);
+  background: var(--carbon-high);
+  border-radius: var(--r-full);
+  color: var(--mist);
+  font-size: var(--t-xs);
+}
+
+.sum-elapsed .material-icons { font-size: 15px; }
+
 .sum-line {
   font-size: var(--t-sm);
   color: var(--mist);
