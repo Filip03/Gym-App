@@ -19,6 +19,8 @@ export interface SessionExercice {
   isBodyweight: boolean;
   /** Prati se svaka ruka odvojeno (L/D) — vidi exercices.is_unilateral. */
   isUnilateral: boolean;
+  /** Vježba za noge — L/D opcija tada govori o nogama, ne o rukama. */
+  isLegs: boolean;
 }
 
 export interface WorkoutSession {
@@ -212,7 +214,8 @@ export class TrainingService {
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
-          exercices:exercice_id ( name, picture, is_bodyweight, is_unilateral ),
+          exercices:exercice_id ( name, picture, is_bodyweight, is_unilateral,
+            exercice_muscle ( muscle_group:muscle_group_id ( name ) ) ),
           replaced:replaced_exercice_id ( name )
         )
       `)
@@ -247,7 +250,9 @@ export class TrainingService {
           replacedName: se.replaced?.name ?? null,
           isExtra: se.is_extra,
           isBodyweight: se.exercices?.is_bodyweight ?? false,
-          isUnilateral: se.exercices?.is_unilateral ?? false
+          isUnilateral: se.exercices?.is_unilateral ?? false,
+          isLegs: ((se.exercices?.exercice_muscle ?? []) as any[])
+            .some(m => /leg/i.test(m.muscle_group?.name ?? ''))
         }))
     };
   }

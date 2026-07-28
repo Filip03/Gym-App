@@ -438,18 +438,56 @@ $branch-indent: 16px;
 // Prelamanjem dugmad siđu u novi red, a polja podijele širinu kolone.
 // Grupa je inline-flex (širi se po sadržaju), pa joj kolona sama po sebi ne
 // ograničava širinu — bez ovoga forma za izmjenu pređe preko druge ruke.
-.side-half .set-group { max-width: 100%; }
+.side-half .set-group { max-width: 100%; width: 100%; }
 
+// Pilula u koloni: puna širina i zbijenije, jer je kolona na telefonu ~145px.
+// Serija sa strelicom (bolje/slabije) i repom za dropset je najširi slučaj —
+// bez sabijanja bi baš ona, ona koja nosi napredak, prva pukla iz kolone.
+.side-half .set-wrap { width: 100%; }
+// Rep za dropset je IZRASTAO iz pilule (dijele okvir) i tako mora i ostati —
+// pilula se po potrebi stisne, rep se nikad ne odvaja u zasebno dugme.
+.side-half .set-wrap .set { flex: 1; min-width: 0; }
+.side-half .set,
+.side-half .set.dropset {
+  max-width: 100%;
+  padding: var(--s-2);
+  gap: var(--s-1);
+}
+.side-half .set-n { min-width: 12px; }
+// Tipografija i strelice ostaju ISTE kao u dvoručnom redu — sabija se samo
+// prazan prostor (padding, razmaci, rep), ne izgled brojeva.
+// Red ispod naziva (cilj, datum, rekord, L/D) — stavke su cjeline: prelamaju
+// se u novi red kao komad, tekst se nikad ne lomi usred riječi.
+.exercice-meta { flex-wrap: wrap; row-gap: 2px; }
+.exercice-meta > span { white-space: nowrap; }
+
+.side-half .set-drop { padding: 0 var(--s-1); }
+.side-half .set-drop .material-icons { font-size: 13px; }
+
+// Izmjena serije i unos dropseta staju u kolonu u JEDNOM redu — polja i
+// dugmad zajedno, ništa se ne prelama u novi red. Zato su u koloni polja
+// elastična a dugmad uža; redni broj se ne ispisuje jer ga kazuje pozicija.
 .side-half .set-edit {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: 100%;
   max-width: 100%;
+  gap: 2px;
+  padding: var(--s-1);
 }
+.side-half .set-edit .set-n { display: none; }
 .side-half .set-edit input {
-  flex: 1 1 52px;
+  flex: 1 1 32px;
   width: auto;
   min-width: 0;
+  padding-left: 2px;
+  padding-right: 2px;
+  text-align: center;
 }
+.side-half .set-edit .mini { width: 26px; height: 30px; flex: none; }
+.side-half .set-edit .mini .material-icons { font-size: 15px; }
+// U koloni oznaku L+D kazuje title — za tekst nema mjesta u jednom redu.
+.side-half .dropset-form .both-tag { display: none; }
 
 .set-group .dropset,
 .set-group .dropset-form {
@@ -529,6 +567,11 @@ $branch-indent: 16px;
 .set-drop .material-icons { font-size: 14px; }
 
 .tag.sides .material-icons { font-size: 12px; }
+
+// Nacrtana noga — Material set nema samu nogu, a čovječuljak koji hoda nije
+// isto što i ruka-za-ruke. Boja prati tekst, kao i prava ikona.
+.leg-ico { width: 12px; height: 12px; flex: none; }
+.ex-menu .leg-ico.menu { width: 19px; height: 19px; color: var(--dust); }
 
 // „L+D" uz natpis serije u formi — podsjetnik da jedan unos puni obje ruke.
 .both-tag {

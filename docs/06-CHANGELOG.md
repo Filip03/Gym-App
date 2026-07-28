@@ -2346,3 +2346,110 @@ ako se u praksi pokaže da smeta — sav posao je u jednom `if (twin)` bloku u
 
 Ako druga ruka još nema tu seriju (na primjer, ručno je obrisana), dropset se
 upisuje samo na stranu na kojoj je pritisnut „+".
+
+---
+
+## [2026-07-28] Doćerivanje ekrana treninga za telefon; bedževi ispod naziva; ikona noge za L/D vježbe za noge
+**Tip:** popravka
+**Ref:** dorada prethodna dva unosa o jednoručnim vježbama, po upotrebi na telefonu
+
+**Problem:** Pet stvari, sve uočene na telefonu u toku stvarne upotrebe.
+
+1. **Bedževi su gutali naziv vježbe.** Lični rekord i oznaka L/D stajali su u
+   istom redu sa nazivom, pa se naziv na telefonu sabijao do te mjere da je od
+   njega ostajalo „S…".
+2. **Red ispod naziva lomio se usred riječi.** Cilj i „prošli put" nijesu se
+   prelamali kao cjeline nego su se sjekli nasred riječi i razvlačili u više
+   redova.
+3. **Pilula sa strelicom napretka nije stajala u koloni jednoručnih vježbi.**
+   Prvi pokušaj — smanjivanje fonta — pokvario je izgled koji je do tada bio
+   dobar. Drugi — prelamanje repa za dropset u novi red — odvojio je „+" od
+   pilule, a on mora izgledati kao da iz nje izrasta.
+4. **Forma za izmjenu serije i za dropset prelamala se u koloni.** Dugmad su
+   padala u zaseban red, odvojena od polja za kilažu i ponavljanja.
+5. **Kod vježbi za noge pisalo je „ruke".** Oznaka i stavka u meniju govorile su
+   o rukama, uz ikonu ruke, i za jednonožne vježbe. Pokušaji da se to riješi
+   Material ikonom (čovječuljak koji hoda) i ručno crtanom nogom ocijenjeni su
+   kao loši.
+
+**Rješenje:**
+
+**1. Bedževi ispod naziva.** PR bedž i oznaka L/D premješteni su iz reda sa
+nazivom u `.exercice-meta` red ispod. Naziv vježbe tako ima cio red za sebe i
+ostaje ispisan cijel. U redu sa nazivom ostaju samo oznake „umjesto" i „dodano",
+koje su kratke i vezane za sam naziv.
+
+**2. Meta red se prelama po stavkama.** `.exercice-meta` dobija `flex-wrap: wrap`
+(uz `row-gap`), a svaka stavka u njemu `white-space: nowrap`. Stavka je time
+komad koji ili stane u red ili cio pređe u sljedeći — tekst se više ne lomi
+usred riječi.
+
+**3. Pilula pune širine u koloni.** `.side-half .set-wrap` ide na `width: 100%`,
+a sama pilula na `flex: 1; min-width: 0`, pa uzima cijelu širinu kolone i može da
+se stisne umjesto da iscuri. Sabija se samo prazan prostor: `padding` i razmaci
+unutar pilule, i rep za dropset (`.set-drop`). **Tipografija i strelice ostaju
+iste kao u dvoručnom redu** — brojevi se ne smanjuju, jer je upravo to bilo ono
+što je prvi pokušaj pokvario. Rep i dalje dijeli okvir sa pilulom i nikad se ne
+odvaja u zasebno dugme.
+
+**4. Forme u koloni u jednom redu.** `.side-half .set-edit` mijenja `flex-wrap`
+sa `wrap` na `nowrap`, polja su elastična (`flex: 1 1 32px`, centriran tekst,
+tanji bočni razmak), dugmad uža (26px). Redni broj serije se u koloni ne ispisuje
+(`.set-n { display: none }`) — kazuje ga pozicija u koloni. Iz istog razloga
+oznaka „L+D" u formi za dropset u koloni ostaje samo u `title` atributu; za tekst
+nema mjesta u jednom redu.
+
+**5. Nove i noge.** `SessionExercice` dobija polje `isLegs`. Upit sesije sada uz
+vježbu povlači i njene mišićne grupe (`exercice_muscle → muscle_group.name`), a
+nogom se smatra svaka vježba čija grupa u nazivu sadrži „leg". Kod takvih vježbi
+oznaka i meni govore o **nogama** umjesto o rukama, a uz njih stoji silueta noge
+umjesto ikone ruke. Ikona je uvezena („Leg", autor Delapouite, game-icons.net,
+licenca CC BY 3.0, navedeno u komentaru u šablonu) jer Material set nema samu
+nogu, a zamjene koje ima nijesu dobre.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html:108,110` — PR bedž i L/D
+  oznaka premješteni u `.exercice-meta`, sa komentarom zašto ne stoje uz naziv
+- `src/app/components/training/training.component.html:126` — `title` oznake L/D
+  govori o nogama ili rukama, zavisno od `isLegs`
+- `src/app/components/training/training.component.html:131` — silueta noge uz
+  oznaku, sa navedenim autorom i licencom
+- `src/app/components/training/training.component.html:170,172` — ista ikona i
+  tekst o nogama u stavci menija `toggleUnilateral`
+- `src/app/components/training/training.component.scss:441,446,449` — grupa,
+  omotač i pilula uzimaju punu širinu kolone
+- `src/app/components/training/training.component.scss:450,456` — zbijeniji
+  `padding` i razmaci u pilili u koloni, uži redni broj
+- `src/app/components/training/training.component.scss:461,462` —
+  `.exercice-meta` se prelama, stavke su cjeline
+- `src/app/components/training/training.component.scss:464,465` — uži rep za
+  dropset
+- `src/app/components/training/training.component.scss:470,478,479,487,488` —
+  `.set-edit` u jednom redu: `nowrap`, elastična polja, skriven redni broj, uža
+  dugmad
+- `src/app/components/training/training.component.scss:490` — „L+D" u koloni ide
+  samo u `title`
+- `src/app/components/training/training.component.scss:573,574` — veličina i boja
+  ikone noge, u oznaci i u meniju
+- `src/app/services/training.service.ts:23` — novo polje `SessionExercice.isLegs`
+- `src/app/services/training.service.ts:218` — upit sesije povlači i mišićne grupe
+  vježbe
+- `src/app/services/training.service.ts:254` — `isLegs` se izvodi iz naziva grupe
+
+**Efekat:** Provjereno u pregledaču na širini 390px: naziv vježbe je ispisan cio,
+meta red se prelama po stavkama a ne usred riječi, pilula sa strelicom i repom za
+dropset staje u kolonu bez promjene tipografije, a forma za izmjenu serije i
+forma za dropset stoje u jednom redu — potvrđeno poređenjem sredina elemenata.
+
+Ikona noge i tekst „Ne prati noge odvojeno" potvrđeni su na stvarnoj vježbi sa
+LEGS grupom, napravljenoj kroz novu formu za dodavanje vježbe. Izgled na telefonu
+potvrđen snimkom ekrana.
+
+**Napomene:** Ikona noge je jedina ikona u aplikaciji koja nije iz Material seta.
+Ako se ikad uvede lokalni set ikona (stoji na roadmapu uz PWA), i nju prebaciti
+tamo, da izvor ikona bude jedan.
+
+`isLegs` se izvodi iz naziva mišićne grupe („leg"), pa grupa nazvana drugačije
+(na primjer „quads") ne bi bila prepoznata. Svjesno pojednostavljenje za postojeći
+katalog — ako se nazivi grupa prošire, uslov treba zamijeniti spiskom ili
+oznakom na samoj grupi.

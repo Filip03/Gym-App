@@ -99,6 +99,18 @@
             <span class="pos num" *ngIf="reordering">{{ ex.orderNum }}</span>
             <span class="exercice-name">{{ ex.name }}</span>
 
+            <span class="tag swapped" *ngIf="ex.replacedName" [title]="'Umjesto: ' + ex.replacedName">
+              umjesto {{ ex.replacedName }}
+            </span>
+            <span class="tag extra" *ngIf="ex.isExtra">dodano</span>
+          </div>
+
+          <!-- Bedževi (rekord, L/D) stoje OVDJE a ne uz naziv — da naziv
+               vježbe na telefonu ostane cijel, bez sabijanja i tri tačke. -->
+          <div class="exercice-meta" *ngIf="!reordering">
+            <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
+            <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
+
             <!-- Lični rekord: jedan po vježbi, ne po seriji -->
             <span class="pr" *ngIf="ex.isPr" [class.celebrate]="ex.celebrating"
                   [title]="'Novi lični rekord — prošli najbolji ' + ex.previousBest + 'kg'">
@@ -111,19 +123,15 @@
               <span class="pr-text num">{{ todayBest(ex) }}<small>kg</small></span>
             </span>
 
-            <span class="tag swapped" *ngIf="ex.replacedName" [title]="'Umjesto: ' + ex.replacedName">
-              umjesto {{ ex.replacedName }}
-            </span>
-            <span class="tag extra" *ngIf="ex.isExtra">dodano</span>
             <span class="tag sides" *ngIf="ex.isUnilateral"
-                  title="Svaka ruka se prati odvojeno">
-              <i class="material-icons">pan_tool</i> L·D
+                  [title]="ex.isLegs ? 'Svaka noga se prati odvojeno' : 'Svaka ruka se prati odvojeno'">
+              <i class="material-icons" *ngIf="!ex.isLegs">pan_tool</i>
+              <!-- Noge nema u Material ikonama — ikona "Leg" (Delapouite,
+                   game-icons.net, CC BY 3.0). Boja prati tekst kao i prava ikona. -->
+              <svg class="leg-ico" *ngIf="ex.isLegs" viewBox="0 0 512 512"
+                   fill="currentColor" aria-hidden="true"><path d="M19.09 16.96V170.7C73.51 193.5 202.7 200 259.8 189.4c-18.1 105.6 34 177.3 31.1 226.5-2 33.3-22.9 39-13.5 69.3 4.9 15.6 193 5.1 201.1 4.9 7.7-.3 5.4-19.2-13.3-27.2-35.2-15.1-80.2-10.7-110.1-47-9.7-14.6 6.9-180.3 10-241.4.8-15.7 4.7-78.91-60-100.5C225 47.24 123 27.32 19.09 16.96z"/></svg>
+              L·D
             </span>
-          </div>
-
-          <div class="exercice-meta" *ngIf="!reordering">
-            <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
-            <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
           </div>
         </div>
 
@@ -160,8 +168,12 @@
             <i class="material-icons">tune</i> Serije i ponavljanja
           </button>
           <button type="button" (click)="toggleUnilateral(ex)">
-            <i class="material-icons">pan_tool</i>
-            {{ ex.isUnilateral ? 'Ne prati ruke odvojeno' : 'Prati ruke odvojeno (L/D)' }}
+            <i class="material-icons" *ngIf="!ex.isLegs">pan_tool</i>
+            <svg class="leg-ico menu" *ngIf="ex.isLegs" viewBox="0 0 512 512"
+                 fill="currentColor" aria-hidden="true"><path d="M19.09 16.96V170.7C73.51 193.5 202.7 200 259.8 189.4c-18.1 105.6 34 177.3 31.1 226.5-2 33.3-22.9 39-13.5 69.3 4.9 15.6 193 5.1 201.1 4.9 7.7-.3 5.4-19.2-13.3-27.2-35.2-15.1-80.2-10.7-110.1-47-9.7-14.6 6.9-180.3 10-241.4.8-15.7 4.7-78.91-60-100.5C225 47.24 123 27.32 19.09 16.96z"/></svg>
+            {{ ex.isUnilateral
+                 ? (ex.isLegs ? 'Ne prati noge odvojeno' : 'Ne prati ruke odvojeno')
+                 : (ex.isLegs ? 'Prati noge odvojeno (L/D)' : 'Prati ruke odvojeno (L/D)') }}
           </button>
           <button type="button" (click)="goToLeaderboard(ex)">
             <i class="material-icons">leaderboard</i> Rang lista
