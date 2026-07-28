@@ -266,7 +266,7 @@
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
   color: white;
-  font-size: 0.95rem;
+  font-size: max(0.95rem, var(--t-field-min));
 }
 
 .form-group input:focus,
@@ -362,7 +362,7 @@
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
   color: white;
-  font-size: 0.9rem;
+  font-size: max(0.9rem, var(--t-field-min));
 }
 
 .edit-exercices-btn {
@@ -444,7 +444,7 @@
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
   color: white;
-  font-size: 0.85rem;
+  font-size: max(0.85rem, var(--t-field-min));
 }
 
 .exercice-picker-inputs input:focus {

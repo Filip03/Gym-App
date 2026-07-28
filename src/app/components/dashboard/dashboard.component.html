@@ -321,8 +321,8 @@
         </div>
 
         <div class="exercice-picker-inputs" *ngIf="getPickedInfo(ex.id) as picked" (click)="$event.stopPropagation()">
-          <input type="number" [(ngModel)]="picked.targetSets" min="1" placeholder="Serije" />
-          <input type="number" [(ngModel)]="picked.targetReps" min="1" placeholder="Ponavljanja" />
+          <input appNumField="integer" [(ngModel)]="picked.targetSets" placeholder="Serije" />
+          <input appNumField="integer" [(ngModel)]="picked.targetReps" placeholder="Ponavljanja" />
         </div>
       </div>
     </div>

@@ -117,14 +117,13 @@ p { margin: 0; }
 
 input, textarea, select, button {
   font-family: inherit;
-  font-size: var(--t-base);
+  font-size: max(var(--t-base), var(--t-field-min));
   color: inherit;
 }
 
 input[type="text"],
 input[type="email"],
 input[type="password"],
-input[type="number"],
 input[type="date"],
 textarea,
 select {
@@ -181,17 +180,16 @@ input:-webkit-autofill:active {
 }
 
 // Brojčana polja: krupna, monospace, centrirana — kucaju se u teretani.
-input[type="number"] {
+//
+// Gađa se `inputmode`, a ne `type="number"`: brojčana polja su tekstualna da bi
+// primala i zarez i tačku (vidi `NumFieldDirective`), pa bi selektor po tipu
+// ostao bez ijednog polja i sva bi se vratila na obični font.
+input[inputmode="decimal"],
+input[inputmode="numeric"] {
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   text-align: center;
-  -moz-appearance: textfield;
-}
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
 
 // Native select je bio odsječen ("-- Izaberi tip dan∨") jer nije imao mjesta za

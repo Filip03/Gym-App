@@ -213,8 +213,10 @@
 
           <div class="set-edit" *ngIf="set.editing">
             <span class="set-n num">{{ set.setNumber }}</span>
-            <input type="number" [(ngModel)]="set.editWeight" step="0.5" placeholder="kg" />
-            <input type="number" [(ngModel)]="set.editReps" min="1" placeholder="pon." />
+            <input appNumField [(ngModel)]="set.editWeight" placeholder="kg"
+                   (keydown.enter)="editReps.focus()" />
+            <input #editReps appNumField="integer" [(ngModel)]="set.editReps" placeholder="pon."
+                   (keydown.enter)="saveEditSet(ex, set)" />
             <button type="button" class="mini save" [disabled]="set.saving" (click)="saveEditSet(ex, set)">
               <i class="material-icons">check</i>
             </button>
@@ -236,8 +238,10 @@
           </span>
 
           <div class="set-edit dropset-form" *ngIf="set.addingDropset">
-            <input type="number" [(ngModel)]="set.dropsetWeightInput" step="0.5" placeholder="kg" />
-            <input type="number" [(ngModel)]="set.dropsetRepsInput" min="1" placeholder="pon." />
+            <input appNumField [(ngModel)]="set.dropsetWeightInput" placeholder="kg"
+                   (keydown.enter)="dropReps.focus()" />
+            <input #dropReps appNumField="integer" [(ngModel)]="set.dropsetRepsInput" placeholder="pon."
+                   (keydown.enter)="saveDropset(set)" />
             <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(set)">
               <i class="material-icons">check</i>
             </button>
@@ -263,8 +267,9 @@
         <span class="set-label">Serija {{ nextSetNumber(ex) }}</span>
 
         <label class="field" *ngIf="ex.showWeightInput">
-          <input type="number" [(ngModel)]="ex.weightInput" step="0.5"
-                 [placeholder]="echoPlaceholder(ex, 'weight')" />
+          <input appNumField [(ngModel)]="ex.weightInput"
+                 [placeholder]="echoPlaceholder(ex, 'weight')"
+                 (keydown.enter)="logReps.focus()" />
           <span class="unit">kg</span>
         </label>
 
@@ -274,8 +279,9 @@
         </button>
 
         <label class="field">
-          <input type="number" [(ngModel)]="ex.repsInput" min="1"
-                 [placeholder]="echoPlaceholder(ex, 'reps')" />
+          <input #logReps appNumField="integer" [(ngModel)]="ex.repsInput"
+                 [placeholder]="echoPlaceholder(ex, 'reps')"
+                 (keydown.enter)="saveLog(ex)" />
           <span class="unit">pon.</span>
         </label>
 
@@ -324,11 +330,13 @@
     <div class="target-fields">
       <label>
         Serije
-        <input type="number" [(ngModel)]="targetSetsInput" min="1" />
+        <input appNumField="integer" [(ngModel)]="targetSetsInput"
+               (keydown.enter)="targetReps.focus()" />
       </label>
       <label>
         Ponavljanja
-        <input type="number" [(ngModel)]="targetRepsInput" min="1" />
+        <input #targetReps appNumField="integer" [(ngModel)]="targetRepsInput"
+               (keydown.enter)="saveTargets()" />
       </label>
     </div>
 

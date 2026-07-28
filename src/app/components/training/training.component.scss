@@ -340,7 +340,7 @@ $branch-indent: 16px;
   width: 62px;
   min-height: 36px;
   padding: 0 var(--s-1);
-  font-size: var(--t-sm);
+  font-size: max(var(--t-sm), var(--t-field-min));
 }
 
 .mini {
@@ -1058,7 +1058,7 @@ $branch-indent: 16px;
 .note-box textarea {
   min-height: 62px;
   background: var(--carbon);
-  font-size: var(--t-sm);
+  font-size: max(var(--t-sm), var(--t-field-min));
 }
 
 .note-actions {

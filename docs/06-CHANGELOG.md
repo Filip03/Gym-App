@@ -1673,3 +1673,168 @@ Podešavanja → Safari → Napredno → Podaci sajtova → ukloniti tu adresu.
 Drugi i treći dropset u istoj grupi kače se spojnicom za dropset iznad sebe, a ne
 za samu seriju. Za dva-tri dropseta to se čita kao lanac i radi; da ih bude više,
 trebalo bi povući jednu neprekidnu okomitu liniju kroz cijelu grupu.
+
+---
+
+## [2026-07-28] Kucanje na iPhoneu bez zumiranja; Enter vodi kroz polja; dev server na LAN adresi
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Tri stvari, sve iz stvarne upotrebe na telefonu.
+
+1. **Svako kucanje je zumiralo cijelu aplikaciju.** Safari na iPhoneu sam zumira
+   stranicu čim se fokusira polje za unos čiji je tekst manji od 16px — i poslije
+   ne vrati zum nazad. Naš osnovni tekst (`--t-base`) je 15px, pa je pod to
+   potpadalo bukvalno svako polje u aplikaciji: dodir na kilažu razmakne ekran, i
+   korisnik mora ručno da odzumira da bi vidio ostatak stranice. Usred serije.
+2. **Enter u polju za kilažu nije radio ništa.** Polja nisu unutar `<form>`, pa
+   nema podrazumijevanog slanja — pritisak na Enter je padao u prazno, a od
+   kilaže do ponavljanja i do dugmeta Sačuvaj išlo se isključivo dodirom/mišem.
+3. **Aplikacija se nije mogla otvoriti sa telefona.** `ng serve` se podrazumijevano
+   vezuje samo za `localhost`, pa telefon na istoj Wi-Fi mreži ne dobija ništa na
+   LAN adresi. Rješavalo se ručnim zastavicama pri pokretanju, što se gubilo pri
+   svakom novom pokretanju — a telefon je primarni uređaj za probanje ovoga.
+
+**Rješenje:**
+
+**1.** Nov token `--t-field-min`: `0px` podrazumijevano, `16px` unutar
+`@media (pointer: coarse)`. Svako pravilo koje postavlja veličinu teksta u polju
+propušta je kroz `max(..., var(--t-field-min))`. Na mišu `max()` ne podiže ništa
+pa se izgled ne mijenja ni za piksel; na dodiru se svako polje diže na 16px i
+Safari nema razloga da zumira.
+
+Nije rađeno preko `maximum-scale=1` u viewport meta tagu, iako je to jedna linija
+umjesto sedam fajlova: time se gasi i pinch-zoom samom korisniku (a treba mu, npr.
+da uveća sliku vježbe), i noviji iOS ga ionako ne poštuje pouzdano.
+
+Zašto je moralo u više fajlova: stilovi komponenti se ubacuju **poslije** globalnih,
+pa bi svako pravilo u komponenti koje prosto postavi svoju veličinu pregazilo ono iz
+`_base.scss` i to polje bi opet zumiralo. Zato takvo pravilo ne smije da postavi
+vrijednost, nego mora da je propusti kroz `max()`. Pravilo za dalje: **kad postavljaš
+`font-size` na `input`/`textarea`/`select`, umotaj ga u `max(..., var(--t-field-min))`.**
+
+**2.** `(keydown.enter)` na polja: kilaža → fokus na ponavljanja, ponavljanja →
+čuvanje. Ide preko lokalnih referenci u šablonu (`#logReps`, `#editReps`,
+`#dropReps`, `#targetReps`), bez ijedne linije u `.ts`. Pokriveni su sva tri
+obrasca na ekranu treninga — upis nove serije, izmjena postojeće serije, dropset —
+i modal za ciljeve (serije → ponavljanja → čuvanje).
+
+**3.** `serve.options` u `angular.json` dobio `"host": "0.0.0.0"` i
+`"allowedHosts": ["all"]`, pa `npm start` bez ikakvih zastavica sluša na svim
+mrežnim adresama i prima zahtjev sa LAN adrese.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_tokens.scss:65` — nov token `--t-field-min: 0px`, sa komentarom
+  zašto postoji i šta se od pravila očekuje
+- `src/styles/_tokens.scss:145` — `@media (pointer: coarse)` diže ga na `16px`
+- `src/styles/_base.scss:120` — globalno pravilo za `input, textarea, select, button`:
+  `font-size: max(var(--t-base), var(--t-field-min))`
+- `src/app/components/training/training.component.scss:343` — `.set-edit input`
+  (red za izmjenu serije i obrazac za dropset) propušta `--t-sm` kroz `max()`
+- `src/app/components/training/training.component.scss:1061` — `.note-box textarea`
+  isto
+- `src/app/components/dashboard/dashboard.component.scss:269,365,447` — tri pravila
+  sa hardkodiranim veličinama (`.form-group input/textarea/select` 0.95rem,
+  `.create-day-card select` 0.9rem, `.exercice-picker-inputs input` 0.85rem)
+  propuštena kroz `max()`
+- `src/app/components/training/training.component.html:217,219` — Enter u redu za
+  izmjenu serije
+- `src/app/components/training/training.component.html:242,244` — Enter u obrascu
+  za dropset
+- `src/app/components/training/training.component.html:272,284` — Enter u obrascu
+  za upis nove serije
+- `src/app/components/training/training.component.html:334,339` — Enter u modalu
+  za ciljeve
+- `angular.json:91` — `serve.options` dobio `host` i `allowedHosts`
+
+**Efekat:** Na iPhoneu se pri kucanju ekran više ne razmiče — cijela serija se
+upiše bez ijednog ručnog odzumiranja. Na računaru se nije promijenilo ništa: ni
+jedna veličina teksta, ni jedan raspored, jer `max(x, 0px)` uvijek vrati `x`. Na
+tastaturi se serija upisuje bez skidanja ruku: kilaža, Enter, ponavljanja, Enter.
+I `npm start` je sada dovoljan da se aplikacija otvori sa telefona na
+`http://<IP-računara>:4300`, bez dopisivanja zastavica.
+
+**Napomene:** Enter na iPhoneu praktično ne radi. Polja su u međuvremenu prestala
+da budu `type="number"` (vidi naredni unos od istog dana, o numeričkoj tastaturi i
+zarezu), ali zaključak ostaje isti: `inputmode="numeric"` i `inputmode="decimal"`
+na iPhoneu otvaraju numeričku tastaturu koja **nema** taster za novi red —
+dobitak je za računar i iPad, dok na telefonu i dalje ostaje dugme Sačuvaj. Nije
+regresija, ali ne treba očekivati da se osjeti baš tamo gdje se najviše kuca.
+
+`--t-field-min` gađa `(pointer: coarse)`, dakle sve dodirne uređaje, ne samo iOS.
+Android Chrome ne zumira pri fokusu pa mu 16px u polju nije potrebno; ne smeta —
+polja na dodirnim ekranima su ionako veća od teksta u njima.
+
+`"allowedHosts": ["all"]` znači da dev server prima zahtjev sa bilo kojim `Host`
+zaglavljem. Za lokalnu mrežu je u redu; tiče se isključivo `serve`, produkcijski
+build to ne nosi.
+
+---
+
+## [2026-07-28] Brojčana polja: numerička tastatura na telefonu i prihvatanje zareza
+**Tip:** popravka
+**Ref:** nastavak unosa od istog dana
+
+**Problem:** Dvije stvari koje su se pokazale u upotrebi, obje sa telefona.
+
+1. **Tastatura.** `type="number"` na iPhoneu otvara punu tastaturu sa slovima, pa
+   se za dvocifren broj prvo mora prebacivati na brojeve — usred serije. `inputmode`
+   to rješava, ali ga pregledači na `type="number"` ignorišu ili se ponašaju
+   različito, pa se na njega nije moglo osloniti.
+2. **Zarez — gore i tiho.** `type="number"` **odbacuje** svaki sadržaj koji ne umije
+   da pročita kao broj, a zarez u to spada. Kome numerički raspored tastature nudi
+   zarez umjesto tačke — što zavisi od regiona telefona — otkuca „85,5" i polje
+   ostane **prazno**, bez ijedne poruke. Izgleda kao da aplikacija ne prima unos.
+   To se desilo Filipu.
+
+**Rješenje:** Nova direktiva `NumFieldDirective`, standalone, koja je
+`ControlValueAccessor` — dakle `[(ngModel)]` i dalje dobija **broj**, pa se u
+komponentama ne mijenja nijedna linija logike. Direktiva sama postavlja
+`type="text"`, `inputmode` (`decimal` ili `numeric`) i `autocomplete="off"`, da se
+to ne može zaboraviti na nekom polju. Zarez i tačka su ravnopravni na ulazu; prikaz
+ostaje sa tačkom, kako se broj ispisuje i drugdje u aplikaciji. Druga tačka se
+odbacuje, slova se odbacuju, a prazno polje i samo „." daju `null` a ne 0 — jer
+komponente razlikuju „nije upisano" od upisane nule (zgibovi bez tega su stvarno
+0 kg). Sadržaj polja se prepisuje samo kad se stvarno promijenio, da kursor ne
+skače na kraj pri svakom otkucanom znaku.
+
+Upotreba: `<input appNumField />` za kilažu (dozvoljena decimala),
+`<input appNumField="integer" />` za ponavljanja, serije i visinu.
+
+Prevedeno je **svih 15 brojčanih polja** u aplikaciji — `type="number"` više ne
+postoji nigdje u `src/app`. Uz pretvaranje su uklonjeni `min`, `step` i ručno
+upisan `inputmode`, jer na tekstualnom polju ne rade ništa i samo obmanjuju onoga
+ko čita šablon.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/num-field.directive.ts` — novo: direktiva sa `clean()` (zarez u
+  tačku, izbacivanje svega što nije cifra ili jedina decimalna tačka) i `parse()`
+  (prazno → `null`); komentar na vrhu objašnjava zašto se odustalo od `type="number"`
+- `src/app/components/training/training.component.html:216,218,241,243,270,282,333,338`
+  — osam polja: izmjena serije, dropset, upis nove serije, modal za ciljeve
+- `src/app/components/profile/profile.component.html:51,55,367` — visina i težina u
+  izmjeni profila, plus polje u modalu za upis težine
+- `src/app/components/dashboard/dashboard.component.html:324,325` — ciljne serije i
+  ponavljanja u biraču vježbi
+- `src/app/components/register/register.component.html:25,30` — težina i visina pri
+  registraciji
+- `src/app/app.module.ts:18,46` — direktiva je standalone, pa ide u `imports` (za
+  komponente pisane u NgModule stilu)
+- `src/app/components/register/register.component.ts:8,13` — `register` je standalone
+  komponenta, pa direktivu mora uvesti posebno
+
+**Efekat:** Provjereno u pregledaču, na ekranu treninga i u modalu za težinu u
+profilu: polje za kilažu je `type="text"` sa `inputmode="decimal"`, polje za
+ponavljanja sa `inputmode="numeric"` — dakle telefon otvara numeričku tastaturu
+odmah, bez prebacivanja. Unos: „85,5" → 85.5, „85.5" → 85.5, „8,5,7" → 8.57,
+„85a" → 85; u polju za ponavljanja „1,2" → 12, jer se separator tu uopšte ne prima.
+Upis serije kroz Enter prošao je do kraja — sačuvano 72.5 kg × 9. U profilu „84,3"
+→ 84.3. Zarez više nigdje ne guta unos.
+
+**Napomene:** Prikaz namjerno ostaje sa tačkom iako se unos smije kucati zarezom.
+Mijenjati ispis na zarez značilo bi dirati i sve ostale prikaze brojeva u
+aplikaciji — serije, grafikone, rekorde — a to nije traženo.
+
+Pošto polja više nisu `type="number"`, pregledač na njima ne radi nikakvu svoju
+provjeru (`min`, `step`). Granice i dalje provjerava kod u komponentama (npr.
+kilaža 0–1000 u `saveLog`), kao i do sada.

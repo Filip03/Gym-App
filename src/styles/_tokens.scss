@@ -62,6 +62,18 @@
   --t-xs:   0.75rem;    // 12px
   --t-sm:   0.8125rem;  // 13px
   --t-base: 0.9375rem;  // 15px — osnovni tekst
+
+  // Donja granica veličine teksta U POLJIMA ZA UNOS.
+  //
+  // Safari na iPhoneu sam zumira stranicu kad se fokusira polje čiji je tekst
+  // manji od 16px — a poslije ne vrati zum nazad, pa se cijela aplikacija
+  // razmakne i mora se ručno odzumirati. Naš osnovni tekst je 15px, pa je to
+  // pogađalo bukvalno svako kucanje.
+  //
+  // Na mišu se ništa ne mijenja (0px ne podiže ništa kroz `max()`), a na dodiru
+  // se svako polje diže na 16px. Polja koja imaju svoju veličinu moraju je
+  // propustiti kroz `max(..., var(--t-field-min))` — inače opet zumira.
+  --t-field-min: 0px;
   --t-md:   1.0625rem;  // 17px
   --t-lg:   clamp(1.25rem, 1rem + 1.2vw, 1.5rem);
   --t-xl:   clamp(1.5rem, 1.1rem + 2vw, 2rem);
@@ -130,6 +142,10 @@
 }
 
 // Poštuj sistemsku postavku za smanjen pokret.
+@media (pointer: coarse) {
+  :root { --t-field-min: 16px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --d-fast: 1ms;
