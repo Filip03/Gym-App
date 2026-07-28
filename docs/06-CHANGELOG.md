@@ -2399,7 +2399,7 @@ tanji bočni razmak), dugmad uža (26px). Redni broj serije se u koloni ne ispis
 oznaka „L+D" u formi za dropset u koloni ostaje samo u `title` atributu; za tekst
 nema mjesta u jednom redu.
 
-**5. Nove i noge.** `SessionExercice` dobija polje `isLegs`. Upit sesije sada uz
+**5. Ruke ili noge.** `SessionExercice` dobija polje `isLegs`. Upit sesije sada uz
 vježbu povlači i njene mišićne grupe (`exercice_muscle → muscle_group.name`), a
 nogom se smatra svaka vježba čija grupa u nazivu sadrži „leg". Kod takvih vježbi
 oznaka i meni govore o **nogama** umjesto o rukama, a uz njih stoji silueta noge
@@ -2419,7 +2419,7 @@ nogu, a zamjene koje ima nijesu dobre.
 - `src/app/components/training/training.component.scss:441,446,449` — grupa,
   omotač i pilula uzimaju punu širinu kolone
 - `src/app/components/training/training.component.scss:450,456` — zbijeniji
-  `padding` i razmaci u pilili u koloni, uži redni broj
+  `padding` i razmaci unutar pilule u koloni, uži redni broj
 - `src/app/components/training/training.component.scss:461,462` —
   `.exercice-meta` se prelama, stavke su cjeline
 - `src/app/components/training/training.component.scss:464,465` — uži rep za
