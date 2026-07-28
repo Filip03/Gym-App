@@ -2498,3 +2498,23 @@ oznakom na samoj grupi.
 brojeve, ali omogućava Enter tok koji je tražen; ako se pokaže da smeta,
 `keyboard="text"` se skida po polju. Red „trenira sada" kod jednoručnih vježbi
 broji svaku ruku kao seriju (L+D = 2) — evidentirano za kasnije usklađivanje.
+
+---
+
+## [2026-07-28] „Trenira sada" broji parove kod jednoručnih vježbi
+**Tip:** popravka
+**Ref:** napomena iz prethodnog unosa
+
+**Problem:** Red „trenira sada" je brojao redove iz `exercice_logs`, pa se kod
+jednoručne vježbe jedna odrađena serija (L+D, dva reda u bazi) vodila kao dvije
+— dok ekran treninga i brojka `2/3` broje parove.
+
+**Rješenje:** `getLiveSessions` broji različite ključeve `(vježba, redni broj)`
+umjesto redova; strana ne ulazi u ključ, pa L1 i D1 padnu na isti par. Dvoručne
+serije imaju svaka svoj redni broj, pa se za njih ništa ne mijenja.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/leaderboard.service.ts` — upit povlači i `exercice_id`,
+  `set_number`, `side`; brojanje preko skupa ključeva
+
+**Efekat:** Provjereno: par 12kg×3 (L+D) se sada vodi kao „1 serija".
