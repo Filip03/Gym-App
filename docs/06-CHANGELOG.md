@@ -1911,3 +1911,70 @@ samo u radnoj seriji.
 provjere promjena. Posao je `find` po nekoliko serija plus `slice`, i isto tako
 već rade `echoFor` i `echoPlaceholder` — dosljedno je postojećem kodu. Ali ako se
 lista serija ikad znatno poveća, ovo je mjesto koje se prvo osjeti.
+
+---
+
+## [2026-07-28] Upit za duh prošlog treninga dobio granicu
+**Tip:** refaktor
+**Ref:** —
+
+**Problem:** `getEcho` je bio **jedan** upit sa `.in('exercice_id', [...])` i **bez
+ikakve granice**. Takav upit povuče cijelu istoriju korisnika za svih desetak
+vježbi tog dana, poređanu po datumu opadajuće, a onda se u pregledaču zadrži samo
+najskoriji datum po vježbi i sve ostalo baci.
+
+Odbačeni dio raste zauvijek. Ko vježbu radi jednom sedmično, za godinu ima oko 150
+redova po vježbi — dakle oko **1.500 redova povučenih pri svakom otvaranju ekrana
+treninga**, da bi se zadržalo tridesetak. Za dvije godine dvostruko, i tako dalje.
+Najgore se osjeti tačno tamo gdje se taj ekran i otvara: u teretani, na slaboj
+vezi.
+
+Vrijedi naglasiti šta ovo **nije**: ne zavisi od broja korisnika. Upit filtrira po
+`user_id`, pa tuđi treninzi u njega ne ulaze — raste samo sopstvena istorija.
+
+**Rješenje:** Nova privatna metoda `lastTrainingSets(userId, exerciceId,
+beforeDate)` radi jedan upit **po vježbi**, sa `.limit(ECHO_ROW_LIMIT)` (nova
+konstanta, 20). `getEcho` te upite pušta uporedo kroz `Promise.all` i iz svakog
+rezultata uzima samo redove čiji je datum jednak datumu prvog reda — a prvi red
+je, po redoslijedu, najskoriji trening te vježbe.
+
+Traženi redoslijed je `(user_id, exercice_id, date desc)`, što je tačno ono što
+postojeći indeks `exercice_logs_user_exercice_date_idx` već pokriva. U bazu se,
+dakle, ne dodaje ništa.
+
+**Zašto ne RPC:** PostgREST ne zna „po jedan najnoviji iz svake grupe" u jednom
+upitu — za to bi trebao `DISTINCT ON`, dakle nova migracija koja se mora ručno
+pustiti i na cloud. Pošto na cloudu već čeka nekoliko nepuštenih migracija,
+izabrano je rješenje koje ne traži ništa novo u bazi. RPC ostaje kao opcija ako
+broj uporednih upita ikad zasmeta.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts:64` — nova konstanta `ECHO_ROW_LIMIT = 20`,
+  sa komentarom šta granica smije da odsiječe
+- `src/app/services/training.service.ts:572` — `getEcho` više ne obrađuje jedan
+  ravan spisak redova nego rezultate `Promise.all` po vježbi; iz svakog uzima
+  redove do prve promjene datuma
+- `src/app/services/training.service.ts:627` — nova privatna metoda
+  `lastTrainingSets`, sa komentarom koji objašnjava zašto po vježbi i zašto ne RPC
+
+**Efekat:** Provjereno u pregledaču. Napravljena su tri istorijska treninga iste
+vježbe — prije 1, 3 i 10 dana, pri čemu onaj od prije jednog dana ima dva dropseta
+na prvoj seriji. `getEcho` vraća samo trening od prije jednog dana, sa obje serije
+i oba dropseta, a ekran ih ispravno crta kao duhove. Stariji treninzi se više ni
+ne prenose. Probni podaci su obrisani.
+
+Za korisnika se ništa ne mijenja u prikazu — mijenja se koliko se čeka da se
+prikaz pojavi, i to sve više što istorija bude duža.
+
+**Napomene:** Granica od 20 mora biti veća od broja serija koje neko odradi na
+jednoj vježbi u jednom danu. Realno je to do desetak, pa 20 ostavlja prostora. Ko
+bi u jednom danu upisao više od 20 serija iste vježbe, duh bi mu pokazao prvih 20
+— sam trening je i dalje ispravno upisan, samo se ostatak ne bi vidio kao duh.
+
+Sada je desetak sitnih uporednih upita umjesto jednog velikog. Preko HTTP/2 idu
+kroz istu vezu, pa se ne plaća nova veza po upitu; ako se ikad pokaže da je to na
+lošoj vezi gore od jednog odgovora, alternativa je RPC iz prethodnog pasusa.
+
+Dropsetovi za duh se i dalje dovlače jednim upitom (`attachEchoDropsets`), i to
+samo za serije koje su preživjele izbor — oni, dakle, nikad nisu ni bili
+neograničeni.

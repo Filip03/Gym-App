@@ -53,6 +53,16 @@ export interface EchoSet {
   dropsets: EchoDropset[];
 }
 
+/**
+ * Koliko redova najviše povući po vježbi kad se traži prethodni trening.
+ *
+ * Mora biti veće od broja serija koje neko odradi na jednoj vježbi u jednom
+ * danu. Realno je to do desetak; 20 ostavlja prostora. Ko bi u jednom danu
+ * upisao više od 20 serija iste vježbe, duh bi mu pokazao prvih 20 — ostatak
+ * treninga je i dalje ispravan, samo se ne bi vidio kao duh.
+ */
+const ECHO_ROW_LIMIT = 20;
+
 export interface Echo {
   date: string;
   sets: EchoSet[];
@@ -558,40 +568,79 @@ export class TrainingService {
     // Veza red-iz-baze → duh serije, da se dropsetovi poslije zakače na pravu.
     const byLogId = new Map<string, EchoSet>();
 
-    const { data, error } = await this.supabase.client
-      .from('exercice_logs')
-      .select('id, exercice_id, date, set_number, reps, weight')
-      .eq('user_id', userId)
-      .in('exercice_id', exerciceIds)
-      .lt('date', beforeDate)
-      .order('date', { ascending: false })
-      .order('set_number', { ascending: true });
+    // Jedan upit PO VJEŽBI, svaki sa granicom — vidi `lastTrainingSets`.
+    const perExercice = await Promise.all(
+      exerciceIds.map(id => this.lastTrainingSets(userId, id, beforeDate))
+    );
 
-    if (error) throw error;
+    for (const rows of perExercice) {
+      if (rows.length === 0) continue;
 
-    for (const row of (data ?? []) as any[]) {
-      const existing = result.get(row.exercice_id);
+      // Redovi su poređani od najnovijeg datuma, pa je prvi red taj trening.
+      const date = rows[0].date;
+      const sets: EchoSet[] = [];
 
-      // Redovi stižu od najnovijeg datuma; čim naiđe stariji datum za istu
-      // vježbu, prethodni trening je već kompletan.
-      if (existing && existing.date !== row.date) continue;
+      for (const row of rows) {
+        if (row.date !== date) break;   // stigli smo do starijeg treninga
 
-      if (!existing) {
-        result.set(row.exercice_id, { date: row.date, sets: [] });
+        const set: EchoSet = {
+          setNumber: row.set_number,
+          reps: row.reps,
+          weight: row.weight,
+          dropsets: []
+        };
+        sets.push(set);
+        byLogId.set(row.id, set);
       }
 
-      const set: EchoSet = {
-        setNumber: row.set_number,
-        reps: row.reps,
-        weight: row.weight,
-        dropsets: []
-      };
-      result.get(row.exercice_id)!.sets.push(set);
-      byLogId.set(row.id, set);
+      result.set(rows[0].exercice_id, { date, sets });
     }
 
     await this.attachEchoDropsets(byLogId);
     return result;
+  }
+
+  /**
+   * Serije POSLJEDNJEG treninga jedne vježbe prije zadatog datuma.
+   *
+   * ZAŠTO PO VJEŽBI, A NE JEDNIM UPITOM ZA SVE
+   *
+   * Ranije je ovo bio jedan upit sa `.in(exercice_id, [...])` i BEZ granice: on
+   * povuče cijelu istoriju korisnika za svih desetak vježbi tog dana, pa se u
+   * pregledaču zadrži samo najskoriji datum i sve ostalo baci.
+   *
+   * Odbačeno raste zauvijek. Ko vježbu radi jednom sedmično, za godinu ima oko
+   * 150 redova po vježbi — dakle oko 1.500 redova povučenih pri svakom otvaranju
+   * ekrana treninga, da bi se zadržalo tridesetak. Za dvije godine dvostruko.
+   * Upravo to se najgore osjeti tamo gdje se ekran i otvara: u teretani, na
+   * slaboj vezi.
+   *
+   * PostgREST ne zna „po jedan najnoviji iz svake grupe" u jednom upitu — za to
+   * bi trebao `DISTINCT ON` kroz RPC, dakle nova migracija koja se mora ručno
+   * pustiti i na cloud. Ovo isto ograničava posao, a ne traži ništa novo u bazi:
+   * po vježbi se traži najviše `ECHO_ROW_LIMIT` redova, i to tačno onim
+   * redoslijedom koji indeks `(user_id, exercice_id, date desc)` već pokriva.
+   *
+   * Upiti idu uporedo i svaki je sitan, pa je i na lošoj vezi ovo jeftinije od
+   * jednog velikog odgovora.
+   */
+  private async lastTrainingSets(
+    userId: string,
+    exerciceId: string,
+    beforeDate: string
+  ): Promise<any[]> {
+    const { data, error } = await this.supabase.client
+      .from('exercice_logs')
+      .select('id, exercice_id, date, set_number, reps, weight')
+      .eq('user_id', userId)
+      .eq('exercice_id', exerciceId)
+      .lt('date', beforeDate)
+      .order('date', { ascending: false })
+      .order('set_number', { ascending: true })
+      .limit(ECHO_ROW_LIMIT);
+
+    if (error) throw error;
+    return (data ?? []) as any[];
   }
 
   /**
