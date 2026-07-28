@@ -1673,3 +1673,873 @@ Podešavanja → Safari → Napredno → Podaci sajtova → ukloniti tu adresu.
 Drugi i treći dropset u istoj grupi kače se spojnicom za dropset iznad sebe, a ne
 za samu seriju. Za dva-tri dropseta to se čita kao lanac i radi; da ih bude više,
 trebalo bi povući jednu neprekidnu okomitu liniju kroz cijelu grupu.
+
+---
+
+## [2026-07-28] Kucanje na iPhoneu bez zumiranja; Enter vodi kroz polja; dev server na LAN adresi
+**Tip:** popravka
+**Ref:** —
+
+**Problem:** Tri stvari, sve iz stvarne upotrebe na telefonu.
+
+1. **Svako kucanje je zumiralo cijelu aplikaciju.** Safari na iPhoneu sam zumira
+   stranicu čim se fokusira polje za unos čiji je tekst manji od 16px — i poslije
+   ne vrati zum nazad. Naš osnovni tekst (`--t-base`) je 15px, pa je pod to
+   potpadalo bukvalno svako polje u aplikaciji: dodir na kilažu razmakne ekran, i
+   korisnik mora ručno da odzumira da bi vidio ostatak stranice. Usred serije.
+2. **Enter u polju za kilažu nije radio ništa.** Polja nisu unutar `<form>`, pa
+   nema podrazumijevanog slanja — pritisak na Enter je padao u prazno, a od
+   kilaže do ponavljanja i do dugmeta Sačuvaj išlo se isključivo dodirom/mišem.
+3. **Aplikacija se nije mogla otvoriti sa telefona.** `ng serve` se podrazumijevano
+   vezuje samo za `localhost`, pa telefon na istoj Wi-Fi mreži ne dobija ništa na
+   LAN adresi. Rješavalo se ručnim zastavicama pri pokretanju, što se gubilo pri
+   svakom novom pokretanju — a telefon je primarni uređaj za probanje ovoga.
+
+**Rješenje:**
+
+**1.** Nov token `--t-field-min`: `0px` podrazumijevano, `16px` unutar
+`@media (pointer: coarse)`. Svako pravilo koje postavlja veličinu teksta u polju
+propušta je kroz `max(..., var(--t-field-min))`. Na mišu `max()` ne podiže ništa
+pa se izgled ne mijenja ni za piksel; na dodiru se svako polje diže na 16px i
+Safari nema razloga da zumira.
+
+Nije rađeno preko `maximum-scale=1` u viewport meta tagu, iako je to jedna linija
+umjesto sedam fajlova: time se gasi i pinch-zoom samom korisniku (a treba mu, npr.
+da uveća sliku vježbe), i noviji iOS ga ionako ne poštuje pouzdano.
+
+Zašto je moralo u više fajlova: stilovi komponenti se ubacuju **poslije** globalnih,
+pa bi svako pravilo u komponenti koje prosto postavi svoju veličinu pregazilo ono iz
+`_base.scss` i to polje bi opet zumiralo. Zato takvo pravilo ne smije da postavi
+vrijednost, nego mora da je propusti kroz `max()`. Pravilo za dalje: **kad postavljaš
+`font-size` na `input`/`textarea`/`select`, umotaj ga u `max(..., var(--t-field-min))`.**
+
+**2.** `(keydown.enter)` na polja: kilaža → fokus na ponavljanja, ponavljanja →
+čuvanje. Ide preko lokalnih referenci u šablonu (`#logReps`, `#editReps`,
+`#dropReps`, `#targetReps`), bez ijedne linije u `.ts`. Pokriveni su sva tri
+obrasca na ekranu treninga — upis nove serije, izmjena postojeće serije, dropset —
+i modal za ciljeve (serije → ponavljanja → čuvanje).
+
+**3.** `serve.options` u `angular.json` dobio `"host": "0.0.0.0"` i
+`"allowedHosts": ["all"]`, pa `npm start` bez ikakvih zastavica sluša na svim
+mrežnim adresama i prima zahtjev sa LAN adrese.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_tokens.scss:65` — nov token `--t-field-min: 0px`, sa komentarom
+  zašto postoji i šta se od pravila očekuje
+- `src/styles/_tokens.scss:145` — `@media (pointer: coarse)` diže ga na `16px`
+- `src/styles/_base.scss:120` — globalno pravilo za `input, textarea, select, button`:
+  `font-size: max(var(--t-base), var(--t-field-min))`
+- `src/app/components/training/training.component.scss:343` — `.set-edit input`
+  (red za izmjenu serije i obrazac za dropset) propušta `--t-sm` kroz `max()`
+- `src/app/components/training/training.component.scss:1061` — `.note-box textarea`
+  isto
+- `src/app/components/dashboard/dashboard.component.scss:269,365,447` — tri pravila
+  sa hardkodiranim veličinama (`.form-group input/textarea/select` 0.95rem,
+  `.create-day-card select` 0.9rem, `.exercice-picker-inputs input` 0.85rem)
+  propuštena kroz `max()`
+- `src/app/components/training/training.component.html:217,219` — Enter u redu za
+  izmjenu serije
+- `src/app/components/training/training.component.html:242,244` — Enter u obrascu
+  za dropset
+- `src/app/components/training/training.component.html:272,284` — Enter u obrascu
+  za upis nove serije
+- `src/app/components/training/training.component.html:334,339` — Enter u modalu
+  za ciljeve
+- `angular.json:91` — `serve.options` dobio `host` i `allowedHosts`
+
+**Efekat:** Na iPhoneu se pri kucanju ekran više ne razmiče — cijela serija se
+upiše bez ijednog ručnog odzumiranja. Na računaru se nije promijenilo ništa: ni
+jedna veličina teksta, ni jedan raspored, jer `max(x, 0px)` uvijek vrati `x`. Na
+tastaturi se serija upisuje bez skidanja ruku: kilaža, Enter, ponavljanja, Enter.
+I `npm start` je sada dovoljan da se aplikacija otvori sa telefona na
+`http://<IP-računara>:4300`, bez dopisivanja zastavica.
+
+**Napomene:** Enter na iPhoneu praktično ne radi. Polja su u međuvremenu prestala
+da budu `type="number"` (vidi naredni unos od istog dana, o numeričkoj tastaturi i
+zarezu), ali zaključak ostaje isti: `inputmode="numeric"` i `inputmode="decimal"`
+na iPhoneu otvaraju numeričku tastaturu koja **nema** taster za novi red —
+dobitak je za računar i iPad, dok na telefonu i dalje ostaje dugme Sačuvaj. Nije
+regresija, ali ne treba očekivati da se osjeti baš tamo gdje se najviše kuca.
+
+`--t-field-min` gađa `(pointer: coarse)`, dakle sve dodirne uređaje, ne samo iOS.
+Android Chrome ne zumira pri fokusu pa mu 16px u polju nije potrebno; ne smeta —
+polja na dodirnim ekranima su ionako veća od teksta u njima.
+
+`"allowedHosts": ["all"]` znači da dev server prima zahtjev sa bilo kojim `Host`
+zaglavljem. Za lokalnu mrežu je u redu; tiče se isključivo `serve`, produkcijski
+build to ne nosi.
+
+---
+
+## [2026-07-28] Brojčana polja: numerička tastatura na telefonu i prihvatanje zareza
+**Tip:** popravka
+**Ref:** nastavak unosa od istog dana
+
+**Problem:** Dvije stvari koje su se pokazale u upotrebi, obje sa telefona.
+
+1. **Tastatura.** `type="number"` na iPhoneu otvara punu tastaturu sa slovima, pa
+   se za dvocifren broj prvo mora prebacivati na brojeve — usred serije. `inputmode`
+   to rješava, ali ga pregledači na `type="number"` ignorišu ili se ponašaju
+   različito, pa se na njega nije moglo osloniti.
+2. **Zarez — gore i tiho.** `type="number"` **odbacuje** svaki sadržaj koji ne umije
+   da pročita kao broj, a zarez u to spada. Kome numerički raspored tastature nudi
+   zarez umjesto tačke — što zavisi od regiona telefona — otkuca „85,5" i polje
+   ostane **prazno**, bez ijedne poruke. Izgleda kao da aplikacija ne prima unos.
+   To se desilo Filipu.
+
+**Rješenje:** Nova direktiva `NumFieldDirective`, standalone, koja je
+`ControlValueAccessor` — dakle `[(ngModel)]` i dalje dobija **broj**, pa se u
+komponentama ne mijenja nijedna linija logike. Direktiva sama postavlja
+`type="text"`, `inputmode` (`decimal` ili `numeric`) i `autocomplete="off"`, da se
+to ne može zaboraviti na nekom polju. Zarez i tačka su ravnopravni na ulazu; prikaz
+ostaje sa tačkom, kako se broj ispisuje i drugdje u aplikaciji. Druga tačka se
+odbacuje, slova se odbacuju, a prazno polje i samo „." daju `null` a ne 0 — jer
+komponente razlikuju „nije upisano" od upisane nule (zgibovi bez tega su stvarno
+0 kg). Sadržaj polja se prepisuje samo kad se stvarno promijenio, da kursor ne
+skače na kraj pri svakom otkucanom znaku.
+
+Upotreba: `<input appNumField />` za kilažu (dozvoljena decimala),
+`<input appNumField="integer" />` za ponavljanja, serije i visinu.
+
+Prevedeno je **svih 15 brojčanih polja** u aplikaciji — `type="number"` više ne
+postoji nigdje u `src/app`. Uz pretvaranje su uklonjeni `min`, `step` i ručno
+upisan `inputmode`, jer na tekstualnom polju ne rade ništa i samo obmanjuju onoga
+ko čita šablon.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/num-field.directive.ts` — novo: direktiva sa `clean()` (zarez u
+  tačku, izbacivanje svega što nije cifra ili jedina decimalna tačka) i `parse()`
+  (prazno → `null`); komentar na vrhu objašnjava zašto se odustalo od `type="number"`
+- `src/app/components/training/training.component.html:216,218,241,243,270,282,333,338`
+  — osam polja: izmjena serije, dropset, upis nove serije, modal za ciljeve
+- `src/app/components/profile/profile.component.html:51,55,367` — visina i težina u
+  izmjeni profila, plus polje u modalu za upis težine
+- `src/app/components/dashboard/dashboard.component.html:324,325` — ciljne serije i
+  ponavljanja u biraču vježbi
+- `src/app/components/register/register.component.html:25,30` — težina i visina pri
+  registraciji
+- `src/app/app.module.ts:18,46` — direktiva je standalone, pa ide u `imports` (za
+  komponente pisane u NgModule stilu)
+- `src/app/components/register/register.component.ts:8,13` — `register` je standalone
+  komponenta, pa direktivu mora uvesti posebno
+
+**Efekat:** Provjereno u pregledaču, na ekranu treninga i u modalu za težinu u
+profilu: polje za kilažu je `type="text"` sa `inputmode="decimal"`, polje za
+ponavljanja sa `inputmode="numeric"` — dakle telefon otvara numeričku tastaturu
+odmah, bez prebacivanja. Unos: „85,5" → 85.5, „85.5" → 85.5, „8,5,7" → 8.57,
+„85a" → 85; u polju za ponavljanja „1,2" → 12, jer se separator tu uopšte ne prima.
+Upis serije kroz Enter prošao je do kraja — sačuvano 72.5 kg × 9. U profilu „84,3"
+→ 84.3. Zarez više nigdje ne guta unos.
+
+**Napomene:** Prikaz namjerno ostaje sa tačkom iako se unos smije kucati zarezom.
+Mijenjati ispis na zarez značilo bi dirati i sve ostale prikaze brojeva u
+aplikaciji — serije, grafikone, rekorde — a to nije traženo.
+
+Pošto polja više nisu `type="number"`, pregledač na njima ne radi nikakvu svoju
+provjeru (`min`, `step`). Granice i dalje provjerava kod u komponentama (npr.
+kilaža 0–1000 u `saveLog`), kao i do sada.
+
+---
+
+## [2026-07-28] Duh prošlog treninga sada obuhvata i dropsetove
+**Tip:** funkcionalnost
+**Ref:** —
+
+**Problem:** Ekran treninga već pokazuje „duh" prošlog treninga — serije koje su
+prošli put odrađene stoje blijedo dok se ne ponove, pa se u toku treninga zna
+prema čemu se radi. Dropsetovi u tome nisu učestvovali: prošli dropset se nije
+vidio nigdje. U teretani se, dakle, za dropset nije imalo prema čemu raditi —
+čovjek se morao sjećati sa koliko je kilograma prošli put išao u drop.
+
+**Rješenje:** Tri dijela.
+
+**1. Servis donosi dropsetove uz duh.** `getEcho` sada uz svaku seriju prethodnog
+treninga vraća i njene dropsetove. Nov tip `EchoDropset`, a `EchoSet` je dobio
+polje `dropsets`.
+
+Dropsetovi se dovlače **zasebnim upitom** (nova privatna metoda
+`attachEchoDropsets`), a ne ugniježđenim `select`-om. Razlog: `getEcho` čita
+serije za **sve** vježbe dana pa zadržava samo najskoriji datum po vježbi —
+ugniježđeni upit bi, dakle, povlačio dropsetove i za sve one treninge koji se
+odmah odbacuju. Zato upit sada bira i `id` reda iz `exercice_logs`, i drži se
+veza red → duh serije, da bi se dropsetovi poslije zakačili na pravu seriju.
+
+**2. Komponenta zna koliko duhova još stoji.** Nova metoda
+`ghostDropsets(ex, setNumber, doneCount)` vraća prošle dropsetove te serije
+umanjene za onoliko koliko je danas već upisano — `prev.slice(doneCount)`. To je
+ono što daje ponašanje „upisani staje na mjesto duha": kad se upiše prvi dropset,
+prvi duh nestaje, a ostali ostaju.
+
+**3. Šablon crta duhove uz obje vrste serija.** Uz svaku današnju seriju, iza
+stvarnih dropsetova, crtaju se blijedi duhovi. Serije koje danas još nisu
+odrađene više nisu obična pilula nego `.set-group`, pa i njihovi dropsetovi vise
+ispod njih sa istom spojnicom kao kod odrađenih serija. Zbog toga se skrivanje
+već odrađene serije premjestilo sa same pilule (`.set.ghost.hidden`) na grupu
+(`.set-group.hidden`).
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts:42` — nov tip `EchoDropset`
+- `src/app/services/training.service.ts:53` — `EchoSet` dobio `dropsets`
+- `src/app/services/training.service.ts:559,563,590,593` — `getEcho` bira i `id`
+  reda i drži vezu red → duh serije, pa na kraju zove `attachEchoDropsets`
+- `src/app/services/training.service.ts:604` — nova privatna metoda
+  `attachEchoDropsets`, sa komentarom zašto ide zasebnim upitom
+- `src/app/components/training/training.component.ts:350` — nova
+  `ghostDropsets(ex, setNumber, doneCount)`
+- `src/app/components/training/training.component.html:242` — duhovi dropsetova
+  uz današnju, već upisanu seriju
+- `src/app/components/training/training.component.html:267` — duh serije je sada
+  `.set-group`, sa svojim dropsetovima ispod
+- `src/app/components/training/training.component.scss:325` — skrivanje
+  odrađene serije prešlo sa `.set.ghost.hidden` na `.set-group.hidden`
+- `src/app/components/training/training.component.scss:405` — nova pravila
+  `.set.dropset.ghost`: isprekidan okvir i boja `--echo`, jer duh dropseta mora
+  biti bljeđi i od običnog dropseta i od duha serije — stoji odmah uz oba
+- `src/app/components/training/training.component.scss:413` — spojnica ka duhu
+  koristi `--line` umjesto `--line-strong`, kao grana koja tek čeka
+
+**Efekat:** Provjereno u pregledaču nad napravljenim prošlim treningom (serija 1:
+60 kg × 10 sa dva dropseta, 40×8 i 25×6; serija 2: 60 kg × 8 sa jednim
+dropsetom, 35×7). Prije ijednog upisa oba duha dropseta vise ispod duha serije 1,
+a treći ispod duha serije 2. Poslije upisa serije 1 i **jednog** dropseta
+(42 kg × 8) upisani dropset je zamijenio prvi duh i prikazuje se jasno, dok je
+drugi duh (25 kg × 6) ostao blijed ispod njega. Duh serije 2 i njen dropset
+ostaju netaknuti. Ukratko: u teretani se sada vidi i koliko je bilo u dropu, ne
+samo u radnoj seriji.
+
+**Napomene:** `ghostDropsets` se poziva iz šablona, dakle pri svakom ciklusu
+provjere promjena. Posao je `find` po nekoliko serija plus `slice`, i isto tako
+već rade `echoFor` i `echoPlaceholder` — dosljedno je postojećem kodu. Ali ako se
+lista serija ikad znatno poveća, ovo je mjesto koje se prvo osjeti.
+
+---
+
+## [2026-07-28] Upit za duh prošlog treninga dobio granicu
+**Tip:** refaktor
+**Ref:** —
+
+**Problem:** `getEcho` je bio **jedan** upit sa `.in('exercice_id', [...])` i **bez
+ikakve granice**. Takav upit povuče cijelu istoriju korisnika za svih desetak
+vježbi tog dana, poređanu po datumu opadajuće, a onda se u pregledaču zadrži samo
+najskoriji datum po vježbi i sve ostalo baci.
+
+Odbačeni dio raste zauvijek. Ko vježbu radi jednom sedmično, za godinu ima oko 150
+redova po vježbi — dakle oko **1.500 redova povučenih pri svakom otvaranju ekrana
+treninga**, da bi se zadržalo tridesetak. Za dvije godine dvostruko, i tako dalje.
+Najgore se osjeti tačno tamo gdje se taj ekran i otvara: u teretani, na slaboj
+vezi.
+
+Vrijedi naglasiti šta ovo **nije**: ne zavisi od broja korisnika. Upit filtrira po
+`user_id`, pa tuđi treninzi u njega ne ulaze — raste samo sopstvena istorija.
+
+**Rješenje:** Nova privatna metoda `lastTrainingSets(userId, exerciceId,
+beforeDate)` radi jedan upit **po vježbi**, sa `.limit(ECHO_ROW_LIMIT)` (nova
+konstanta, 20). `getEcho` te upite pušta uporedo kroz `Promise.all` i iz svakog
+rezultata uzima samo redove čiji je datum jednak datumu prvog reda — a prvi red
+je, po redoslijedu, najskoriji trening te vježbe.
+
+Traženi redoslijed je `(user_id, exercice_id, date desc)`, što je tačno ono što
+postojeći indeks `exercice_logs_user_exercice_date_idx` već pokriva. U bazu se,
+dakle, ne dodaje ništa.
+
+**Zašto ne RPC:** PostgREST ne zna „po jedan najnoviji iz svake grupe" u jednom
+upitu — za to bi trebao `DISTINCT ON`, dakle nova migracija koja se mora ručno
+pustiti i na cloud. Pošto na cloudu već čeka nekoliko nepuštenih migracija,
+izabrano je rješenje koje ne traži ništa novo u bazi. RPC ostaje kao opcija ako
+broj uporednih upita ikad zasmeta.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts:64` — nova konstanta `ECHO_ROW_LIMIT = 20`,
+  sa komentarom šta granica smije da odsiječe
+- `src/app/services/training.service.ts:572` — `getEcho` više ne obrađuje jedan
+  ravan spisak redova nego rezultate `Promise.all` po vježbi; iz svakog uzima
+  redove do prve promjene datuma
+- `src/app/services/training.service.ts:627` — nova privatna metoda
+  `lastTrainingSets`, sa komentarom koji objašnjava zašto po vježbi i zašto ne RPC
+
+**Efekat:** Provjereno u pregledaču. Napravljena su tri istorijska treninga iste
+vježbe — prije 1, 3 i 10 dana, pri čemu onaj od prije jednog dana ima dva dropseta
+na prvoj seriji. `getEcho` vraća samo trening od prije jednog dana, sa obje serije
+i oba dropseta, a ekran ih ispravno crta kao duhove. Stariji treninzi se više ni
+ne prenose. Probni podaci su obrisani.
+
+Za korisnika se ništa ne mijenja u prikazu — mijenja se koliko se čeka da se
+prikaz pojavi, i to sve više što istorija bude duža.
+
+**Napomene:** Granica od 20 mora biti veća od broja serija koje neko odradi na
+jednoj vježbi u jednom danu. Realno je to do desetak, pa 20 ostavlja prostora. Ko
+bi u jednom danu upisao više od 20 serija iste vježbe, duh bi mu pokazao prvih 20
+— sam trening je i dalje ispravno upisan, samo se ostatak ne bi vidio kao duh.
+
+Sada je desetak sitnih uporednih upita umjesto jednog velikog. Preko HTTP/2 idu
+kroz istu vezu, pa se ne plaća nova veza po upitu; ako se ikad pokaže da je to na
+lošoj vezi gore od jednog odgovora, alternativa je RPC iz prethodnog pasusa.
+
+Dropsetovi za duh se i dalje dovlače jednim upitom (`attachEchoDropsets`), i to
+samo za serije koje su preživjele izbor — oni, dakle, nikad nisu ni bili
+neograničeni.
+
+---
+
+## [2026-07-28] Praćenje lijeve i desne ruke kod jednoručnih vježbi
+**Tip:** funkcionalnost
+**Ref:** —
+
+**Problem:** Kod vježbi koje se rade jednom rukom — bočno podizanje, koncentracioni
+biceps i slične — jedna ruka je gotovo uvijek jača. Do sada je postojao samo
+**jedan upis po seriji**, pa se ta razlika nije mogla ni vidjeti ni pratiti kroz
+vrijeme: upiše se „10 kg × 12" i tu se izgubi podatak da je lijeva jedva izvukla
+deseto ponavljanje, a desna otišla do dvanaestog bez muke.
+
+**Rješenje:** Pet dijelova — baza, prekidač, prikaz, upis i sve ono što je serija
+već znala da radi (izmjena, brisanje, poređenje, duhovi, offline red).
+
+**1. Baza.** Nova migracija `20260728000000_unilateral.sql` donosi dvije kolone:
+
+- `exercices.is_unilateral` (boolean, `not null default false`) — da li se vježba
+  prati po stranama. Na nivou **vježbe**, ne treninga: ko jednom odluči da bočno
+  podizanje radi jednoruko, tako ga radi svaki put.
+- `exercice_logs.side` (text, uz `check` ograničenje) — `NULL` = obje ruke
+  zajedno (dosadašnje ponašanje i svi postojeći redovi), `'L'` = lijeva,
+  `'D'` = desna.
+
+Redni broj serije teče **odvojeno po strani**: L1, L2… i D1, D2… — jer se strana
+poredi sa svojom prošlom stranom, a ne sa onim što je u međuvremenu odradila
+druga ruka.
+
+Migracija je puštena lokalno. Na cloudu **mora prije deploya ovog koda**, i to je
+uslov jači nego kod ranijih migracija: aplikacija od sada šalje `side` pri
+**svakom** upisu serije (kod dvoručnih kao `null`), pa bi bez kolone pucao svaki
+upis, ne samo jednoručni. Isto važi i za samo otvaranje ekrana treninga, jer se
+`is_unilateral` čita u istom upitu kao naziv vježbe. Evidentirano u
+`supabase/cloud/README.md`, u tabeli i u pasusu ispod nje.
+
+**2. Prekidač.** U meniju vježbe na ekranu treninga stoji nova stavka
+„Prati ruke odvojeno (L/D)" (odnosno „Ne prati ruke odvojeno" kad je uključeno).
+Ide kroz novu servisnu metodu `setUnilateral`, dakle trajno je i važi za vježbu.
+Kad je uključeno, uz naziv vježbe stoji mala oznaka sa ikonom ruke i tekstom
+„L·D", da se na prvi pogled vidi zašto se serije crtaju drugačije.
+
+**3. Prikaz.** Umjesto jednog prelamajućeg reda serija, jednoručna vježba dobija
+**dva bloka** — red za L i red za D, svaki sa malom oznakom strane na početku.
+
+Da se markup ne bi duplirao, postojeća grupa serije (pilula + dropsetovi + duhovi
+dropsetova + obrazac za dropset) izvučena je u `ng-template` — `#setGroupTpl` za
+odrađenu seriju i `#ghostGroupTpl` za duh. Isti šablon se onda crta i u dvoručnom
+redu i u blokovima po ruci, kroz `*ngTemplateOutlet`. Sve što grupa serije zna da
+radi (izmjena, dropset, duh dropseta) time radi jednako u oba slučaja, i ostaće
+tako i pri narednim izmjenama — jer postoji samo jedno mjesto.
+
+Uz to je skrivanje već odrađenih duhova prešlo sa CSS klase (`.set-group.hidden`)
+na novu metodu `sideGhosts(ex, side)`, koja vraća samo one duhove te strane koji
+danas još nisu ponovljeni. Klasa je obrisana iz stilova.
+
+**4. Upis: jedan unos, dvije serije.** Kod jednoručne vježbe jedan unos u obrascu
+pravi **dvije** serije — L pa D, sa istim brojevima; u obrascu uz natpis serije
+stoji oznaka „L+D".
+
+Obrazloženje: druga ruka se **uvijek** odradi. Odvojen upis za svaku bi značio
+kucanje istog dvaput, na svakoj seriji, do kraja treninga. Ako je desna ipak
+uradila drugačije, dodirne se njena pilula i ispravi — to je već postojeća izmjena
+serije, ništa novo se za to nije pisalo.
+
+Zamka koja je uhvaćena pri probi i zaslužuje da se zapiše: `accept()` isprazni
+polja obrasca poslije prve strane, pa se vrijednosti (`reps`) hvataju u lokalne
+konstante **prije** petlje kroz strane. Bez toga upis za desnu ruku pročita `null`
+iz već očišćenog obrasca i baza ga odbije.
+
+**5. Sve ostalo što je serija znala.**
+
+- **Offline red.** `QueuedSet` je dobio polje `side`. Kad mreža pukne usred para,
+  u red idu **sve strane koje još nisu prošle** — da par ne ostane šepav, sa
+  upisanom lijevom i izgubljenom desnom.
+- **Brisanje.** Prenumeracija ide **unutar strane** sa koje je obrisano: brisanje
+  L2 pomjera L3 u L2 i ne dira nijednu D seriju. Kod dvoručnih je strana `null`,
+  pa je to isti posao kao i ranije.
+- **Poređenje sa prošlim treningom** (strelice gore/dolje) poredi istu stranu sa
+  istom stranom. Prošli **dvoručni** upis (`side` je `null`) važi kao referenca za
+  obje ruke — 10 kg × 12 sa obje bučice jeste 10 kg po ruci. Isto pravilo važi i
+  za duhove: ako prošli trening nema strane, isti duhovi se pokažu u oba bloka.
+- **Brojanje serija.** Nova metoda `doneCount(ex)`: par L+D je **jedna** serija za
+  `progressLabel` i `isComplete`. Uzima se jača strana, da brojka ne stane poslije
+  ručnog brisanja jedne pilule; parovi ionako nastaju zajedno.
+- **Duhovi dropsetova.** `EchoSet` je dobio `side`, a `ghostDropsets` više ne
+  prima broj serije i brojač nego cijelu seriju, pa traži duha sa iste strane.
+
+**Dodirnuti fajlovi:**
+- `supabase/migrations/20260728000000_unilateral.sql` — nova migracija:
+  `exercices.is_unilateral`, `exercice_logs.side` sa `check` ograničenjem i
+  komentarima kolona; pisana da se može pustiti i dvaput
+- `supabase/cloud/README.md:40` — migracija upisana u tabelu kao nepuštena na
+  cloudu, sa pasusom zašto je ovdje redoslijed obavezan (`side` se šalje pri
+  svakom upisu, `is_unilateral` se čita pri svakom otvaranju ekrana treninga)
+- `src/app/models/models.ts:72` — `ExerciceLog` dobio `side: 'L' | 'D' | null`
+- `src/app/services/training.service.ts:20` — `SessionExercice` dobio
+  `isUnilateral`
+- `src/app/services/training.service.ts:44` — nov tip `Side`
+- `src/app/services/training.service.ts:57` — `EchoSet` dobio `side`
+- `src/app/services/training.service.ts:99` — pošiljalac iz offline reda prosljeđuje
+  `side` u `insertLog`
+- `src/app/services/training.service.ts:215,250` — upit za sesiju čita
+  `is_unilateral` uz naziv i sliku vježbe, i puni `isUnilateral`
+- `src/app/services/training.service.ts:431` — nova metoda `setUnilateral`, sa
+  komentarom zašto je na nivou vježbe
+- `src/app/services/training.service.ts:449,463,476` — `logSet` i `insertLog`
+  primaju neobavezan `side` i upisuju ga (`?? null`)
+- `src/app/services/training.service.ts:617,662` — `getEcho` puni `side` u duh
+  serije, `lastTrainingSets` bira kolonu `side`
+- `src/app/services/offline-queue.service.ts:46` — `QueuedSet` dobio `side`
+- `src/app/components/training/training.component.ts:38` — `LoggedSet` dobio `side`
+- `src/app/components/training/training.component.ts:88` — `SIDES`, redoslijed
+  blokova (L pa D)
+- `src/app/components/training/training.component.ts:258` — `compare` prima stranu;
+  traži prošlu seriju iste strane, a dvoručnu (`null`) prihvata kao referencu za obje
+- `src/app/components/training/training.component.ts:341` — `echoFor` kod
+  jednoručnih predlaže lijevu stranu (ili prošli dvoručni upis)
+- `src/app/components/training/training.component.ts:351` — nova `setsFor(ex, side)`
+- `src/app/components/training/training.component.ts:360` — nova `doneCount(ex)`;
+  par L+D je jedna serija, uzima se jača strana
+- `src/app/components/training/training.component.ts:366` — `nextSetNumber` ide
+  preko `doneCount`
+- `src/app/components/training/training.component.ts:377` — nova
+  `sideGhosts(ex, side)`, sa pravilom o prošlom dvoručnom treningu
+- `src/app/components/training/training.component.ts:386` — nova
+  `toggleUnilateral(ex)`
+- `src/app/components/training/training.component.ts:407` — `ghostDropsets` prima
+  cijelu seriju i traži duha sa iste strane
+- `src/app/components/training/training.component.ts:423,428` — `progressLabel` i
+  `isComplete` broje preko `doneCount`
+- `src/app/components/training/training.component.ts:471` — `saveLog`: strane koje
+  se upisuju (`['L','D']` ili `[null]`) i `mkEntry(side)`
+- `src/app/components/training/training.component.ts:475` — `reps` u lokalnu
+  konstantu **prije** petlje, jer `accept` isprazni obrazac poslije prve strane
+- `src/app/components/training/training.component.ts:517,525,531` — offline upis,
+  petlja po stranama i pad mreže: u red idu sve strane koje još nisu prošle
+- `src/app/components/training/training.component.ts:608` — brisanje prenumeriše
+  samo serije iste strane
+- `src/app/components/training/training.component.html:118` — oznaka „L·D" uz naziv
+  vježbe
+- `src/app/components/training/training.component.html:162` — stavka menija
+  „Prati ruke odvojeno (L/D)"
+- `src/app/components/training/training.component.html:179` — `.sets` dobija klasu
+  `split` kod jednoručnih
+- `src/app/components/training/training.component.html:186,280` — grupa serije i
+  duh serije izvučeni u `#setGroupTpl` i `#ghostGroupTpl`
+- `src/app/components/training/training.component.html:298` — dvoručni prikaz: isti
+  prelamajući red kao do sada, sada kroz šablone
+- `src/app/components/training/training.component.html:308` — jednoručni prikaz:
+  serije upisane prije uključivanja praćenja stoje iznad, pa blok po ruci
+- `src/app/components/training/training.component.html:331` — oznaka „L+D" uz
+  natpis serije u obrascu
+- `src/app/components/training/training.component.scss:325` — obrisano
+  `.set-group.hidden`; skrivanje odrađenih duhova sada radi `sideGhosts`
+- `src/app/components/training/training.component.scss:396` — nova pravila za
+  blokove po ruci: `.sets.split` ide u kolonu, `.side-block`, `.side-tag`
+  (oznaka poravnata sa prvim redom pilula, ne sa sredinom bloka) i `.side-sets`
+  koji se i dalje prelama kao i dvoručni red
+- `src/app/components/training/training.component.scss:511,514` — ikona u oznaci
+  uz naziv vježbe i `.both-tag` („L+D" u obrascu, isprekidan okvir)
+
+**Efekat:** Provjereno u pregledaču na vježbi Lateral Raises. Praćenje uključeno
+iz menija vježbe; jedan unos 10 kg × 12 napravio je L1 i D1, drugi unos L2 i D2, a
+progres pokazuje **2/3** — dakle parovi, ne četiri serije. Izmjena D2 na 8
+ponavljanja ne dira lijevu stranu. Dropset na L1 radi kao i na svakoj drugoj
+seriji. Brisanje L1 prenumerisalo je L2 → L1, dok su D serije ostale netaknute.
+
+Nad jučerašnjim jednoručnim treningom (L: 12 i 10, D: 10 i 8, uz dropset na L1)
+duhovi se pokazuju po strani i nestaju kako se koja strana upisuje. Probni podaci
+su obrisani; praćenje na Lateral Raises je ostavljeno uključeno u lokalnoj bazi.
+
+**Napomene:** Rang lista i progres **ne razlikuju strane** — jednoručna serija
+ulazi kao i svaka druga, jer je kilaža kilaža. Posljedica koju treba znati: brojka
+„koliko puta je dignuto" kod jednoručnih vježbi broji svaku ruku posebno. Svjesno
+ostavljeno tako.
+
+Ako se praćenje uključi usred dana u kojem već ima dvoručnih upisa, oni ostaju
+vidljivi — stoje iznad blokova po ruci, kao serije bez strane.
+
+---
+
+## [2026-07-28] Ispravka: strelice poređenja po strani i poslije osvježavanja
+**Tip:** popravka
+**Ref:** nastavak unosa o jednoručnim vježbama
+
+**Problem:** Pri učitavanju ekrana (`hydrate`) se `compare` pozivao bez strane,
+pa su se L/D serije poredile samo sa prošlim dvoručnim upisima. Pri samom upisu
+je radilo ispravno (`accept` stranu prosljeđuje) — greška se vidjela tek nakon
+osvježavanja stranice: strelice u odnosu na prošli jednoručni trening nestanu.
+
+**Rješenje:** `compare` u `hydrate` dobija `l.side ?? null`, isto kao pri upisu.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.ts` — `hydrate`, poziv `compare`
+
+**Efekat:** Provjereno u pregledaču: juče L1 9 kg / D1 11 kg, danas obje strane
+po 10 kg → poslije osvježavanja lijeva pokazuje gore, desna dolje.
+
+---
+
+## [2026-07-28] Jednoručne vježbe: polovine umjesto blokova sa slovima; oznaka pri dodavanju vježbe
+**Tip:** popravka
+**Ref:** dorada unosa o jednoručnim vježbama, po povratnoj informaciji iz upotrebe
+
+**Problem:** Dvije stvari.
+
+1. Prikaz L/D blokova sa slovom i okomitom crtom na početku reda ocijenjen je
+   kao nezgrapan. Traženo: prostor serija podijeljen horizontalnom linijom —
+   gornja polovina lijeva ruka, donja desna — serije teku redom kao i inače,
+   bez ikakvih slova; prva serija gore odgovara prvoj dolje.
+2. Praćenje ruku se moglo uključiti samo iz menija vježbe na treningu. Pri
+   DODAVANJU vježbe u katalog nije postojala mogućnost da se odmah označi,
+   iako tamo već stoji ista takva oznaka za tjelesnu težinu.
+
+**Rješenje:**
+
+1. `.side-block`/`.side-tag`/`.side-sets` zamijenjeni jednim `.side-half` po
+   ruci: puna širina, prelamanje kao kod dvoručnih, a između polovina
+   isprekidana linija (`+` selektor). Redoslijed je dogovor: gore lijeva.
+   Naziv ruke ostaje u `title` atributu polovine.
+2. Forma „Nova vježba" dobila kvačicu „Radi se jednom rukom/nogom — prati se
+   lijeva i desna odvojeno", istim putem kao postojeća za tjelesnu težinu:
+   `newIsUnilateral` → `addExercice({ isUnilateral })` → `is_unilateral`.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html` — `.side-half` umjesto bloka sa oznakom
+- `src/app/components/training/training.component.scss` — stilovi polovina i linije
+- `src/app/components/exercices/exercices.component.html` — nova kvačica
+- `src/app/components/exercices/exercices.component.ts` — `newIsUnilateral`
+- `src/app/services/exercice.service.ts` — `isUnilateral` u `addExercice`
+- `src/app/models/models.ts` — `Exercice.is_unilateral`
+
+**Efekat:** Provjereno u pregledaču: dvije polovine sa isprekidanom linijom
+između, bez slova; kvačica u formi vidljiva i prosljeđuje vrijednost.
+
+**Napomene:** Migracija nije potrebna — kolona `exercices.is_unilateral` uvedena
+je ranije istog dana (`20260728000000_unilateral.sql`).
+
+---
+
+## [2026-07-28] Jednoručne vježbe u dvije kolone sa okomitom linijom; preslikavanje dropseta; redizajn forme za novu vježbu
+**Tip:** popravka
+**Ref:** zamjenjuje prethodni unos o polovinama sa horizontalnom linijom, po
+povratnoj informaciji iz upotrebe istog dana
+
+**Problem:** Četiri stvari, sve iz upotrebe na telefonu.
+
+1. **Podjela je bila u pogrešnom smjeru.** Horizontalna linija (gore lijeva ruka,
+   dolje desna) nije ono što je traženo — tražena je **okomita**: lijeva kolona
+   lijeva ruka, desna kolona desna, a serije jedna **ispod** druge. Razlog je
+   dvostruk: tako se troši manje prostora na telefonu, i dropsetovi se ljepše
+   nadovezuju ispod svoje serije nego kad serije teku u red.
+2. **Linija nije išla do dna.** Kad jedna kolona ima dropset a druga nema, kolone
+   se nijesu rastezale na istu visinu, pa je crta stajala kod kraće kolone.
+3. **Forma za izmjenu serije prelazila je preko druge kolone.** U jednom redu je
+   široka oko 280px, a kolona je na telefonu oko 145px.
+4. **Modal „Nova vježba" je bio van dizajna aplikacije.** Nativno „Choose File"
+   dugme, nativne kvačice i mišićne grupe kao raštrkani balončići — jedini ekran
+   koji se nije uklapao u ostatak.
+
+**Rješenje:**
+
+**1. Dvije kolone.** `.sets.split` je sada mreža sa dvije kolone
+`minmax(0, 1fr)`. Ključno je `align-items: stretch` — `.sets` inače poravnava na
+vrh, pa bez toga kolone ostanu različite visine i linija stane kod kraće. Sama
+`.side-half` više nije prelamajući red nego **flex kolona**, tako da serije idu
+jedna ispod druge. Linija između ruku je `border-left` na drugoj polovini.
+
+Serije upisane **prije** uključivanja praćenja ruku (bez strane) idu u novu
+`.side-full` koja se prostire preko obje kolone (`grid-column: 1 / -1`), da ne
+upadnu u mrežu kao da pripadaju nečijoj strani.
+
+**2. Da forma stane u kolonu.** Grupa serije je `inline-flex`, pa se širi po
+sadržaju i kolona je sama po sebi ne ograničava — otud `.side-half .set-group`
+dobija `max-width: 100%`. Uz to `.side-half .set-edit` ima `flex-wrap: wrap`, a
+polja `flex: 1 1 52px`: dugmad siđu u novi red, polja podijele širinu kolone.
+Provjereno mjerenjem — forma za izmjenu je tačno 145px, koliko i kolona na
+ekranu širine 390px.
+
+**3. Dropset se preslikava na drugu ruku.** Postavljeno je pitanje da li da
+dropset upisan na jednoj ruci automatski ode i na istu seriju druge — odgovor je
+**da**, istim principom kao i upis serije: jedan unos puni obje ruke. `saveDropset`
+zato sada prima i vježbu (`saveDropset(ex, set)`); kod jednoručne vježbe poslije
+upisa nađe seriju druge ruke sa istim brojem (`setNumber`, suprotna strana, ne
+`pending`) i upiše isti dropset i njoj. U formi za dropset stoji oznaka „L+D",
+sa objašnjenjem u `title`.
+
+Ista zamka kao kod upisa serije: vrijednosti (`reps`, `weight`) hvataju se u
+lokalne konstante **prije** upisa, jer se forma u međuvremenu očisti.
+
+Ako druga ruka nije radila drop, njen se briše jednim dodirom na X — jeftinije
+nego kucati isto dvaput na svakoj seriji.
+
+**4. Modal „Nova vježba" u stilu aplikacije.**
+
+- **Slika.** Nativno file polje je sakriveno, a otvara ga `.file-btn` —
+  isprekidan okvir, ikona, naziv izabranog fajla i X za uklanjanje. X poziva
+  novu metodu `clearPicture`, koja otpušta `objectURL` pregleda i prazni
+  `input.value`, da isti fajl može ponovo da se izabere.
+- **Osobine.** Kvačice su zamijenjene `.opt-row` redovima: ikona, naziv, kratko
+  objašnjenje i kružić stanja desno. Cijeli red je dodirna meta.
+- **Mišićne grupe.** Umjesto balončića različitih širina, `.mg-grid` mreža
+  jednakih polja (`repeat(auto-fill, minmax(104px, 1fr))`), sa kvačicom na
+  izabranom.
+- **Dugmad forme** dobila su `.btn-ghost` i `.btn-primary` — postojeće globalne
+  klase iz `src/styles/_base.scss`, iste koje koristi ostatak aplikacije.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.scss:403` — `.sets.split` je
+  mreža sa dvije kolone; komentar zašto je `align-items: stretch` obavezan
+- `src/app/components/training/training.component.scss:413` — nova `.side-full`
+  preko obje kolone, za serije bez strane
+- `src/app/components/training/training.component.scss:421` — `.side-half` je
+  sada flex kolona
+- `src/app/components/training/training.component.scss:431` — okomita isprekidana
+  linija (`border-left` na drugoj polovini)
+- `src/app/components/training/training.component.scss:441` — `.side-half
+  .set-group { max-width: 100% }`, sa komentarom zašto `inline-flex` inače pobjegne
+  iz kolone
+- `src/app/components/training/training.component.scss:443,448` — `.set-edit` se
+  prelama, polja `flex: 1 1 52px`
+- `src/app/components/training/training.component.html:263` — oznaka „L+D" u
+  formi za dropset kod jednoručnih
+- `src/app/components/training/training.component.html:268,269` — pozivi
+  `saveDropset(ex, set)`
+- `src/app/components/training/training.component.html:313` — serije bez strane
+  omotane u `.side-full`
+- `src/app/components/training/training.component.html:322` — komentar uz
+  `.side-half` opisuje kolone umjesto polovina
+- `src/app/components/training/training.component.ts:656` — `saveDropset` prima i
+  vježbu
+- `src/app/components/training/training.component.ts:661` — `reps` i `weight` u
+  konstante prije upisa
+- `src/app/components/training/training.component.ts:680` — `twin`: ista serija
+  druge ruke, i preslikan upis dropseta na nju
+- `src/app/components/exercices/exercices.component.html:56,57` — sakriveno
+  nativno file polje i `.file-btn` koje ga otvara
+- `src/app/components/exercices/exercices.component.html:68,75` — `.opt-row`
+  redovi umjesto kvačica (tjelesna težina, jednoručno)
+- `src/app/components/exercices/exercices.component.html:86` — `.mg-grid` mreža
+  mišićnih grupa
+- `src/app/components/exercices/exercices.component.html:103,104` — `.btn-ghost`
+  i `.btn-primary` na dugmadima forme
+- `src/app/components/exercices/exercices.component.ts:103` — nova metoda
+  `clearPicture`
+- `src/app/components/exercices/exercices.component.scss:175` — stilovi `.file-btn`
+- `src/app/components/exercices/exercices.component.scss:203` — stilovi `.opt-row`
+- `src/app/components/exercices/exercices.component.scss:238,244` — `.mg-grid` i
+  `.mg-tile` umjesto `.muscle-group-picker` i `.muscle-group-chip`
+
+**Efekat:** Provjereno u pregledaču na širini 390px: dvije kolone stoje jedna
+pored druge, okomita isprekidana linija ide do dna i kad jedna strana ima dropset
+a druga nema, pilule se ne prelivaju, a forma za izmjenu serije staje u svoju
+kolonu.
+
+Dropset 15 kg × 6 upisan na L2 istovremeno je upisan i na D2; brisanje pojedinačno
+i dalje radi, dakle svaka strana se može ispraviti zasebno.
+
+Modal „Nova vježba" je u stilu ostatka aplikacije — izgled potvrđen na snimku
+ekrana.
+
+**Napomene:** Preslikavanje dropseta je odluka koja se lako vraća na „po ruci"
+ako se u praksi pokaže da smeta — sav posao je u jednom `if (twin)` bloku u
+`saveDropset`.
+
+Ako druga ruka još nema tu seriju (na primjer, ručno je obrisana), dropset se
+upisuje samo na stranu na kojoj je pritisnut „+".
+
+---
+
+## [2026-07-28] Doćerivanje ekrana treninga za telefon; bedževi ispod naziva; ikona noge za L/D vježbe za noge
+**Tip:** popravka
+**Ref:** dorada prethodna dva unosa o jednoručnim vježbama, po upotrebi na telefonu
+
+**Problem:** Pet stvari, sve uočene na telefonu u toku stvarne upotrebe.
+
+1. **Bedževi su gutali naziv vježbe.** Lični rekord i oznaka L/D stajali su u
+   istom redu sa nazivom, pa se naziv na telefonu sabijao do te mjere da je od
+   njega ostajalo „S…".
+2. **Red ispod naziva lomio se usred riječi.** Cilj i „prošli put" nijesu se
+   prelamali kao cjeline nego su se sjekli nasred riječi i razvlačili u više
+   redova.
+3. **Pilula sa strelicom napretka nije stajala u koloni jednoručnih vježbi.**
+   Prvi pokušaj — smanjivanje fonta — pokvario je izgled koji je do tada bio
+   dobar. Drugi — prelamanje repa za dropset u novi red — odvojio je „+" od
+   pilule, a on mora izgledati kao da iz nje izrasta.
+4. **Forma za izmjenu serije i za dropset prelamala se u koloni.** Dugmad su
+   padala u zaseban red, odvojena od polja za kilažu i ponavljanja.
+5. **Kod vježbi za noge pisalo je „ruke".** Oznaka i stavka u meniju govorile su
+   o rukama, uz ikonu ruke, i za jednonožne vježbe. Pokušaji da se to riješi
+   Material ikonom (čovječuljak koji hoda) i ručno crtanom nogom ocijenjeni su
+   kao loši.
+
+**Rješenje:**
+
+**1. Bedževi ispod naziva.** PR bedž i oznaka L/D premješteni su iz reda sa
+nazivom u `.exercice-meta` red ispod. Naziv vježbe tako ima cio red za sebe i
+ostaje ispisan cijel. U redu sa nazivom ostaju samo oznake „umjesto" i „dodano",
+koje su kratke i vezane za sam naziv.
+
+**2. Meta red se prelama po stavkama.** `.exercice-meta` dobija `flex-wrap: wrap`
+(uz `row-gap`), a svaka stavka u njemu `white-space: nowrap`. Stavka je time
+komad koji ili stane u red ili cio pređe u sljedeći — tekst se više ne lomi
+usred riječi.
+
+**3. Pilula pune širine u koloni.** `.side-half .set-wrap` ide na `width: 100%`,
+a sama pilula na `flex: 1; min-width: 0`, pa uzima cijelu širinu kolone i može da
+se stisne umjesto da iscuri. Sabija se samo prazan prostor: `padding` i razmaci
+unutar pilule, i rep za dropset (`.set-drop`). **Tipografija i strelice ostaju
+iste kao u dvoručnom redu** — brojevi se ne smanjuju, jer je upravo to bilo ono
+što je prvi pokušaj pokvario. Rep i dalje dijeli okvir sa pilulom i nikad se ne
+odvaja u zasebno dugme.
+
+**4. Forme u koloni u jednom redu.** `.side-half .set-edit` mijenja `flex-wrap`
+sa `wrap` na `nowrap`, polja su elastična (`flex: 1 1 32px`, centriran tekst,
+tanji bočni razmak), dugmad uža (26px). Redni broj serije se u koloni ne ispisuje
+(`.set-n { display: none }`) — kazuje ga pozicija u koloni. Iz istog razloga
+oznaka „L+D" u formi za dropset u koloni ostaje samo u `title` atributu; za tekst
+nema mjesta u jednom redu.
+
+**5. Ruke ili noge.** `SessionExercice` dobija polje `isLegs`. Upit sesije sada uz
+vježbu povlači i njene mišićne grupe (`exercice_muscle → muscle_group.name`), a
+nogom se smatra svaka vježba čija grupa u nazivu sadrži „leg". Kod takvih vježbi
+oznaka i meni govore o **nogama** umjesto o rukama, a uz njih stoji silueta noge
+umjesto ikone ruke. Ikona je uvezena („Leg", autor Delapouite, game-icons.net,
+licenca CC BY 3.0, navedeno u komentaru u šablonu) jer Material set nema samu
+nogu, a zamjene koje ima nijesu dobre.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html:108,110` — PR bedž i L/D
+  oznaka premješteni u `.exercice-meta`, sa komentarom zašto ne stoje uz naziv
+- `src/app/components/training/training.component.html:126` — `title` oznake L/D
+  govori o nogama ili rukama, zavisno od `isLegs`
+- `src/app/components/training/training.component.html:131` — silueta noge uz
+  oznaku, sa navedenim autorom i licencom
+- `src/app/components/training/training.component.html:170,172` — ista ikona i
+  tekst o nogama u stavci menija `toggleUnilateral`
+- `src/app/components/training/training.component.scss:441,446,449` — grupa,
+  omotač i pilula uzimaju punu širinu kolone
+- `src/app/components/training/training.component.scss:450,456` — zbijeniji
+  `padding` i razmaci unutar pilule u koloni, uži redni broj
+- `src/app/components/training/training.component.scss:461,462` —
+  `.exercice-meta` se prelama, stavke su cjeline
+- `src/app/components/training/training.component.scss:464,465` — uži rep za
+  dropset
+- `src/app/components/training/training.component.scss:470,478,479,487,488` —
+  `.set-edit` u jednom redu: `nowrap`, elastična polja, skriven redni broj, uža
+  dugmad
+- `src/app/components/training/training.component.scss:490` — „L+D" u koloni ide
+  samo u `title`
+- `src/app/components/training/training.component.scss:573,574` — veličina i boja
+  ikone noge, u oznaci i u meniju
+- `src/app/services/training.service.ts:23` — novo polje `SessionExercice.isLegs`
+- `src/app/services/training.service.ts:218` — upit sesije povlači i mišićne grupe
+  vježbe
+- `src/app/services/training.service.ts:254` — `isLegs` se izvodi iz naziva grupe
+
+**Efekat:** Provjereno u pregledaču na širini 390px: naziv vježbe je ispisan cio,
+meta red se prelama po stavkama a ne usred riječi, pilula sa strelicom i repom za
+dropset staje u kolonu bez promjene tipografije, a forma za izmjenu serije i
+forma za dropset stoje u jednom redu — potvrđeno poređenjem sredina elemenata.
+
+Ikona noge i tekst „Ne prati noge odvojeno" potvrđeni su na stvarnoj vježbi sa
+LEGS grupom, napravljenoj kroz novu formu za dodavanje vježbe. Izgled na telefonu
+potvrđen snimkom ekrana.
+
+**Napomene:** Ikona noge je jedina ikona u aplikaciji koja nije iz Material seta.
+Ako se ikad uvede lokalni set ikona (stoji na roadmapu uz PWA), i nju prebaciti
+tamo, da izvor ikona bude jedan.
+
+`isLegs` se izvodi iz naziva mišićne grupe („leg"), pa grupa nazvana drugačije
+(na primjer „quads") ne bi bila prepoznata. Svjesno pojednostavljenje za postojeći
+katalog — ako se nazivi grupa prošire, uslov treba zamijeniti spiskom ili
+oznakom na samoj grupi.
+
+---
+
+## [2026-07-28] Puna tastatura na upisu serija (zbog Entera); „Trening u toku" sa tajmerom na dashboardu
+**Tip:** popravka + funkcionalnost
+**Ref:** dorada unosa o brojčanim poljima i Enteru od 28.07.
+
+**Problem:** Dvije stvari.
+
+1. Numerička tastatura na iPhoneu **nema taster Enter**, pa prelazak
+   kilaža → Enter → ponavljanja → Enter → sačuvaj na telefonu nije radio —
+   a baš tamo se serije i upisuju. Svoju tastaturu nije moguće napraviti
+   (tastatura je sistemska), pa je jedino rješenje vratiti punu.
+2. Kad se trening započne pa se pređe na drugi ekran, dugme na dashboardu je
+   i dalje pozivalo „Započni trening" — kao da se ništa ne dešava.
+
+**Rješenje:**
+
+1. `NumFieldDirective` dobila ulaz `keyboard`: podrazumijevano `numeric`
+   (meni sa brojevima), a `text` ostavlja punu tastaturu — jedina ima Enter.
+   Svih 8 polja na ekranu treninga koristi `keyboard="text"`; profil,
+   registracija i dashboard zadržavaju numerički meni jer tamo Enter tok ne
+   postoji. Prihvatanje zareza i tačke ostaje isto (direktiva čisti unos).
+2. `getFinishedAt` zamijenjen sa `getSessionTimes` (vraća i `started_at`).
+   Dugme na dashboardu ima tri stanja: „Započni trening", „● Trening u toku"
+   sa tajmerom koji kuca svake sekunde (`MM:SS`, preko sata `H:MM:SS`), i
+   „Trening završen". „U toku" važi po ISTOM pravilu kao „ko trenira sada":
+   sesija postoji, nije završena, mlađa od 4 sata.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/num-field.directive.ts` — ulaz `keyboard`
+- `src/app/components/training/training.component.html` — `keyboard="text"` na svim poljima
+- `src/app/services/training.service.ts` — `getSessionTimes` umjesto `getFinishedAt`
+- `src/app/components/dashboard/dashboard.component.ts` — stanje `todayInProgress`, tajmer
+- `src/app/components/dashboard/dashboard.component.html` — tri stanja dugmeta
+- `src/app/components/dashboard/dashboard.component.scss` — `.start-btn.live`, tačka koja diše
+
+**Efekat:** Provjereno u pregledaču: polja na treningu su `type="text"` bez
+`inputmode` (puna tastatura), a dashboard uz aktivnu sesiju pokazuje
+„● Trening u toku 1:31:58" i broji uživo, usklađeno sa redom „trenira sada".
+
+**Napomene:** Kompromis je svjestan: puna tastatura traži jedan dodir više za
+brojeve, ali omogućava Enter tok koji je tražen; ako se pokaže da smeta,
+`keyboard="text"` se skida po polju. Red „trenira sada" kod jednoručnih vježbi
+broji svaku ruku kao seriju (L+D = 2) — evidentirano za kasnije usklađivanje.
+
+---
+
+## [2026-07-28] „Trenira sada" broji parove kod jednoručnih vježbi
+**Tip:** popravka
+**Ref:** napomena iz prethodnog unosa
+
+**Problem:** Red „trenira sada" je brojao redove iz `exercice_logs`, pa se kod
+jednoručne vježbe jedna odrađena serija (L+D, dva reda u bazi) vodila kao dvije
+— dok ekran treninga i brojka `2/3` broje parove.
+
+**Rješenje:** `getLiveSessions` broji različite ključeve `(vježba, redni broj)`
+umjesto redova; strana ne ulazi u ključ, pa L1 i D1 padnu na isti par. Dvoručne
+serije imaju svaka svoj redni broj, pa se za njih ništa ne mijenja.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/leaderboard.service.ts` — upit povlači i `exercice_id`,
+  `set_number`, `side`; brojanje preko skupa ključeva
+
+**Efekat:** Provjereno: par 12kg×3 (L+D) se sada vodi kao „1 serija".
+
+---
+
+## [2026-07-28] Dropset se može mijenjati dodirom, kao serija
+**Tip:** funkcionalnost
+
+**Problem:** Dropset se mogao samo obrisati (X), ne i izmijeniti — a kod
+jednoručnih vježbi se pri nastanku preslikava na drugu ruku, pa je izmjena
+upravo način da se druga strana ispravi kad se razlikovala. Jedini put je bio
+obriši-pa-upiši-ponovo.
+
+**Rješenje:** Dodir na pilulu dropseta otvara istu formu kao kod serije
+(kg, ponavljanja, sačuvaj/otkaži; Enter prolazi kroz polja). X za brisanje
+ostaje na piluli. Izmjena se namjerno NE preslikava na drugu ruku — preslikava
+se samo nastanak; izmjena postoji baš da se jedna strana ispravi.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts` — `updateDropset`
+- `src/app/components/training/training.component.ts` — `startEditDropset`,
+  `cancelEditDropset`, `saveEditDropset`; `DropsetEntry` polja za izmjenu
+- `src/app/components/training/training.component.html` — pilula je dugme,
+  forma za izmjenu u grani dropseta
+
+**Efekat:** Provjereno: dropset 10×5 na lijevoj preslikan na desnu, izmjena
+desnog na 8×6 ne dira lijevi; radi i u kolonama jednoručnog prikaza.

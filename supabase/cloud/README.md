@@ -37,6 +37,14 @@ Migracije su pisane tako da se mogu pustiti i dvaput — koriste
 | `20260726040000_exercices_bodyweight.sql` | ✅ | ❔ Filipova |
 | `20260727000000_dropset_logs.sql` | ✅ | ❔ Filipova |
 | `20260727010000_mark_bodyweight_exercices.sql` | ✅ | ⬜ **treba pustiti** |
+| `20260728000000_unilateral.sql` | ✅ | ⬜ **treba pustiti** |
+
+Posljednja (`unilateral`) donosi praćenje lijeve/desne ruke kod jednoručnih
+vježbi: `exercices.is_unilateral` i `exercice_logs.side`. **Mora se pustiti
+PRIJE deploya koda od 28.07.** — aplikacija od tada kolonu `side` šalje pri
+SVAKOM upisu serije (kod dvoručnih kao `null`), pa bez migracije u produkciji
+puca svaki upis, ne samo jednoručni. Isti uslov važi i za učitavanje ekrana
+treninga, jer se `is_unilateral` čita u istom upitu kao naziv vježbe.
 
 Prve tri migracije su **izvedene iz** cloud baze (iz `pg_dump`-a), pa tamo već
 postoje. Puštanje nema smisla i samo pravi buku.

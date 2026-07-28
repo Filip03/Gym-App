@@ -5,11 +5,12 @@ import { AuthService } from '../../services/auth.service';
 import { Router, RouterLink } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
 import { humanError } from '../../shared/errors';
+import { NumFieldDirective } from '../../shared/num-field.directive';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, NumFieldDirective],
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.scss']
 })

@@ -15,6 +15,7 @@ import { ExercicesComponent } from './components/exercices/exercices.component';
 import { LeaderboardComponent } from './components/leaderboard/leaderboard.component';
 import { ProfileComponent } from './components/profile/profile.component';
 import { ServiceWorkerModule } from '@angular/service-worker';
+import { NumFieldDirective } from './shared/num-field.directive';
 import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
 import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
@@ -42,6 +43,7 @@ import { DatePickerComponent } from './components/shared/date-picker/date-picker
     RegisterComponent,
     LoginComponent,
     FormsModule,
+    NumFieldDirective,
     ServiceWorkerModule.register('ngsw-worker.js', {
       enabled: !isDevMode(),
       // Register the ServiceWorker as soon as the application is stable

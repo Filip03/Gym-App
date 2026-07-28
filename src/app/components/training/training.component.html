@@ -99,6 +99,18 @@
             <span class="pos num" *ngIf="reordering">{{ ex.orderNum }}</span>
             <span class="exercice-name">{{ ex.name }}</span>
 
+            <span class="tag swapped" *ngIf="ex.replacedName" [title]="'Umjesto: ' + ex.replacedName">
+              umjesto {{ ex.replacedName }}
+            </span>
+            <span class="tag extra" *ngIf="ex.isExtra">dodano</span>
+          </div>
+
+          <!-- Bedževi (rekord, L/D) stoje OVDJE a ne uz naziv — da naziv
+               vježbe na telefonu ostane cijel, bez sabijanja i tri tačke. -->
+          <div class="exercice-meta" *ngIf="!reordering">
+            <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
+            <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
+
             <!-- Lični rekord: jedan po vježbi, ne po seriji -->
             <span class="pr" *ngIf="ex.isPr" [class.celebrate]="ex.celebrating"
                   [title]="'Novi lični rekord — prošli najbolji ' + ex.previousBest + 'kg'">
@@ -111,15 +123,15 @@
               <span class="pr-text num">{{ todayBest(ex) }}<small>kg</small></span>
             </span>
 
-            <span class="tag swapped" *ngIf="ex.replacedName" [title]="'Umjesto: ' + ex.replacedName">
-              umjesto {{ ex.replacedName }}
+            <span class="tag sides" *ngIf="ex.isUnilateral"
+                  [title]="ex.isLegs ? 'Svaka noga se prati odvojeno' : 'Svaka ruka se prati odvojeno'">
+              <i class="material-icons" *ngIf="!ex.isLegs">pan_tool</i>
+              <!-- Noge nema u Material ikonama — ikona "Leg" (Delapouite,
+                   game-icons.net, CC BY 3.0). Boja prati tekst kao i prava ikona. -->
+              <svg class="leg-ico" *ngIf="ex.isLegs" viewBox="0 0 512 512"
+                   fill="currentColor" aria-hidden="true"><path d="M19.09 16.96V170.7C73.51 193.5 202.7 200 259.8 189.4c-18.1 105.6 34 177.3 31.1 226.5-2 33.3-22.9 39-13.5 69.3 4.9 15.6 193 5.1 201.1 4.9 7.7-.3 5.4-19.2-13.3-27.2-35.2-15.1-80.2-10.7-110.1-47-9.7-14.6 6.9-180.3 10-241.4.8-15.7 4.7-78.91-60-100.5C225 47.24 123 27.32 19.09 16.96z"/></svg>
+              L·D
             </span>
-            <span class="tag extra" *ngIf="ex.isExtra">dodano</span>
-          </div>
-
-          <div class="exercice-meta" *ngIf="!reordering">
-            <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
-            <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
           </div>
         </div>
 
@@ -155,6 +167,14 @@
           <button type="button" (click)="openTargets(ex)">
             <i class="material-icons">tune</i> Serije i ponavljanja
           </button>
+          <button type="button" (click)="toggleUnilateral(ex)">
+            <i class="material-icons" *ngIf="!ex.isLegs">pan_tool</i>
+            <svg class="leg-ico menu" *ngIf="ex.isLegs" viewBox="0 0 512 512"
+                 fill="currentColor" aria-hidden="true"><path d="M19.09 16.96V170.7C73.51 193.5 202.7 200 259.8 189.4c-18.1 105.6 34 177.3 31.1 226.5-2 33.3-22.9 39-13.5 69.3 4.9 15.6 193 5.1 201.1 4.9 7.7-.3 5.4-19.2-13.3-27.2-35.2-15.1-80.2-10.7-110.1-47-9.7-14.6 6.9-180.3 10-241.4.8-15.7 4.7-78.91-60-100.5C225 47.24 123 27.32 19.09 16.96z"/></svg>
+            {{ ex.isUnilateral
+                 ? (ex.isLegs ? 'Ne prati noge odvojeno' : 'Ne prati ruke odvojeno')
+                 : (ex.isLegs ? 'Prati noge odvojeno (L/D)' : 'Prati ruke odvojeno (L/D)') }}
+          </button>
           <button type="button" (click)="goToLeaderboard(ex)">
             <i class="material-icons">leaderboard</i> Rang lista
           </button>
@@ -168,11 +188,15 @@
       </div>
 
       <!-- Serije: današnje pune, prošle kao duh -->
-      <div class="sets" *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
+      <div class="sets" [class.split]="ex.isUnilateral"
+           *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
         <!-- Grupa = jedna working serija sa svojim dropsetovima ispod nje.
              Dropset se ne smije naći u istom redu kao tuđa serija, pa grupa ide
-             u kolonu, a spojnica ih crta kao granu. -->
-        <div class="set-group" *ngFor="let set of ex.loggedSets">
+             u kolonu, a spojnica ih crta kao granu.
+             Šablon, jer se ista grupa crta i u dvoručnom redu i u blokovima po
+             ruci kod jednoručnih vježbi. -->
+        <ng-template #setGroupTpl let-set>
+        <div class="set-group">
 
           <span class="set-wrap" *ngIf="!set.editing"
                 [class.has-drop]="!set.pending && !isFinished">
@@ -213,8 +237,10 @@
 
           <div class="set-edit" *ngIf="set.editing">
             <span class="set-n num">{{ set.setNumber }}</span>
-            <input type="number" [(ngModel)]="set.editWeight" step="0.5" placeholder="kg" />
-            <input type="number" [(ngModel)]="set.editReps" min="1" placeholder="pon." />
+            <input appNumField keyboard="text" [(ngModel)]="set.editWeight" placeholder="kg"
+                   (keydown.enter)="editReps.focus()" />
+            <input #editReps keyboard="text" appNumField="integer" [(ngModel)]="set.editReps" placeholder="pon."
+                   (keydown.enter)="saveEditSet(ex, set)" />
             <button type="button" class="mini save" [disabled]="set.saving" (click)="saveEditSet(ex, set)">
               <i class="material-icons">check</i>
             </button>
@@ -229,16 +255,46 @@
           <!-- Dropset(ovi) odrađeni odmah nakon ove working serije.
                Bez ikone strelice — spojnica sa lijeve strane već kaže čemu
                pripadaju, pa bi strelica bila isto rečeno dvaput. -->
-          <span class="set dropset" *ngFor="let d of set.dropsets">
-            <span class="set-v num">{{ d.weight }}<small>kg</small> × {{ d.reps }}</span>
-            <i class="material-icons del" *ngIf="!isFinished"
-               [class.disabled]="d.deleting" (click)="deleteDropset(set, d)">close</i>
+          <ng-container *ngFor="let d of set.dropsets">
+            <button type="button" class="set dropset" *ngIf="!d.editing" [disabled]="isFinished"
+                    title="Dodirni za izmjenu" (click)="startEditDropset(d)">
+              <span class="set-v num">{{ d.weight }}<small>kg</small> × {{ d.reps }}</span>
+              <i class="material-icons del" *ngIf="!isFinished" [class.disabled]="d.deleting"
+                 (click)="deleteDropset(set, d); $event.stopPropagation()">close</i>
+            </button>
+
+            <div class="set-edit dropset-form" *ngIf="d.editing">
+              <input appNumField keyboard="text" [(ngModel)]="d.editWeight" placeholder="kg"
+                     (keydown.enter)="dropEditReps.focus()" />
+              <input #dropEditReps appNumField="integer" keyboard="text" [(ngModel)]="d.editReps" placeholder="pon."
+                     (keydown.enter)="saveEditDropset(d)" />
+              <button type="button" class="mini save" [disabled]="d.saving" (click)="saveEditDropset(d)">
+                <i class="material-icons">check</i>
+              </button>
+              <button type="button" class="mini" (click)="cancelEditDropset(d)">
+                <i class="material-icons">close</i>
+              </button>
+            </div>
+          </ng-container>
+
+          <!-- Duh: dropsetovi te serije iz prošlog treninga koji danas još nisu
+               ponovljeni. Prvi upisani dropset staje na mjesto prvog duha. -->
+          <span class="set dropset ghost"
+                *ngFor="let gd of ghostDropsets(ex, set)"
+                title="Prošli put ovdje">
+            <span class="set-v num">
+              <ng-container *ngIf="gd.weight > 0">{{ gd.weight }}<small>kg</small> × </ng-container>{{ gd.reps }}
+            </span>
           </span>
 
           <div class="set-edit dropset-form" *ngIf="set.addingDropset">
-            <input type="number" [(ngModel)]="set.dropsetWeightInput" step="0.5" placeholder="kg" />
-            <input type="number" [(ngModel)]="set.dropsetRepsInput" min="1" placeholder="pon." />
-            <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(set)">
+            <span class="both-tag" *ngIf="ex.isUnilateral && set.side"
+                  title="Upisuje se i na istu seriju druge ruke">L+D</span>
+            <input appNumField keyboard="text" [(ngModel)]="set.dropsetWeightInput" placeholder="kg"
+                   (keydown.enter)="dropReps.focus()" />
+            <input #dropReps keyboard="text" appNumField="integer" [(ngModel)]="set.dropsetRepsInput" placeholder="pon."
+                   (keydown.enter)="saveDropset(ex, set)" />
+            <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(ex, set)">
               <i class="material-icons">check</i>
             </button>
             <button type="button" class="mini" (click)="set.addingDropset = false">
@@ -247,24 +303,72 @@
           </div>
 
         </div>
+        </ng-template>
 
-        <!-- Duh: serije prošlog treninga koje danas još nisu odrađene -->
-        <span class="set ghost" *ngFor="let g of ex.echo?.sets"
-              [class.hidden]="g.setNumber <= ex.loggedSets.length">
-          <span class="set-n num">{{ g.setNumber }}</span>
-          <span class="set-v num">
-            <ng-container *ngIf="g.weight > 0">{{ g.weight }}<small>kg</small> × </ng-container>{{ g.reps }}
+        <!-- Duh: serije prošlog treninga koje danas još nisu odrađene, sa
+             svojim dropsetovima ispod — ista grana kao kod odrađenih serija -->
+        <ng-template #ghostGroupTpl let-g>
+        <div class="set-group">
+          <span class="set ghost">
+            <span class="set-n num">{{ g.setNumber }}</span>
+            <span class="set-v num">
+              <ng-container *ngIf="g.weight > 0">{{ g.weight }}<small>kg</small> × </ng-container>{{ g.reps }}
+            </span>
           </span>
-        </span>
+
+          <span class="set dropset ghost" *ngFor="let gd of g.dropsets"
+                title="Prošli put ovdje">
+            <span class="set-v num">
+              <ng-container *ngIf="gd.weight > 0">{{ gd.weight }}<small>kg</small> × </ng-container>{{ gd.reps }}
+            </span>
+          </span>
+        </div>
+        </ng-template>
+
+        <!-- Dvoručno: sve u jednom prelamajućem redu, kao do sada -->
+        <ng-container *ngIf="!ex.isUnilateral">
+          <ng-container *ngFor="let set of ex.loggedSets">
+            <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+          </ng-container>
+          <ng-container *ngFor="let g of sideGhosts(ex, null)">
+            <ng-container *ngTemplateOutlet="ghostGroupTpl; context: { $implicit: g }"></ng-container>
+          </ng-container>
+        </ng-container>
+
+        <!-- Jednoručno: blok po ruci, serije teku odvojeno L1, L2... / D1, D2... -->
+        <ng-container *ngIf="ex.isUnilateral">
+          <!-- Upisano prije uključivanja praćenja ruku — obje zajedno -->
+          <div class="side-full" *ngIf="setsFor(ex, null).length > 0">
+            <ng-container *ngFor="let set of setsFor(ex, null)">
+              <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+            </ng-container>
+          </div>
+
+          <!-- Lijeva kolona = lijeva ruka, desna = desna; dijeli ih okomita
+               linija. Bez slova — serije idu jedna ispod druge, a prva lijevo
+               odgovara prvoj desno. -->
+          <div class="side-half" *ngFor="let side of SIDES"
+               [title]="side === 'L' ? 'Lijeva ruka' : 'Desna ruka'">
+            <ng-container *ngFor="let set of setsFor(ex, side)">
+              <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+            </ng-container>
+            <ng-container *ngFor="let g of sideGhosts(ex, side)">
+              <ng-container *ngTemplateOutlet="ghostGroupTpl; context: { $implicit: g }"></ng-container>
+            </ng-container>
+          </div>
+        </ng-container>
       </div>
 
       <!-- Upis: polja su predpunjena prošlim rezultatom -->
       <div class="log-form" *ngIf="ex.showLogForm && !isFinished">
-        <span class="set-label">Serija {{ nextSetNumber(ex) }}</span>
+        <span class="set-label">Serija {{ nextSetNumber(ex) }}<span class="both-tag"
+              *ngIf="ex.isUnilateral"
+              title="Upisuje obje ruke — ako se desna razlikovala, dodirni njenu seriju i ispravi">L+D</span></span>
 
         <label class="field" *ngIf="ex.showWeightInput">
-          <input type="number" [(ngModel)]="ex.weightInput" step="0.5"
-                 [placeholder]="echoPlaceholder(ex, 'weight')" />
+          <input appNumField keyboard="text" [(ngModel)]="ex.weightInput"
+                 [placeholder]="echoPlaceholder(ex, 'weight')"
+                 (keydown.enter)="logReps.focus()" />
           <span class="unit">kg</span>
         </label>
 
@@ -274,8 +378,9 @@
         </button>
 
         <label class="field">
-          <input type="number" [(ngModel)]="ex.repsInput" min="1"
-                 [placeholder]="echoPlaceholder(ex, 'reps')" />
+          <input #logReps keyboard="text" appNumField="integer" [(ngModel)]="ex.repsInput"
+                 [placeholder]="echoPlaceholder(ex, 'reps')"
+                 (keydown.enter)="saveLog(ex)" />
           <span class="unit">pon.</span>
         </label>
 
@@ -324,11 +429,13 @@
     <div class="target-fields">
       <label>
         Serije
-        <input type="number" [(ngModel)]="targetSetsInput" min="1" />
+        <input keyboard="text" appNumField="integer" [(ngModel)]="targetSetsInput"
+               (keydown.enter)="targetReps.focus()" />
       </label>
       <label>
         Ponavljanja
-        <input type="number" [(ngModel)]="targetRepsInput" min="1" />
+        <input #targetReps keyboard="text" appNumField="integer" [(ngModel)]="targetRepsInput"
+               (keydown.enter)="saveTargets()" />
       </label>
     </div>
 

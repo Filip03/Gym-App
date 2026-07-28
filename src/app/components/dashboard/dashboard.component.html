@@ -1,7 +1,11 @@
 <div class="start-block">
-    <button type="button" class="start-btn" [class.done]="todayFinished" (click)="goToTraining()">
+    <button type="button" class="start-btn" [class.done]="todayFinished"
+            [class.live]="todayInProgress" (click)="goToTraining()">
         <i class="material-icons" *ngIf="todayFinished">check_circle</i>
-        {{ todayFinished ? 'Trening završen' : 'Započni trening' }}
+        <span class="live-dot" *ngIf="todayInProgress"></span>
+        {{ todayFinished ? 'Trening završen'
+           : todayInProgress ? 'Trening u toku' : 'Započni trening' }}
+        <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
     </button>
 
     <div class="start-today" *ngIf="todayName">
@@ -321,8 +325,8 @@
         </div>
 
         <div class="exercice-picker-inputs" *ngIf="getPickedInfo(ex.id) as picked" (click)="$event.stopPropagation()">
-          <input type="number" [(ngModel)]="picked.targetSets" min="1" placeholder="Serije" />
-          <input type="number" [(ngModel)]="picked.targetReps" min="1" placeholder="Ponavljanja" />
+          <input appNumField="integer" [(ngModel)]="picked.targetSets" placeholder="Serije" />
+          <input appNumField="integer" [(ngModel)]="picked.targetReps" placeholder="Ponavljanja" />
         </div>
       </div>
     </div>

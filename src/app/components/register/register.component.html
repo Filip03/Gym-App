@@ -22,12 +22,12 @@
 
       <div class="wh">
         <label for="weight">Težina (kg)</label>
-        <input id="weight" name="weight" type="number" [(ngModel)]="weight" required/>
+        <input id="weight" name="weight" appNumField [(ngModel)]="weight" required/>
       </div>
 
       <div class="wh">
         <label for="height">Visina (cm)</label>
-        <input id="height" name="height" type="number" [(ngModel)]="height" required/>
+        <input id="height" name="height" appNumField="integer" [(ngModel)]="height" required/>
       </div>
 
       <button class="btn" type="submit" [disabled]="loading || !registerForm.valid">

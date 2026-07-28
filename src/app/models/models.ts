@@ -42,6 +42,8 @@ export interface Exercice {
   picture: string | null;
   description: string | null;
   is_bodyweight: boolean;
+  /** Radi se jednom rukom/nogom — L i D se prate odvojeno. */
+  is_unilateral: boolean;
 }
 
 export interface ExerciceMuscle {
@@ -68,6 +70,8 @@ export interface ExerciceLog {
   set_number: number;
   reps: number;
   weight: number;
+  /** null = obje ruke zajedno; 'L' / 'D' kod jednoručnih vježbi. */
+  side: 'L' | 'D' | null;
 }
 
 export interface DropsetLog {

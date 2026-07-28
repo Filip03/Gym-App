@@ -310,16 +310,21 @@ export class LeaderboardService {
         .is('finished_at', null),
       this.supabase.client
         .from('exercice_logs')
-        .select('user_id')
+        .select('user_id, exercice_id, set_number, side')
         .eq('date', today)
     ]);
 
     if (sessions.error) throw sessions.error;
     if (logs.error) throw logs.error;
 
-    const setsByUser = new Map<string, number>();
+    // Kod jednoručnih vježbi lijeva i desna ruka su DVA reda u bazi, a jedna
+    // odrađena serija — broje se parovi, isto kao na ekranu treninga. Zato se
+    // broji po ključu (vježba, redni broj), bez strane.
+    const setsByUser = new Map<string, Set<string>>();
     for (const row of (logs.data ?? []) as any[]) {
-      setsByUser.set(row.user_id, (setsByUser.get(row.user_id) ?? 0) + 1);
+      const done = setsByUser.get(row.user_id) ?? new Set<string>();
+      done.add(`${row.exercice_id}#${row.set_number}`);
+      setsByUser.set(row.user_id, done);
     }
 
     const profileById = new Map(profiles.map(p => [p.id, p]));
@@ -327,7 +332,7 @@ export class LeaderboardService {
     const live: LiveSession[] = [];
 
     for (const row of (sessions.data ?? []) as any[]) {
-      const sets = setsByUser.get(row.user_id) ?? 0;
+      const sets = setsByUser.get(row.user_id)?.size ?? 0;
       if (sets === 0) continue;                       // samo otvorio ekran
 
       const started = new Date(row.started_at).getTime();
