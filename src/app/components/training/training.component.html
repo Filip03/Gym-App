@@ -115,6 +115,10 @@
               umjesto {{ ex.replacedName }}
             </span>
             <span class="tag extra" *ngIf="ex.isExtra">dodano</span>
+            <span class="tag sides" *ngIf="ex.isUnilateral"
+                  title="Svaka ruka se prati odvojeno">
+              <i class="material-icons">pan_tool</i> L·D
+            </span>
           </div>
 
           <div class="exercice-meta" *ngIf="!reordering">
@@ -155,6 +159,10 @@
           <button type="button" (click)="openTargets(ex)">
             <i class="material-icons">tune</i> Serije i ponavljanja
           </button>
+          <button type="button" (click)="toggleUnilateral(ex)">
+            <i class="material-icons">pan_tool</i>
+            {{ ex.isUnilateral ? 'Ne prati ruke odvojeno' : 'Prati ruke odvojeno (L/D)' }}
+          </button>
           <button type="button" (click)="goToLeaderboard(ex)">
             <i class="material-icons">leaderboard</i> Rang lista
           </button>
@@ -168,11 +176,15 @@
       </div>
 
       <!-- Serije: današnje pune, prošle kao duh -->
-      <div class="sets" *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
+      <div class="sets" [class.split]="ex.isUnilateral"
+           *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
         <!-- Grupa = jedna working serija sa svojim dropsetovima ispod nje.
              Dropset se ne smije naći u istom redu kao tuđa serija, pa grupa ide
-             u kolonu, a spojnica ih crta kao granu. -->
-        <div class="set-group" *ngFor="let set of ex.loggedSets">
+             u kolonu, a spojnica ih crta kao granu.
+             Šablon, jer se ista grupa crta i u dvoručnom redu i u blokovima po
+             ruci kod jednoručnih vježbi. -->
+        <ng-template #setGroupTpl let-set>
+        <div class="set-group">
 
           <span class="set-wrap" *ngIf="!set.editing"
                 [class.has-drop]="!set.pending && !isFinished">
@@ -240,7 +252,7 @@
           <!-- Duh: dropsetovi te serije iz prošlog treninga koji danas još nisu
                ponovljeni. Prvi upisani dropset staje na mjesto prvog duha. -->
           <span class="set dropset ghost"
-                *ngFor="let gd of ghostDropsets(ex, set.setNumber, set.dropsets.length)"
+                *ngFor="let gd of ghostDropsets(ex, set)"
                 title="Prošli put ovdje">
             <span class="set-v num">
               <ng-container *ngIf="gd.weight > 0">{{ gd.weight }}<small>kg</small> × </ng-container>{{ gd.reps }}
@@ -261,11 +273,12 @@
           </div>
 
         </div>
+        </ng-template>
 
         <!-- Duh: serije prošlog treninga koje danas još nisu odrađene, sa
              svojim dropsetovima ispod — ista grana kao kod odrađenih serija -->
-        <div class="set-group" *ngFor="let g of ex.echo?.sets"
-             [class.hidden]="g.setNumber <= ex.loggedSets.length">
+        <ng-template #ghostGroupTpl let-g>
+        <div class="set-group">
           <span class="set ghost">
             <span class="set-n num">{{ g.setNumber }}</span>
             <span class="set-v num">
@@ -280,11 +293,44 @@
             </span>
           </span>
         </div>
+        </ng-template>
+
+        <!-- Dvoručno: sve u jednom prelamajućem redu, kao do sada -->
+        <ng-container *ngIf="!ex.isUnilateral">
+          <ng-container *ngFor="let set of ex.loggedSets">
+            <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+          </ng-container>
+          <ng-container *ngFor="let g of sideGhosts(ex, null)">
+            <ng-container *ngTemplateOutlet="ghostGroupTpl; context: { $implicit: g }"></ng-container>
+          </ng-container>
+        </ng-container>
+
+        <!-- Jednoručno: blok po ruci, serije teku odvojeno L1, L2... / D1, D2... -->
+        <ng-container *ngIf="ex.isUnilateral">
+          <!-- Upisano prije uključivanja praćenja ruku — obje zajedno -->
+          <ng-container *ngFor="let set of setsFor(ex, null)">
+            <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+          </ng-container>
+
+          <div class="side-block" *ngFor="let side of SIDES">
+            <span class="side-tag num" [title]="side === 'L' ? 'Lijeva ruka' : 'Desna ruka'">{{ side }}</span>
+            <div class="side-sets">
+              <ng-container *ngFor="let set of setsFor(ex, side)">
+                <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+              </ng-container>
+              <ng-container *ngFor="let g of sideGhosts(ex, side)">
+                <ng-container *ngTemplateOutlet="ghostGroupTpl; context: { $implicit: g }"></ng-container>
+              </ng-container>
+            </div>
+          </div>
+        </ng-container>
       </div>
 
       <!-- Upis: polja su predpunjena prošlim rezultatom -->
       <div class="log-form" *ngIf="ex.showLogForm && !isFinished">
-        <span class="set-label">Serija {{ nextSetNumber(ex) }}</span>
+        <span class="set-label">Serija {{ nextSetNumber(ex) }}<span class="both-tag"
+              *ngIf="ex.isUnilateral"
+              title="Upisuje obje ruke — ako se desna razlikovala, dodirni njenu seriju i ispravi">L+D</span></span>
 
         <label class="field" *ngIf="ex.showWeightInput">
           <input appNumField [(ngModel)]="ex.weightInput"

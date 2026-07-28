@@ -42,6 +42,8 @@ export interface QueuedSet {
   setNumber: number;
   reps: number;
   weight: number;
+  /** Strana kod jednoručnih vježbi; null = obje ruke zajedno. */
+  side: 'L' | 'D' | null;
   /** Kad je upisano na telefonu, za prikaz „čeka od…". */
   queuedAt: string;
 }

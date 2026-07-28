@@ -322,7 +322,6 @@ $branch-indent: 16px;
 }
 .set.ghost .set-n,
 .set.ghost .set-v small { color: var(--echo); }
-.set-group.hidden { display: none; }
 
 // --- Izmjena serije --------------------------------------------------------
 
@@ -390,6 +389,44 @@ $branch-indent: 16px;
 .set-group {
   display: inline-flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+// --- Jednoručne vježbe: blok po ruci ---------------------------------------
+//
+// Serije lijeve i desne ruke teku odvojeno (L1, L2... / D1, D2...), pa svaka
+// ruka dobija svoj red sa malom oznakom na početku. Redovi se i dalje
+// prelamaju kao i dvoručni — na uskom ekranu blok samo nastavi u novi red.
+
+.sets.split {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.side-block {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+// Oznaka ruke — poravnata sa prvim redom pilula, ne sa sredinom bloka.
+.side-tag {
+  flex: none;
+  min-width: 20px;
+  padding: var(--s-2) 0;
+  text-align: center;
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  color: var(--dust);
+  border-right: 1px solid var(--line);
+}
+
+.side-sets {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--s-2);
 }
@@ -470,6 +507,18 @@ $branch-indent: 16px;
   cursor: pointer;
 }
 .set-drop .material-icons { font-size: 14px; }
+
+.tag.sides .material-icons { font-size: 12px; }
+
+// „L+D" uz natpis serije u formi — podsjetnik da jedan unos puni obje ruke.
+.both-tag {
+  margin-left: var(--s-2);
+  padding: 1px var(--s-2);
+  font-size: var(--t-2xs);
+  color: var(--dust);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+}
 .set-drop:hover { color: var(--volt); border-color: var(--volt-a40); }
 .set-wrap:hover .set { border-color: var(--line-strong); }
 

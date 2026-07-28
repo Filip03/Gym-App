@@ -1978,3 +1978,182 @@ lošoj vezi gore od jednog odgovora, alternativa je RPC iz prethodnog pasusa.
 Dropsetovi za duh se i dalje dovlače jednim upitom (`attachEchoDropsets`), i to
 samo za serije koje su preživjele izbor — oni, dakle, nikad nisu ni bili
 neograničeni.
+
+---
+
+## [2026-07-28] Praćenje lijeve i desne ruke kod jednoručnih vježbi
+**Tip:** funkcionalnost
+**Ref:** —
+
+**Problem:** Kod vježbi koje se rade jednom rukom — bočno podizanje, koncentracioni
+biceps i slične — jedna ruka je gotovo uvijek jača. Do sada je postojao samo
+**jedan upis po seriji**, pa se ta razlika nije mogla ni vidjeti ni pratiti kroz
+vrijeme: upiše se „10 kg × 12" i tu se izgubi podatak da je lijeva jedva izvukla
+deseto ponavljanje, a desna otišla do dvanaestog bez muke.
+
+**Rješenje:** Pet dijelova — baza, prekidač, prikaz, upis i sve ono što je serija
+već znala da radi (izmjena, brisanje, poređenje, duhovi, offline red).
+
+**1. Baza.** Nova migracija `20260728000000_unilateral.sql` donosi dvije kolone:
+
+- `exercices.is_unilateral` (boolean, `not null default false`) — da li se vježba
+  prati po stranama. Na nivou **vježbe**, ne treninga: ko jednom odluči da bočno
+  podizanje radi jednoruko, tako ga radi svaki put.
+- `exercice_logs.side` (text, uz `check` ograničenje) — `NULL` = obje ruke
+  zajedno (dosadašnje ponašanje i svi postojeći redovi), `'L'` = lijeva,
+  `'D'` = desna.
+
+Redni broj serije teče **odvojeno po strani**: L1, L2… i D1, D2… — jer se strana
+poredi sa svojom prošlom stranom, a ne sa onim što je u međuvremenu odradila
+druga ruka.
+
+Migracija je puštena lokalno. Na cloudu **mora prije deploya ovog koda**, i to je
+uslov jači nego kod ranijih migracija: aplikacija od sada šalje `side` pri
+**svakom** upisu serije (kod dvoručnih kao `null`), pa bi bez kolone pucao svaki
+upis, ne samo jednoručni. Isto važi i za samo otvaranje ekrana treninga, jer se
+`is_unilateral` čita u istom upitu kao naziv vježbe. Evidentirano u
+`supabase/cloud/README.md`, u tabeli i u pasusu ispod nje.
+
+**2. Prekidač.** U meniju vježbe na ekranu treninga stoji nova stavka
+„Prati ruke odvojeno (L/D)" (odnosno „Ne prati ruke odvojeno" kad je uključeno).
+Ide kroz novu servisnu metodu `setUnilateral`, dakle trajno je i važi za vježbu.
+Kad je uključeno, uz naziv vježbe stoji mala oznaka sa ikonom ruke i tekstom
+„L·D", da se na prvi pogled vidi zašto se serije crtaju drugačije.
+
+**3. Prikaz.** Umjesto jednog prelamajućeg reda serija, jednoručna vježba dobija
+**dva bloka** — red za L i red za D, svaki sa malom oznakom strane na početku.
+
+Da se markup ne bi duplirao, postojeća grupa serije (pilula + dropsetovi + duhovi
+dropsetova + obrazac za dropset) izvučena je u `ng-template` — `#setGroupTpl` za
+odrađenu seriju i `#ghostGroupTpl` za duh. Isti šablon se onda crta i u dvoručnom
+redu i u blokovima po ruci, kroz `*ngTemplateOutlet`. Sve što grupa serije zna da
+radi (izmjena, dropset, duh dropseta) time radi jednako u oba slučaja, i ostaće
+tako i pri narednim izmjenama — jer postoji samo jedno mjesto.
+
+Uz to je skrivanje već odrađenih duhova prešlo sa CSS klase (`.set-group.hidden`)
+na novu metodu `sideGhosts(ex, side)`, koja vraća samo one duhove te strane koji
+danas još nisu ponovljeni. Klasa je obrisana iz stilova.
+
+**4. Upis: jedan unos, dvije serije.** Kod jednoručne vježbe jedan unos u obrascu
+pravi **dvije** serije — L pa D, sa istim brojevima; u obrascu uz natpis serije
+stoji oznaka „L+D".
+
+Obrazloženje: druga ruka se **uvijek** odradi. Odvojen upis za svaku bi značio
+kucanje istog dvaput, na svakoj seriji, do kraja treninga. Ako je desna ipak
+uradila drugačije, dodirne se njena pilula i ispravi — to je već postojeća izmjena
+serije, ništa novo se za to nije pisalo.
+
+Zamka koja je uhvaćena pri probi i zaslužuje da se zapiše: `accept()` isprazni
+polja obrasca poslije prve strane, pa se vrijednosti (`reps`) hvataju u lokalne
+konstante **prije** petlje kroz strane. Bez toga upis za desnu ruku pročita `null`
+iz već očišćenog obrasca i baza ga odbije.
+
+**5. Sve ostalo što je serija znala.**
+
+- **Offline red.** `QueuedSet` je dobio polje `side`. Kad mreža pukne usred para,
+  u red idu **sve strane koje još nisu prošle** — da par ne ostane šepav, sa
+  upisanom lijevom i izgubljenom desnom.
+- **Brisanje.** Prenumeracija ide **unutar strane** sa koje je obrisano: brisanje
+  L2 pomjera L3 u L2 i ne dira nijednu D seriju. Kod dvoručnih je strana `null`,
+  pa je to isti posao kao i ranije.
+- **Poređenje sa prošlim treningom** (strelice gore/dolje) poredi istu stranu sa
+  istom stranom. Prošli **dvoručni** upis (`side` je `null`) važi kao referenca za
+  obje ruke — 10 kg × 12 sa obje bučice jeste 10 kg po ruci. Isto pravilo važi i
+  za duhove: ako prošli trening nema strane, isti duhovi se pokažu u oba bloka.
+- **Brojanje serija.** Nova metoda `doneCount(ex)`: par L+D je **jedna** serija za
+  `progressLabel` i `isComplete`. Uzima se jača strana, da brojka ne stane poslije
+  ručnog brisanja jedne pilule; parovi ionako nastaju zajedno.
+- **Duhovi dropsetova.** `EchoSet` je dobio `side`, a `ghostDropsets` više ne
+  prima broj serije i brojač nego cijelu seriju, pa traži duha sa iste strane.
+
+**Dodirnuti fajlovi:**
+- `supabase/migrations/20260728000000_unilateral.sql` — nova migracija:
+  `exercices.is_unilateral`, `exercice_logs.side` sa `check` ograničenjem i
+  komentarima kolona; pisana da se može pustiti i dvaput
+- `supabase/cloud/README.md:40` — migracija upisana u tabelu kao nepuštena na
+  cloudu, sa pasusom zašto je ovdje redoslijed obavezan (`side` se šalje pri
+  svakom upisu, `is_unilateral` se čita pri svakom otvaranju ekrana treninga)
+- `src/app/models/models.ts:72` — `ExerciceLog` dobio `side: 'L' | 'D' | null`
+- `src/app/services/training.service.ts:20` — `SessionExercice` dobio
+  `isUnilateral`
+- `src/app/services/training.service.ts:44` — nov tip `Side`
+- `src/app/services/training.service.ts:57` — `EchoSet` dobio `side`
+- `src/app/services/training.service.ts:99` — pošiljalac iz offline reda prosljeđuje
+  `side` u `insertLog`
+- `src/app/services/training.service.ts:215,250` — upit za sesiju čita
+  `is_unilateral` uz naziv i sliku vježbe, i puni `isUnilateral`
+- `src/app/services/training.service.ts:431` — nova metoda `setUnilateral`, sa
+  komentarom zašto je na nivou vježbe
+- `src/app/services/training.service.ts:449,463,476` — `logSet` i `insertLog`
+  primaju neobavezan `side` i upisuju ga (`?? null`)
+- `src/app/services/training.service.ts:617,662` — `getEcho` puni `side` u duh
+  serije, `lastTrainingSets` bira kolonu `side`
+- `src/app/services/offline-queue.service.ts:46` — `QueuedSet` dobio `side`
+- `src/app/components/training/training.component.ts:38` — `LoggedSet` dobio `side`
+- `src/app/components/training/training.component.ts:88` — `SIDES`, redoslijed
+  blokova (L pa D)
+- `src/app/components/training/training.component.ts:258` — `compare` prima stranu;
+  traži prošlu seriju iste strane, a dvoručnu (`null`) prihvata kao referencu za obje
+- `src/app/components/training/training.component.ts:341` — `echoFor` kod
+  jednoručnih predlaže lijevu stranu (ili prošli dvoručni upis)
+- `src/app/components/training/training.component.ts:351` — nova `setsFor(ex, side)`
+- `src/app/components/training/training.component.ts:360` — nova `doneCount(ex)`;
+  par L+D je jedna serija, uzima se jača strana
+- `src/app/components/training/training.component.ts:366` — `nextSetNumber` ide
+  preko `doneCount`
+- `src/app/components/training/training.component.ts:377` — nova
+  `sideGhosts(ex, side)`, sa pravilom o prošlom dvoručnom treningu
+- `src/app/components/training/training.component.ts:386` — nova
+  `toggleUnilateral(ex)`
+- `src/app/components/training/training.component.ts:407` — `ghostDropsets` prima
+  cijelu seriju i traži duha sa iste strane
+- `src/app/components/training/training.component.ts:423,428` — `progressLabel` i
+  `isComplete` broje preko `doneCount`
+- `src/app/components/training/training.component.ts:471` — `saveLog`: strane koje
+  se upisuju (`['L','D']` ili `[null]`) i `mkEntry(side)`
+- `src/app/components/training/training.component.ts:475` — `reps` u lokalnu
+  konstantu **prije** petlje, jer `accept` isprazni obrazac poslije prve strane
+- `src/app/components/training/training.component.ts:517,525,531` — offline upis,
+  petlja po stranama i pad mreže: u red idu sve strane koje još nisu prošle
+- `src/app/components/training/training.component.ts:608` — brisanje prenumeriše
+  samo serije iste strane
+- `src/app/components/training/training.component.html:118` — oznaka „L·D" uz naziv
+  vježbe
+- `src/app/components/training/training.component.html:162` — stavka menija
+  „Prati ruke odvojeno (L/D)"
+- `src/app/components/training/training.component.html:179` — `.sets` dobija klasu
+  `split` kod jednoručnih
+- `src/app/components/training/training.component.html:186,280` — grupa serije i
+  duh serije izvučeni u `#setGroupTpl` i `#ghostGroupTpl`
+- `src/app/components/training/training.component.html:298` — dvoručni prikaz: isti
+  prelamajući red kao do sada, sada kroz šablone
+- `src/app/components/training/training.component.html:308` — jednoručni prikaz:
+  serije upisane prije uključivanja praćenja stoje iznad, pa blok po ruci
+- `src/app/components/training/training.component.html:331` — oznaka „L+D" uz
+  natpis serije u obrascu
+- `src/app/components/training/training.component.scss:325` — obrisano
+  `.set-group.hidden`; skrivanje odrađenih duhova sada radi `sideGhosts`
+- `src/app/components/training/training.component.scss:396` — nova pravila za
+  blokove po ruci: `.sets.split` ide u kolonu, `.side-block`, `.side-tag`
+  (oznaka poravnata sa prvim redom pilula, ne sa sredinom bloka) i `.side-sets`
+  koji se i dalje prelama kao i dvoručni red
+- `src/app/components/training/training.component.scss:511,514` — ikona u oznaci
+  uz naziv vježbe i `.both-tag` („L+D" u obrascu, isprekidan okvir)
+
+**Efekat:** Provjereno u pregledaču na vježbi Lateral Raises. Praćenje uključeno
+iz menija vježbe; jedan unos 10 kg × 12 napravio je L1 i D1, drugi unos L2 i D2, a
+progres pokazuje **2/3** — dakle parovi, ne četiri serije. Izmjena D2 na 8
+ponavljanja ne dira lijevu stranu. Dropset na L1 radi kao i na svakoj drugoj
+seriji. Brisanje L1 prenumerisalo je L2 → L1, dok su D serije ostale netaknute.
+
+Nad jučerašnjim jednoručnim treningom (L: 12 i 10, D: 10 i 8, uz dropset na L1)
+duhovi se pokazuju po strani i nestaju kako se koja strana upisuje. Probni podaci
+su obrisani; praćenje na Lateral Raises je ostavljeno uključeno u lokalnoj bazi.
+
+**Napomene:** Rang lista i progres **ne razlikuju strane** — jednoručna serija
+ulazi kao i svaka druga, jer je kilaža kilaža. Posljedica koju treba znati: brojka
+„koliko puta je dignuto" kod jednoručnih vježbi broji svaku ruku posebno. Svjesno
+ostavljeno tako.
+
+Ako se praćenje uključi usred dana u kojem već ima dvoručnih upisa, oni ostaju
+vidljivi — stoje iznad blokova po ruci, kao serije bez strane.

@@ -9,7 +9,7 @@ import {
 import { humanError } from '../../shared/errors';
 import { Router } from '@angular/router';
 import {
-  TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet, EchoDropset
+  TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet, EchoDropset, Side
 } from '../../services/training.service';
 import { DropsetLog } from '../../models/models';
 
@@ -34,6 +34,8 @@ interface LoggedSet {
   repsDelta: Delta;
   /** Prošli rezultat te serije, za opis pri prelasku mišem. */
   prevLabel: string | null;
+  /** Strana kod jednoručnih vježbi; null = obje ruke zajedno. */
+  side: Side;
   /** Upisano bez mreže — čeka slanje. Ne može se mijenjati dok ne prođe. */
   pending?: boolean;
   editing: boolean;
@@ -81,6 +83,9 @@ interface TodayExercice extends SessionExercice {
 export class TrainingComponent implements OnInit, OnDestroy {
   loading = true;
   errorMessage = '';
+
+  /** Redoslijed blokova kod jednoručnih vježbi. */
+  readonly SIDES: Side[] = ['L', 'D'];
 
   session: WorkoutSession | null = null;
   todayDate = '';
@@ -203,6 +208,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
         setNumber: l.set_number,
         reps: l.reps,
         weight: l.weight,
+        side: l.side ?? null,
         ...this.compare(ec, l.set_number, l.weight, l.reps),
         editing: false,
         editReps: null,
@@ -249,10 +255,13 @@ export class TrainingComponent implements OnInit, OnDestroy {
    * BAŠ ono što je poraslo — inače se iz "95kg × 11" ne vidi da li je porasla
    * kilaža ili broj ponavljanja.
    */
-  private compare(echo: Echo | null, setNumber: number, weight: number, reps: number): {
+  private compare(echo: Echo | null, setNumber: number, weight: number, reps: number, side: Side = null): {
     delta: Delta; weightDelta: Delta; repsDelta: Delta; prevLabel: string | null;
   } {
-    const prev = echo?.sets.find(s => s.setNumber === setNumber);
+    // Ista strana sa istom stranom. Dvoručni prošli unos (side null) važi kao
+    // referenca za OBJE ruke — 10kg × 12 sa obje bučice jeste 10kg po ruci.
+    const prev = echo?.sets.find(s => s.setNumber === setNumber
+                                   && (s.side === side || s.side === null));
     if (!prev) {
       return { delta: null, weightDelta: null, repsDelta: null, prevLabel: null };
     }
@@ -330,11 +339,59 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
   /** Prošli trening za seriju koju korisnik upravo upisuje. */
   echoFor(ex: TodayExercice, setNumber: number): EchoSet | null {
-    return ex.echo?.sets.find(s => s.setNumber === setNumber) ?? null;
+    if (!ex.isUnilateral) {
+      return ex.echo?.sets.find(s => s.setNumber === setNumber) ?? null;
+    }
+    // Jedan unos puni obje ruke; predlaže se lijeva (ili prošli dvoručni upis).
+    return ex.echo?.sets.find(s => s.setNumber === setNumber
+                                && (s.side === 'L' || s.side === null)) ?? null;
+  }
+
+  /** Serije jedne strane; null = dvoručne. */
+  setsFor(ex: TodayExercice, side: Side): LoggedSet[] {
+    return ex.loggedSets.filter(s => s.side === side);
+  }
+
+  /**
+   * Broj ODRAĐENIH serija — kod jednoručne vježbe par L+D je JEDNA serija.
+   * Uzima se jača strana, da poslije ručnog brisanja jedne pilule brojka ne
+   * stane; parovi ionako nastaju zajedno.
+   */
+  doneCount(ex: TodayExercice): number {
+    if (!ex.isUnilateral) return ex.loggedSets.length;
+    return Math.max(this.setsFor(ex, 'L').length, this.setsFor(ex, 'D').length,
+                    this.setsFor(ex, null).length);
   }
 
   nextSetNumber(ex: TodayExercice): number {
-    return ex.loggedSets.length + 1;
+    return this.doneCount(ex) + 1;
+  }
+
+  /**
+   * Duhovi serija za jednu stranu bloka.
+   *
+   * Prošli dvoručni trening (sve strane null) služi kao referenca za OBJE
+   * ruke, pa se tada isti duhovi pokažu u oba bloka. Skriva se onoliko sa
+   * početka koliko ta strana danas ima upisano.
+   */
+  sideGhosts(ex: TodayExercice, side: Side): EchoSet[] {
+    const all = ex.echo?.sets ?? [];
+    let mine = all.filter(g => g.side === side);
+    if (mine.length === 0 && side !== null) mine = all.filter(g => g.side === null);
+    const done = this.setsFor(ex, side).length;
+    return mine.filter(g => g.setNumber > done);
+  }
+
+  /** Pali/gasi praćenje ruku odvojeno — trajno, na nivou vježbe. */
+  async toggleUnilateral(ex: TodayExercice) {
+    ex.menuOpen = false;
+    const value = !ex.isUnilateral;
+    try {
+      await this.trainingService.setUnilateral(ex.exerciceId, value);
+      ex.isUnilateral = value;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška pri promjeni praćenja ruku.');
+    }
   }
 
   /**
@@ -347,9 +404,12 @@ export class TrainingComponent implements OnInit, OnDestroy {
    * Odbacuje se onoliko sa početka koliko je danas već upisano: kad se upiše
    * prvi dropset, on staje na mjesto prvog duha, a ostali duhovi ostaju.
    */
-  ghostDropsets(ex: TodayExercice, setNumber: number, doneCount: number): EchoDropset[] {
-    const prev = this.echoFor(ex, setNumber)?.dropsets ?? [];
-    return doneCount >= prev.length ? [] : prev.slice(doneCount);
+  ghostDropsets(ex: TodayExercice, set: LoggedSet): EchoDropset[] {
+    // Duh dropseta dolazi sa iste strane kao serija (prošli dvoručni važi za obje).
+    const prev = ex.echo?.sets.find(s => s.setNumber === set.setNumber
+                                      && (s.side === set.side || s.side === null))?.dropsets ?? [];
+    const done = set.dropsets.length;
+    return done >= prev.length ? [] : prev.slice(done);
   }
 
   /** Tekst u polju prije nego što korisnik išta ukuca. */
@@ -361,12 +421,12 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
   /** Koliko je serija plan predvidio, a koliko ih je odrađeno. */
   progressLabel(ex: TodayExercice): string {
-    const done = ex.loggedSets.length;
+    const done = this.doneCount(ex);
     return ex.targetSets ? `${done}/${ex.targetSets}` : `${done}`;
   }
 
   isComplete(ex: TodayExercice): boolean {
-    return !!ex.targetSets && ex.loggedSets.length >= ex.targetSets;
+    return !!ex.targetSets && this.doneCount(ex) >= ex.targetSets;
   }
 
   // -------------------------------------------------------------------------
@@ -403,24 +463,38 @@ export class TrainingComponent implements OnInit, OnDestroy {
     ex.saving = true;
 
     const setNumber = this.nextSetNumber(ex);
-    const entry = {
+
+    // Jednoručna vježba: jedan unos pravi DVIJE serije, L pa D, sa istim
+    // brojevima. Uvijek se odradi i druga ruka, pa je odvojen upis za nju samo
+    // kucanje istog dvaput; ako je desna ipak uradila drugačije, dodirne se
+    // njena pilula i ispravi.
+    const sides: Side[] = ex.isUnilateral ? ['L', 'D'] : [null];
+
+    // Vrijednosti se hvataju ODMAH: `accept` isprazni polja forme poslije prve
+    // strane, pa bi upis za desnu ruku pročitao null iz očišćene forme.
+    const reps = ex.repsInput;
+
+    const mkEntry = (side: Side) => ({
       userId: this.currentUserId,
-      sessionId: this.session.id,
+      sessionId: this.session!.id,
       exerciceId: ex.exerciceId,
-      planId: this.session.planId,
+      planId: this.session!.planId,
       date: this.todayDate,
       setNumber,
-      reps: ex.repsInput,
-      weight
-    };
+      reps,
+      weight,
+      side
+    });
+    const entry = mkEntry(sides[0]);
 
-    const accept = (id: string, pending: boolean) => {
+    const accept = (id: string, pending: boolean, side: Side = sides[0]) => {
       ex.loggedSets.push({
         id,
         setNumber,
         reps: entry.reps,
         weight: entry.weight,
-        ...this.compare(ex.echo, setNumber, entry.weight, entry.reps),
+        side,
+        ...this.compare(ex.echo, setNumber, entry.weight, entry.reps, side),
         pending,
         editing: false,
         editReps: null,
@@ -441,19 +515,24 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
     // Bez mreže se ni ne pokušava — odmah u red, bez čekanja na istek veze.
     if (!navigator.onLine) {
-      accept(this.queue.enqueue(entry).id, true);
+      sides.forEach(side => accept(this.queue.enqueue(mkEntry(side)).id, true, side));
       ex.saving = false;
       return;
     }
 
     try {
-      const saved = await this.trainingService.logSet(entry);
-      accept(saved.id, false);
+      for (const side of sides) {
+        const saved = await this.trainingService.logSet(mkEntry(side));
+        accept(saved.id, false, side);
+      }
     } catch (err: any) {
       // Samo pad MREŽE ide u red. Odbijanje od baze (npr. prekršeno pravilo)
       // bi se pri ponovnom slanju odbilo opet — takva greška mora da se vidi.
       if (this.isNetworkError(err)) {
-        accept(this.queue.enqueue(entry).id, true);
+        // U red idu SVE strane koje još nisu prošle — da par ne ostane šepav.
+        const done = ex.loggedSets.filter(s => s.setNumber === setNumber).map(s => s.side);
+        sides.filter(side => !done.includes(side))
+             .forEach(side => accept(this.queue.enqueue(mkEntry(side)).id, true, side));
       } else {
         this.errorMessage = humanError(err, 'Greška prilikom upisa rezultata.');
       }
@@ -501,7 +580,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
       const updated = await this.trainingService.updateLog(set.id, set.editReps, set.editWeight);
       set.reps = updated.reps;
       set.weight = updated.weight;
-      Object.assign(set, this.compare(ex.echo, set.setNumber, set.weight, set.reps));
+      Object.assign(set, this.compare(ex.echo, set.setNumber, set.weight, set.reps, set.side));
       set.editing = false;
 
       // Izmjena može i stvoriti i poništiti rekord — zato ista provjera kao
@@ -523,13 +602,17 @@ export class TrainingComponent implements OnInit, OnDestroy {
       await this.trainingService.deleteLog(set.id);
       ex.loggedSets = ex.loggedSets.filter(s => s.id !== set.id);
 
-      for (let i = 0; i < ex.loggedSets.length; i++) {
+      // Prenumeracija UNUTAR strane sa koje je obrisano: L i D teku odvojeno,
+      // pa brisanje L2 ne smije pomjeriti D3. Kod dvoručnih je strana null i
+      // ovo je isti posao kao i ranije.
+      const sameSide = ex.loggedSets.filter(s => s.side === set.side);
+      for (let i = 0; i < sameSide.length; i++) {
         const wanted = i + 1;
-        if (ex.loggedSets[i].setNumber !== wanted) {
-          await this.trainingService.renumberSet(ex.loggedSets[i].id, wanted);
-          ex.loggedSets[i].setNumber = wanted;
-          Object.assign(ex.loggedSets[i], this.compare(
-            ex.echo, wanted, ex.loggedSets[i].weight, ex.loggedSets[i].reps
+        if (sameSide[i].setNumber !== wanted) {
+          await this.trainingService.renumberSet(sameSide[i].id, wanted);
+          sameSide[i].setNumber = wanted;
+          Object.assign(sameSide[i], this.compare(
+            ex.echo, wanted, sameSide[i].weight, sameSide[i].reps, sameSide[i].side
           ));
         }
       }

@@ -17,6 +17,8 @@ export interface SessionExercice {
   isExtra: boolean;
   /** Osnovno se radi tjelesnom težinom (zgibovi...) — vidi exercices.is_bodyweight. */
   isBodyweight: boolean;
+  /** Prati se svaka ruka odvojeno (L/D) — vidi exercices.is_unilateral. */
+  isUnilateral: boolean;
 }
 
 export interface WorkoutSession {
@@ -38,6 +40,9 @@ export interface WorkoutSession {
   exercices: SessionExercice[];
 }
 
+/** Strana tijela kod jednoručnih vježbi. null = obje ruke zajedno. */
+export type Side = 'L' | 'D' | null;
+
 /** Dropset odrađen uz seriju prethodnog treninga. */
 export interface EchoDropset {
   reps: number;
@@ -49,6 +54,7 @@ export interface EchoSet {
   setNumber: number;
   reps: number;
   weight: number;
+  side: Side;
   /** Dropsetovi te serije prošli put, redom kojim su rađeni. */
   dropsets: EchoDropset[];
 }
@@ -89,7 +95,8 @@ export class TrainingService {
       date: entry.date,
       setNumber: entry.setNumber,
       reps: entry.reps,
-      weight: entry.weight
+      weight: entry.weight,
+      side: entry.side ?? null
     }));
   }
 
@@ -205,7 +212,7 @@ export class TrainingService {
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
-          exercices:exercice_id ( name, picture, is_bodyweight ),
+          exercices:exercice_id ( name, picture, is_bodyweight, is_unilateral ),
           replaced:replaced_exercice_id ( name )
         )
       `)
@@ -239,7 +246,8 @@ export class TrainingService {
           targetReps: se.target_reps,
           replacedName: se.replaced?.name ?? null,
           isExtra: se.is_extra,
-          isBodyweight: se.exercices?.is_bodyweight ?? false
+          isBodyweight: se.exercices?.is_bodyweight ?? false,
+          isUnilateral: se.exercices?.is_unilateral ?? false
         }))
     };
   }
@@ -413,6 +421,22 @@ export class TrainingService {
     return data as ExerciceLog[];
   }
 
+  /**
+   * Pali/gasi praćenje po stranama (L/D) za vježbu.
+   *
+   * Na nivou VJEŽBE, ne treninga: ko jednom odluči da lateral raise radi
+   * jednoruko, tako ga radi svaki put — a važi i za sve ostale koji je rade,
+   * jer je katalog vježbi zajednički.
+   */
+  async setUnilateral(exerciceId: string, value: boolean): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('exercices')
+      .update({ is_unilateral: value })
+      .eq('id', exerciceId);
+
+    if (error) throw error;
+  }
+
   async logSet(entry: {
     userId: string;
     sessionId: string;
@@ -422,6 +446,7 @@ export class TrainingService {
     setNumber: number;
     reps: number;
     weight: number;
+    side?: Side;
   }): Promise<ExerciceLog> {
     return this.insertLog(entry);
   }
@@ -435,6 +460,7 @@ export class TrainingService {
     setNumber: number;
     reps: number;
     weight: number;
+    side?: Side;
   }): Promise<ExerciceLog> {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
@@ -446,7 +472,8 @@ export class TrainingService {
         date: entry.date,
         set_number: entry.setNumber,
         reps: entry.reps,
-        weight: entry.weight
+        weight: entry.weight,
+        side: entry.side ?? null
       })
       .select()
       .single();
@@ -587,6 +614,7 @@ export class TrainingService {
           setNumber: row.set_number,
           reps: row.reps,
           weight: row.weight,
+          side: row.side ?? null,
           dropsets: []
         };
         sets.push(set);
@@ -631,7 +659,7 @@ export class TrainingService {
   ): Promise<any[]> {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
-      .select('id, exercice_id, date, set_number, reps, weight')
+      .select('id, exercice_id, date, set_number, reps, weight, side')
       .eq('user_id', userId)
       .eq('exercice_id', exerciceId)
       .lt('date', beforeDate)

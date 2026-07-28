@@ -68,6 +68,8 @@ export interface ExerciceLog {
   set_number: number;
   reps: number;
   weight: number;
+  /** null = obje ruke zajedno; 'L' / 'D' kod jednoručnih vježbi. */
+  side: 'L' | 'D' | null;
 }
 
 export interface DropsetLog {
