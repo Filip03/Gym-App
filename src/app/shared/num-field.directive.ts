@@ -44,6 +44,15 @@ export class NumFieldDirective implements ControlValueAccessor, OnInit {
   /** `integer` = samo cifre. Sve ostalo dozvoljava jednu decimalu. */
   @Input('appNumField') mode: '' | 'decimal' | 'integer' = 'decimal';
 
+  /**
+   * Koja se tastatura otvara na telefonu.
+   *
+   * `numeric` — meni sa brojevima; najbrže kucanje, ali na iPhoneu NEMA Enter.
+   * `text`    — puna tastatura; jedina ima Enter, pa je za polja kroz koja se
+   *             prolazi Enterom (upis serije na treningu) ona manje zlo.
+   */
+  @Input() keyboard: 'numeric' | 'text' = 'numeric';
+
   private onChange: (value: number | null) => void = () => {};
   private onTouched: () => void = () => {};
 
@@ -53,7 +62,9 @@ export class NumFieldDirective implements ControlValueAccessor, OnInit {
     const el = this.el.nativeElement;
     // Postavlja se ovdje, a ne u šablonu, da se ne može zaboraviti na nekom polju.
     el.type = 'text';
-    el.inputMode = this.isInteger ? 'numeric' : 'decimal';
+    if (this.keyboard !== 'text') {
+      el.inputMode = this.isInteger ? 'numeric' : 'decimal';
+    }
     el.autocomplete = 'off';
   }
 

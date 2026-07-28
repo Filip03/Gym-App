@@ -399,16 +399,23 @@ export class TrainingService {
   }
 
   /** Da li je korisnik danas označio trening kao gotov. */
-  async getFinishedAt(userId: string, date: string): Promise<string | null> {
+  /** Početak i kraj današnje sesije — za dugme „Započni trening" na dashboardu. */
+  async getSessionTimes(
+    userId: string,
+    date: string
+  ): Promise<{ startedAt: string | null; finishedAt: string | null }> {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
-      .select('finished_at')
+      .select('started_at, finished_at')
       .eq('user_id', userId)
       .eq('date', date)
       .maybeSingle();
 
     if (error) throw error;
-    return data?.finished_at ?? null;
+    return {
+      startedAt: data?.started_at ?? null,
+      finishedAt: data?.finished_at ?? null
+    };
   }
 
   // -------------------------------------------------------------------------

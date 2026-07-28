@@ -81,6 +81,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   todayType: string | null = null;
   todayCount = 0;
   todayFinished = false;
+  todayStartedAt: string | null = null;
+  /** „12:34" ili „1:02:34" — koliko traje današnji trening. Kuca svake sekunde. */
+  elapsedLabel = '';
+  private elapsedTimer: any = null;
 
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
     'PPL (PUSHPULLLEGS)': ['PUSH', 'PULL', 'LEGS', 'REST'],
@@ -148,8 +152,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.todayType = day?.day_type?.name ?? null;
       this.todayCount = (day?.day_exercice ?? []).length;
 
-      const finishedAt = await this.trainingService.getFinishedAt(userId, this.todayDateString());
-      this.todayFinished = !!finishedAt;
+      const times = await this.trainingService.getSessionTimes(userId, this.todayDateString());
+      this.todayFinished = !!times.finishedAt;
+      this.todayStartedAt = times.startedAt;
+
+      // Tajmer kuca svake sekunde, ali samo dok je trening u toku — `tick`
+      // sam isprazni natpis čim trening prestane da se vodi kao aktivan.
+      this.tickElapsed();
+      this.elapsedTimer = setInterval(() => this.tickElapsed(), 1000);
     } catch {
       // Traka je informativna — ako plan ne može da se učita, ostaje samo dan.
     }
@@ -178,6 +188,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.liveTimer) clearInterval(this.liveTimer);
+    if (this.elapsedTimer) clearInterval(this.elapsedTimer);
+  }
+
+  /**
+   * Da li se današnji trening upravo dešava.
+   *
+   * Isto pravilo kao „ko trenira sada": sesija postoji (ekran treninga je
+   * otvaran), nije završena, i nije starija od 4 sata — poslije toga je
+   * vjerovatnije da je čovjek zaboravio da pritisne kraj nego da još trenira.
+   */
+  get todayInProgress(): boolean {
+    if (this.todayFinished || !this.todayStartedAt) return false;
+    return Date.now() - new Date(this.todayStartedAt).getTime() < 4 * 3_600_000;
+  }
+
+  private tickElapsed() {
+    if (!this.todayInProgress) { this.elapsedLabel = ''; return; }
+    const total = Math.floor((Date.now() - new Date(this.todayStartedAt!).getTime()) / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    const mm = `${m}`.padStart(2, '0');
+    const ss = `${sec}`.padStart(2, '0');
+    this.elapsedLabel = h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
   }
 
   private async loadLive() {

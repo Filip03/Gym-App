@@ -769,6 +769,38 @@
 // izgledalo nedovršeno. Oštar oblik i zelena traka sa strane umjesto obrisa
 // oko cijelog dugmeta: stanje "gotovo" treba da se razlikuje od poziva na
 // akciju i oblikom, ne samo bojom.
+// Trening je u toku: dugme prestaje da zove i počinje da izvještava — tamna
+// pozadina, tačka koja diše i tajmer koji kuca. Isto pravilo kao „ko trenira
+// sada" (sesija otvorena, nezavršena, mlađa od 4h).
+.start-btn.live {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  background: #070B04;
+  color: var(--volt);
+  border: 1px solid var(--volt-a40);
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--volt);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+.live-time {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  opacity: .85;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .3; }
+}
+
 .start-btn.done {
   display: inline-flex;
   align-items: center;

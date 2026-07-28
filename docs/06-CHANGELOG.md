@@ -2453,3 +2453,48 @@ tamo, da izvor ikona bude jedan.
 (na primjer „quads") ne bi bila prepoznata. Svjesno pojednostavljenje za postojeći
 katalog — ako se nazivi grupa prošire, uslov treba zamijeniti spiskom ili
 oznakom na samoj grupi.
+
+---
+
+## [2026-07-28] Puna tastatura na upisu serija (zbog Entera); „Trening u toku" sa tajmerom na dashboardu
+**Tip:** popravka + funkcionalnost
+**Ref:** dorada unosa o brojčanim poljima i Enteru od 28.07.
+
+**Problem:** Dvije stvari.
+
+1. Numerička tastatura na iPhoneu **nema taster Enter**, pa prelazak
+   kilaža → Enter → ponavljanja → Enter → sačuvaj na telefonu nije radio —
+   a baš tamo se serije i upisuju. Svoju tastaturu nije moguće napraviti
+   (tastatura je sistemska), pa je jedino rješenje vratiti punu.
+2. Kad se trening započne pa se pređe na drugi ekran, dugme na dashboardu je
+   i dalje pozivalo „Započni trening" — kao da se ništa ne dešava.
+
+**Rješenje:**
+
+1. `NumFieldDirective` dobila ulaz `keyboard`: podrazumijevano `numeric`
+   (meni sa brojevima), a `text` ostavlja punu tastaturu — jedina ima Enter.
+   Svih 8 polja na ekranu treninga koristi `keyboard="text"`; profil,
+   registracija i dashboard zadržavaju numerički meni jer tamo Enter tok ne
+   postoji. Prihvatanje zareza i tačke ostaje isto (direktiva čisti unos).
+2. `getFinishedAt` zamijenjen sa `getSessionTimes` (vraća i `started_at`).
+   Dugme na dashboardu ima tri stanja: „Započni trening", „● Trening u toku"
+   sa tajmerom koji kuca svake sekunde (`MM:SS`, preko sata `H:MM:SS`), i
+   „Trening završen". „U toku" važi po ISTOM pravilu kao „ko trenira sada":
+   sesija postoji, nije završena, mlađa od 4 sata.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/num-field.directive.ts` — ulaz `keyboard`
+- `src/app/components/training/training.component.html` — `keyboard="text"` na svim poljima
+- `src/app/services/training.service.ts` — `getSessionTimes` umjesto `getFinishedAt`
+- `src/app/components/dashboard/dashboard.component.ts` — stanje `todayInProgress`, tajmer
+- `src/app/components/dashboard/dashboard.component.html` — tri stanja dugmeta
+- `src/app/components/dashboard/dashboard.component.scss` — `.start-btn.live`, tačka koja diše
+
+**Efekat:** Provjereno u pregledaču: polja na treningu su `type="text"` bez
+`inputmode` (puna tastatura), a dashboard uz aktivnu sesiju pokazuje
+„● Trening u toku 1:31:58" i broji uživo, usklađeno sa redom „trenira sada".
+
+**Napomene:** Kompromis je svjestan: puna tastatura traži jedan dodir više za
+brojeve, ali omogućava Enter tok koji je tražen; ako se pokaže da smeta,
+`keyboard="text"` se skida po polju. Red „trenira sada" kod jednoručnih vježbi
+broji svaku ruku kao seriju (L+D = 2) — evidentirano za kasnije usklađivanje.
