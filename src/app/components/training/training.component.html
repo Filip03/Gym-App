@@ -260,11 +260,13 @@
           </span>
 
           <div class="set-edit dropset-form" *ngIf="set.addingDropset">
+            <span class="both-tag" *ngIf="ex.isUnilateral && set.side"
+                  title="Upisuje se i na istu seriju druge ruke">L+D</span>
             <input appNumField [(ngModel)]="set.dropsetWeightInput" placeholder="kg"
                    (keydown.enter)="dropReps.focus()" />
             <input #dropReps appNumField="integer" [(ngModel)]="set.dropsetRepsInput" placeholder="pon."
-                   (keydown.enter)="saveDropset(set)" />
-            <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(set)">
+                   (keydown.enter)="saveDropset(ex, set)" />
+            <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(ex, set)">
               <i class="material-icons">check</i>
             </button>
             <button type="button" class="mini" (click)="set.addingDropset = false">
@@ -308,13 +310,15 @@
         <!-- Jednoručno: blok po ruci, serije teku odvojeno L1, L2... / D1, D2... -->
         <ng-container *ngIf="ex.isUnilateral">
           <!-- Upisano prije uključivanja praćenja ruku — obje zajedno -->
-          <ng-container *ngFor="let set of setsFor(ex, null)">
-            <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
-          </ng-container>
+          <div class="side-full" *ngIf="setsFor(ex, null).length > 0">
+            <ng-container *ngFor="let set of setsFor(ex, null)">
+              <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+            </ng-container>
+          </div>
 
-          <!-- Gornja polovina = lijeva ruka, donja = desna; dijeli ih linija.
-               Bez slova i oznaka — serije se čitaju redom kao i inače, a prva
-               gore odgovara prvoj dolje. -->
+          <!-- Lijeva kolona = lijeva ruka, desna = desna; dijeli ih okomita
+               linija. Bez slova — serije idu jedna ispod druge, a prva lijevo
+               odgovara prvoj desno. -->
           <div class="side-half" *ngFor="let side of SIDES"
                [title]="side === 'L' ? 'Lijeva ruka' : 'Desna ruka'">
             <ng-container *ngFor="let set of setsFor(ex, side)">

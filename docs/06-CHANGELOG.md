@@ -2216,3 +2216,133 @@ između, bez slova; kvačica u formi vidljiva i prosljeđuje vrijednost.
 
 **Napomene:** Migracija nije potrebna — kolona `exercices.is_unilateral` uvedena
 je ranije istog dana (`20260728000000_unilateral.sql`).
+
+---
+
+## [2026-07-28] Jednoručne vježbe u dvije kolone sa okomitom linijom; preslikavanje dropseta; redizajn forme za novu vježbu
+**Tip:** popravka
+**Ref:** zamjenjuje prethodni unos o polovinama sa horizontalnom linijom, po
+povratnoj informaciji iz upotrebe istog dana
+
+**Problem:** Četiri stvari, sve iz upotrebe na telefonu.
+
+1. **Podjela je bila u pogrešnom smjeru.** Horizontalna linija (gore lijeva ruka,
+   dolje desna) nije ono što je traženo — tražena je **okomita**: lijeva kolona
+   lijeva ruka, desna kolona desna, a serije jedna **ispod** druge. Razlog je
+   dvostruk: tako se troši manje prostora na telefonu, i dropsetovi se ljepše
+   nadovezuju ispod svoje serije nego kad serije teku u red.
+2. **Linija nije išla do dna.** Kad jedna kolona ima dropset a druga nema, kolone
+   se nijesu rastezale na istu visinu, pa je crta stajala kod kraće kolone.
+3. **Forma za izmjenu serije prelazila je preko druge kolone.** U jednom redu je
+   široka oko 280px, a kolona je na telefonu oko 145px.
+4. **Modal „Nova vježba" je bio van dizajna aplikacije.** Nativno „Choose File"
+   dugme, nativne kvačice i mišićne grupe kao raštrkani balončići — jedini ekran
+   koji se nije uklapao u ostatak.
+
+**Rješenje:**
+
+**1. Dvije kolone.** `.sets.split` je sada mreža sa dvije kolone
+`minmax(0, 1fr)`. Ključno je `align-items: stretch` — `.sets` inače poravnava na
+vrh, pa bez toga kolone ostanu različite visine i linija stane kod kraće. Sama
+`.side-half` više nije prelamajući red nego **flex kolona**, tako da serije idu
+jedna ispod druge. Linija između ruku je `border-left` na drugoj polovini.
+
+Serije upisane **prije** uključivanja praćenja ruku (bez strane) idu u novu
+`.side-full` koja se prostire preko obje kolone (`grid-column: 1 / -1`), da ne
+upadnu u mrežu kao da pripadaju nečijoj strani.
+
+**2. Da forma stane u kolonu.** Grupa serije je `inline-flex`, pa se širi po
+sadržaju i kolona je sama po sebi ne ograničava — otud `.side-half .set-group`
+dobija `max-width: 100%`. Uz to `.side-half .set-edit` ima `flex-wrap: wrap`, a
+polja `flex: 1 1 52px`: dugmad siđu u novi red, polja podijele širinu kolone.
+Provjereno mjerenjem — forma za izmjenu je tačno 145px, koliko i kolona na
+ekranu širine 390px.
+
+**3. Dropset se preslikava na drugu ruku.** Postavljeno je pitanje da li da
+dropset upisan na jednoj ruci automatski ode i na istu seriju druge — odgovor je
+**da**, istim principom kao i upis serije: jedan unos puni obje ruke. `saveDropset`
+zato sada prima i vježbu (`saveDropset(ex, set)`); kod jednoručne vježbe poslije
+upisa nađe seriju druge ruke sa istim brojem (`setNumber`, suprotna strana, ne
+`pending`) i upiše isti dropset i njoj. U formi za dropset stoji oznaka „L+D",
+sa objašnjenjem u `title`.
+
+Ista zamka kao kod upisa serije: vrijednosti (`reps`, `weight`) hvataju se u
+lokalne konstante **prije** upisa, jer se forma u međuvremenu očisti.
+
+Ako druga ruka nije radila drop, njen se briše jednim dodirom na X — jeftinije
+nego kucati isto dvaput na svakoj seriji.
+
+**4. Modal „Nova vježba" u stilu aplikacije.**
+
+- **Slika.** Nativno file polje je sakriveno, a otvara ga `.file-btn` —
+  isprekidan okvir, ikona, naziv izabranog fajla i X za uklanjanje. X poziva
+  novu metodu `clearPicture`, koja otpušta `objectURL` pregleda i prazni
+  `input.value`, da isti fajl može ponovo da se izabere.
+- **Osobine.** Kvačice su zamijenjene `.opt-row` redovima: ikona, naziv, kratko
+  objašnjenje i kružić stanja desno. Cijeli red je dodirna meta.
+- **Mišićne grupe.** Umjesto balončića različitih širina, `.mg-grid` mreža
+  jednakih polja (`repeat(auto-fill, minmax(104px, 1fr))`), sa kvačicom na
+  izabranom.
+- **Dugmad forme** dobila su `.btn-ghost` i `.btn-primary` — postojeće globalne
+  klase iz `src/styles/_base.scss`, iste koje koristi ostatak aplikacije.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.scss:403` — `.sets.split` je
+  mreža sa dvije kolone; komentar zašto je `align-items: stretch` obavezan
+- `src/app/components/training/training.component.scss:413` — nova `.side-full`
+  preko obje kolone, za serije bez strane
+- `src/app/components/training/training.component.scss:421` — `.side-half` je
+  sada flex kolona
+- `src/app/components/training/training.component.scss:431` — okomita isprekidana
+  linija (`border-left` na drugoj polovini)
+- `src/app/components/training/training.component.scss:441` — `.side-half
+  .set-group { max-width: 100% }`, sa komentarom zašto `inline-flex` inače pobjegne
+  iz kolone
+- `src/app/components/training/training.component.scss:443,448` — `.set-edit` se
+  prelama, polja `flex: 1 1 52px`
+- `src/app/components/training/training.component.html:263` — oznaka „L+D" u
+  formi za dropset kod jednoručnih
+- `src/app/components/training/training.component.html:268,269` — pozivi
+  `saveDropset(ex, set)`
+- `src/app/components/training/training.component.html:313` — serije bez strane
+  omotane u `.side-full`
+- `src/app/components/training/training.component.html:322` — komentar uz
+  `.side-half` opisuje kolone umjesto polovina
+- `src/app/components/training/training.component.ts:656` — `saveDropset` prima i
+  vježbu
+- `src/app/components/training/training.component.ts:661` — `reps` i `weight` u
+  konstante prije upisa
+- `src/app/components/training/training.component.ts:680` — `twin`: ista serija
+  druge ruke, i preslikan upis dropseta na nju
+- `src/app/components/exercices/exercices.component.html:56,57` — sakriveno
+  nativno file polje i `.file-btn` koje ga otvara
+- `src/app/components/exercices/exercices.component.html:68,75` — `.opt-row`
+  redovi umjesto kvačica (tjelesna težina, jednoručno)
+- `src/app/components/exercices/exercices.component.html:86` — `.mg-grid` mreža
+  mišićnih grupa
+- `src/app/components/exercices/exercices.component.html:103,104` — `.btn-ghost`
+  i `.btn-primary` na dugmadima forme
+- `src/app/components/exercices/exercices.component.ts:103` — nova metoda
+  `clearPicture`
+- `src/app/components/exercices/exercices.component.scss:175` — stilovi `.file-btn`
+- `src/app/components/exercices/exercices.component.scss:203` — stilovi `.opt-row`
+- `src/app/components/exercices/exercices.component.scss:238,244` — `.mg-grid` i
+  `.mg-tile` umjesto `.muscle-group-picker` i `.muscle-group-chip`
+
+**Efekat:** Provjereno u pregledaču na širini 390px: dvije kolone stoje jedna
+pored druge, okomita isprekidana linija ide do dna i kad jedna strana ima dropset
+a druga nema, pilule se ne prelivaju, a forma za izmjenu serije staje u svoju
+kolonu.
+
+Dropset 15 kg × 6 upisan na L2 istovremeno je upisan i na D2; brisanje pojedinačno
+i dalje radi, dakle svaka strana se može ispraviti zasebno.
+
+Modal „Nova vježba" je u stilu ostatka aplikacije — izgled potvrđen na snimku
+ekrana.
+
+**Napomene:** Preslikavanje dropseta je odluka koja se lako vraća na „po ruci"
+ako se u praksi pokaže da smeta — sav posao je u jednom `if (twin)` bloku u
+`saveDropset`.
+
+Ako druga ruka još nema tu seriju (na primjer, ručno je obrisana), dropset se
+upisuje samo na stranu na kojoj je pritisnut „+".

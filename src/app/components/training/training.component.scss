@@ -395,27 +395,60 @@ $branch-indent: 16px;
 
 // --- Jednoručne vježbe: blok po ruci ---------------------------------------
 //
-// Serije lijeve i desne ruke teku odvojeno (L1, L2... / D1, D2...): gornja
-// polovina je lijeva, donja desna, između njih linija. Redovi se i dalje
-// prelamaju kao i dvoručni — na uskom ekranu polovina samo nastavi u novi red.
+// Serije lijeve i desne ruke teku odvojeno (L1, L2... / D1, D2...): lijeva
+// KOLONA je lijeva ruka, desna desna, između njih okomita linija. Serije idu
+// jedna ispod druge, pa se dropsetovi granaju ispod svoje serije kao i inače
+// — a dvije kolone stanu i na telefon, jer je pilula uža od pola ekrana.
 
 .sets.split {
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  // `.sets` inače poravnava na vrh; ovdje se kolone MORAJU rastegnuti na istu
+  // visinu, inače linija između ruku stane kod kraće kolone umjesto do dna.
   align-items: stretch;
 }
 
-.side-half {
+// Serije upisane prije uključivanja praćenja (obje ruke zajedno) idu preko
+// obje kolone, da ne upadnu u mrežu kao da su nečija strana.
+.side-full {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--s-2);
 }
 
-// Linija koja dijeli ruke — jedini vizuelni znak podjele. Gore lijeva, dolje
-// desna; prva serija gore odgovara prvoj dolje, pa slova nisu potrebna.
+.side-half {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+// Okomita linija koja dijeli ruke — jedini vizuelni znak podjele. Lijevo je
+// lijeva; prva serija lijevo odgovara prvoj desno, pa slova nisu potrebna.
 .side-half + .side-half {
-  border-top: 1px dashed var(--line-strong);
-  padding-top: var(--s-3);
+  border-left: 1px dashed var(--line-strong);
+  padding-left: var(--s-3);
+}
+
+// Izmjena serije i unos dropseta MORAJU stati u svoju kolonu — na telefonu je
+// kolona ~145px, a forma u jednom redu ~280px, pa bi prešla preko druge ruke.
+// Prelamanjem dugmad siđu u novi red, a polja podijele širinu kolone.
+// Grupa je inline-flex (širi se po sadržaju), pa joj kolona sama po sebi ne
+// ograničava širinu — bez ovoga forma za izmjenu pređe preko druge ruke.
+.side-half .set-group { max-width: 100%; }
+
+.side-half .set-edit {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.side-half .set-edit input {
+  flex: 1 1 52px;
+  width: auto;
+  min-width: 0;
 }
 
 .set-group .dropset,

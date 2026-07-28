@@ -653,24 +653,43 @@ export class TrainingComponent implements OnInit, OnDestroy {
     set.dropsetRepsInput = null;
   }
 
-  async saveDropset(set: LoggedSet) {
+  async saveDropset(ex: TodayExercice, set: LoggedSet) {
     if (set.dropsetRepsInput == null || set.dropsetWeightInput == null || set.savingDropset) return;
     if (set.dropsetWeightInput < 0 || set.dropsetWeightInput > 1000) return;
 
     set.savingDropset = true;
+    const reps = set.dropsetRepsInput;
+    const weight = set.dropsetWeightInput;
 
     try {
       const saved = await this.trainingService.logDropset({
         exerciceLogId: set.id,
         orderNum: set.dropsets.length + 1,
-        reps: set.dropsetRepsInput,
-        weight: set.dropsetWeightInput
+        reps,
+        weight
       });
 
       set.dropsets.push({ ...saved, deleting: false });
       set.addingDropset = false;
       set.dropsetWeightInput = null;
       set.dropsetRepsInput = null;
+
+      // Kod jednoručne vježbe dropset se preslika i na ISTU seriju druge ruke
+      // — isti princip kao upis serije: jedan unos puni obje. Ako druga ruka
+      // nije radila drop, njen se obriše jednim dodirom na X.
+      const twin = ex.isUnilateral && set.side
+        ? ex.loggedSets.find(s => s.side === (set.side === 'L' ? 'D' : 'L')
+                               && s.setNumber === set.setNumber && !s.pending)
+        : null;
+      if (twin) {
+        const mirrored = await this.trainingService.logDropset({
+          exerciceLogId: twin.id,
+          orderNum: twin.dropsets.length + 1,
+          reps,
+          weight
+        });
+        twin.dropsets.push({ ...mirrored, deleting: false });
+      }
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom upisa dropseta.');
 

@@ -100,6 +100,13 @@ export class ExercicesComponent implements OnInit {
     this.showCreateModal = false;
   }
 
+  clearPicture(input: HTMLInputElement) {
+    if (this.newPicturePreviewUrl) URL.revokeObjectURL(this.newPicturePreviewUrl);
+    this.newPictureFile = null;
+    this.newPicturePreviewUrl = null;
+    input.value = '';   // da isti fajl može ponovo da se izabere
+  }
+
   onPictureFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
