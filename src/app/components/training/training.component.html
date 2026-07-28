@@ -312,16 +312,17 @@
             <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
           </ng-container>
 
-          <div class="side-block" *ngFor="let side of SIDES">
-            <span class="side-tag num" [title]="side === 'L' ? 'Lijeva ruka' : 'Desna ruka'">{{ side }}</span>
-            <div class="side-sets">
-              <ng-container *ngFor="let set of setsFor(ex, side)">
-                <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
-              </ng-container>
-              <ng-container *ngFor="let g of sideGhosts(ex, side)">
-                <ng-container *ngTemplateOutlet="ghostGroupTpl; context: { $implicit: g }"></ng-container>
-              </ng-container>
-            </div>
+          <!-- Gornja polovina = lijeva ruka, donja = desna; dijeli ih linija.
+               Bez slova i oznaka — serije se čitaju redom kao i inače, a prva
+               gore odgovara prvoj dolje. -->
+          <div class="side-half" *ngFor="let side of SIDES"
+               [title]="side === 'L' ? 'Lijeva ruka' : 'Desna ruka'">
+            <ng-container *ngFor="let set of setsFor(ex, side)">
+              <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
+            </ng-container>
+            <ng-container *ngFor="let g of sideGhosts(ex, side)">
+              <ng-container *ngTemplateOutlet="ghostGroupTpl; context: { $implicit: g }"></ng-container>
+            </ng-container>
           </div>
         </ng-container>
       </div>

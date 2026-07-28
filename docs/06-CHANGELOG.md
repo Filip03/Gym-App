@@ -2176,3 +2176,43 @@ osvježavanja stranice: strelice u odnosu na prošli jednoručni trening nestanu
 
 **Efekat:** Provjereno u pregledaču: juče L1 9 kg / D1 11 kg, danas obje strane
 po 10 kg → poslije osvježavanja lijeva pokazuje gore, desna dolje.
+
+---
+
+## [2026-07-28] Jednoručne vježbe: polovine umjesto blokova sa slovima; oznaka pri dodavanju vježbe
+**Tip:** popravka
+**Ref:** dorada unosa o jednoručnim vježbama, po povratnoj informaciji iz upotrebe
+
+**Problem:** Dvije stvari.
+
+1. Prikaz L/D blokova sa slovom i okomitom crtom na početku reda ocijenjen je
+   kao nezgrapan. Traženo: prostor serija podijeljen horizontalnom linijom —
+   gornja polovina lijeva ruka, donja desna — serije teku redom kao i inače,
+   bez ikakvih slova; prva serija gore odgovara prvoj dolje.
+2. Praćenje ruku se moglo uključiti samo iz menija vježbe na treningu. Pri
+   DODAVANJU vježbe u katalog nije postojala mogućnost da se odmah označi,
+   iako tamo već stoji ista takva oznaka za tjelesnu težinu.
+
+**Rješenje:**
+
+1. `.side-block`/`.side-tag`/`.side-sets` zamijenjeni jednim `.side-half` po
+   ruci: puna širina, prelamanje kao kod dvoručnih, a između polovina
+   isprekidana linija (`+` selektor). Redoslijed je dogovor: gore lijeva.
+   Naziv ruke ostaje u `title` atributu polovine.
+2. Forma „Nova vježba" dobila kvačicu „Radi se jednom rukom/nogom — prati se
+   lijeva i desna odvojeno", istim putem kao postojeća za tjelesnu težinu:
+   `newIsUnilateral` → `addExercice({ isUnilateral })` → `is_unilateral`.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html` — `.side-half` umjesto bloka sa oznakom
+- `src/app/components/training/training.component.scss` — stilovi polovina i linije
+- `src/app/components/exercices/exercices.component.html` — nova kvačica
+- `src/app/components/exercices/exercices.component.ts` — `newIsUnilateral`
+- `src/app/services/exercice.service.ts` — `isUnilateral` u `addExercice`
+- `src/app/models/models.ts` — `Exercice.is_unilateral`
+
+**Efekat:** Provjereno u pregledaču: dvije polovine sa isprekidanom linijom
+između, bez slova; kvačica u formi vidljiva i prosljeđuje vrijednost.
+
+**Napomene:** Migracija nije potrebna — kolona `exercices.is_unilateral` uvedena
+je ranije istog dana (`20260728000000_unilateral.sql`).

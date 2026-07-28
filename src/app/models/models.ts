@@ -42,6 +42,8 @@ export interface Exercice {
   picture: string | null;
   description: string | null;
   is_bodyweight: boolean;
+  /** Radi se jednom rukom/nogom — L i D se prate odvojeno. */
+  is_unilateral: boolean;
 }
 
 export interface ExerciceMuscle {

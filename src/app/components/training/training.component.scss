@@ -395,40 +395,27 @@ $branch-indent: 16px;
 
 // --- Jednoručne vježbe: blok po ruci ---------------------------------------
 //
-// Serije lijeve i desne ruke teku odvojeno (L1, L2... / D1, D2...), pa svaka
-// ruka dobija svoj red sa malom oznakom na početku. Redovi se i dalje
-// prelamaju kao i dvoručni — na uskom ekranu blok samo nastavi u novi red.
+// Serije lijeve i desne ruke teku odvojeno (L1, L2... / D1, D2...): gornja
+// polovina je lijeva, donja desna, između njih linija. Redovi se i dalje
+// prelamaju kao i dvoručni — na uskom ekranu polovina samo nastavi u novi red.
 
 .sets.split {
   flex-direction: column;
   align-items: stretch;
 }
 
-.side-block {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s-2);
-}
-
-// Oznaka ruke — poravnata sa prvim redom pilula, ne sa sredinom bloka.
-.side-tag {
-  flex: none;
-  min-width: 20px;
-  padding: var(--s-2) 0;
-  text-align: center;
-  font-size: var(--t-2xs);
-  font-weight: 600;
-  color: var(--dust);
-  border-right: 1px solid var(--line);
-}
-
-.side-sets {
-  flex: 1;
-  min-width: 0;
+.side-half {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--s-2);
+}
+
+// Linija koja dijeli ruke — jedini vizuelni znak podjele. Gore lijeva, dolje
+// desna; prva serija gore odgovara prvoj dolje, pa slova nisu potrebna.
+.side-half + .side-half {
+  border-top: 1px dashed var(--line-strong);
+  padding-top: var(--s-3);
 }
 
 .set-group .dropset,
