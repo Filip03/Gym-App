@@ -2157,3 +2157,22 @@ ostavljeno tako.
 
 Ako se praćenje uključi usred dana u kojem već ima dvoručnih upisa, oni ostaju
 vidljivi — stoje iznad blokova po ruci, kao serije bez strane.
+
+---
+
+## [2026-07-28] Ispravka: strelice poređenja po strani i poslije osvježavanja
+**Tip:** popravka
+**Ref:** nastavak unosa o jednoručnim vježbama
+
+**Problem:** Pri učitavanju ekrana (`hydrate`) se `compare` pozivao bez strane,
+pa su se L/D serije poredile samo sa prošlim dvoručnim upisima. Pri samom upisu
+je radilo ispravno (`accept` stranu prosljeđuje) — greška se vidjela tek nakon
+osvježavanja stranice: strelice u odnosu na prošli jednoručni trening nestanu.
+
+**Rješenje:** `compare` u `hydrate` dobija `l.side ?? null`, isto kao pri upisu.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.ts` — `hydrate`, poziv `compare`
+
+**Efekat:** Provjereno u pregledaču: juče L1 9 kg / D1 11 kg, danas obje strane
+po 10 kg → poslije osvježavanja lijeva pokazuje gore, desna dolje.

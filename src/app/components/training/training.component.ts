@@ -209,7 +209,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
         reps: l.reps,
         weight: l.weight,
         side: l.side ?? null,
-        ...this.compare(ec, l.set_number, l.weight, l.reps),
+        ...this.compare(ec, l.set_number, l.weight, l.reps, l.side ?? null),
         editing: false,
         editReps: null,
         editWeight: null,
