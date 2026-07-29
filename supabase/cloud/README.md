@@ -38,6 +38,13 @@ Migracije su pisane tako da se mogu pustiti i dvaput — koriste
 | `20260727000000_dropset_logs.sql` | ✅ | ❔ Filipova |
 | `20260727010000_mark_bodyweight_exercices.sql` | ✅ | ⬜ **treba pustiti** |
 | `20260728000000_unilateral.sql` | ✅ | ⬜ **treba pustiti** |
+| `20260728010000_news.sql` | ✅ | ❔ Filipova — vjerovatno već tamo |
+| `20260728020000_custom_day_type.sql` | ✅ | ❔ Filipova — vjerovatno već tamo |
+
+Napomena: `custom_day_type` je kod Filipa nastala kao `20260728000000_...` — ISTI
+pečat kao `unilateral`, pa je evidencija migracija odbijala duplikat verzije.
+Preimenovana je u `...020000` na grani XFactor; sadržaj je netaknut i idempotentan,
+pa je svejedno pod kojim je imenom ko već pustio.
 
 Posljednja (`unilateral`) donosi praćenje lijeve/desne ruke kod jednoručnih
 vježbi: `exercices.is_unilateral` i `exercice_logs.side`. **Mora se pustiti

@@ -64,3 +64,8 @@ database/
 # Repo je javan, a sistem koji dokument opisuje je živ i nezaštićen.
 # Dijeli se direktno između saradnika. Vidi docs/03-SIGURNOST.PROCITAJ.md
 docs/03-SIGURNOST.md
+
+# Nativna ljuska zivi na grani native-app — na radnim granama su ovo samo
+# ostaci builda i ne smiju u komit (git add -A ih je jednom vec pokupio).
+/ios/
+/android/

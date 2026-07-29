@@ -2543,3 +2543,25 @@ se samo nastanak; izmjena postoji baš da se jedna strana ispravi.
 
 **Efekat:** Provjereno: dropset 10×5 na lijevoj preslikan na desnu, izmjena
 desnog na 8×6 ne dira lijevi; radi i u kolonama jednoručnog prikaza.
+
+---
+
+## [2026-07-30] Spajanje main grane: profile-preview, news, custom tip dana
+**Tip:** infrastruktura
+
+**Problem:** Filip je na main dodao pregled profila (klik na avatara u
+leaderboardu/headeru/blogu), sekciju novosti sa migracijom, CUSTOM tip dana i
+nove ikone aplikacije — a usput opet prebacio `env.ts` na cloud.
+
+**Rješenje:** `origin/main` spojen u XFactor bez konflikata. `env.ts` vraćen na
+lokalni Supabase (cloud podaci žive u `env.prod.ts`, koji je dobio Filipov novi
+`sb_publishable` ključ). Filipova migracija `custom_day_type` imala je ISTI
+vremenski pečat kao naša `unilateral` (obje `20260728000000`), pa ju je
+evidencija migracija odbijala kao duplikat verzije — preimenovana u
+`20260728020000_custom_day_type.sql`, sadržaj netaknut (idempotentna).
+Obje nove migracije primijenjene lokalno; `supabase/cloud/README.md` dopunjen.
+
+**Napomene:** Pouka za ubuduće: pečat migracije mora biti jedinstven u cijelom
+folderu, i vrijedi baciti pogled na tuđe pečate prije nego što se svoja migracija
+nazove. Usput je saniran i Docker koji je ostao zaglavljen poslije punog diska
+(pozadinski proces od 25.07. preživio restart i držao mrtav socket).
