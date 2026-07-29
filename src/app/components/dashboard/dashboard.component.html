@@ -86,7 +86,7 @@
         <div class="live-row" *ngFor="let l of live; let i = index; trackBy: trackLive"
              [class.me]="l.userId === currentUserId"
              [style.animation-delay.ms]="i * 80">
-            <div class="live-av clickable" (click)="openProfilePreview(l.userId)">
+            <div class="live-av clickable" [appProfilePreview]="l.userId">
                 <img *ngIf="l.avatarUrl" [src]="l.avatarUrl" alt="">
                 <i class="material-icons" *ngIf="!l.avatarUrl">person</i>
             </div>
@@ -365,7 +365,6 @@
   </div>
 </div>
 
-<app-profile-preview [userId]="previewUserId" (closed)="closeProfilePreview()"></app-profile-preview>
 
 <div class="modal-overlay" *ngIf="showNewsPopup && latestNews" (click)="closeNewsPopup()">
   <div class="modal-card news-popup-card" (click)="$event.stopPropagation()">

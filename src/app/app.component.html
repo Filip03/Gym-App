@@ -11,4 +11,8 @@
 
     <app-footer *ngIf="showFooter"></app-footer>
 
+    <!-- Brzi pregled profila — JEDAN modal za cijelu aplikaciju; otvara ga
+         ProfilePreviewService preko [appProfilePreview] zakačke na avatarima. -->
+    <app-profile-preview [userId]="preview.userId" (closed)="preview.close()"></app-profile-preview>
+
 </div>

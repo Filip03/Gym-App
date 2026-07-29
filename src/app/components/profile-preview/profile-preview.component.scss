@@ -1,3 +1,7 @@
+// Pregled profila se otvara i PREKO lightboxa u blogu (z-index 200), pa njegov
+// overlay mora iznad — inače se kartica otvori nevidljivo, iza slike.
+.modal-overlay { z-index: 300; }
+
 :host { display: contents; }
 
 .preview-card {
