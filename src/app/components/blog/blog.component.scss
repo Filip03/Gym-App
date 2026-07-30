@@ -281,7 +281,6 @@
 // pregledačeve trake, pa se na telefonu nije moglo pogoditi. Sada je unutar
 // vidljivog dijela, kao i sve ostalo.
 // Pregled slika je MRAK u OBJE teme — fotografije se gledaju na crnom, pa
-// pozadina namjerno ne prati temu (zato sirove vrijednosti, ne tokeni).
 .lb {
   position: fixed;
   top: calc(var(--header-h) + var(--safe-t));
