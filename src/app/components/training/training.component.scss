@@ -186,7 +186,7 @@ $branch-indent: 16px;
 .save-log-btn {
   min-height: 46px;
   padding: 0 var(--s-4);
-  background: var(--volt);
+  background: var(--volt-fill);
   border-radius: var(--r-sm);
   color: var(--volt-ink);
   font-weight: 700;
@@ -329,7 +329,7 @@ $branch-indent: 16px;
 // Ovo je signal po SERIJI. Lični rekord je odvojen i stoji uz naziv vježbe.
 .set.up   { border-color: var(--volt-a40); }
 .set.up   .set-v { color: var(--volt); }
-.set.down { border-color: rgba(255,107,92,.28); }
+.set.down { border-color: var(--ember-a30); }
 .set.down .set-v { color: var(--ember); }
 
 .arrow { font-size: 14px; }
@@ -708,8 +708,10 @@ $branch-indent: 16px;
 
   padding: 2px var(--s-2);
   border-radius: var(--r-full);
-  background: linear-gradient(135deg, rgba(255,201,74,.20), rgba(255,138,0,.12));
-  border: 1px solid rgba(255,201,74,.45);
+  background: linear-gradient(135deg,
+              color-mix(in srgb, var(--gold) 20%, transparent),
+              color-mix(in srgb, var(--bronze) 12%, transparent));
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
   color: var(--gold);
   white-space: nowrap;
 }
@@ -752,11 +754,11 @@ $branch-indent: 16px;
 
 @keyframes pr-reveal {
   0%   { transform: scale(.4); opacity: 0;
-         box-shadow: 0 0 0 0 rgba(255,201,74,.7); }
+         box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent); }
   35%  { transform: scale(1.18); opacity: 1; }
   55%  { transform: scale(1); }
   100% { transform: scale(1); opacity: 1;
-         box-shadow: 0 0 22px -6px rgba(255,201,74,.55); }
+         box-shadow: 0 0 22px -6px color-mix(in srgb, var(--gold) 55%, transparent); }
 }
 
 // Bez pokreta: oznaka se samo pojavi, snimak se ne pušta.
@@ -802,7 +804,7 @@ $branch-indent: 16px;
 .reorder-btn:hover { color: var(--ice); border-color: var(--line-strong); }
 
 .reorder-btn.on {
-  background: var(--volt);
+  background: var(--volt-fill);
   border-color: var(--volt);
   color: var(--volt-ink);
 }
@@ -1143,7 +1145,7 @@ $branch-indent: 16px;
 }
 
 .exercice-row.moved .pos {
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
 }
 
@@ -1166,7 +1168,7 @@ $branch-indent: 16px;
   min-height: 54px;
   margin-top: var(--s-6);
 
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
   border-radius: var(--r-md);
 
@@ -1176,7 +1178,7 @@ $branch-indent: 16px;
 }
 
 .finish-btn:not(:disabled):hover {
-  background: #D4FF5E;
+  background: var(--volt-hi);
   box-shadow: 0 0 26px -6px var(--volt-a40);
 }
 
@@ -1190,6 +1192,9 @@ $branch-indent: 16px;
 
 .finish-btn .material-icons { font-size: 20px; }
 
+// Traka je duboko ostrvo (ista u obje teme), pa su joj i SVE boje sadržaja
+// stalne (--on-deep*): tokeni koji prate temu bi u svijetloj dali taman tekst
+// na skoro crnom.
 .finished-bar {
   display: flex;
   align-items: center;
@@ -1199,10 +1204,11 @@ $branch-indent: 16px;
 
   // Puna tamna podloga, ne prelaz u ništa. Ranije je bila providna pa je
   // izgledala nedovršeno i gubila se na pozadinskoj fotografiji.
-  background: #0A1005;
-  border: 1px solid var(--volt);
+  // „Duboko ostrvo" — namjerno ista skoro crna u obje teme (--deep).
+  background: var(--deep);
+  border: 1px solid var(--on-deep);
   border-radius: var(--r-md);
-  box-shadow: inset 0 0 40px -18px var(--volt), var(--lift-2);
+  box-shadow: inset 0 0 40px -18px var(--on-deep), var(--lift-2);
 
   animation: finished-in var(--d-slower) var(--ease-spring) both;
 }
@@ -1212,20 +1218,20 @@ $branch-indent: 16px;
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.finished-bar .material-icons { font-size: 22px; color: var(--volt); }
+.finished-bar .material-icons { font-size: 22px; color: var(--on-deep); }
 
 .fb-text {
   flex: 1;
   font-family: var(--font-display);
   font-weight: 700;
-  color: var(--ice);
+  color: var(--on-deep-ice);
 }
 
 .fb-text small {
   font-family: var(--font-data);
   font-size: var(--t-xs);
   font-weight: 400;
-  color: var(--mist);
+  color: var(--on-deep-mist);
 }
 
 // Namjerno tiho — završetak nije brava, ali ni radnja koju treba isticati.
@@ -1235,7 +1241,7 @@ $branch-indent: 16px;
   padding: 0 var(--s-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
-  color: var(--mist);
+  color: var(--on-deep-mist);
   font-size: var(--t-xs);
 }
 
@@ -1302,7 +1308,7 @@ $branch-indent: 16px;
 .sum-icon .material-icons { font-size: 34px; }
 
 // Boja prati ishod treninga, ne uvijek zeleno — inače pohvala ništa ne znači.
-[data-tone="record"]   .sum-icon { background: rgba(255,201,74,.14); color: var(--gold); }
+[data-tone="record"]   .sum-icon { background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); }
 [data-tone="progress"] .sum-icon { background: var(--volt-a10);      color: var(--volt); }
 [data-tone="steady"]   .sum-icon { background: var(--volt-a10);      color: var(--volt-soft); }
 [data-tone="down"]     .sum-icon { background: var(--ember-a15);     color: var(--ember); }
@@ -1346,8 +1352,8 @@ $branch-indent: 16px;
   align-items: center;
   gap: var(--s-2);
   padding: var(--s-2) var(--s-3);
-  background: rgba(255, 201, 74, .08);
-  border: 1px solid rgba(255, 201, 74, .3);
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
   border-radius: var(--r-sm);
   text-align: left;
 }
@@ -1389,7 +1395,7 @@ $branch-indent: 16px;
 
 [data-outcome="up"]   { border-color: var(--volt-a40); }
 [data-outcome="up"]   .material-icons { color: var(--volt); }
-[data-outcome="down"] { border-color: rgba(255,107,92,.28); }
+[data-outcome="down"] { border-color: var(--ember-a30); }
 [data-outcome="down"] .material-icons { color: var(--ember); }
 [data-outcome="same"] .material-icons { color: var(--dust); }
 
@@ -1468,7 +1474,7 @@ $branch-indent: 16px;
 }
 
 .note-cancel { background: transparent; border: 1px solid var(--line-strong); color: var(--ice); }
-.note-save { background: var(--volt); color: var(--volt-ink); }
+.note-save { background: var(--volt-fill); color: var(--volt-ink); }
 
 // Upisana bilješka. Klik je otvara za izmjenu — bez dodatnog dugmeta.
 .note-shown {

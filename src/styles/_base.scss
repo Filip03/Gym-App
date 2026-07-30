@@ -55,11 +55,26 @@ body::before {
   pointer-events: none;
 
   background-image:
-    linear-gradient(180deg, rgba(6,8,11,.80) 0%, rgba(6,8,11,.93) 55%, var(--void) 100%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--void) 80%, transparent) 0%,
+      color-mix(in srgb, var(--void) 93%, transparent) 55%,
+      var(--void) 100%),
     url('/assets/background.jpg');
   background-size: cover, cover;
   background-position: center, center top;
   background-repeat: no-repeat, no-repeat;
+}
+
+// Svijetla tema: ISTA fotografija, ali skoro potpuno prekrivena svijetlim
+// velom — tekstura sprave ostane u naznakama, a stranica je svijetla. Bez
+// posebne slike, bez novog asseta.
+:root[data-theme='light'] body::before {
+  background-image:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--void) 93%, transparent) 0%,
+      color-mix(in srgb, var(--void) 97%, transparent) 55%,
+      var(--void) 100%),
+    url('/assets/background.jpg');
 }
 
 // Rezervu za footer nosi `.content.app-scroll` u app.component.scss — stil
@@ -249,7 +264,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   min-height: 46px;
   padding: 0 var(--s-6);
 
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
   border-radius: var(--r-sm);
   font-family: var(--font-display);
@@ -258,7 +273,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 }
 
 .btn-primary:not(:disabled):hover {
-  background: #D4FF5E;
+  background: var(--volt-hi);
   box-shadow: 0 0 20px -4px var(--volt-a40);
 }
 
@@ -369,7 +384,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   left: 3px;
   width: calc((100% - 6px) / var(--seg-count, 2));
 
-  background: var(--volt);
+  background: var(--volt-fill);
   border-radius: calc(var(--r-sm) - 2px);
   box-shadow: 0 0 14px -4px var(--volt);
 
@@ -452,7 +467,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   align-items: flex-end;
   justify-content: center;
 
-  background: rgba(3, 5, 7, 0.72);
+  background: var(--scrim);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 
@@ -502,7 +517,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   gap: var(--s-2);
   padding: var(--s-3) var(--s-4);
   background: var(--ember-a15);
-  border: 1px solid rgba(255, 107, 92, .3);
+  border: 1px solid var(--ember-a30);
   border-radius: var(--r-sm);
   color: var(--ember);
   font-size: var(--t-sm);
@@ -533,3 +548,22 @@ button:not(:disabled):active { transform: scale(0.97); }
 
 // Element sa [appProfilePreview] zakačkom — otvara brzi pregled profila.
 .pp-clickable { cursor: pointer; }
+
+// Pretapanje pri promjeni teme: klasa stoji na <html> ~420ms (ThemeService).
+// !important namjerno — privremeno pregazi i transitions komponenti, da se
+// SVE boje preliju u istom taktu; poslije se klasa skine i sve je po starom.
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition: background-color 320ms var(--ease),
+              color 320ms var(--ease),
+              border-color 320ms var(--ease),
+              fill 320ms var(--ease),
+              stroke 320ms var(--ease) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-anim *,
+  html.theme-anim *::before,
+  html.theme-anim *::after { transition: none !important; }
+}

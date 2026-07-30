@@ -21,7 +21,7 @@ img{
 }
 
 p{
-    color: white;
+    color: var(--ice);
     font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
     font-size: 40px;
     backdrop-filter: blur(10px);
@@ -30,7 +30,7 @@ p{
 }
 
 span{
-    color: greenyellow;
+    color: var(--volt);
 }
 
 @media (max-width: 480px) {

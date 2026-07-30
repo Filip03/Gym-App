@@ -3028,3 +3028,112 @@ pokreta ozvaničen kao kućno pravilo: sekcija u `CLAUDE.md` (obavezna), skill
 `.claude/skills/tecne-animacije/SKILL.md` (pun recept i zamke) i sekcija u
 `docs/08-KONVENCIJE.md` — dakle prisutno u svakoj sesiji i za svakog
 saradnika, ne samo u memoriji alata.
+
+---
+
+## [2026-07-31] Svijetla tema za cijelu aplikaciju
+**Tip:** funkcionalnost
+
+**Problem:** Aplikacija je znala samo jedno osvjetljenje — mrak. Ko voli
+svijetli interfejs (ili ga jednostavno bolje vidi na dnevnom svjetlu u
+teretani) nije imao izbor. Uz to, ispod površine je stajala prepreka: iako je
+dizajn sistem odavno na tokenima, kroz `src/` su ostale i zakucane boje —
+naslijeđeni `greenyellow`, `white`, sirove `rgba(...)` vrijednosti — koje ne bi
+poslušale nikakvu promjenu teme.
+
+**Rješenje:**
+
+1. **Tema je jedan atribut.** Pošto sve boje već žive u `_tokens.scss`, tema je
+   svedena na `data-theme` na `<html>`: blok `:root[data-theme='light']` nosi
+   kompletnu svijetlu paletu i `color-scheme: light`, pa se svaki ekran
+   preslika sam. Novi `ThemeService` pamti izbor u `localStorage`
+   (`gymapp.theme`), a isti atribut se postavlja i u `main.ts` PRIJE bootstrapa
+   — bez toga bi svijetli korisnik na svakom otvaranju vidio bljesak tamne teme
+   dok se Angular podiže. Prekidač „Izgled" je u profilu, klizač sa
+   suncem/mjesecom.
+2. **Promjena teme se PRETAPA, ne puca.** Po kućnom pravilu o pokretu: klasa
+   `theme-anim` stoji na `<html>` oko 420ms i za to vrijeme pali globalni
+   prelaz boja (`_base.scss`), pa se aplikacija prelije iz teme u temu. Poslije
+   se klasa skine i sve je po starom.
+3. **Paleta — podloga kost, kartice bijele.** Svijetla podloga je mliječna
+   (`#ECEBE4`), a kartice čisto bijele: kontrast dolazi iz podloge, ne iz
+   sjenki. Header i futer su u svijetloj temi NEPROVIDNI i iste boje kao
+   podloga — providnost je puštala kartice da prosijavaju kroz njih, pa se
+   futer u listanju razlikovao od headera.
+4. **Energija ostaje neon.** Neon na bijelom je nečitljiv kao tekst (oko
+   1.2:1), ali kao punjenje je identitet aplikacije. Zato je token razdvojen:
+   `--volt-fill`/`--volt-fill-soft` (pozadine dugmadi, klizača, traka) ostaju
+   neonski u OBJE teme, dok `--volt` u svijetloj postaje živa zasićena zelena
+   `#3E9400` za tekst, ikone i ivice.
+5. **„Duboka ostrva" ne prate temu.** `--deep`/`--deep-high` su skoro crni u
+   obje teme, sa stalnim neonom (`--on-deep`) i stalnim svijetlim tekstom
+   (`--on-deep-ice`/`--on-deep-mist`) — traka završenog treninga tako u
+   svijetloj temi postaje upečatljivo tamno ostrvo umjesto da izblijedi.
+6. **Novi tokeni:** `--volt-hi` (hover neona), `--scrim` (zatamnjenje iza
+   modala, svjetlije u svijetloj temi), `--ember-a30`, `--ember-ink`, i meke
+   sjenke `--lift-1/2/3` za svijetlu temu — 60% crne bi na svijetlom djelovalo
+   kao rupa u stranici.
+7. **Pozadinska fotografija ostaje ista slika**, samo pod svijetlim velom
+   (93–97%) — tokenizovano kroz `color-mix` sa `--void`, bez novog asseta.
+8. **Okvir pregledača.** `theme-color` meta i `manifest.webmanifest` prebačeni
+   sa stare Angular plave (`#1976d2`) na vrijednost `--void`; meta se pri svakoj
+   promjeni teme prepisuje iz `ThemeService`, pa statusna traka ne ostane u
+   jednoj temi dok se sadržaj prelije u drugu.
+
+**Veliko čišćenje:** popisano je i zamijenjeno 147 zakucanih boja kroz cio
+`src/` — samo u `dashboard.component.scss` bilo ih je 93 (naslijeđeni
+`greenyellow`, `white`, sirove `rgba`). Sve je prešlo na tokene ili
+`color-mix` izvedenice; jednokratne stvari idu kroz
+`:host-context([data-theme='light'])` override. Poseban slučaj je SVG grafikon
+progresa u profilu: atribut `stop-color` ne prima `var()`, pa su prelazi
+prešli na CSS klase (`.area-stop.me` / `.area-stop.compare`), dok prozirnost
+ostaje na `stop-opacity`. Pregled slika u blogu NAMJERNO ostaje mrak u obje
+teme — fotografije se gledaju na crnom — pa tamo stoje sirove vrijednosti sa
+komentarom zašto.
+
+**Dotjerivanja po živom pregledu:**
+- **Stanja velikog dugmeta na dashboardu** u svijetloj temi su FROSTED GLASS:
+  `backdrop-filter: blur(16px) saturate(1.35)`, poluprovidno bijelo staklo sa
+  zelenim tintom po stanju i mekom sjenkom. Probani su i tamna ostrva i obični
+  prozirni tintovi — staklo daje dubinu bez utiska da je komad tamne teme
+  presađen na svijetlu stranicu. Tamna tema zadržava ostrva sa neonom.
+- **Prekidači u profilu** su prerađeni: pruga se puni neonom, palac se okreće u
+  tamno slovo sa neonskom ikonom (čist kontrast u obje teme, umjesto neona na
+  neonu), palac leti oprugom, a kap mastila puca na SVAKI klik — kratku klasu
+  `pulse` vodi komponenta, jer CSS ne odsvira animaciju pri skidanju stanja.
+- **Tekst i ikone na svijetlom:** `--ice #101923`, `--mist #46596B`, uz `--dust`
+  i `--echo` kao svijetle duhove.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/theme.service.ts` — NOV: izbor teme, pamćenje, pretapanje,
+  osvježavanje `theme-color` mete
+- `src/styles/_tokens.scss` — blok svijetle teme, `--volt-fill`, `--volt-hi`,
+  `--deep`/`--on-deep`, `--scrim`, `--ember-a30`/`--ember-ink`, `--lift-*`
+- `src/styles/_base.scss` — pretapanje teme, svijetli veo preko pozadinske
+  fotografije, tokenizovana dugmad/modali/greške
+- `src/main.ts` — atribut teme prije bootstrapa
+- `src/index.html`, `src/manifest.webmanifest` — `theme_color` i
+  `background_color` na `--void`
+- `src/app/components/profile/*` — prekidač „Izgled", klase za SVG prelaze,
+  prerađeni klizači
+- `src/app/components/dashboard/*` — staklena stanja velikog dugmeta i najveći
+  dio čišćenja boja
+- `src/app/components/training|blog|leaderboard|login|register|landing|exercices|news|profile-preview|header|footer|shared/date-picker` —
+  zamjena zakucanih boja tokenima i override-i za svijetlu temu
+
+**Efekat:** Prošeteno kroz obje teme, ekran po ekran: dashboard sa svim
+stanjima dugmeta, trening sa tajmerom i trakom završenog treninga, rang lista
+sa sedmicom i rekordima, profil sa kalendarom i grafikonom, blog, vježbe. U
+svijetloj temi nema ostataka tamne (nema tamnih ostrva koja „vise", nema
+nečitljivog neon teksta), a tamna tema je poslije čišćenja bez regresija —
+provjereno i piksel-poređenjem boja headera i futera.
+
+**Napomene:**
+- `color-mix()` se sada koristi znatno šire (Safari 16.2+ / Chrome 111+). Nije
+  nov zahtjev — funkcija je već bila u kodu, prag podrške je nepromijenjen.
+- `THEME_COLOR` u `ThemeService` je ručni duplikat vrijednosti `--void`, jer
+  `<meta>` ne može čitati CSS varijablu. U kodu stoji komentar da se drži u
+  sinhronu sa tokenima.
+- `backdrop-filter` na staklenim stanjima je samo za svijetlu temu i samo na
+  jednom malom dugmetu; header ga i dalje izbjegava iz razloga performansi
+  (zamućenje preko velike površine je ranije kočilo otvaranje menija).

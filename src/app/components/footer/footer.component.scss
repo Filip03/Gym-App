@@ -18,6 +18,13 @@
     border-top: 1px solid var(--line);
 }
 
+// Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju) i
+// NIJANSU svjetlije od podloge — taman toliko da se traka odvoji od stranice.
+// Ista vrijednost i u header.component.scss — mijenjati u paru!
+:host-context([data-theme='light']) .footer {
+    background: var(--void);
+}
+
 .footer a,
 .footer button {
     position: relative;
@@ -55,7 +62,7 @@
     width: 22px;
     height: 2px;
     margin-left: -11px;
-    background: var(--volt);
+    background: var(--volt-fill);
     border-radius: var(--r-full);
     box-shadow: 0 0 12px var(--volt-a40);
     animation: tab-in var(--d-slow) var(--ease-spring) both;
