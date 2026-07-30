@@ -831,32 +831,47 @@
               color var(--d-base) var(--ease);
 }
 
+.start-btn { overflow: hidden; }   // slova koja bježe gore ne smiju da vire
+
 .btn-face {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-2);
   min-width: 0;
-  animation: face-in 240ms var(--ease-out) both;
 }
-.btn-face.from-left  { animation-name: face-in-l; }
-.btn-face.from-right { animation-name: face-in-r; }
 
-@keyframes face-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+// Odlazeći natpis leži preko dugmeta dok mu slova bježe.
+.btn-face.out {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
-@keyframes face-in-l {
-  from { opacity: 0; transform: translateX(-12px); }
-  to   { opacity: 1; transform: translateX(0); }
+
+.label-chs { display: inline-flex; }
+.ch { display: inline-block; }
+
+.ch.in-ch {
+  animation: ch-in 240ms var(--ease-out) both;
 }
-@keyframes face-in-r {
-  from { opacity: 0; transform: translateX(12px); }
-  to   { opacity: 1; transform: translateX(0); }
+i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
+
+.ch.out-ch {
+  animation: ch-out 220ms var(--ease) forwards;
+}
+
+@keyframes ch-in {
+  from { opacity: 0; transform: translateY(0.65em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ch-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-0.65em); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn-face { animation: none; }
+  .ch.in-ch, i.in-ch { animation: none; }
+  .btn-face.out { display: none; }
 }
 
 // Red sa strelicama: dugme zadržava TAČNO širinu bloka (ista mjera kao traka
@@ -945,8 +960,8 @@
   font-size: var(--t-xs);
   cursor: pointer;
 }
-.date-btn:hover { color: var(--ice); border-color: var(--line-strong); }
-.date-btn .material-icons { font-size: 14px; }
+.date-btn:hover { color: var(--ice); border-color: var(--volt-a40); }
+.date-btn .material-icons { font-size: 14px; color: var(--volt); }
 
 .start-btn.done {
   display: inline-flex;

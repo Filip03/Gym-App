@@ -9,18 +9,30 @@
                 [class.live]="todayInProgress" [class.history]="isPast && dayHasTraining"
                 [class.ghosted]="startDisabled" [disabled]="startDisabled"
                 (click)="startOrView()">
-            <!-- `ngFor` po ključu: promjena dana rodi sadržaj iznova, pa
-                 ulazna animacija odsvira — tekst klizne iz smjera listanja. -->
-            <span class="btn-face" *ngFor="let k of [faceKey]"
-                  [class.from-left]="slideDir === -1"
-                  [class.from-right]="slideDir === 1">
-              <i class="material-icons" *ngIf="isToday && todayFinished">check_circle</i>
-              <i class="material-icons" *ngIf="isPast && dayHasTraining">history</i>
-              <i class="material-icons" *ngIf="isRestSelected">self_improvement</i>
-              <i class="material-icons" *ngIf="isFuture && !isRestSelected">hourglass_empty</i>
-              <span class="live-dot" *ngIf="todayInProgress"></span>
-              {{ startLabel }}
-              <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
+            <!-- Odlazeći natpis: slova bježe gore, jedno po jedno. -->
+            <span class="btn-face out" *ngIf="outFace" aria-hidden="true">
+              <span class="ch out-ch" *ngFor="let ch of outFace.chars; let i = index"
+                    [style.animation-delay.ms]="(outFace.rev ? outFace.chars.length - 1 - i : i) * CH_STEP">{{ ch }}</span>
+            </span>
+
+            <!-- Novi natpis se rađa tek kad podaci dana stignu (faceKey), pa
+                 slova uklizaju odozdo sa gotovim tekstom — bez treptaja. -->
+            <span class="btn-face" *ngIf="!pendingFace" [attr.data-k]="faceKey">
+              <ng-container *ngFor="let k of [faceKey]">
+                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
+                   *ngIf="isToday && todayFinished">check_circle</i>
+                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
+                   *ngIf="isPast && dayHasTraining">history</i>
+                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
+                   *ngIf="isRestSelected">self_improvement</i>
+                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
+                   *ngIf="isFuture && !isRestSelected">hourglass_empty</i>
+                <span class="live-dot" *ngIf="todayInProgress"></span>
+                <span class="label-chs"><span class="ch in-ch"
+                      *ngFor="let ch of chars(startLabel); let i = index"
+                      [style.animation-delay.ms]="delayFor(i, startLabel.length)">{{ ch }}</span></span>
+                <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
+              </ng-container>
             </span>
         </button>
 
@@ -33,8 +45,8 @@
         <!-- Kalendar: skok na bilo koji datum — istorija treninga -->
         <button type="button" class="date-btn" (click)="showDatePicker = true"
                 title="Izaberi datum">
-            <i class="material-icons">event</i>
-            <span class="num">{{ selectedDate | date:'dd.MM.' }}</span>
+            <i class="material-icons">calendar_month</i>
+            <span class="num">{{ selectedDate | date:'d.' }}</span>
         </button>
         <span class="st-day">{{ todayName }}</span>
         <span class="st-sep" *ngIf="todayType">·</span>

@@ -2706,3 +2706,13 @@ day i dalje može odraditi.
    je dugme u SVIM stanjima tačno iste širine (300px), pa strelice uvijek
    stoje na istom mjestu — ranija verzija reda sa strelicama u toku je dugme
    stiskala kad je natpis duži.
+
+**Dopuna istog dana — split-flap natpis i datum-čip:** promjena natpisa na
+velikom dugmetu je sada po slovima: stara slova bježe GORE a nova ulaze ODOZDO,
+svako sa kašnjenjem od 22 ms po redu; pri listanju unazad kašnjenje teče
+obrnutim redom, pa se vidi i smjer. Novi natpis se rađa tek kad podaci dana
+stignu (`pendingFace`), pa slova animiraju konačan tekst — bez treptaja
+međustanja. Dugme je dobilo `overflow: hidden` da odbjegla slova ne vire, a uz
+`prefers-reduced-motion` sve je isključeno. Datum-čip: ikona `calendar_month`
+u volt boji, ispisuje se samo dan (`29.`) — mjesec je višak jer kalendar na
+klik ionako pokazuje sve.

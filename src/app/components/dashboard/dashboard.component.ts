@@ -92,12 +92,28 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectedDate = '';
   showDatePicker = false;
   /**
-   * Ključ sadržaja dugmeta: svaka promjena dana ga uveća, pa se sadržaj
-   * ponovo rodi i odsvira ulaznu animaciju — bez ovoga se tekst samo naglo
-   * zamijeni. Smjer klizanja prati smjer listanja (nazad ulazi slijeva).
+   * Split-flap promjena natpisa: stara slova odlaze GORE, nova ulaze ODOZDO,
+   * svako sa malim kašnjenjem po redu — a pri listanju unazad kašnjenje teče
+   * obrnutim redom, pa se vidi i smjer. `faceKey` rađa novi natpis IZNOVA, i
+   * to tek kad podaci dana stignu (`pendingFace`) — inače bi slova odsvirala
+   * međustanje pa se naglo prepravila.
    */
   faceKey = 0;
   slideDir: -1 | 0 | 1 = 0;
+  pendingFace = false;
+  outFace: { chars: string[]; rev: boolean } | null = null;
+  private outFaceTimer: any = null;
+  /** Korak kašnjenja po slovu (ms) — dovoljno da se talas vidi, a ne odugovlači. */
+  readonly CH_STEP = 22;
+
+  /** Natpis kao slova; razmak postaje nelomivi da span ne kolabira. */
+  chars(label: string): string[] {
+    return label.split('').map(c => c === ' ' ? '\u00A0' : c);
+  }
+
+  delayFor(i: number, len: number): number {
+    return (this.slideDir === -1 ? len - 1 - i : i) * this.CH_STEP;
+  }
   /** Za ranije dane: da li tog dana postoji ijedan upis. */
   dayHasTraining = false;
   /** Za ranije dane: da li sesija uopšte postoji (bez nje ne znamo ni tip dana). */
@@ -244,6 +260,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     } catch {
       // Traka je informativna — ako se dan ne može učitati, ostaje samo naziv.
+    } finally {
+      if (token === this.dayLoadToken && this.pendingFace) {
+        this.pendingFace = false;
+        this.faceKey++;
+      }
     }
   }
 
@@ -251,8 +272,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.showDatePicker = false;
     if (!iso || iso === this.selectedDate) return;
     this.slideDir = iso > this.selectedDate ? 1 : -1;
+
+    // Stari natpis kreće gore ODMAH — dok podaci novog dana stižu, dugme je
+    // „prazno" (samo odlazeća slova), pa novi natpis uleti gotov, bez treptaja.
+    const staro = this.startLabel;
+    this.outFace = { chars: this.chars(staro), rev: this.slideDir === -1 };
+    this.pendingFace = true;
+    clearTimeout(this.outFaceTimer);
+    this.outFaceTimer = setTimeout(
+      () => { this.outFace = null; },
+      staro.length * this.CH_STEP + 320
+    );
+
     this.selectedDate = iso;
-    this.faceKey++;
     void this.loadDay();
   }
 
@@ -356,6 +388,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     if (this.liveTimer) clearInterval(this.liveTimer);
     if (this.elapsedTimer) clearInterval(this.elapsedTimer);
+    clearTimeout(this.outFaceTimer);
   }
 
   /**
