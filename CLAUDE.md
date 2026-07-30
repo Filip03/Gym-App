@@ -118,6 +118,15 @@ Poštuj postojeći stil — cilj je da kolega prepozna svoj kod.
   `(click)="$event.stopPropagation()"` na `.modal-card`.
 - **Ikone:** Material Icons preko `<i class="material-icons">naziv</i>`.
 
+### Animacije — kućno pravilo (obavezno)
+
+Sve promjene stanja UI elemenata animiraju se „tečnim/mastilo" jezikom pokreta:
+squash & stretch + ink-bloom kap iz tačke interakcije + sadržaj koji izranja
+talasom. **Svako stanje i svaki prelaz mora imati pokret** — uključujući
+povratne i timeout prelaze; nijedan trenutni preskok. Sve se gasi uz
+`prefers-reduced-motion`. Detaljan recept, zamke i referentne implementacije:
+skill `tecne-animacije` (`.claude/skills/tecne-animacije/SKILL.md`).
+
 ### Dizajn sistem (de facto, nije formalizovan)
 
 - Akcenat: `greenyellow` (CSS ključna riječ, hardkodirana u svakoj `.scss` datoteci)

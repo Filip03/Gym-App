@@ -14,6 +14,7 @@ import {
   TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet, EchoDropset, Side
 } from '../../services/training.service';
 import { DropsetLog } from '../../models/models';
+import { prHaptics } from '../../shared/haptics';
 
 /** Poređenje jedne serije sa istom serijom prošlog treninga. */
 type Delta = 'up' | 'down' | 'same' | null;
@@ -141,6 +142,38 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   @ViewChildren('exRow') rowEls!: QueryList<ElementRef<HTMLElement>>;
 
   private saveTimer: any = null;
+  /** Kratko stanje za animaciju SKUPLJANJA tajmer-ostrva — CSS ne umije da
+   *  odsvira animaciju na uklanjanju klase, pa je vodi komponenta. */
+  tiClosing = false;
+  private tiClosingTimer: any = null;
+  /**
+   * Sekundni otkucaj: osvježava natpis odbrojavanja (getter se računa tek pri
+   * ciklusu provjere promjena) i PRATI FAZE tajmera, da bi svaki prelaz —
+   * odbrojavanje → „pauza gotova" → povratak na minute — dobio svoju tečnu
+   * animaciju. Pravilo kuće: nijedna promjena stanja bez pokreta.
+   */
+  tiFlashDone = false;
+  tiReturn = false;
+  private tiPhase: 'idle' | 'running' | 'done' = 'idle';
+  private tiFlashTimer: any = null;
+  private restTick: any = setInterval(() => this.watchTimerPhase(), 500);
+
+  private watchTimerPhase() {
+    const t = this.restTimer;
+    const phase: 'idle' | 'running' | 'done' =
+      !t.remainingLabel ? 'idle' : t.expired ? 'done' : 'running';
+    if (phase === this.tiPhase) return;
+
+    clearTimeout(this.tiFlashTimer);
+    if (phase === 'done') {
+      this.tiFlashDone = true;
+      this.tiFlashTimer = setTimeout(() => this.tiFlashDone = false, 600);
+    } else if (phase === 'idle' && this.tiPhase === 'done') {
+      this.tiReturn = true;
+      this.tiFlashTimer = setTimeout(() => this.tiReturn = false, 500);
+    }
+    this.tiPhase = phase;
+  }
   finishing = false;
   private readonly flipCleanup = new WeakMap<HTMLElement, (e: TransitionEvent) => void>();
 
@@ -364,6 +397,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.celebrateKey = Date.now();
     ex.celebrating = true;
     this.audio.play('record');
+    prHaptics();   // telefon zavibrira uz plamen (gdje uređaj umije)
     setTimeout(() => ex.celebrating = false, 1800);   // dužina snimka
   }
 
@@ -803,10 +837,23 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   ngOnDestroy() {
     this.queue.onFlushed = null;
     clearTimeout(this.saveTimer);
+    clearInterval(this.restTick);
+    clearTimeout(this.tiClosingTimer);
+    clearTimeout(this.tiFlashTimer);
     // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
     // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
     // futera) dok je neki edit mod bio otvoren.
     this.navLock.unlock();
+  }
+
+  /** Paljenje/gašenje tajmera — gašenje nosi svoju animaciju skupljanja. */
+  async toggleTimer() {
+    if (this.restTimer.enabled) {
+      this.tiClosing = true;
+      clearTimeout(this.tiClosingTimer);
+      this.tiClosingTimer = setTimeout(() => this.tiClosing = false, 480);
+    }
+    await this.restTimer.toggle();
   }
 
   /** Klik na sam red poništava izbor; klik na strelice ne (one pomjeraju). */

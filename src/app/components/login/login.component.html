@@ -8,12 +8,14 @@
     <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
       <div class="email">
         <label for="username">Korisničko ime</label>
-        <input id="username" name="username" type="text" [(ngModel)]="username" required />
+        <!-- Enter vodi na lozinku, ne pokušava slanje polupopunjene forme -->
+        <input id="username" name="username" type="text" [(ngModel)]="username" required
+               (keydown.enter)="$event.preventDefault(); passInput.focus()" />
       </div>
 
       <div class="password">
         <label for="password">Lozinka</label>
-        <input id="password" name="password" type="password" [(ngModel)]="password" required />
+        <input #passInput id="password" name="password" type="password" [(ngModel)]="password" required />
       </div>
 
       <button class="btn" type="submit" [disabled]="!loginForm.valid">

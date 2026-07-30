@@ -20,6 +20,27 @@ export class RestTimerService {
   enabled = localStorage.getItem(ENABLED_KEY) !== 'off';
   minutes = Number(localStorage.getItem(MINUTES_KEY)) || DEFAULT_MINUTES;
 
+  /**
+   * LOKALNO odbrojavanje, prikazano na ekranu treninga. Nezavisno od push
+   * notifikacije sa backenda: notifikacija pokriva zaključan telefon, a ovo
+   * odgovara na „da li tajmer uopšte teče i koliko je ostalo" dok se u
+   * aplikaciju gleda. Živi samo u memoriji — restart pri svakoj seriji.
+   */
+  private deadline: number | null = null;
+
+  /** „1:47" dok teče; „0:00" tačno na isteku; null kad ne teče. */
+  get remainingLabel(): string | null {
+    if (!this.deadline) return null;
+    const ms = this.deadline - Date.now();
+    if (ms <= -3000) return null;   // 3 s poslije isteka natpis se sam skloni
+    const s = Math.max(0, Math.ceil(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  get expired(): boolean {
+    return !!this.deadline && Date.now() >= this.deadline;
+  }
+
   constructor(private supabase: SupabaseService) {}
 
   async toggle(): Promise<void> {
@@ -41,6 +62,10 @@ export class RestTimerService {
   async restart(): Promise<void> {
     if (!this.enabled) return;
 
+    // Lokalni sat kreće ODMAH — i kad backend nije dostupan (CORS, hladan
+    // start), odbrojavanje na ekranu radi.
+    this.deadline = Date.now() + this.minutes * 60_000;
+
     try {
       const accessToken = await this.getAccessToken();
       if (!accessToken) return;
@@ -59,6 +84,8 @@ export class RestTimerService {
   }
 
   async cancel(): Promise<void> {
+    this.deadline = null;
+
     try {
       const accessToken = await this.getAccessToken();
       if (!accessToken) return;

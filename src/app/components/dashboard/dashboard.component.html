@@ -7,7 +7,9 @@
 
         <button type="button" class="start-btn" [class.done]="isToday && todayFinished"
                 [class.live]="todayInProgress" [class.history]="isPast && dayHasTraining"
+                [class.rest]="isToday && isRestSelected"
                 [class.ghosted]="startDisabled" [disabled]="startDisabled"
+                [title]="isToday && isRestSelected ? 'Rest day — otvori ako ipak treniraš' : ''"
                 (click)="startOrView()">
             <!-- Odlazeći natpis: bježi gore kao JEDAN komad, SA svojom ikonom. -->
             <span class="btn-face out" *ngIf="outFace" aria-hidden="true">

@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router'
 import { filter } from 'rxjs'
 import { ProfilePreviewService } from './shared/profile-preview.directive';
+import { PushNotificationService } from './services/push-notification.service';
 
 @Component({
   selector: 'app-root',
@@ -20,7 +21,15 @@ export class AppComponent{
 
  private readonly wideRoutes = ['/dashboard', '/exercices', '/blog'];
 
-  constructor(private router: Router, public preview: ProfilePreviewService) {
+  constructor(
+    private router: Router,
+    public preview: ProfilePreviewService,
+    push: PushNotificationService
+  ) {
+    // Tiha obnova push registracije pri svakom pokretanju — ako je dozvola već
+    // data i prekidač uključen, ne radi ništa vidljivo (nema prompta).
+    void push.ensureRegistered();
+
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {

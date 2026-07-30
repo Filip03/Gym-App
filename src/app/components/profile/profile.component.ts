@@ -9,6 +9,7 @@ import {
   PickerGroup, PickerOption, toPickerGroups
 } from '../shared/exercice-picker/exercice-picker.component';
 import { formatIsoDate } from '../shared/date-picker/date-picker.component';
+import { PushNotificationService } from '../../services/push-notification.service';
 
 /** Jedno polje u kalendaru treninga. */
 interface CalCell {
@@ -227,8 +228,49 @@ export class ProfileComponent implements OnInit {
     private audio: AudioService,
     private profileService: ProfileService,
     private exerciceService: ExerciceService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    public push: PushNotificationService
   ) {}
+
+  // --- Notifikacije --------------------------------------------------------
+  //
+  // Prekidač u aplikaciji + stanje dozvole pregledača. Kad je dozvola jednom
+  // ODBIJENA, sajt je ne može ponovo tražiti — jedino što možemo je reći
+  // korisniku gdje da je upali ručno. Zato tekst ispod prekidača.
+  pushBusy = false;
+
+  async togglePush() {
+    if (this.pushBusy) return;
+    this.pushBusy = true;
+    try {
+      await this.push.setEnabled(!this.push.enabled);
+    } finally {
+      this.pushBusy = false;
+    }
+  }
+
+  pushTestSent = false;
+
+  async testPush() {
+    const ok = await this.push.testNotification();
+    this.pushTestSent = ok;
+    setTimeout(() => this.pushTestSent = false, 4000);
+  }
+
+  get pushStatus(): string {
+    if (this.push.permission === 'unsupported') {
+      // Najčešći slučaj: otvoreno preko http://IP (dev sa telefona) — API tada
+      // uopšte ne postoji, pa prekidač ne može ništa. Na pravoj adresi radi.
+      return 'Ovdje notifikacije nisu moguće (treba HTTPS) — na pravoj adresi aplikacije rade.';
+    }
+    if (!this.push.enabled) return 'Isključene u aplikaciji.';
+    switch (this.push.permission) {
+      case 'granted': return 'Uključene — stižu i kad je aplikacija zatvorena.';
+      case 'denied':  return 'Blokirane u pregledaču. Upali ih u podešavanjima '
+                           + 'sajta (ikonica pored adrese), pa se vrati ovdje.';
+      default:        return 'Pregledač će pitati za dozvolu pri uključivanju.';
+    }
+  }
 
   async ngOnInit() {
     const user = this.authService.getCurrentUser();

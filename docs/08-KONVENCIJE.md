@@ -202,3 +202,22 @@ Ako ruta treba da sakrije logo ili footer, dodaj je u listu u
 4. Preimenovanje `exercice` → `exercise`
 5. Deploy na Vercel
 6. `npm audit fix --force`
+
+---
+
+## Animacije — jezik pokreta
+
+Sve promjene stanja UI elemenata koriste „tečni/mastilo" jezik: element se
+blago razlije (squash & stretch, `--ease-spring`), kap akcentne boje se
+razlije iz tačke interakcije i izblijedi (ink-bloom preko `::after`), a
+sadržaj izranja odozdo talasom (koraci kašnjenja po elementu/slovu).
+
+Pravila:
+- svako stanje i svaki prelaz ima pokret — i povratni i timeout prelazi;
+- `prefers-reduced-motion` gasi sve;
+- za izlazne prelaze komponenta drži kratko stanje (CSS ne svira animaciju na
+  uklanjanju klase).
+
+Referentne implementacije: tajmer-ostrvo (`training.component.scss`) i
+split-flap natpis dugmeta (`dashboard.component.scss`). Pun recept:
+`.claude/skills/tecne-animacije/SKILL.md`.
