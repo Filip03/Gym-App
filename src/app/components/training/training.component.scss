@@ -39,6 +39,16 @@ $branch-indent: 16px;
   color: var(--ice);
 }
 
+// Datum u zaglavlju kad se gleda raniji dan — istorija, ne danas.
+.view-date {
+  align-self: center;
+  padding: 2px var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--mist);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-full);
+}
+
 // --- Rest day --------------------------------------------------------------
 
 .rest-day {

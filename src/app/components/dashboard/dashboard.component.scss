@@ -823,6 +823,95 @@
   50%      { opacity: .3; }
 }
 
+// Red sa strelicama: dugme zadržava TAČNO širinu bloka (ista mjera kao traka
+// ispod — ona je njegov produžetak), a strelice vise IZVAN te širine, bez
+// okvira — samo znak. Tako je cjelina šira, a dugme i traka ostaju poravnati.
+.start-row {
+  position: relative;
+}
+.start-row .start-btn { width: 100%; }
+
+.day-arrow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  color: var(--volt);
+  cursor: pointer;
+  opacity: .8;
+}
+.day-arrow:hover { opacity: 1; }
+.day-arrow.left  { left: -48px; }
+.day-arrow.right { right: -48px; }
+.day-arrow .material-icons { font-size: 28px; }
+.day-arrow.left  .material-icons { animation: nudge-l 2.2s var(--ease) infinite; }
+.day-arrow.right .material-icons { animation: nudge-r 2.2s var(--ease) infinite; }
+
+@keyframes nudge-l {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-3px); }
+}
+@keyframes nudge-r {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-arrow .material-icons { animation: none; }
+}
+
+// Na uskom ekranu strelice priđu bliže da ne izađu iz ekrana.
+@media (max-width: 430px) {
+  .day-arrow { width: 38px; }
+  .day-arrow.left  { left: -40px; }
+  .day-arrow.right { right: -40px; }
+}
+
+// Raniji dan sa treningom: ISTI jezik kao „done"/„u toku" — tamna podloga,
+// volt tekst i obrub. Dugme izvještava, ne poziva.
+.start-btn.history {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  background: #070B04;
+  color: var(--volt);
+  border: 1px solid var(--volt-a40);
+}
+.start-btn.history:hover { background: #0B1206; }
+
+// Bez treninga tog dana / dan koji tek dolazi — ista geometrija, utišane boje.
+.start-btn.ghosted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  background: #070B04;
+  color: var(--dust);
+  border: 1px solid var(--line-strong);
+  cursor: default;
+}
+
+// Dugme sa datumom u traci ispod — otvara kalendar.
+.date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 2px var(--s-2);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  color: var(--mist);
+  font-size: var(--t-xs);
+  cursor: pointer;
+}
+.date-btn:hover { color: var(--ice); border-color: var(--line-strong); }
+.date-btn .material-icons { font-size: 14px; }
+
 .start-btn.done {
   display: inline-flex;
   align-items: center;

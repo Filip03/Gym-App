@@ -1,20 +1,46 @@
 <div class="start-block">
-    <button type="button" class="start-btn" [class.done]="todayFinished"
-            [class.live]="todayInProgress" (click)="goToTraining()">
-        <i class="material-icons" *ngIf="todayFinished">check_circle</i>
-        <span class="live-dot" *ngIf="todayInProgress"></span>
-        {{ todayFinished ? 'Trening završen'
-           : todayInProgress ? 'Trening u toku' : 'Započni trening' }}
-        <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
-    </button>
+    <div class="start-row">
+        <!-- Listanje po danima: dan nazad / dan naprijed -->
+        <button type="button" class="day-arrow left" (click)="shiftDay(-1)" aria-label="Dan ranije">
+            <i class="material-icons">chevron_left</i>
+        </button>
+
+        <button type="button" class="start-btn" [class.done]="isToday && todayFinished"
+                [class.live]="todayInProgress" [class.history]="isPast && dayHasTraining"
+                [class.ghosted]="startDisabled" [disabled]="startDisabled"
+                (click)="startOrView()">
+            <i class="material-icons" *ngIf="isToday && todayFinished">check_circle</i>
+            <i class="material-icons" *ngIf="isPast && dayHasTraining">history</i>
+            <i class="material-icons" *ngIf="isRestSelected">self_improvement</i>
+            <i class="material-icons" *ngIf="isFuture && !isRestSelected">hourglass_empty</i>
+            <span class="live-dot" *ngIf="todayInProgress"></span>
+            {{ startLabel }}
+            <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
+        </button>
+
+        <button type="button" class="day-arrow right" (click)="shiftDay(1)" aria-label="Dan kasnije">
+            <i class="material-icons">chevron_right</i>
+        </button>
+    </div>
 
     <div class="start-today" *ngIf="todayName">
+        <!-- Kalendar: skok na bilo koji datum — istorija treninga -->
+        <button type="button" class="date-btn" (click)="showDatePicker = true"
+                title="Izaberi datum">
+            <i class="material-icons">event</i>
+            <span class="num">{{ selectedDate | date:'dd.MM.' }}</span>
+        </button>
         <span class="st-day">{{ todayName }}</span>
         <span class="st-sep" *ngIf="todayType">·</span>
         <span class="st-type" *ngIf="todayType">{{ todayType }}</span>
-        <span class="st-type rest" *ngIf="!todayType">Rest day</span>
+        <span class="st-type rest" *ngIf="!todayType && (isToday || isFuture)">odmor</span>
     </div>
 </div>
+
+<app-date-picker *ngIf="showDatePicker" [value]="selectedDate"
+                 title="Istorija treninga"
+                 (pick)="selectDate($event)"
+                 (dismiss)="showDatePicker = false"></app-date-picker>
 
 <div class="wrapper">
     <div class="dashboard-container">

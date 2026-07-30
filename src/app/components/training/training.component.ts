@@ -7,7 +7,7 @@ import {
   PickerGroup, PickerOption, toPickerGroups, flattenGroups
 } from '../shared/exercice-picker/exercice-picker.component';
 import { humanError } from '../../shared/errors';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet, EchoDropset, Side
 } from '../../services/training.service';
@@ -93,6 +93,12 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
   session: WorkoutSession | null = null;
   todayDate = '';
+  /**
+   * Pregled RANIJEG dana (?date=YYYY-MM-DD): sve na ekranu je samo za čitanje.
+   * `todayDate` tada nosi gledani datum, pa se duhovi, poređenja i rekord
+   * računaju u odnosu na TAJ dan — kako je izgledalo tada, ne danas.
+   */
+  viewOnly = false;
   exercices: TodayExercice[] = [];
   isRestDay = false;
 
@@ -150,7 +156,8 @@ export class TrainingComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private audio: AudioService,
     public queue: OfflineQueueService,
-    private router: Router
+    private router: Router,
+    private route: ActivatedRoute
   ) {}
 
   async ngOnInit() {
@@ -163,20 +170,34 @@ export class TrainingComponent implements OnInit, OnDestroy {
 
     this.currentUserId = user.id;
 
+    const dateParam = this.route.snapshot.queryParamMap.get('date');
+    this.viewOnly = !!dateParam && dateParam !== this.todayString();
+    this.todayDate = this.viewOnly ? dateParam! : this.todayString();
+
     // Kad red prođe, upisi dobijaju prave id-jeve iz baze — ekran se osvježava
-    // da bi izmjena i brisanje serije radili nad stvarnim redovima.
-    this.queue.onFlushed = () => { void this.reloadAfterSync(); };
-    this.todayDate = this.todayString();
+    // da bi izmjena i brisanje serije radili nad stvarnim redovima. U pregledu
+    // istorije se NE kači: osvježavanje bi napravilo sesiju za gledani datum.
+    if (!this.viewOnly) {
+      this.queue.onFlushed = () => { void this.reloadAfterSync(); };
+    }
 
     try {
-      const plan = await this.trainingService.getPlanForUser(user.id);
-      this.session = await this.trainingService.getOrCreateSession(user.id, this.todayDate, plan);
+      if (this.viewOnly) {
+        this.session = await this.trainingService.getSessionByDate(user.id, this.todayDate);
+        if (!this.session) {
+          this.errorMessage = 'Tog dana nije bilo treninga.';
+          return;
+        }
+      } else {
+        const plan = await this.trainingService.getPlanForUser(user.id);
+        this.session = await this.trainingService.getOrCreateSession(user.id, this.todayDate, plan);
 
-      if (!this.session) {
-        this.errorMessage = plan
-          ? 'Nema definisanog rasporeda za danas.'
-          : 'Nemaš plan koji pratiš. Napravi ga ili zaprati tuđi na ekranu Planovi.';
-        return;
+        if (!this.session) {
+          this.errorMessage = plan
+            ? 'Nema definisanog rasporeda za danas.'
+            : 'Nemaš plan koji pratiš. Napravi ga ili zaprati tuđi na ekranu Planovi.';
+          return;
+        }
       }
 
       await this.hydrate();
@@ -780,7 +801,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
     this.selectedId = null;
   }
 
-  get isFinished(): boolean { return !!this.session?.finishedAt; }
+  get isFinished(): boolean { return this.viewOnly || !!this.session?.finishedAt; }
 
   /**
    * Sažetak po završetku treninga.
@@ -1096,6 +1117,7 @@ export class TrainingComponent implements OnInit, OnDestroy {
   }
 
   toggleNote() {
+    if (this.viewOnly) return;   // bilješka iz istorije se čita, ne mijenja
     this.showNote = !this.showNote;
     if (this.showNote) this.noteText = this.session?.note ?? '';
   }

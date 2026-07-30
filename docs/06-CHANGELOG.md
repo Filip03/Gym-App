@@ -2605,3 +2605,89 @@ lightbox provjeren statički (z-indeksi).
 
 **Napomene:** Pravilo za dalje: novo mjesto sa avatarom = samo atribut, nikakve
 metode u komponenti.
+
+---
+
+## [2026-07-30] Istorija treninga — listanje po danima sa dashboarda
+**Tip:** funkcionalnost
+
+**Problem:** Nije postojao način da se vidi raniji trening. Dugme „Započni
+trening" je znalo samo za danas — sve odrađeno juče ili prije nedjelju dana
+stajalo je u bazi, ali iz aplikacije nedostupno.
+
+**Rješenje:** U tri dijela — čitanje sesije po datumu, ekran treninga koji zna
+za režim pregleda, i listanje po danima na dashboardu.
+
+**1. `getSessionByDate` u `training.service`.** Javni omotač postojećeg
+privatnog `findSession`: vraća sesiju za dati datum BEZ pravljenja nove.
+Ključna odluka koju vrijedi zapisati: istorija se čita iz SESIJE tog dana, ne
+iz plana. Sesija je snimak — naziv dana, tip i vježbe u tadašnjem redoslijedu —
+pa kasnija promjena ili brisanje plana ne mijenja ono što je odrađeno.
+
+**2. Ekran treninga zna režim pregleda.** `?date=YYYY-MM-DD` u adresi, ako je
+različit od današnjeg datuma, uključuje `viewOnly`. `todayDate` tada nosi
+gledani datum, pa se duhovi, poređenja i lični rekord računaju u odnosu na TAJ
+dan — kako je izgledalo tada, ne danas. `isFinished` uključuje `viewOnly`, pa
+sve postojeće brave rade same: nema upisa, izmjene serije, ni dropseta.
+Dodatno je sakriveno ono što brave ne pokrivaju: zaglavlje sa
+Dodaj/Bilješka/Preuredi i dugme „Otvori ponovo" na traci završenog treninga;
+`toggleNote` je dobio bravu. Stvarna zamka bio je `queue.onFlushed` — u
+pregledu se NE kači, jer bi osvježavanje poslije prolaska reda napravilo sesiju
+za gledani datum. U zaglavlju stoji bedž sa datumom, a ako sesije za taj dan
+nema: „Tog dana nije bilo treninga."
+
+**3. Dashboard lista dane.** `selectedDate`, strelice ‹ › oko velikog dugmeta
+(dan nazad, dan naprijed) i dugme sa datumom u traci koje otvara postojeći
+`app-date-picker`. Stanja dugmeta:
+
+1. **danas** — tri postojeća stanja (Započni trening / Trening u toku sa
+   tajmerom / Trening završen);
+2. **raniji dan sa upisima** — „Pogledaj trening" ili „Završeni trening", vodi
+   na `/training?date=...`;
+3. **raniji dan bez upisa** — „Nije trenirano", ugašeno;
+4. **budući dan** — „Trening koji čeka", ugašeno, tip dana iz plana.
+
+Traka ispod dugmeta za ranije dane čita naziv i tip iz sesije (snimak), a za
+danas i buduće dane iz plana. `dayLoadToken` čuva od utrke: pri brzom listanju
+strelicama važi samo posljednje traženje.
+
+**Dizajn** (po povratnoj informaciji odmah u toku rada): strelice su bez
+okvira — samo volt ševroni koji vise IZVAN širine dugmeta, apsolutno
+pozicionirani, sa blagim „diši" pokretom ka strani na koju vode (ugašen uz
+`prefers-reduced-motion`). Dugme zadržava tačno širinu bloka (300px) da traka
+ispod ostane njegov produžetak. Stanja „istorija" i „ugašeno" koriste ISTI
+jezik kao postojeća `done`/`live` stanja: tamna podloga `#070B04`, volt
+odnosno utišan tekst.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts` — `getSessionByDate`
+- `src/app/components/training/training.component.ts` — `viewOnly`, čitanje
+  sesije po datumu, brave
+- `src/app/components/training/training.component.html`/`.scss` — bedž sa
+  datumom, sakriveno zaglavlje i „Otvori ponovo"
+- `src/app/components/dashboard/dashboard.component.ts` — `selectedDate`,
+  `loadDay`, `shiftDay`, `startLabel`, `startDisabled`, `dayLoadToken`
+- `src/app/components/dashboard/dashboard.component.html`/`.scss` — strelice,
+  dugme sa datumom, kalendar, stanja velikog dugmeta
+
+**Efekat:** Provjereno u pregledaču nad stvarnim podacima: 30.07. „Započni
+trening" (REST po planu); 29.07. „Nije trenirano", ugašeno; 28.07. „Završeni
+trening" otvara čitanje — PUSH dan sa bedžom 28.07.2026., serije L/D para i
+dropset grana vidljivi, a nijedno dugme za upis, meni, završetak ni ponovno
+otvaranje ne postoji u DOM-u; 31.07. „Trening koji čeka" (PULL iz plana),
+ugašeno.
+
+**Napomene:** Za dane prije uvođenja tabele `workout_sessions` sesije ne
+postoje, pa će stariji datumi pokazati „Nije trenirano" iako u `exercice_logs`
+možda ima upisa — svjesno ograničenje, evidentirano kao mogući kasniji fallback
+na same upise. Budući dani namjerno ne vode nikud: trening se ne može započeti
+unaprijed.
+
+**Dopuna istog dana — rest day:** dugme na rest day ne poziva „Započni trening"
+nego kaže „Rest day" (ikona `self_improvement`, ugašeno). Danas i ubuduće se
+čita iz plana (tip REST ili bez tipa), za ranije dane iz snimka sesije — i samo
+ako sesija postoji; bez nje ostaje „Nije trenirano", jer se bez sesije ne zna
+da li je bio odmor. Ako je neko ipak trenirao na rest day, upisi pobjeđuju:
+stanja treninga (u toku/završen/pogledaj) imaju prednost nad odmorom. Ekran
+treninga ostaje dostupan kroz donju navigaciju, pa se vanredni trening na rest
+day i dalje može odraditi.
