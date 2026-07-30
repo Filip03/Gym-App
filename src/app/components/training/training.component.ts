@@ -14,6 +14,7 @@ import {
   TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet, EchoDropset, Side
 } from '../../services/training.service';
 import { DropsetLog } from '../../models/models';
+import { prHaptics } from '../../shared/haptics';
 
 /** Poređenje jedne serije sa istom serijom prošlog treninga. */
 type Delta = 'up' | 'down' | 'same' | null;
@@ -364,6 +365,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.celebrateKey = Date.now();
     ex.celebrating = true;
     this.audio.play('record');
+    prHaptics();   // telefon zavibrira uz plamen (gdje uređaj umije)
     setTimeout(() => ex.celebrating = false, 1800);   // dužina snimka
   }
 

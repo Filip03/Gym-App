@@ -2932,3 +2932,30 @@ Raniji dani bez upisa i budući dani ostaju ugašeni. Uz to: Enter na prijavi
 vodi korisničko ime → lozinka → slanje (isto kroz cijelu registraciju), a
 prekidač notifikacija se prikazuje vizuelno isključen kad Notification API ne
 postoji (HTTP van localhost-a) — ranije je izgledao zaglavljen na uključeno.
+
+---
+
+## [2026-07-30] Vibracija uz plamen ličnog rekorda
+**Tip:** funkcionalnost
+
+**Problem:** Rekord se slavi animacijom i zvukom, a telefon ćuti — na spravi se
+često ni ne gleda u ekran u tom trenutku.
+
+**Rješenje:** `prHaptics()` u `src/app/shared/haptics.ts`, pozvana na istom
+mjestu gdje kreću plamen i zvuk (`refreshPr`). Tri svijeta, jedan poziv:
+nativna ljuska preko `window.Capacitor` globala (pravi haptički motor, radi i
+na iPhoneu — bez uvoza @capacitor paketa u web kod), Android Chrome preko
+`navigator.vibrate` (obrazac prati animaciju: udar-pauza-udar-pauza-duži udar),
+iOS Safari tiho preskoči (nema nijedan API — vibracija tamo stiže tek kroz
+ljusku). Provjereno špijunom na `vibrate`: slavlje okida obrazac
+`[90,70,90,70,160]`.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/haptics.ts` — novo
+- `src/app/components/training/training.component.ts` — poziv u `refreshPr`
+
+**Napomene:** Custom zvuk za push notifikaciju tajmera NIJE moguć na webu —
+zvuk sistemske notifikacije bira operativni sistem, sajt tu nema pristup ni uz
+kakvu migraciju. Custom zvuk je izvodljiv u nativnoj ljusci (lokalne
+notifikacije nose svoj zvučni fajl) — zabilježeno za native-app granu; izbor
+zvuka bi tada bio podešavanje po uređaju (localStorage), bez migracije.
