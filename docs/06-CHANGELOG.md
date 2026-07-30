@@ -2803,3 +2803,123 @@ token` u backend logu, bez greške. Tri bagova nađena i popravljena usput:
 **Napomene:** Backend trenutno radi samo lokalno (`localhost:8080`) — deploy
 je zasebna, namjerno odložena odluka (vidi ADR-0002, Posljedice). Rad je na
 grani `feature/fcm-push-notifications`, ne na `main`.
+
+---
+
+## [2026-07-30] Spajanje main (FCM notifikacije i tajmer pauze) — popravke i prekidač u profilu
+**Tip:** infrastruktura + popravka
+**Ref:** Filipov ADR-0002 (FCM push preko Spring Boot servisa)
+
+**Problem:** Sa `origin/main` je stiglo Filipovo veliko parče: FCM push
+notifikacije preko novog Spring Boot servisa (sada deployovanog na Renderu) i
+tajmer pauze između serija. Spajanje je, međutim, donijelo i četiri stvari koje
+su morale da se poprave prije nego što se na tome dalje gradi — od kojih je
+jedna obarala trening u cjelini. Uz to, notifikacije nisu imale nijedno mjesto
+u aplikaciji sa kojeg bi ih korisnik mogao ugasiti.
+
+**Šta je donio main (Filipovo, zadržano kako jeste):**
+
+- Push notifikacije preko FCM-a: `push-notification.service.ts` i
+  `firebase-messaging-sw.js` registrovan na SVOM scope-u (odvojeno od
+  `ngsw-worker.js`, da se dva service workera ne otimaju o `/`). Token se
+  registruje poslije prijave, a odjavljuje prije `signOut()`-a — dok Supabase
+  sesija još važi za `Authorization` zaglavlje. Novi paket `firebase` u
+  `package.json`.
+- Tajmer pauze između serija (`rest-timer.service.ts`): odbrojavanje se zakazuje
+  na BACKENDU kao prava push poruka, ne lokalnim `setTimeout`-om — lokalni
+  tajmer umre čim se telefon zaključa ili aplikacija zatvori, a push stiže i
+  tada. Restartuje se poslije SVAKOG upisa serije, pa je uvijek aktivan tačno
+  jedan. UI (prekidač i izbor trajanja) stoji u zaglavlju treninga.
+- `ADR-0002-fcm-push-preko-spring-boot.md` — obrazloženje zašto zaseban Spring
+  Boot servis umjesto Supabase Edge funkcije.
+
+**Rješenje — nađeni i popravljeni problemi:**
+
+1. **Zaglavlje treninga je bilo obrnuto.** Pri Filipovom rješavanju konflikata
+   uslov na `.header-right` je postao `*ngIf="viewOnly"` umjesto `!viewOnly` —
+   dakle dugmad Dodaj / Bilješka / Preuredi i cijela grupa tajmera postojali su
+   SAMO u pregledu istorije, a nestali sa živog treninga. Posljedica nije
+   kozmetička: na custom planu se trening bez dugmeta „Dodaj" ne može ni
+   započeti. Vraćeno na `!viewOnly` i provjereno u pregledaču — današnji trening
+   ima dugmad i grupu tajmera, pregled istorije nula.
+2. **`env.ts` sa main-a je opet gađao cloud, i nije se ni kompajlirao.** Nova
+   verzija je izgubila liniju `const host` koju šablonski string koristi, pa je
+   build pucao na `TS2304: Cannot find name 'host'`. Vraćen lokalni Supabase i
+   `host` linija; Filipov blok sa `firebase` konfiguracijom i `apiBaseUrl`
+   zadržan netaknut.
+3. **Odjava je tiho preskakala brisanje tokena.** `unregisterFromPush()` je
+   radio samo u SESIJI u kojoj je registracija urađena — poslije osvježavanja
+   stranice su `messaging` i `registration` bili `null`, pa je metoda izlazila
+   na prvom `if`-u iako token u pregledaču i dalje postoji. Rezultat: push bi
+   stizao i poslije odjave. Sada se registracija prvo obnovi kroz
+   `navigator.serviceWorker.getRegistration(FCM_SW_SCOPE)`, pa se tek onda
+   odlučuje ima li šta da se briše.
+4. **Token se registrovao samo pri ručnoj prijavi.** Postojana sesija — svako
+   osvježavanje stranice, svaki nov dan bez odjave — nikad nije prošla kroz
+   `registerForPush()`, pa uređaj ostaje bez notifikacija do sljedeće ručne
+   prijave. Dodat `ensureRegistered()`, koji se zove pri svakom pokretanju
+   aplikacije iz `app.component.ts`: tih je i ne otvara nikakav prompt, jer radi
+   samo ako je dozvola već `granted` i prekidač u aplikaciji uključen.
+
+**Novo — prekidač za notifikacije u profilu:** u profil je dodata sekcija
+„Notifikacije" sa prekidačem u aplikaciji (`gymapp.pushEnabled` u
+`localStorage`) i tekstom stanja dozvole pregledača ispod njega. Suština je u
+tome što se dozvola pregledača, kad je korisnik jednom ODBIJE, više ne može
+tražiti iz koda — sajt tu nema drugi potez osim da kaže gdje se pali ručno, i
+tekst ispod prekidača upravo to i radi. Pet stanja: uključeno / isključeno u
+aplikaciji / blokirano u pregledaču (sa uputstvom) / pregledač će pitati /
+nepodržano. `registerForPush()` sada poštuje prekidač, pa gašenje u aplikaciji
+znači i brisanje tokena sa backend-a. Provjereno u pregledaču: sekcija se
+prikazuje, prekidač mijenja i stanje i tekst, a uključivanje pri dozvoli
+`default` otvara pravi prompt pregledača.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html` — `*ngIf="!viewOnly"` na
+  `.header-right` (uz komentar zašto, da se pri sljedećem spajanju ne obrne
+  opet); `.scss` i `.ts` treninga sa main-a (UI tajmera)
+- `src/environments/env.ts` — vraćen `const host` i lokalni Supabase, zadržan
+  Filipov `firebase` / `apiBaseUrl` blok; `env.prod.ts` sa main-a
+- `src/app/services/push-notification.service.ts` — `enabled`, `permission`,
+  `setEnabled()`, `ensureRegistered()`; obnova registracije u
+  `unregisterFromPush()`; provjera prekidača u `registerForPush()`
+- `src/app/services/rest-timer.service.ts` — Filipov, nije diran
+- `src/app/app.component.ts` — `ensureRegistered()` pri pokretanju
+- `src/app/components/profile/profile.component.ts` — `togglePush()`,
+  `pushStatus`, `pushBusy`
+- `src/app/components/profile/profile.component.html` — sekcija „Notifikacije"
+- `src/app/components/profile/profile.component.scss` — stil prekidača i sekcije
+- `src/firebase-messaging-sw.js`, `angular.json` (SW u `assets`),
+  `src/app/components/login/login.component.ts`,
+  `src/app/components/footer/footer.component.ts` — sa main-a
+- `package.json` / `package-lock.json` — zavisnost `firebase`
+- `docs/05-decisions/ADR-0002-fcm-push-preko-spring-boot.md`,
+  `docs/05-decisions/README.md`, `docs/04-ROADMAP.md` — sa main-a
+
+**Efekat:** Živi trening je opet upotrebljiv — dugmad i tajmer su tamo gdje im
+je mjesto, a pregled istorije ostaje čist. Lokalni build prolazi i aplikacija
+opet gleda u lokalni Supabase. Notifikacije se sada drže korisnikovog izbora u
+oba smjera: registruju se same pri svakom pokretanju kad su uključene, a gašenje
+u profilu ili odjava stvarno brišu token sa backend-a — i poslije osvježavanja
+stranice.
+
+**Napomene:**
+
+- **Gdje push uopšte radi.** Chrome, Edge i Firefox na računaru i Androidu — da.
+  iOS Safari — samo kao instalirana PWA (Add to Home Screen, iOS 16.4 naviše);
+  u običnom tabu ne. U našoj nativnoj Capacitor ljusci (grana `native-app`) web
+  push NE radi uopšte, jer `WKWebView` nema Web Push — tamo bi trebale prave
+  APNs notifikacije, a to traži plaćeni Apple nalog. Zapisano kao poznato
+  ograničenje, ne kao bag.
+- **Render na besplatnom tieru spava.** Prvi zahtjev poslije pauze čeka hladan
+  start od pedesetak sekundi, pa tajmer za PRVU seriju u treningu može stići
+  kasno ili se izgubiti. Svjesno prihvaćeno za sada — evidentirano da se zna
+  odakle dolazi, ako se pojavi kao „tajmer ne radi".
+- **Spring Boot backend je arhitektonska promjena.** `CLAUDE.md` i dalje tvrdi
+  „nema backend servera" — Filipov ADR-0002 novo stanje dokumentuje, ali
+  `CLAUDE.md` treba ažurirati u zasebnom prolazu, da ne bude dvije istine.
+- **Sudar brojeva ADR-ova.** Filipov ADR nosi broj 0002, isto kao naš ADR o
+  nativnoj ljusci na grani `native-app`. Pri spajanju te dvije grane jedan mora
+  da se prenumeriše — naš ide na 0003, jer je Filipov već na main-u.
+- **Ne pomjerati sistemski sat radi testiranja tajmera.** Pomjeren sat lomi
+  Supabase JWT (aplikacija tada masovno „buguje" na mjestima koja nemaju veze sa
+  notifikacijama) i ume da ostavi sesije sa budućim datumom u cloud bazi.

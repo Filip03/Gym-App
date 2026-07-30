@@ -11,7 +11,10 @@
       <span class="plan-name">{{ session.planName }}</span>
       <span class="view-date num" *ngIf="viewOnly">{{ todayDate | date:'dd.MM.yyyy.' }}</span>
     </div>
-    <div class="header-right" *ngIf="viewOnly">
+    <!-- Alatke zaglavlja postoje samo u ŽIVOM treningu — u pregledu istorije
+         nema ni dodavanja ni tajmera. (Pri Filipovom merge-u uslov se obrnuo,
+         pa su dugmad nestala baš tamo gdje trebaju: na današnjem treningu.) -->
+    <div class="header-right" *ngIf="!viewOnly">
       <div class="rest-timer-group">
         <button type="button" class="reorder-btn" [class.on]="restTimer.enabled"
                 *ngIf="!reordering" (click)="restTimer.toggle()"

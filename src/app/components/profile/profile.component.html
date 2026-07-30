@@ -68,6 +68,22 @@
 
       <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
 
+      <!-- Notifikacije: prekidač u aplikaciji + stanje dozvole pregledača -->
+      <div class="push-section">
+        <div class="push-row">
+          <div class="push-text">
+            <span class="push-title">Notifikacije</span>
+            <span class="push-status">{{ pushStatus }}</span>
+          </div>
+          <button type="button" class="push-toggle" [class.on]="push.enabled"
+                  [disabled]="pushBusy || push.permission === 'unsupported'"
+                  (click)="togglePush()"
+                  [attr.aria-label]="push.enabled ? 'Isključi notifikacije' : 'Uključi notifikacije'">
+            <span class="pt-thumb"></span>
+          </button>
+        </div>
+      </div>
+
       <!-- Kalendar treninga -->
       <div class="cal-section">
         <div class="cal-head">
