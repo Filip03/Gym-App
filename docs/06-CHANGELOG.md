@@ -2605,3 +2605,146 @@ lightbox provjeren statički (z-indeksi).
 
 **Napomene:** Pravilo za dalje: novo mjesto sa avatarom = samo atribut, nikakve
 metode u komponenti.
+
+---
+
+## [2026-07-30] Istorija treninga — listanje po danima sa dashboarda
+**Tip:** funkcionalnost
+
+**Problem:** Nije postojao način da se vidi raniji trening. Dugme „Započni
+trening" je znalo samo za danas — sve odrađeno juče ili prije nedjelju dana
+stajalo je u bazi, ali iz aplikacije nedostupno.
+
+**Rješenje:** U tri dijela — čitanje sesije po datumu, ekran treninga koji zna
+za režim pregleda, i listanje po danima na dashboardu.
+
+**1. `getSessionByDate` u `training.service`.** Javni omotač postojećeg
+privatnog `findSession`: vraća sesiju za dati datum BEZ pravljenja nove.
+Ključna odluka koju vrijedi zapisati: istorija se čita iz SESIJE tog dana, ne
+iz plana. Sesija je snimak — naziv dana, tip i vježbe u tadašnjem redoslijedu —
+pa kasnija promjena ili brisanje plana ne mijenja ono što je odrađeno.
+
+**2. Ekran treninga zna režim pregleda.** `?date=YYYY-MM-DD` u adresi, ako je
+različit od današnjeg datuma, uključuje `viewOnly`. `todayDate` tada nosi
+gledani datum, pa se duhovi, poređenja i lični rekord računaju u odnosu na TAJ
+dan — kako je izgledalo tada, ne danas. `isFinished` uključuje `viewOnly`, pa
+sve postojeće brave rade same: nema upisa, izmjene serije, ni dropseta.
+Dodatno je sakriveno ono što brave ne pokrivaju: zaglavlje sa
+Dodaj/Bilješka/Preuredi i dugme „Otvori ponovo" na traci završenog treninga;
+`toggleNote` je dobio bravu. Stvarna zamka bio je `queue.onFlushed` — u
+pregledu se NE kači, jer bi osvježavanje poslije prolaska reda napravilo sesiju
+za gledani datum. U zaglavlju stoji bedž sa datumom, a ako sesije za taj dan
+nema: „Tog dana nije bilo treninga."
+
+**3. Dashboard lista dane.** `selectedDate`, strelice ‹ › oko velikog dugmeta
+(dan nazad, dan naprijed) i dugme sa datumom u traci koje otvara postojeći
+`app-date-picker`. Stanja dugmeta:
+
+1. **danas** — tri postojeća stanja (Započni trening / Trening u toku sa
+   tajmerom / Trening završen);
+2. **raniji dan sa upisima** — „Pogledaj trening" ili „Završeni trening", vodi
+   na `/training?date=...`;
+3. **raniji dan bez upisa** — „Nije trenirano", ugašeno;
+4. **budući dan** — „Trening koji čeka", ugašeno, tip dana iz plana.
+
+Traka ispod dugmeta za ranije dane čita naziv i tip iz sesije (snimak), a za
+danas i buduće dane iz plana. `dayLoadToken` čuva od utrke: pri brzom listanju
+strelicama važi samo posljednje traženje.
+
+**Dizajn** (po povratnoj informaciji odmah u toku rada): strelice su bez
+okvira — samo volt ševroni koji vise IZVAN širine dugmeta, apsolutno
+pozicionirani, sa blagim „diši" pokretom ka strani na koju vode (ugašen uz
+`prefers-reduced-motion`). Dugme zadržava tačno širinu bloka (300px) da traka
+ispod ostane njegov produžetak. Stanja „istorija" i „ugašeno" koriste ISTI
+jezik kao postojeća `done`/`live` stanja: tamna podloga `#070B04`, volt
+odnosno utišan tekst.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts` — `getSessionByDate`
+- `src/app/components/training/training.component.ts` — `viewOnly`, čitanje
+  sesije po datumu, brave
+- `src/app/components/training/training.component.html`/`.scss` — bedž sa
+  datumom, sakriveno zaglavlje i „Otvori ponovo"
+- `src/app/components/dashboard/dashboard.component.ts` — `selectedDate`,
+  `loadDay`, `shiftDay`, `startLabel`, `startDisabled`, `dayLoadToken`
+- `src/app/components/dashboard/dashboard.component.html`/`.scss` — strelice,
+  dugme sa datumom, kalendar, stanja velikog dugmeta
+
+**Efekat:** Provjereno u pregledaču nad stvarnim podacima: 30.07. „Započni
+trening" (REST po planu); 29.07. „Nije trenirano", ugašeno; 28.07. „Završeni
+trening" otvara čitanje — PUSH dan sa bedžom 28.07.2026., serije L/D para i
+dropset grana vidljivi, a nijedno dugme za upis, meni, završetak ni ponovno
+otvaranje ne postoji u DOM-u; 31.07. „Trening koji čeka" (PULL iz plana),
+ugašeno.
+
+**Napomene:** Za dane prije uvođenja tabele `workout_sessions` sesije ne
+postoje, pa će stariji datumi pokazati „Nije trenirano" iako u `exercice_logs`
+možda ima upisa — svjesno ograničenje, evidentirano kao mogući kasniji fallback
+na same upise. Budući dani namjerno ne vode nikud: trening se ne može započeti
+unaprijed.
+
+**Dopuna istog dana — rest day:** dugme na rest day ne poziva „Započni trening"
+nego kaže „Rest day" (ikona `self_improvement`, ugašeno). Danas i ubuduće se
+čita iz plana (tip REST ili bez tipa), za ranije dane iz snimka sesije — i samo
+ako sesija postoji; bez nje ostaje „Nije trenirano", jer se bez sesije ne zna
+da li je bio odmor. Ako je neko ipak trenirao na rest day, upisi pobjeđuju:
+stanja treninga (u toku/završen/pogledaj) imaju prednost nad odmorom. Ekran
+treninga ostaje dostupan kroz donju navigaciju, pa se vanredni trening na rest
+day i dalje može odraditi.
+
+**Dopuna istog dana — dva doćerivanja po povratnoj informaciji:**
+
+1. „Trening u toku" na dashboardu sada traži i **bar jednu upisanu seriju** —
+   isto pravilo kao „ko trenira sada". Sesija nastaje čim se ekran treninga
+   otvori, pa je i bacanje pogleda na raspored prikazivalo trening u toku;
+   sada otvoren ekran bez upisa nije trening. (`todayInProgress` +
+   `dayHasTraining` i za današnji dan.)
+2. Sadržaj velikog dugmeta se pri listanju dana više ne mijenja naglo: rađa se
+   iznova (`faceKey` + `ngFor` trik) i uklizi iz smjera listanja — nazad
+   slijeva, naprijed zdesna — a boje stanja se pretapaju prelazom umjesto
+   preskoka. Uz `prefers-reduced-motion` animacija je ugašena. Provjereno i da
+   je dugme u SVIM stanjima tačno iste širine (300px), pa strelice uvijek
+   stoje na istom mjestu — ranija verzija reda sa strelicama u toku je dugme
+   stiskala kad je natpis duži.
+
+**Dopuna istog dana — split-flap natpis i datum-čip:** promjena natpisa na
+velikom dugmetu je sada po slovima: stara slova bježe GORE a nova ulaze ODOZDO,
+svako sa kašnjenjem od 22 ms po redu; pri listanju unazad kašnjenje teče
+obrnutim redom, pa se vidi i smjer. Novi natpis se rađa tek kad podaci dana
+stignu (`pendingFace`), pa slova animiraju konačan tekst — bez treptaja
+međustanja. Dugme je dobilo `overflow: hidden` da odbjegla slova ne vire, a uz
+`prefers-reduced-motion` sve je isključeno. Datum-čip: ikona `calendar_month`
+u volt boji, ispisuje se samo dan (`29.`) — mjesec je višak jer kalendar na
+klik ionako pokazuje sve.
+
+**Dopuna istog dana — smirivanje animacije dugmeta (četiri ispravke po
+povratnim informacijama):**
+
+1. Treptaj cijelog bloka pri pritisku: dugme na tren ostane bez sadržaja, a
+   PRAZAN inline-block pomjeri baseline reda pa sve ispod poskoči. `.start-row`
+   je sada flex (dugme flex stavka) — izmjereno: traka i visina dugmeta
+   nepomični kroz cijelu animaciju.
+2. Preklapanje starih i novih slova: stari natpis sada odlazi gore kao JEDAN
+   komad (130 ms), a talas po slovima ostaje samo na ulasku, sa baznim ofsetom
+   od 170 ms — na brzoj mreži su se ranije pola starog i pola novog teksta
+   znali sresti u nečitljiv hibrid, što je bio i uzrok „jerky" utiska pri
+   listanju unazad.
+3. Ikona stanja (pješčanik, odmor, istorija...) je nestajala u trenutku
+   promjene: odlazeći snimak sada nosi i ikonu i tačkicu „u toku"
+   (`outFace.icon/dot`), a četiri `*ngIf` ikone svedene na jedan `faceIcon`.
+4. Datum-čip: vraćen U TOK (apsolutni je mijenjao visinu trake i pomjerao
+   elemente) — traka je mreža `1fr auto 1fr`, čip skroz lijevo, dan i tip
+   matematički centrirani, sve u jednoj liniji (poravnanje izmjereno).
+
+---
+
+## [2026-07-30] Spajanje main: Filipov „plan adjust" i zaključavanje navigacije
+**Tip:** infrastruktura
+
+**Problem/Rješenje:** Filip je prihvatio naš PR (#5) i dodao `NavLockService`
+(strelica nazad zaključana dok je otvorena izmjena na treningu) i dorade
+dashboarda. Dva konflikta riješena unijom: konstruktor treninga dobio i njegov
+`navLock` i našu `route`; kod `todayInProgress` zadržano naše pravilo „bar
+jedna upisana serija" — ono pokriva i njegov uslov za rest day
+(`todayCount === 0`), a bolje radi kad neko ipak trenira na rest day.
+`env.ts` po običaju vraćen na lokalni Supabase.

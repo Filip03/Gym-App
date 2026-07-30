@@ -9,8 +9,9 @@
       <span class="day-sep" *ngIf="session.dayTypeName">·</span>
       <span class="day-type" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
       <span class="plan-name">{{ session.planName }}</span>
+      <span class="view-date num" *ngIf="viewOnly">{{ todayDate | date:'dd.MM.yyyy.' }}</span>
     </div>
-    <div class="header-right">
+    <div class="header-right" *ngIf="!viewOnly">
       <button type="button" class="reorder-btn" *ngIf="!reordering"
               (click)="openAdd()" title="Dodaj vježbu za danas">
         <i class="material-icons">add</i>
@@ -76,7 +77,8 @@
       Trening završen
       <small *ngIf="totalSets">· {{ totalSets }} {{ totalSets === 1 ? 'serija' : 'serija' }}</small>
     </span>
-    <button type="button" class="fb-reopen" [disabled]="finishing" (click)="reopenTraining()">
+    <!-- U istoriji nema ponovnog otvaranja — prošli dani se samo gledaju. -->
+    <button type="button" class="fb-reopen" *ngIf="!viewOnly" [disabled]="finishing" (click)="reopenTraining()">
       Otvori ponovo
     </button>
   </div>

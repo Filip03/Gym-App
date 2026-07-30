@@ -86,12 +86,54 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private dayNames = DAY_NAMES;
 
-  // Šta je danas na redu — prikazuje se na traci iznad planova.
+  // Šta je na redu za IZABRANI dan — prikazuje se na traci iznad planova.
+  // Podrazumijevano danas; strelicama i kalendarom se lista istorija.
   todayName = '';
   todayType: string | null = null;
   todayCount = 0;
   todayFinished = false;
   todayStartedAt: string | null = null;
+
+  /** Izabrani dan (YYYY-MM-DD). Danas = normalan rad; ranije = samo pregled. */
+  selectedDate = '';
+  showDatePicker = false;
+  /**
+   * Split-flap promjena natpisa: stara slova odlaze GORE, nova ulaze ODOZDO,
+   * svako sa malim kašnjenjem po redu — a pri listanju unazad kašnjenje teče
+   * obrnutim redom, pa se vidi i smjer. `faceKey` rađa novi natpis IZNOVA, i
+   * to tek kad podaci dana stignu (`pendingFace`) — inače bi slova odsvirala
+   * međustanje pa se naglo prepravila.
+   */
+  faceKey = 0;
+  slideDir: -1 | 0 | 1 = 0;
+  pendingFace = false;
+  /** Odlazeći natpis — CIJELI, kao jedan komad. Slova pojedinačno izlaze samo
+   *  pri ULASKU: kad bi izlazila i stara, brzine mreže umiju da preklope
+   *  polovinu starog i polovinu novog teksta u nečitljiv hibrid. */
+  outFace: { label: string; icon: string | null; dot: boolean } | null = null;
+  private outFaceTimer: any = null;
+  /** Korak kašnjenja po slovu (ms) — dovoljno da se talas vidi, a ne odugovlači. */
+  readonly CH_STEP = 22;
+  /**
+   * Bazni ofset ulaznih slova: stari natpis bježi ~130 ms kao komad, pa ulazna
+   * slova kreću tek pošto je praktično nestao — bez ovoga se na brzoj mreži
+   * staro i novo preklope u letu.
+   */
+  readonly CH_IN_BASE = 170;
+
+  /** Natpis kao slova; razmak postaje nelomivi da span ne kolabira. */
+  chars(label: string): string[] {
+    return label.split('').map(c => c === ' ' ? '\u00A0' : c);
+  }
+
+  delayFor(i: number, len: number): number {
+    return this.CH_IN_BASE + (this.slideDir === -1 ? len - 1 - i : i) * this.CH_STEP;
+  }
+  /** Za ranije dane: da li tog dana postoji ijedan upis. */
+  dayHasTraining = false;
+  /** Za ranije dane: da li sesija uopšte postoji (bez nje ne znamo ni tip dana). */
+  private daySessionExists = false;
+  private dayLoadToken = 0;
   /** „12:34" ili „1:02:34" — koliko traje današnji trening. Kuca svake sekunde. */
   elapsedLabel = '';
   private elapsedTimer: any = null;
@@ -157,26 +199,160 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   /** Dan i tip treninga za danas, po planu koji korisnik prati ili ima aktivan. */
   private async loadToday(userId: string) {
-    const jsDay = new Date().getDay();
+    this.selectedDate = this.todayDateString();
+    await this.loadDay();
+
+    // Tajmer kuca svake sekunde, ali samo dok je trening u toku — `tick`
+    // sam isprazni natpis čim trening prestane da se vodi kao aktivan.
+    this.tickElapsed();
+    this.elapsedTimer = setInterval(() => this.tickElapsed(), 1000);
+  }
+
+  // --- Izabrani dan: danas, istorija, ili dan koji tek dolazi -----------------
+
+  get isToday(): boolean { return this.selectedDate === this.todayDateString(); }
+  get isPast(): boolean { return this.selectedDate < this.todayDateString(); }
+  get isFuture(): boolean { return this.selectedDate > this.todayDateString(); }
+
+  /**
+   * Traka i dugme za izabrani dan.
+   *
+   * RANIJI dani se čitaju iz SESIJE tog dana (snimak naziva i tipa) — plan se
+   * u međuvremenu mogao promijeniti ili obrisati, sesija ne laže. Današnji i
+   * budući dani se čitaju iz plana, jer sesija za njih još ne mora postojati.
+   */
+  private async loadDay() {
+    const token = ++this.dayLoadToken;   // brzo listanje: važi samo posljednji
+    const d = new Date(this.selectedDate + 'T12:00:00');
+    const jsDay = d.getDay();
     this.todayName = DAYS[jsDay === 0 ? 6 : jsDay - 1];
+    this.todayType = null;
+    this.todayCount = 0;
+    this.todayFinished = false;
+    this.todayStartedAt = null;
+    this.dayHasTraining = false;
+    this.daySessionExists = false;
 
     try {
-      const plan = await this.trainingService.getPlanForUser(userId);
-      const day = (plan?.workout_days ?? []).find((d: any) => d.name === this.todayName);
+      if (this.isPast) {
+        const session = await this.trainingService.getSessionByDate(this.currentUserId, this.selectedDate);
+        if (token !== this.dayLoadToken) return;
+        if (session) {
+          this.daySessionExists = true;
+          this.todayType = session.dayTypeName;
+          this.todayFinished = !!session.finishedAt;
+          const logs = await this.trainingService.getSessionLogs(session.id);
+          if (token !== this.dayLoadToken) return;
+          this.dayHasTraining = logs.length > 0;
+        }
+        return;
+      }
+
+      const plan = await this.trainingService.getPlanForUser(this.currentUserId);
+      if (token !== this.dayLoadToken) return;
+      const day = (plan?.workout_days ?? []).find((d2: any) => d2.name === this.todayName);
       this.todayType = day?.day_type?.name ?? null;
       this.todayCount = (day?.day_exercice ?? []).length;
 
-      const times = await this.trainingService.getSessionTimes(userId, this.todayDateString());
-      this.todayFinished = !!times.finishedAt;
-      this.todayStartedAt = times.startedAt;
+      if (this.isToday) {
+        const times = await this.trainingService.getSessionTimes(this.currentUserId, this.selectedDate);
+        if (token !== this.dayLoadToken) return;
+        this.todayFinished = !!times.finishedAt;
+        this.todayStartedAt = times.startedAt;
 
-      // Tajmer kuca svake sekunde, ali samo dok je trening u toku — `tick`
-      // sam isprazni natpis čim trening prestane da se vodi kao aktivan.
-      this.tickElapsed();
-      this.elapsedTimer = setInterval(() => this.tickElapsed(), 1000);
+        // I za danas: „u toku" tek od PRVE upisane serije. Sesija nastaje čim
+        // se ekran treninga otvori, pa bi inače i bacanje pogleda na raspored
+        // prikazalo trening u toku — isto pravilo kao „ko trenira sada".
+        if (times.startedAt && !times.finishedAt) {
+          const session = await this.trainingService.getSessionByDate(this.currentUserId, this.selectedDate);
+          if (token !== this.dayLoadToken) return;
+          if (session) {
+            const logs = await this.trainingService.getSessionLogs(session.id);
+            if (token !== this.dayLoadToken) return;
+            this.dayHasTraining = logs.length > 0;
+          }
+        }
+      }
     } catch {
-      // Traka je informativna — ako plan ne može da se učita, ostaje samo dan.
+      // Traka je informativna — ako se dan ne može učitati, ostaje samo naziv.
+    } finally {
+      if (token === this.dayLoadToken && this.pendingFace) {
+        this.pendingFace = false;
+        this.faceKey++;
+      }
     }
+  }
+
+  selectDate(iso: string) {
+    this.showDatePicker = false;
+    if (!iso || iso === this.selectedDate) return;
+    this.slideDir = iso > this.selectedDate ? 1 : -1;
+
+    // Stari natpis odlazi gore ODMAH, kao jedan komad — dok podaci novog dana
+    // stižu, dugme drži samo njega, pa novi natpis uleti gotov, bez treptaja.
+    this.outFace = { label: this.startLabel, icon: this.faceIcon, dot: this.todayInProgress };
+    this.pendingFace = true;
+    clearTimeout(this.outFaceTimer);
+    this.outFaceTimer = setTimeout(() => { this.outFace = null; }, 180);
+
+    this.selectedDate = iso;
+    void this.loadDay();
+  }
+
+  shiftDay(by: number) {
+    const d = new Date(this.selectedDate + 'T12:00:00');
+    d.setDate(d.getDate() + by);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    this.selectDate(iso);
+  }
+
+  /**
+   * Rest day za izabrani dan — tada dugme ne poziva na trening.
+   *
+   * Danas i ubuduće se čita iz plana (nema tipa, ili je tip REST); za ranije
+   * dane iz snimka sesije, i SAMO ako sesija postoji — bez sesije se ne zna
+   * ništa, pa je poštenije reći „nije trenirano" nego tvrditi da je bio odmor.
+   * Ako je neko ipak trenirao na rest day, upisi pobjeđuju: vidi se trening.
+   */
+  get isRestSelected(): boolean {
+    if (this.dayHasTraining || this.todayInProgress || this.todayFinished) return false;
+    if (this.isPast && !this.daySessionExists) return false;
+    return this.todayType === null || /rest/i.test(this.todayType);
+  }
+
+  /** Ikona uz natpis — jedno mjesto istine za dugme I za odlazeći snimak. */
+  get faceIcon(): string | null {
+    if (this.isToday && this.todayFinished) return 'check_circle';
+    if (this.isPast && this.dayHasTraining) return 'history';
+    if (this.isRestSelected) return 'self_improvement';
+    if (this.isFuture) return 'hourglass_empty';
+    return null;
+  }
+
+  /** Natpis na velikom dugmetu, po danu i stanju. */
+  get startLabel(): string {
+    if (this.isToday) {
+      if (this.todayFinished) return 'Trening završen';
+      if (this.todayInProgress) return 'Trening u toku';
+      return this.isRestSelected ? 'Rest day' : 'Započni trening';
+    }
+    if (this.isRestSelected) return 'Rest day';
+    if (this.isFuture) return 'Trening koji čeka';
+    if (!this.dayHasTraining) return 'Nije trenirano';
+    return this.todayFinished ? 'Završeni trening' : 'Pogledaj trening';
+  }
+
+  /** Rest day, ranije bez upisa i budući dani: dugme ništa ne otvara. */
+  get startDisabled(): boolean {
+    return this.isRestSelected
+        || this.isFuture
+        || (this.isPast && !this.dayHasTraining);
+  }
+
+  startOrView() {
+    if (this.startDisabled) return;
+    if (this.isToday) { this.goToTraining(); return; }
+    this.router.navigate(['/training'], { queryParams: { date: this.selectedDate } });
   }
 
   /**
@@ -232,6 +408,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     if (this.liveTimer) clearInterval(this.liveTimer);
     if (this.elapsedTimer) clearInterval(this.elapsedTimer);
+    clearTimeout(this.outFaceTimer);
   }
 
   /**
@@ -247,7 +424,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * pokreće tajmer.
    */
   get todayInProgress(): boolean {
-    if (this.todayFinished || !this.todayStartedAt || this.todayCount === 0) return false;
+    if (this.todayFinished || !this.todayStartedAt) return false;
+    // Otvoren ekran još nije trening — traži se bar jedna upisana serija.
+    // Ovo pokriva i rest day (Filipov uslov todayCount === 0): bez upisa nema
+    // „u toku", a ako neko IPAK trenira na rest day, upisi se vide.
+    if (!this.dayHasTraining) return false;
     return Date.now() - new Date(this.todayStartedAt).getTime() < 4 * 3_600_000;
   }
 

@@ -207,6 +207,17 @@ export class TrainingService {
     return this.findSession(userId, date);
   }
 
+  /**
+   * Sesija za DATI datum, bez pravljenja — za istoriju treninga.
+   *
+   * Istorija se namjerno čita iz sesije, ne iz plana: sesija je SNIMAK dana
+   * (naziv, tip, vježbe u tadašnjem redoslijedu), pa kasnija promjena ili
+   * brisanje plana ne može promijeniti ono što je odrađeno.
+   */
+  async getSessionByDate(userId: string, date: string): Promise<WorkoutSession | null> {
+    return this.findSession(userId, date);
+  }
+
   private async findSession(userId: string, date: string): Promise<WorkoutSession | null> {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
