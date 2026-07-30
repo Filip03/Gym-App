@@ -1,8 +1,9 @@
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, DoCheck, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
 import { OfflineQueueService } from '../../services/offline-queue.service';
+import { NavLockService } from '../../services/nav-lock.service';
 import {
   PickerGroup, PickerOption, toPickerGroups, flattenGroups
 } from '../shared/exercice-picker/exercice-picker.component';
@@ -84,7 +85,7 @@ interface TodayExercice extends SessionExercice {
   templateUrl: './training.component.html',
   styleUrls: ['./training.component.scss']
 })
-export class TrainingComponent implements OnInit, OnDestroy {
+export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   loading = true;
   errorMessage = '';
 
@@ -150,8 +151,20 @@ export class TrainingComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private audio: AudioService,
     public queue: OfflineQueueService,
+    private navLock: NavLockService,
     private router: Router
   ) {}
+
+  /**
+   * Zaključava strelicu "nazad" u headeru dok je otvorena bilo koja edit
+   * radnja — zamjena/dodavanje vježbe, preuređivanje, bilješka, ciljevi — da
+   * se ne izađe slučajno usred nedovršene izmjene. Provjerava se pri svakom
+   * ciklusu provjere promjena umjesto da se poziva na svakom mjestu koje
+   * otvara/zatvara neki od ovih modova, da se ne zaboravi nijedan.
+   */
+  ngDoCheck() {
+    this.navLock.locked = this.showSwapModal || this.reordering || this.showNote || this.showTargetModal;
+  }
 
   async ngOnInit() {
     const user = this.authService.getCurrentUser();
@@ -764,6 +777,10 @@ export class TrainingComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.queue.onFlushed = null;
     clearTimeout(this.saveTimer);
+    // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
+    // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
+    // futera) dok je neki edit mod bio otvoren.
+    this.navLock.unlock();
   }
 
   /** Klik na sam red poništava izbor; klik na strelice ne (one pomjeraju). */

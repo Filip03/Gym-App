@@ -102,6 +102,10 @@
 <div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
   <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
     <h2>{{ editingPlanId ? 'Izmijeni plan' : 'Novi plan' }}</h2>
+    <p class="modal-note" *ngIf="adaptingFromPlanId">
+      Pravi se tvoj novi plan na osnovu ovog rasporeda — original ostaje nepromijenjen.
+      Naziv i opis su obavezni.
+    </p>
 
     <form (ngSubmit)="onSubmitPlan()" #planForm="ngForm">
 
@@ -114,7 +118,8 @@
 
         <div class="form-group">
           <label for="description">Opis</label>
-          <textarea id="description" name="description" [(ngModel)]="newPlanDescription" rows="2"></textarea>
+          <textarea id="description" name="description" [(ngModel)]="newPlanDescription" rows="2"
+                    [required]="!!adaptingFromPlanId"></textarea>
         </div>
 
         <div class="form-group">
@@ -231,6 +236,14 @@
               (click)="toggleFollowPlan($event)"
             >
               {{ isFollowing ? 'Prestani pratiti' : 'Prati plan' }}
+            </button>
+            <button
+              type="button"
+              class="edit-plan-btn"
+              *ngIf="!isOwnPlan"
+              (click)="adaptPlan()"
+            >
+              Prilagodi sebi
             </button>
           </div>
         </div>
