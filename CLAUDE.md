@@ -117,6 +117,11 @@ Poštuj postojeći stil — cilj je da kolega prepozna svoj kod.
 - **Modali:** `*ngIf` na `.modal-overlay`, klik na overlay zatvara,
   `(click)="$event.stopPropagation()"` na `.modal-card`.
 - **Ikone:** Material Icons preko `<i class="material-icons">naziv</i>`.
+- **Polja za kucanje (OBAVEZNO):** `font-size` svakog `input`/`textarea`/`select`
+  ide kroz `max(<željena>, var(--t-field-min))` — polje ispod 16px na dodirnom
+  ekranu tjera iOS da zumira cijelu stranicu, a u nativnoj ljusci nema ni
+  odzumiranja. Globalno pravilo u `_base.scss` pokriva polja bez svoje veličine;
+  komponentna pravila MORAJU koristiti `max()` jer se učitavaju poslije globalnih.
 
 ### Animacije — kućno pravilo (obavezno)
 
