@@ -2716,3 +2716,22 @@ međustanja. Dugme je dobilo `overflow: hidden` da odbjegla slova ne vire, a uz
 `prefers-reduced-motion` sve je isključeno. Datum-čip: ikona `calendar_month`
 u volt boji, ispisuje se samo dan (`29.`) — mjesec je višak jer kalendar na
 klik ionako pokazuje sve.
+
+**Dopuna istog dana — smirivanje animacije dugmeta (četiri ispravke po
+povratnim informacijama):**
+
+1. Treptaj cijelog bloka pri pritisku: dugme na tren ostane bez sadržaja, a
+   PRAZAN inline-block pomjeri baseline reda pa sve ispod poskoči. `.start-row`
+   je sada flex (dugme flex stavka) — izmjereno: traka i visina dugmeta
+   nepomični kroz cijelu animaciju.
+2. Preklapanje starih i novih slova: stari natpis sada odlazi gore kao JEDAN
+   komad (130 ms), a talas po slovima ostaje samo na ulasku, sa baznim ofsetom
+   od 170 ms — na brzoj mreži su se ranije pola starog i pola novog teksta
+   znali sresti u nečitljiv hibrid, što je bio i uzrok „jerky" utiska pri
+   listanju unazad.
+3. Ikona stanja (pješčanik, odmor, istorija...) je nestajala u trenutku
+   promjene: odlazeći snimak sada nosi i ikonu i tačkicu „u toku"
+   (`outFace.icon/dot`), a četiri `*ngIf` ikone svedene na jedan `faceIcon`.
+4. Datum-čip: vraćen U TOK (apsolutni je mijenjao visinu trake i pomjerao
+   elemente) — traka je mreža `1fr auto 1fr`, čip skroz lijevo, dan i tip
+   matematički centrirani, sve u jednoj liniji (poravnanje izmjereno).

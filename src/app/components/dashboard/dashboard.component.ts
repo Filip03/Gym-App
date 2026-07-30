@@ -101,10 +101,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   faceKey = 0;
   slideDir: -1 | 0 | 1 = 0;
   pendingFace = false;
-  outFace: { chars: string[]; rev: boolean } | null = null;
+  /** Odlazeći natpis — CIJELI, kao jedan komad. Slova pojedinačno izlaze samo
+   *  pri ULASKU: kad bi izlazila i stara, brzine mreže umiju da preklope
+   *  polovinu starog i polovinu novog teksta u nečitljiv hibrid. */
+  outFace: { label: string; icon: string | null; dot: boolean } | null = null;
   private outFaceTimer: any = null;
   /** Korak kašnjenja po slovu (ms) — dovoljno da se talas vidi, a ne odugovlači. */
   readonly CH_STEP = 22;
+  /**
+   * Bazni ofset ulaznih slova: stari natpis bježi ~130 ms kao komad, pa ulazna
+   * slova kreću tek pošto je praktično nestao — bez ovoga se na brzoj mreži
+   * staro i novo preklope u letu.
+   */
+  readonly CH_IN_BASE = 170;
 
   /** Natpis kao slova; razmak postaje nelomivi da span ne kolabira. */
   chars(label: string): string[] {
@@ -112,7 +121,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   delayFor(i: number, len: number): number {
-    return (this.slideDir === -1 ? len - 1 - i : i) * this.CH_STEP;
+    return this.CH_IN_BASE + (this.slideDir === -1 ? len - 1 - i : i) * this.CH_STEP;
   }
   /** Za ranije dane: da li tog dana postoji ijedan upis. */
   dayHasTraining = false;
@@ -273,16 +282,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!iso || iso === this.selectedDate) return;
     this.slideDir = iso > this.selectedDate ? 1 : -1;
 
-    // Stari natpis kreće gore ODMAH — dok podaci novog dana stižu, dugme je
-    // „prazno" (samo odlazeća slova), pa novi natpis uleti gotov, bez treptaja.
-    const staro = this.startLabel;
-    this.outFace = { chars: this.chars(staro), rev: this.slideDir === -1 };
+    // Stari natpis odlazi gore ODMAH, kao jedan komad — dok podaci novog dana
+    // stižu, dugme drži samo njega, pa novi natpis uleti gotov, bez treptaja.
+    this.outFace = { label: this.startLabel, icon: this.faceIcon, dot: this.todayInProgress };
     this.pendingFace = true;
     clearTimeout(this.outFaceTimer);
-    this.outFaceTimer = setTimeout(
-      () => { this.outFace = null; },
-      staro.length * this.CH_STEP + 320
-    );
+    this.outFaceTimer = setTimeout(() => { this.outFace = null; }, 180);
 
     this.selectedDate = iso;
     void this.loadDay();
@@ -307,6 +312,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.dayHasTraining || this.todayInProgress || this.todayFinished) return false;
     if (this.isPast && !this.daySessionExists) return false;
     return this.todayType === null || /rest/i.test(this.todayType);
+  }
+
+  /** Ikona uz natpis — jedno mjesto istine za dugme I za odlazeći snimak. */
+  get faceIcon(): string | null {
+    if (this.isToday && this.todayFinished) return 'check_circle';
+    if (this.isPast && this.dayHasTraining) return 'history';
+    if (this.isRestSelected) return 'self_improvement';
+    if (this.isFuture) return 'hourglass_empty';
+    return null;
   }
 
   /** Natpis na velikom dugmetu, po danu i stanju. */

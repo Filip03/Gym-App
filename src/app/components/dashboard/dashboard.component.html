@@ -9,24 +9,19 @@
                 [class.live]="todayInProgress" [class.history]="isPast && dayHasTraining"
                 [class.ghosted]="startDisabled" [disabled]="startDisabled"
                 (click)="startOrView()">
-            <!-- Odlazeći natpis: slova bježe gore, jedno po jedno. -->
+            <!-- Odlazeći natpis: bježi gore kao JEDAN komad, SA svojom ikonom. -->
             <span class="btn-face out" *ngIf="outFace" aria-hidden="true">
-              <span class="ch out-ch" *ngFor="let ch of outFace.chars; let i = index"
-                    [style.animation-delay.ms]="(outFace.rev ? outFace.chars.length - 1 - i : i) * CH_STEP">{{ ch }}</span>
+              <i class="material-icons" *ngIf="outFace.icon">{{ outFace.icon }}</i>
+              <span class="live-dot" *ngIf="outFace.dot"></span>
+              {{ outFace.label }}
             </span>
 
             <!-- Novi natpis se rađa tek kad podaci dana stignu (faceKey), pa
                  slova uklizaju odozdo sa gotovim tekstom — bez treptaja. -->
             <span class="btn-face" *ngIf="!pendingFace" [attr.data-k]="faceKey">
               <ng-container *ngFor="let k of [faceKey]">
-                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
-                   *ngIf="isToday && todayFinished">check_circle</i>
-                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
-                   *ngIf="isPast && dayHasTraining">history</i>
-                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
-                   *ngIf="isRestSelected">self_improvement</i>
-                <i class="material-icons in-ch" [style.animation-delay.ms]="0"
-                   *ngIf="isFuture && !isRestSelected">hourglass_empty</i>
+                <i class="material-icons in-ch" [style.animation-delay.ms]="CH_IN_BASE"
+                   *ngIf="faceIcon">{{ faceIcon }}</i>
                 <span class="live-dot" *ngIf="todayInProgress"></span>
                 <span class="label-chs"><span class="ch in-ch"
                       *ngFor="let ch of chars(startLabel); let i = index"
@@ -41,17 +36,24 @@
         </button>
     </div>
 
+    <!-- Mreža 1fr|auto|1fr: čip skroz lijevo U TOKU (ne apsolutno — apsolutni
+         je mijenjao visinu trake), dan i tip matematički centrirani. -->
     <div class="start-today" *ngIf="todayName">
-        <!-- Kalendar: skok na bilo koji datum — istorija treninga -->
-        <button type="button" class="date-btn" (click)="showDatePicker = true"
-                title="Izaberi datum">
-            <i class="material-icons">calendar_month</i>
-            <span class="num">{{ selectedDate | date:'d.' }}</span>
-        </button>
-        <span class="st-day">{{ todayName }}</span>
-        <span class="st-sep" *ngIf="todayType">·</span>
-        <span class="st-type" *ngIf="todayType">{{ todayType }}</span>
-        <span class="st-type rest" *ngIf="!todayType && (isToday || isFuture)">odmor</span>
+        <span class="st-left">
+            <!-- Kalendar: skok na bilo koji datum — istorija treninga -->
+            <button type="button" class="date-btn" (click)="showDatePicker = true"
+                    title="Izaberi datum">
+                <i class="material-icons">calendar_month</i>
+                <span class="num">{{ selectedDate | date:'d.' }}</span>
+            </button>
+        </span>
+        <span class="st-mid">
+            <span class="st-day">{{ todayName }}</span>
+            <span class="st-sep" *ngIf="todayType">·</span>
+            <span class="st-type" *ngIf="todayType">{{ todayType }}</span>
+            <span class="st-type rest" *ngIf="!todayType && (isToday || isFuture)">odmor</span>
+        </span>
+        <span class="st-right"></span>
     </div>
 </div>
 

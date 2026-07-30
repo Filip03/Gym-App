@@ -47,10 +47,9 @@
   position: relative;
   z-index: 1;
 
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: var(--s-2);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
 
   // Ista širina kao dugme i uvučena pod njega, pa se čita kao njegov
   // produžetak — kao "poddugme", a ne kao zaseban element.
@@ -84,6 +83,10 @@
 }
 
 .start-today { --pad-top: calc(var(--s-2) + 12px); }
+
+.st-left  { justify-self: start; display: inline-flex; }
+.st-mid   { display: inline-flex; align-items: baseline; gap: var(--s-2); }
+.st-right { justify-self: end; }
 
 .st-sep { color: var(--volt-soft); }
 
@@ -856,21 +859,19 @@
 }
 i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
 
-.ch.out-ch {
-  animation: ch-out 220ms var(--ease) forwards;
+.btn-face.out { animation: face-out 130ms var(--ease) forwards; }
+
+@keyframes face-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-0.55em); }
 }
 
 @keyframes ch-in {
   from { opacity: 0; transform: translateY(0.65em); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes ch-out {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-0.65em); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .ch.in-ch, i.in-ch { animation: none; }
+  .ch.in-ch, i.in-ch, .btn-face.out { animation: none; }
   .btn-face.out { display: none; }
 }
 
@@ -879,8 +880,17 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
 // okvira — samo znak. Tako je cjelina šira, a dugme i traka ostaju poravnati.
 .start-row {
   position: relative;
+  // Flex, ne inline tok: dugme na tren ostane bez sadržaja dok se natpis
+  // mijenja, a PRAZAN inline-block pomjeri baseline reda — sve ispod tada
+  // poskoči gore-dolje kao brzi treptaj. Flex stavka nema taj problem.
+  display: flex;
 }
-.start-row .start-btn { width: 100%; }
+.start-row .start-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .day-arrow {
   position: absolute;
