@@ -24,6 +24,30 @@ export class PushNotificationService {
 
   constructor(private supabase: SupabaseService) {}
 
+  /**
+   * Probna notifikacija — jedini pravi DOKAZ da pristup postoji: status u
+   * profilu kaže šta dozvola tvrdi, a ovo pokaže da notifikacija stvarno
+   * iskoči. Ide kroz service worker kad postoji (isti put kao prave), inače
+   * direktno kroz Notification.
+   */
+  async testNotification(): Promise<boolean> {
+    if (this.permission !== 'granted') return false;
+    const opts = {
+      body: 'Notifikacije rade — ovako će stizati tajmer pauze.',
+      icon: '/assets/icons/icon-192x192.png'
+    };
+    try {
+      const reg = this.registration
+        ?? await navigator.serviceWorker?.getRegistration(FCM_SW_SCOPE)
+        ?? await navigator.serviceWorker?.getRegistration();
+      if (reg) { await reg.showNotification('GymApp', opts); return true; }
+      new Notification('GymApp', opts);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   /** Stanje dozvole pregledača: 'granted' | 'denied' | 'default' | 'unsupported'. */
   get permission(): string {
     return 'Notification' in window ? Notification.permission : 'unsupported';

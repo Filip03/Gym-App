@@ -249,9 +249,19 @@ export class ProfileComponent implements OnInit {
     }
   }
 
+  pushTestSent = false;
+
+  async testPush() {
+    const ok = await this.push.testNotification();
+    this.pushTestSent = ok;
+    setTimeout(() => this.pushTestSent = false, 4000);
+  }
+
   get pushStatus(): string {
     if (this.push.permission === 'unsupported') {
-      return 'Ovaj pregledač ne podržava notifikacije.';
+      // Najčešći slučaj: otvoreno preko http://IP (dev sa telefona) — API tada
+      // uopšte ne postoji, pa prekidač ne može ništa. Na pravoj adresi radi.
+      return 'Ovdje notifikacije nisu moguće (treba HTTPS) — na pravoj adresi aplikacije rade.';
     }
     if (!this.push.enabled) return 'Isključene u aplikaciji.';
     switch (this.push.permission) {

@@ -1025,6 +1025,20 @@
   color: var(--mist);
 }
 
+// „Probaj" — ispali probnu notifikaciju: jedini pravi dokaz da pristup radi.
+.push-test {
+  flex: none;
+  padding: var(--s-2) var(--s-3);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-size: var(--t-xs);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.push-test:hover { color: var(--volt); border-color: var(--volt-a40); }
+
 // Prekidač — ista gramatika kao klizni izbori drugdje: tamna podloga, volt
 // kad je uključen, palac koji klizne.
 .push-toggle {

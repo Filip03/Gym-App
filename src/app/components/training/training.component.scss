@@ -58,6 +58,25 @@ $branch-indent: 16px;
   border-radius: var(--r-full);
 }
 
+// Odbrojavanje pauze — tiho dok teče, volt kad istekne.
+.rest-countdown {
+  padding: 2px var(--s-2);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--mist);
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+}
+.rest-countdown.done {
+  color: var(--volt);
+  border-color: var(--volt-a40);
+  animation: live-pulse-t 1.2s ease-in-out 3;
+}
+@keyframes live-pulse-t {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
+}
+
 // --- Rest day --------------------------------------------------------------
 
 .rest-day {

@@ -142,6 +142,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   @ViewChildren('exRow') rowEls!: QueryList<ElementRef<HTMLElement>>;
 
   private saveTimer: any = null;
+  /** Sekundni otkucaj SAMO za odbrojavanje pauze — bez njega se natpis ne
+   *  osvježava (getter se računa tek pri ciklusu provjere promjena). */
+  private restTick: any = setInterval(() => {}, 1000);
   finishing = false;
   private readonly flipCleanup = new WeakMap<HTMLElement, (e: TransitionEvent) => void>();
 
@@ -805,6 +808,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   ngOnDestroy() {
     this.queue.onFlushed = null;
     clearTimeout(this.saveTimer);
+    clearInterval(this.restTick);
     // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
     // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
     // futera) dok je neki edit mod bio otvoren.

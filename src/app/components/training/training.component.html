@@ -26,6 +26,11 @@
                [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
                title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
         <span class="rest-timer-unit" *ngIf="!reordering && restTimer.enabled">min</span>
+        <!-- Živo odbrojavanje od posljednje serije — vidi se da tajmer teče -->
+        <span class="rest-countdown num" *ngIf="!reordering && restTimer.remainingLabel"
+              [class.done]="restTimer.expired">
+          {{ restTimer.expired ? 'pauza gotova' : restTimer.remainingLabel }}
+        </span>
       </div>
 
       <div class="header-actions">

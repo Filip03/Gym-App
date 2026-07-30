@@ -2959,3 +2959,35 @@ zvuk sistemske notifikacije bira operativni sistem, sajt tu nema pristup ni uz
 kakvu migraciju. Custom zvuk je izvodljiv u nativnoj ljusci (lokalne
 notifikacije nose svoj zvučni fajl) — zabilježeno za native-app granu; izbor
 zvuka bi tada bio podešavanje po uređaju (localStorage), bez migracije.
+
+---
+
+## [2026-07-30] Tajmer pauze: živo odbrojavanje na ekranu; probna notifikacija u profilu
+**Tip:** funkcionalnost
+
+**Problem:** Tajmer je postojao samo kao obećanje — upišeš seriju i ne vidiš
+ništa: ni da odbrojavanje teče, ni koliko je ostalo, ni da li će notifikacija
+uopšte stići. A prekidač u profilu kaže šta dozvola TVRDI, ne i da li
+notifikacije stvarno iskaču.
+
+**Rješenje:**
+1. LOKALNO odbrojavanje u `RestTimerService` (`deadline` u memoriji, kreće
+   odmah pri upisu serije — i kad je backend nedostupan). U zaglavlju treninga
+   se ispisuje „1:47" pa na isteku „pauza gotova" (volt, tri pulsa, skloni se
+   sam). Push notifikacija ostaje za zaključan telefon; ovo pokriva „gledam u
+   aplikaciju". Sekundni otkucaj u komponenti postoji samo da tjera ciklus
+   provjere promjena.
+2. Dugme „Probaj" u profilu (vidljivo kad su notifikacije uključene i dozvola
+   data): ispali PRAVU notifikaciju kroz service worker — isti put kao
+   tajmerske — pa se pristup dokazuje, ne pretpostavlja.
+3. Poruka za nepodržano okruženje sada objašnjava i zašto: „treba HTTPS — na
+   pravoj adresi aplikacije rade" (dev preko http://IP sa telefona).
+
+**Dodirnuti fajlovi:**
+- `src/app/services/rest-timer.service.ts` — deadline, `remainingLabel`, `expired`
+- `src/app/components/training/training.component.html/.ts/.scss` — prikaz + otkucaj
+- `src/app/services/push-notification.service.ts` — `testNotification()`
+- `src/app/components/profile/*` — dugme „Probaj", jasniji status
+
+**Efekat:** Provjereno u pregledaču: odbrojavanje 0:59 → 0:57, na isteku
+„pauza gotova" sa pulsom; probna notifikacija stvarno iskočila (granted).
