@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router'
 import { filter } from 'rxjs'
+import { ProfilePreviewService } from './shared/profile-preview.directive';
 
 @Component({
   selector: 'app-root',
@@ -19,7 +20,7 @@ export class AppComponent{
 
  private readonly wideRoutes = ['/dashboard', '/exercices', '/blog'];
 
-  constructor(private router: Router) {
+  constructor(private router: Router, public preview: ProfilePreviewService) {
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {

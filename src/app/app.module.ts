@@ -16,6 +16,7 @@ import { LeaderboardComponent } from './components/leaderboard/leaderboard.compo
 import { ProfileComponent } from './components/profile/profile.component';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { NumFieldDirective } from './shared/num-field.directive';
+import { ProfilePreviewDirective } from './shared/profile-preview.directive';
 import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
 import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
@@ -48,6 +49,7 @@ import { NewsComponent } from './components/news/news.component';
     LoginComponent,
     FormsModule,
     NumFieldDirective,
+    ProfilePreviewDirective,
     ServiceWorkerModule.register('ngsw-worker.js', {
       enabled: !isDevMode(),
       // Register the ServiceWorker as soon as the application is stable

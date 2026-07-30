@@ -530,3 +530,6 @@ button:not(:disabled):active { transform: scale(0.97); }
 ::-webkit-scrollbar-thumb:hover { background: var(--dust); background-clip: content-box; }
 
 ::selection { background: var(--volt-a40); color: var(--ice); }
+
+// Element sa [appProfilePreview] zakačkom — otvara brzi pregled profila.
+.pp-clickable { cursor: pointer; }

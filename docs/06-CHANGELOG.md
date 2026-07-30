@@ -2543,3 +2543,65 @@ se samo nastanak; izmjena postoji baš da se jedna strana ispravi.
 
 **Efekat:** Provjereno: dropset 10×5 na lijevoj preslikan na desnu, izmjena
 desnog na 8×6 ne dira lijevi; radi i u kolonama jednoručnog prikaza.
+
+---
+
+## [2026-07-30] Spajanje main grane: profile-preview, news, custom tip dana
+**Tip:** infrastruktura
+
+**Problem:** Filip je na main dodao pregled profila (klik na avatara u
+leaderboardu/headeru/blogu), sekciju novosti sa migracijom, CUSTOM tip dana i
+nove ikone aplikacije — a usput opet prebacio `env.ts` na cloud.
+
+**Rješenje:** `origin/main` spojen u XFactor bez konflikata. `env.ts` vraćen na
+lokalni Supabase (cloud podaci žive u `env.prod.ts`, koji je dobio Filipov novi
+`sb_publishable` ključ). Filipova migracija `custom_day_type` imala je ISTI
+vremenski pečat kao naša `unilateral` (obje `20260728000000`), pa ju je
+evidencija migracija odbijala kao duplikat verzije — preimenovana u
+`20260728020000_custom_day_type.sql`, sadržaj netaknut (idempotentna).
+Obje nove migracije primijenjene lokalno; `supabase/cloud/README.md` dopunjen.
+
+**Napomene:** Pouka za ubuduće: pečat migracije mora biti jedinstven u cijelom
+folderu, i vrijedi baciti pogled na tuđe pečate prije nego što se svoja migracija
+nazove. Usput je saniran i Docker koji je ostao zaglavljen poslije punog diska
+(pozadinski proces od 25.07. preživio restart i držao mrtav socket).
+
+---
+
+## [2026-07-30] Pregled profila globalno: jedan modal, zakačka na svakom avataru
+**Tip:** refaktor + funkcionalnost
+**Ref:** Filipov profile-preview sa main grane
+
+**Problem:** Filipov brzi pregled profila je odličan, ali je svaki ekran koji
+ga nudi (leaderboard, blog, dashboard) držao SVOJU kopiju modala i svoj par
+open/close metoda — tri kopije istog šablona, a svako novo mjesto sa avatarom
+tražilo bi četvrtu. Uz to, u lightboxu bloga ime autora nije nudilo pregled.
+
+**Rješenje:** Novi `ProfilePreviewService` + direktiva `[appProfilePreview]`
+(`src/app/shared/profile-preview.directive.ts`). Modal postoji JEDNOM, u ljusci
+aplikacije (`app.component.html`), a bilo koji element koji predstavlja
+korisnika dobija pregled jednim atributom:
+
+    <div class="avatar" [appProfilePreview]="e.userId">
+
+Direktiva dodaje kursor (klasa `pp-clickable`), zaustavlja propagaciju klika
+(avatar često stoji u redu koji ima svoju radnju) i ćuti kad je id prazan.
+Postojećih šest mjesta prevedeno na zakačku; lightbox u blogu dobio pregled na
+ime autora. Overlay pregleda podignut na z-index 300 — lightbox je na 200, pa
+bi se kartica inače otvarala nevidljivo, iza slike.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/profile-preview.directive.ts` — novo: servis + direktiva
+- `src/app/app.component.html`/`.ts` — jedini `<app-profile-preview>` u aplikaciji
+- `src/app/app.module.ts` — registracija direktive
+- `src/app/components/{leaderboard,blog,dashboard}/*` — zakačke umjesto lokalnih
+  modala i metoda; uklonjen `previewUserId` iz sve tri komponente
+- `src/app/components/profile-preview/profile-preview.component.scss` — z-index
+- `src/styles/_base.scss` — `.pp-clickable`
+
+**Efekat:** Provjereno u pregledaču: na leaderboardu 11 zakački, u DOM-u tačno
+jedan modal, klik na avatara otvara karticu. Blog je lokalno prazan pa je
+lightbox provjeren statički (z-indeksi).
+
+**Napomene:** Pravilo za dalje: novo mjesto sa avatarom = samo atribut, nikakve
+metode u komponenti.

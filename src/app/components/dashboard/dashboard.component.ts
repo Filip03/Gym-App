@@ -195,7 +195,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private liveTimer: any = null;
 
   /** Korisnik čiji se pregled profila trenutno prikazuje (klik na profilnu sliku). */
-  previewUserId: string | null = null;
 
   // --- Novosti ------------------------------------------------------------
   //
@@ -222,13 +221,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.showNewsPopup = false;
   }
 
-  openProfilePreview(userId: string) {
-    this.previewUserId = userId;
-  }
 
-  closeProfilePreview() {
-    this.previewUserId = null;
-  }
 
   ngOnDestroy() {
     if (this.liveTimer) clearInterval(this.liveTimer);
