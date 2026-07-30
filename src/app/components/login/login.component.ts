@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
+import { PushNotificationService } from '../../services/push-notification.service';
 import { humanError } from '../../shared/errors';
 
 @Component({
@@ -30,7 +31,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private router: Router,
     private route: ActivatedRoute,
-    private audio: AudioService
+    private audio: AudioService,
+    private pushNotifications: PushNotificationService
   ) {}
 
   ngOnInit(){
@@ -54,6 +56,10 @@ export class LoginComponent implements OnInit, OnDestroy {
 
     try {
       await this.authService.signInWithUsername(this.username, this.password);
+
+      // Namjerno bez await — dozvola za notifikacije ne smije usporiti login.
+      this.pushNotifications.registerForPush();
+
       this.router.navigateByUrl(this.redirectTo);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom logovanja.');

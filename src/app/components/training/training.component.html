@@ -11,6 +11,16 @@
       <span class="plan-name">{{ session.planName }}</span>
     </div>
     <div class="header-right">
+      <button type="button" class="reorder-btn" [class.on]="restTimer.enabled"
+              *ngIf="!reordering" (click)="restTimer.toggle()"
+              [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
+        <i class="material-icons">{{ restTimer.enabled ? 'timer' : 'timer_off' }}</i>
+      </button>
+      <input type="number" class="rest-timer-minutes" *ngIf="!reordering && restTimer.enabled"
+             min="1" max="30" step="1"
+             [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
+             title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
+      <span class="rest-timer-unit" *ngIf="!reordering && restTimer.enabled">min</span>
       <button type="button" class="reorder-btn" *ngIf="!reordering"
               (click)="openAdd()" title="Dodaj vježbu za danas">
         <i class="material-icons">add</i>

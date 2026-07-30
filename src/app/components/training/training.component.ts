@@ -4,6 +4,7 @@ import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
 import { OfflineQueueService } from '../../services/offline-queue.service';
 import { NavLockService } from '../../services/nav-lock.service';
+import { RestTimerService } from '../../services/rest-timer.service';
 import {
   PickerGroup, PickerOption, toPickerGroups, flattenGroups
 } from '../shared/exercice-picker/exercice-picker.component';
@@ -152,7 +153,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     private audio: AudioService,
     public queue: OfflineQueueService,
     private navLock: NavLockService,
-    private router: Router
+    private router: Router,
+    public restTimer: RestTimerService
   ) {}
 
   /**
@@ -533,6 +535,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     // Bez mreže se ni ne pokušava — odmah u red, bez čekanja na istek veze.
     if (!navigator.onLine) {
       sides.forEach(side => accept(this.queue.enqueue(mkEntry(side)).id, true, side));
+      this.restTimer.restart();
       ex.saving = false;
       return;
     }
@@ -542,6 +545,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
         const saved = await this.trainingService.logSet(mkEntry(side));
         accept(saved.id, false, side);
       }
+      this.restTimer.restart();
     } catch (err: any) {
       // Samo pad MREŽE ide u red. Odbijanje od baze (npr. prekršeno pravilo)
       // bi se pri ponovnom slanju odbilo opet — takva greška mora da se vidi.
@@ -550,6 +554,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
         const done = ex.loggedSets.filter(s => s.setNumber === setNumber).map(s => s.side);
         sides.filter(side => !done.includes(side))
              .forEach(side => accept(this.queue.enqueue(mkEntry(side)).id, true, side));
+        this.restTimer.restart();
       } else {
         this.errorMessage = humanError(err, 'Greška prilikom upisa rezultata.');
       }

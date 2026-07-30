@@ -2605,3 +2605,59 @@ lightbox provjeren statički (z-indeksi).
 
 **Napomene:** Pravilo za dalje: novo mjesto sa avatarom = samo atribut, nikakve
 metode u komponenti.
+
+## [2026-07-30] Push notifikacije — Firebase Cloud Messaging preko Spring Boot servisa
+**Tip:** funkcionalnost
+**Ref:** Roadmap 3.4 (D9), ADR-0002
+
+**Problem:** Aplikacija nije imala način da pošalje push notifikaciju korisniku.
+PWA infrastruktura (`@angular/service-worker`) je postojala, ali slanje kroz
+Firebase Cloud Messaging traži tajni service account ključ koji ne smije da
+završi u browseru — direktan poziv iz Angulara ka FCM-u nije bio moguć.
+
+**Rješenje:** Napravljen zaseban Spring Boot servis ("Gym app backend", `dev/`)
+koji drži Firebase Admin SDK ključ i izlaže REST endpointe za slanje i za
+registraciju FCM tokena. Angular strana: dodat `firebase` (JS SDK) i ručno
+registrovan `firebase-messaging-sw.js` na zaseban scope (odvojeno od
+`ngsw-worker.js`, da se ne sudare). Poslije logina se traži dozvola, dobija se
+FCM token i šalje na backend uz Supabase JWT kao dokaz identiteta; prije
+signOut-a se token briše sa backend-a. Backend čuva `user_id ↔ token` u istoj
+Supabase Postgres bazi (Hibernate, tabela `device_tokens`), validira Supabase
+JWT preko JWKS-a, i briše token automatski kad FCM javi da je nevažeći.
+Detalji odluke (zašto Spring Boot umjesto Supabase Edge Function) u ADR-0002.
+
+**Dodirnuti fajlovi:**
+- `package.json` — nova zavisnost `firebase`
+- `src/environments/env.ts`, `env.prod.ts` — dodato `apiBaseUrl` i `firebase`
+  (config + VAPID ključ); `env.prod.ts.apiBaseUrl` je TODO placeholder dok
+  backend ne bude javno deployovan
+- `src/firebase-messaging-sw.js` — novo: service worker za pozadinske push poruke
+- `angular.json` — SW dodat u `build.options.assets`
+- `src/app/services/push-notification.service.ts` — novo: `registerForPush()`,
+  `unregisterFromPush()`
+- `src/app/components/login/login.component.ts` — poziva `registerForPush()`
+  poslije uspješnog logina (bez `await`, ne smije usporiti prijavu)
+- `src/app/components/footer/footer.component.ts` — poziva
+  `unregisterFromPush()` prije `signOut()`
+
+**Efekat:** Nakon logina se traži dozvola za notifikacije; ako se odobri, FCM
+token se registruje na backendu vezan za korisnika. Provjereno uživo (pravi
+nalog, `localhost:4300` ↔ `localhost:8080`, local Supabase profil): login →
+dozvola → FCM token → `POST /api/notifications/register-token` → `Authenticated
+token` u backend logu, bez greške. Tri bagova nađena i popravljena usput:
+
+1. `NimbusJwtDecoder.withJwkSetUri(...).build()` po defaultu očekuje RS256;
+   Supabase potpisuje sa ES256 (P-256) — trebalo je eksplicitno
+   `.jwsAlgorithm(SignatureAlgorithm.ES256)` (`SecurityConfig.java`).
+2. Custom audience validator je čitao `aud` preko `getClaimAsString("aud")`,
+   što vraća `null` kad Supabase pošalje `aud` kao listu, ne kao plain string —
+   zamijenjeno sa `jwt.getAudience().contains("authenticated")`, koje
+   normalizuje oba oblika (`SecurityConfig.java`).
+3. `getToken()` (Firebase SDK) poziva `PushManager.subscribe()` odmah nakon
+   `serviceWorker.register()`, dok je worker još "installing" —
+   `AbortError: no active Service Worker`. Dodato čekanje na `statechange`
+   događaj do `activated` prije poziva `getToken()` (`push-notification.service.ts`).
+
+**Napomene:** Backend trenutno radi samo lokalno (`localhost:8080`) — deploy
+je zasebna, namjerno odložena odluka (vidi ADR-0002, Posljedice). Rad je na
+grani `feature/fcm-push-notifications`, ne na `main`.
