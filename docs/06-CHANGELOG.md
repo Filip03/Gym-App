@@ -2999,3 +2999,10 @@ precrtana ikona; paljenjem se tijelo tečno razvuče (max-width + opružni prela
 odbrojavanje umjesto minuta; na isteku „pauza gotova" u volt boji sa pulsom.
 Zamka za ubuduće: tijelo je flex stavka pa je `min-width: 0` OBAVEZAN — inače
 `min-width: auto` pobijedi `max-width: 0` i pilula se nikad ne skupi.
+
+**Dopuna — „mastilo" na tajmer-ostrvu:** paljenje sada ima tri sloja pokreta u
+istom taktu: pilula se blago RAZLIJE (squash & stretch — stisne po visini dok
+se isteže, pa se slegne), kap volt boje krene iz ikone i razlije se kroz
+pilulu pa izblijedi (ink-bloom preko ::after), a broj i „min" izranjaju odozdo
+sa razmakom od jednog koraka (isti talas kao na velikom dugmetu). Sve ugašeno
+uz prefers-reduced-motion.

@@ -815,6 +815,7 @@ $branch-indent: 16px;
 //   teče     — tijelo nosi odbrojavanje; na isteku volt + puls
 
 .timer-island {
+  position: relative;
   display: inline-flex;
   align-items: center;
   background: var(--carbon-high);
@@ -823,6 +824,43 @@ $branch-indent: 16px;
   overflow: hidden;
   transition: border-color var(--d-base) var(--ease),
               background-color var(--d-base) var(--ease);
+}
+
+// „Živa" pilula: pri paljenju se blago RAZLIJE — stisne po visini dok se
+// isteže, pa se vrati — kao kap koja se širi (squash & stretch).
+.timer-island.on {
+  animation: island-splash 520ms var(--ease-spring);
+  transform-origin: left center;
+}
+
+@keyframes island-splash {
+  0%   { transform: scale(1, 1); }
+  38%  { transform: scale(1.05, .9); }
+  70%  { transform: scale(.985, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+
+// Mastilo: kap volt boje krene iz ikone i razlije se kroz pilulu, pa izblijedi.
+.timer-island::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+.timer-island.on::after {
+  animation: ink-bloom 560ms var(--ease-out);
+}
+
+@keyframes ink-bloom {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(24); opacity: 0; }
 }
 
 .timer-island .ti-toggle {
@@ -858,6 +896,15 @@ $branch-indent: 16px;
   max-width: 130px;
   opacity: 1;
   padding-right: var(--s-3);
+}
+
+// Sadržaj izranja odozdo, „min" kasni korak iza broja — talas kao na dugmetu.
+.timer-island.on .ti-min { animation: ch-rise 260ms var(--ease-spring) 120ms both; }
+.timer-island.on .ti-unit { animation: ch-rise 260ms var(--ease-spring) 190ms both; }
+
+@keyframes ch-rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .ti-min {
@@ -900,7 +947,9 @@ $branch-indent: 16px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ti-body, .ti-count { transition: none; animation: none; }
+  .ti-body, .ti-count, .timer-island.on,
+  .timer-island.on .ti-min, .timer-island.on .ti-unit { transition: none; animation: none; }
+  .timer-island::after { display: none; }
 }
 
 .reorder-hint {
