@@ -84,7 +84,8 @@
 
 .start-today { --pad-top: calc(var(--s-2) + 12px); }
 
-.st-left  { justify-self: start; display: inline-flex; }
+// Desni razmak: i kad se kolone stisnu, čip ne naliježe na naziv dana.
+.st-left  { justify-self: start; display: inline-flex; padding-right: var(--s-3); }
 .st-mid   { display: inline-flex; align-items: baseline; gap: var(--s-2); }
 .st-right { justify-self: end; }
 
