@@ -2735,3 +2735,16 @@ povratnim informacijama):**
 4. Datum-čip: vraćen U TOK (apsolutni je mijenjao visinu trake i pomjerao
    elemente) — traka je mreža `1fr auto 1fr`, čip skroz lijevo, dan i tip
    matematički centrirani, sve u jednoj liniji (poravnanje izmjereno).
+
+---
+
+## [2026-07-30] Spajanje main: Filipov „plan adjust" i zaključavanje navigacije
+**Tip:** infrastruktura
+
+**Problem/Rješenje:** Filip je prihvatio naš PR (#5) i dodao `NavLockService`
+(strelica nazad zaključana dok je otvorena izmjena na treningu) i dorade
+dashboarda. Dva konflikta riješena unijom: konstruktor treninga dobio i njegov
+`navLock` i našu `route`; kod `todayInProgress` zadržano naše pravilo „bar
+jedna upisana serija" — ono pokriva i njegov uslov za rest day
+(`todayCount === 0`), a bolje radi kad neko ipak trenira na rest day.
+`env.ts` po običaju vraćen na lokalni Supabase.

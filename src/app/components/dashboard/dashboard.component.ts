@@ -43,6 +43,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   creating = false;
   createError = '';
   editingPlanId: string | null = null;
+  /**
+   * Plan iz kojeg se preuzimaju dani/vježbe kad korisnik prilagođava tuđi
+   * plan sebi. Uvijek ide uz editingPlanId = null (pravi se NOVI plan) —
+   * originalni plan se ne dira. Vidi adaptPlan()/onSubmitPlan().
+   */
+  adaptingFromPlanId: string | null = null;
 
   newPlanName = '';
   newPlanDescription = '';
@@ -411,10 +417,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * Isto pravilo kao „ko trenira sada": sesija postoji (ekran treninga je
    * otvaran), nije završena, i nije starija od 4 sata — poslije toga je
    * vjerovatnije da je čovjek zaboravio da pritisne kraj nego da još trenira.
+   *
+   * `todayCount === 0` (rest day) je uvijek isključen — otvaranje ekrana
+   * treninga na dan odmora pravi red u workout_sessions (started_at), ali to
+   * nije trening koji treba mjeriti, pa se ni klikom na "Započni trening" ne
+   * pokreće tajmer.
    */
   get todayInProgress(): boolean {
     if (this.todayFinished || !this.todayStartedAt) return false;
-    if (!this.dayHasTraining) return false;   // otvoren ekran još nije trening
+    // Otvoren ekran još nije trening — traži se bar jedna upisana serija.
+    // Ovo pokriva i rest day (Filipov uslov todayCount === 0): bez upisa nema
+    // „u toku", a ako neko IPAK trenira na rest day, upisi se vide.
+    if (!this.dayHasTraining) return false;
     return Date.now() - new Date(this.todayStartedAt).getTime() < 4 * 3_600_000;
   }
 
@@ -643,6 +657,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.weekDays = [];
     this.filteredDayTypes = [];
     this.editingPlanId = null;
+    this.adaptingFromPlanId = null;
     this.closeExercicePicker();
   }
 
@@ -651,17 +666,50 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (!this.viewedPlan) return;
 
     this.editingPlanId = this.viewedPlan.id;
+    this.adaptingFromPlanId = null;
     this.newPlanName = this.viewedPlan.name ?? '';
     this.newPlanDescription = this.viewedPlan.description ?? '';
     this.newPlanTypeId = this.viewedPlan.plan_type_id ?? '';
     this.createError = '';
 
-    // Samo filteredDayTypes ovdje — weekDays još nije sastavljen (par redova
+    // Samo filteredDayTypes ovdje — weekDays još nije sastavljen (populateWeekDaysFor
     // ispod), pa applyCustomDayDefaults() ovdje ne bi imao na šta da se primijeni.
     this.computeFilteredDayTypes();
+    await this.populateWeekDaysFor(this.viewedPlan);
 
+    this.closeViewModal();
+    this.showCreateModal = true;
+    this.currentDayIndex = 0;
+  }
+
+  /**
+   * Tuđi plan kao polazna tačka za NOVI, sopstveni plan — dani i vježbe se
+   * preuzimaju, ali naziv/opis kreću prazni (obavezni, vidi onSubmitPlan) i
+   * editingPlanId ostaje null, pa se pri čuvanju pravi novi red, ne mijenja
+   * original. Autor novog plana je korisnik koji prilagođava, ne originalni.
+   */
+  async adaptPlan() {
+    if (!this.viewedPlan) return;
+
+    this.editingPlanId = null;
+    this.adaptingFromPlanId = this.viewedPlan.id;
+    this.newPlanName = '';
+    this.newPlanDescription = '';
+    this.newPlanTypeId = this.viewedPlan.plan_type_id ?? '';
+    this.createError = '';
+
+    this.computeFilteredDayTypes();
+    await this.populateWeekDaysFor(this.viewedPlan);
+
+    this.closeViewModal();
+    this.showCreateModal = true;
+    this.currentDayIndex = 0;
+  }
+
+  /** weekDays iz nekog plana (svejedno da li se time izmjenjuje ili se od njega pravi novi). */
+  private async populateWeekDaysFor(plan: any) {
     const workoutDaysByName = new Map<string, any>(
-      (this.viewedPlan.workout_days ?? []).map((d: any) => [d.name, d])
+      (plan.workout_days ?? []).map((d: any) => [d.name, d])
     );
 
     this.weekDays = this.dayNames.map((name, index) => {
@@ -707,10 +755,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }
       }
     }
-
-    this.closeViewModal();
-    this.showCreateModal = true;
-    this.currentDayIndex = 0;
   }
 
   private initWeekDays() {
@@ -858,6 +902,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     if (!this.newPlanName.trim()) {
       this.createError = 'Naziv plana je obavezan.';
+      return;
+    }
+
+    // Prilagođavanje tuđeg plana pravi NOVI plan (vidi adaptPlan()) — naziv i
+    // opis kreću prazni namjerno, pa oba moraju biti eksplicitno popunjena.
+    if (this.adaptingFromPlanId && !this.newPlanDescription.trim()) {
+      this.createError = 'Opis je obavezan kad prilagođavaš tuđi plan.';
       return;
     }
 
