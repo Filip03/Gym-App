@@ -22,7 +22,9 @@
            [class.on]="restTimer.enabled"
            [class.closing]="tiClosing"
            [class.running]="!!restTimer.remainingLabel"
-           [class.done]="restTimer.expired">
+           [class.done]="restTimer.expired"
+           [class.flash-done]="tiFlashDone"
+           [class.return]="tiReturn">
         <button type="button" class="ti-toggle" (click)="toggleTimer()"
                 [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
           <i class="material-icons">{{ restTimer.enabled ? 'timer' : 'timer_off' }}</i>

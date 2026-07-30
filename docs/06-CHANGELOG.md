@@ -3016,3 +3016,15 @@ sadržaj samo preklopio u novu funkciju, kao treptaj. Jezik pokreta
 (squash & stretch + ink-bloom + talas sadržaja) usvojen kao kućno pravilo za
 promjene stanja — referentne implementacije: tajmer-ostrvo i split-flap natpis
 na velikom dugmetu.
+
+**Dopuna — kompletan lanac faza tajmera animiran + pravilo trajno zapisano:**
+`watchTimerPhase` u komponenti prati faze (mirovanje → odbrojavanje → „pauza
+gotova" → povratak na minute) i svaki prelaz dobija svoj pokret: istek = jači
+razliv + volt kap (alias keyframes `island-splash-done`/`ink-bloom-done` — CSS
+ponovo pokreće animaciju SAMO kad se ime promijeni, pa isti keyframes sa
+`.running` klase ne bi odsvirao ništa; zapisano kao zamka), natpis izranja pa
+pulsira; povratak = skupljanje + kap unazad, minute ponovo izranjaju. Jezik
+pokreta ozvaničen kao kućno pravilo: sekcija u `CLAUDE.md` (obavezna), skill
+`.claude/skills/tecne-animacije/SKILL.md` (pun recept i zamke) i sekcija u
+`docs/08-KONVENCIJE.md` — dakle prisutno u svakoj sesiji i za svakog
+saradnika, ne samo u memoriji alata.

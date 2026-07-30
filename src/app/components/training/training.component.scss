@@ -968,9 +968,46 @@ $branch-indent: 16px;
 
 .timer-island.running { border-color: var(--line-strong); }
 .timer-island.done    { border-color: var(--volt-a40); }
+
+// „Pauza gotova": natpis IZRONI (ne preklopi se preko brojeva) pa pulsira.
 .timer-island.done .ti-count {
   color: var(--volt);
-  animation: live-pulse-t 1.2s ease-in-out 3;
+  animation: ch-rise 260ms var(--ease-spring),
+             live-pulse-t 1.2s ease-in-out 300ms 3;
+}
+
+// Trenutak isteka: jači razliv + volt kap — događaj, ne promjena teksta.
+// ALIAS keyframes (isti sadržaj, drugo ime): element u .running već nosi
+// island-splash/ink-bloom, a CSS ponovo pokreće animaciju SAMO kad se ime
+// promijeni — sa istim imenom istek ne bi odsvirao ništa.
+.timer-island.flash-done {
+  animation: island-splash-done 520ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.flash-done::after {
+  background: var(--volt-a40);
+  animation: ink-bloom-done 560ms var(--ease-out);
+}
+
+@keyframes island-splash-done {
+  0%   { transform: scale(1, 1); }
+  38%  { transform: scale(1.05, .9); }
+  70%  { transform: scale(.985, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes ink-bloom-done {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(24); opacity: 0; }
+}
+
+// Povratak na minute (natpis se sam sklonio): tečno skupljanje unazad,
+// a minute i „min" ionako ponovo izranjaju (ch-rise na novim elementima).
+.timer-island.return {
+  animation: island-sip 460ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.return::after {
+  animation: ink-retreat 420ms var(--ease);
 }
 
 @keyframes ti-count-in {
@@ -980,7 +1017,8 @@ $branch-indent: 16px;
 
 @media (prefers-reduced-motion: reduce) {
   .ti-body, .ti-count, .timer-island.on, .timer-island.closing,
-  .timer-island.running,
+  .timer-island.running, .timer-island.flash-done, .timer-island.return,
+  .timer-island.done .ti-count,
   .timer-island.on .ti-min, .timer-island.on .ti-unit { transition: none; animation: none; }
   .timer-island::after { display: none; }
 }

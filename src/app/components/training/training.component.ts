@@ -146,9 +146,34 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
    *  odsvira animaciju na uklanjanju klase, pa je vodi komponenta. */
   tiClosing = false;
   private tiClosingTimer: any = null;
-  /** Sekundni otkucaj SAMO za odbrojavanje pauze — bez njega se natpis ne
-   *  osvježava (getter se računa tek pri ciklusu provjere promjena). */
-  private restTick: any = setInterval(() => {}, 1000);
+  /**
+   * Sekundni otkucaj: osvježava natpis odbrojavanja (getter se računa tek pri
+   * ciklusu provjere promjena) i PRATI FAZE tajmera, da bi svaki prelaz —
+   * odbrojavanje → „pauza gotova" → povratak na minute — dobio svoju tečnu
+   * animaciju. Pravilo kuće: nijedna promjena stanja bez pokreta.
+   */
+  tiFlashDone = false;
+  tiReturn = false;
+  private tiPhase: 'idle' | 'running' | 'done' = 'idle';
+  private tiFlashTimer: any = null;
+  private restTick: any = setInterval(() => this.watchTimerPhase(), 500);
+
+  private watchTimerPhase() {
+    const t = this.restTimer;
+    const phase: 'idle' | 'running' | 'done' =
+      !t.remainingLabel ? 'idle' : t.expired ? 'done' : 'running';
+    if (phase === this.tiPhase) return;
+
+    clearTimeout(this.tiFlashTimer);
+    if (phase === 'done') {
+      this.tiFlashDone = true;
+      this.tiFlashTimer = setTimeout(() => this.tiFlashDone = false, 600);
+    } else if (phase === 'idle' && this.tiPhase === 'done') {
+      this.tiReturn = true;
+      this.tiFlashTimer = setTimeout(() => this.tiReturn = false, 500);
+    }
+    this.tiPhase = phase;
+  }
   finishing = false;
   private readonly flipCleanup = new WeakMap<HTMLElement, (e: TransitionEvent) => void>();
 
@@ -814,6 +839,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     clearTimeout(this.saveTimer);
     clearInterval(this.restTick);
     clearTimeout(this.tiClosingTimer);
+    clearTimeout(this.tiFlashTimer);
     // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
     // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
     // futera) dok je neki edit mod bio otvoren.
