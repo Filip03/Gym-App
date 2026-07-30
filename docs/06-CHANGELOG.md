@@ -2991,3 +2991,11 @@ notifikacije stvarno iskaču.
 
 **Efekat:** Provjereno u pregledaču: odbrojavanje 0:59 → 0:57, na isteku
 „pauza gotova" sa pulsom; probna notifikacija stvarno iskočila (granted).
+
+**Dopuna istog dana — tajmer-ostrvo:** rasuti elementi tajmera (dugme, polje,
+„min", odbrojavanje) spojeni u JEDNU pilulu u stilu aplikacije. Ugašeno = samo
+precrtana ikona; paljenjem se tijelo tečno razvuče (max-width + opružni prelaz
+— uzor dynamic island) i pokaže minute; dok pauza teče, tijelo nosi živo
+odbrojavanje umjesto minuta; na isteku „pauza gotova" u volt boji sa pulsom.
+Zamka za ubuduće: tijelo je flex stavka pa je `min-width: 0` OBAVEZAN — inače
+`min-width: auto` pobijedi `max-width: 0` i pilula se nikad ne skupi.
