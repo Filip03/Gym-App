@@ -1,5 +1,6 @@
 import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
+import { AudioService } from '../../services/audio.service';
 import { BlogService, BlogMediaItem } from '../../services/blog.service';
 import { compressImage } from '../../shared/image-compress';
 import { compressVideo } from '../../shared/video-compress';
@@ -46,8 +47,13 @@ export class BlogComponent implements OnInit {
 
   selectedIndex = -1;
 
+  /** Korisnik čiji se pregled profila trenutno prikazuje (klik na profilnu sliku). */
+
+  private userId = '';
+
   constructor(
     private authService: AuthService,
+    private audio: AudioService,
     private blogService: BlogService,
     private profileService: ProfileService
   ) {}
@@ -58,6 +64,8 @@ export class BlogComponent implements OnInit {
 
   get total(): number { return this.flat.length; }
 
+
+
   async ngOnInit() {
     const user = this.authService.getCurrentUser();
     if (!user) {
@@ -66,6 +74,7 @@ export class BlogComponent implements OnInit {
       return;
     }
 
+    this.userId = user.id;
     this.currentUserId = user.id;
 
     // Imena se povlače paralelno; ako padnu, objave se i dalje prikazuju samo
@@ -162,6 +171,7 @@ export class BlogComponent implements OnInit {
   readonly Math = Math;
 
   triggerUpload() {
+    this.audio.play('blogAdd');
     if (this.uploading || this.compressing) return;
     this.fileInputRef.nativeElement.click();
   }
@@ -246,7 +256,7 @@ export class BlogComponent implements OnInit {
     this.uploading = true;
 
     try {
-      await this.blogService.uploadMedia(toUpload);
+      await this.blogService.uploadMedia(toUpload, this.userId);
       await this.loadMedia();
     } catch (err: any) {
       this.uploadError = err.message ?? 'Greška prilikom otpremanja fajla.';

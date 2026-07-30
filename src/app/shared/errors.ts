@@ -32,5 +32,12 @@ export function humanError(err: unknown, fallback = 'Došlo je do greške.'): st
     return 'Baza nema potrebne tabele. Vidi supabase/cloud/README.md.';
   }
 
+  // Dropset se veže na red iz `exercice_logs`. Ako je ta serija u međuvremenu
+  // obrisana — najčešće na drugom uređaju, dok je ovaj ekran ostao otvoren —
+  // baza odbije upis. Korisniku je do sada išla sirova poruka o stranom ključu.
+  if (/dropset_logs_exercice_log_id_fkey/i.test(raw)) {
+    return 'Ta serija više ne postoji — vjerovatno je obrisana na drugom uređaju.';
+  }
+
   return raw || fallback;
 }

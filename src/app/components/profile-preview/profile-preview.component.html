@@ -1,0 +1,124 @@
+<div class="modal-overlay" *ngIf="userId" (click)="close()">
+  <div class="modal-card preview-card" (click)="$event.stopPropagation()">
+
+    <button type="button" class="pv-close" (click)="close()" aria-label="Zatvori">
+      <i class="material-icons">close</i>
+    </button>
+
+    <p *ngIf="loading" class="empty">Učitavanje...</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+
+    <ng-container *ngIf="!loading && !errorMessage && profile">
+
+      <div class="pv-avatar">
+        <img *ngIf="avatarUrl" [src]="avatarUrl" alt="">
+        <i class="material-icons" *ngIf="!avatarUrl">person</i>
+      </div>
+
+      <h2 class="pv-username">{{ profile.username }}</h2>
+
+      <div class="pv-stats">
+        <div class="pv-stat">
+          <span class="pv-num num">{{ profile.height ?? '—' }}</span>
+          <span class="pv-label">cm</span>
+        </div>
+        <div class="pv-stat">
+          <span class="pv-num num">{{ profile.weight ?? '—' }}</span>
+          <span class="pv-label">kg</span>
+        </div>
+      </div>
+
+      <div class="pv-plan" *ngIf="!planLoading && plan">
+        <i class="material-icons">event_note</i>
+        <div class="pv-plan-body">
+          <span class="pv-plan-name">{{ plan.name }}</span>
+          <span class="pv-plan-meta">
+            {{ plan.typeName }}<ng-container *ngIf="plan.authorUsername"> · autor {{ plan.authorUsername }}</ng-container>
+          </span>
+        </div>
+      </div>
+      <p class="pv-plan-empty" *ngIf="!planLoading && !plan">Ne prati nijedan plan.</p>
+
+      <!-- Kalendar treninga — identičan onom na sopstvenom profilu -->
+      <div class="cal-section">
+        <div class="cal-head">
+          <h3>Treninzi</h3>
+          <div class="cal-nav">
+            <button type="button" (click)="prevMonth()" aria-label="Prethodni mjesec">
+              <i class="material-icons">chevron_left</i>
+            </button>
+            <span class="cal-title">
+              {{ calTitle }}
+              <em class="cal-count num">{{ monthCount }}</em>
+            </span>
+            <button type="button" (click)="nextMonth()" [disabled]="calAtCurrentMonth"
+                    aria-label="Sljedeći mjesec">
+              <i class="material-icons">chevron_right</i>
+            </button>
+          </div>
+        </div>
+
+        <p *ngIf="calLoading" class="cal-empty">Učitavanje...</p>
+
+        <ng-container *ngIf="!calLoading">
+          <div class="cal-body">
+            <div class="cal-grid">
+              <span class="cal-wd" *ngFor="let w of weekLabels">{{ w }}</span>
+
+              <span class="cal-pad" *ngFor="let _ of [].constructor(calLead)"></span>
+
+              <span class="cal-day" *ngFor="let c of calCells; let i = index; trackBy: trackCell"
+                    [attr.data-level]="c.level"
+                    [class.today]="c.today"
+                    [class.future]="c.future"
+                    [style.animation-delay.ms]="i * 12"
+                    [title]="c.level ? c.sets + ' serija' : ''">
+                {{ c.day }}
+              </span>
+            </div>
+
+            <div class="cal-stats-wrap">
+              <div class="seg range-seg"
+                   [style.--seg-count]="statRanges.length" [style.--seg-index]="statRangeIndex">
+                <span class="seg-thumb"></span>
+                <button type="button" *ngFor="let r of statRanges"
+                        [class.on]="statRange === r.weeks" (click)="setStatRange(r.weeks)">
+                  {{ r.label }}
+                </button>
+              </div>
+
+              <div class="cal-stats">
+                <div class="cal-stat">
+                  <span class="cs-num num">{{ rangeCount }}</span>
+                  <span class="cs-label">treninga</span>
+                </div>
+                <div class="cal-stat">
+                  <span class="cs-num num">{{ rangeSets }}</span>
+                  <span class="cs-label">serija</span>
+                </div>
+                <div class="cal-stat">
+                  <span class="cs-num num">{{ rangeAvg }}</span>
+                  <span class="cs-label">sedmično</span>
+                </div>
+                <div class="cal-stat">
+                  <span class="cs-num num">{{ rangePerDay }}</span>
+                  <span class="cs-label">serija/trening</span>
+                </div>
+                <div class="cal-stat">
+                  <span class="cs-num num">{{ rangeBestDay }}</span>
+                  <span class="cs-label">najbolji dan</span>
+                </div>
+                <div class="cal-stat global">
+                  <span class="cs-num num">{{ weekStreak }}</span>
+                  <span class="cs-label">niz sedmica</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+    </ng-container>
+
+  </div>
+</div>

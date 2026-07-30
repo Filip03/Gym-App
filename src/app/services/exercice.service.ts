@@ -78,13 +78,17 @@ export class ExerciceService {
     description: string;
     muscleGroupIds: string[];
     pictureFile: File | null;
+    isBodyweight: boolean;
+    isUnilateral: boolean;
   }): Promise<Exercice> {
     const { data: newExercice, error } = await this.supabase.client
       .from('exercices')
       .insert({
         name: entry.name,
         description: entry.description || null,
-        picture: null
+        picture: null,
+        is_bodyweight: entry.isBodyweight,
+        is_unilateral: entry.isUnilateral
       })
       .select()
       .single();

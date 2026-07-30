@@ -49,6 +49,12 @@ Thumbs.db
 supabase/.temp/
 supabase/.branches/
 
+# R2 API ključevi za lokalno `supabase functions serve` (vidi
+# supabase/functions/r2-presign) — u produkciji idu preko `supabase secrets set`,
+# nikad u git.
+supabase/functions/.env
+supabase/.env
+
 # Produkcijski dump baze NIKAD ne ide u git (emailovi + hashevi lozinki,
 # a repo je javan). Vidi docs/03-SIGURNOST.md
 *dump.sql
@@ -58,3 +64,8 @@ database/
 # Repo je javan, a sistem koji dokument opisuje je živ i nezaštićen.
 # Dijeli se direktno između saradnika. Vidi docs/03-SIGURNOST.PROCITAJ.md
 docs/03-SIGURNOST.md
+
+# Nativna ljuska zivi na grani native-app — na radnim granama su ovo samo
+# ostaci builda i ne smiju u komit (git add -A ih je jednom vec pokupio).
+/ios/
+/android/

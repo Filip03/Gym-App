@@ -51,9 +51,12 @@
                [style.animation-delay.ms]="Math.min(gi * 90 + i * 60, 700)">
 
         <header class="post-head">
-          <div class="pa">
+          <div class="pa clickable" *ngIf="item.ownerId" [appProfilePreview]="item.ownerId">
             <img *ngIf="avatarOf(item)" [src]="avatarOf(item)" alt="">
             <i class="material-icons" *ngIf="!avatarOf(item)">person</i>
+          </div>
+          <div class="pa" *ngIf="!item.ownerId">
+            <i class="material-icons">person</i>
           </div>
           <div class="post-who">
             <span class="post-name">{{ authorOf(item) }}</span>
@@ -84,7 +87,7 @@
 
   <header class="lb-bar" (click)="$event.stopPropagation()">
     <div class="lb-who">
-      <span class="lb-name">{{ authorOf(item) }}</span>
+      <span class="lb-name" [appProfilePreview]="item.ownerId">{{ authorOf(item) }}</span>
       <span class="lb-date num">{{ item.createdAt | date:'dd.MM.yyyy. HH:mm' }}</span>
     </div>
     <span class="lb-count num">{{ selectedIndex + 1 }} / {{ total }}</span>
@@ -112,3 +115,4 @@
     {{ total > 1 ? 'Prevuci lijevo/desno · povuci dolje za izlaz' : 'Povuci dolje za izlaz' }}
   </span>
 </div>
+

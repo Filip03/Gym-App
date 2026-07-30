@@ -40,13 +40,15 @@ import { Injectable } from '@angular/core';
  * korisnik nakon uspješne registracije zauvijek ostane na ekranu.
  */
 
-export type SoundName = 'login' | 'register' | 'record';
+export type SoundName = 'login' | 'register' | 'record' | 'avatar' | 'blogAdd';
 
 // Naziv fajla uz originalni "radni naslov", da se zna šta je šta.
 const CLIPS: Record<SoundName, string> = {
   login:    'ko-je.m4a',              // "ko je"
   register: 'imun-na-batine.m4a',     // "imun na batine"
-  record:   'zmaj-u-mene-25cm.m4a'    // za oboren lični rekord
+  record:   'zmaj-u-mene-25cm.m4a',   // za oboren lični rekord
+  avatar:   'obrijanica.m4a',         // klik na profilnu sliku
+  blogAdd:  'prskulja.m4a'            // klik na dodavanje fajla u blog
 };
 
 // Prazan WAV (44 bajta zaglavlja, nula uzoraka). Služi samo da se <audio>

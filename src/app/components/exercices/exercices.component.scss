@@ -170,29 +170,96 @@
   border: 1px solid var(--line);
 }
 
-.muscle-group-picker {
+// Dugme za izbor slike — nativni "Choose File" se ne može stilizovati, pa je
+// polje sakriveno a ovo dugme ga otvara. Prikazuje naziv izabranog fajla i X.
+.file-btn {
+  width: 100%;
+  min-height: 46px;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-3);
+  background: var(--carbon-high);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  cursor: pointer;
+}
+.file-btn:hover { color: var(--ice); border-color: var(--volt-a40); }
+.file-btn .material-icons { font-size: 20px; }
+.file-btn .file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: var(--t-sm);
+}
+.file-btn .file-clear { color: var(--dust); }
+.file-btn .file-clear:hover { color: var(--ember); }
+
+// Osobine vježbe — red po osobini, cijeli red je dodirna meta.
+.opt-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  text-align: left;
+  cursor: pointer;
+}
+.opt-row + .opt-row { margin-top: var(--s-2); }
+.opt-row .material-icons { font-size: 20px; flex: none; }
+.opt-row .opt-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  color: var(--ice);
+}
+.opt-row .opt-text small {
+  font-size: var(--t-xs);
+  font-weight: 400;
+  color: var(--dust);
+}
+.opt-row .opt-state { color: var(--dust); }
+.opt-row.on { border-color: var(--volt-a40); }
+.opt-row.on .opt-state { color: var(--volt); }
+
+// Mišićne grupe — uredna mreža jednakih polja umjesto raštrkanih balončića.
+.mg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: var(--s-2);
 }
 
-.muscle-group-chip {
-  padding: var(--s-2) var(--s-3);
+.mg-tile {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  padding: 0 var(--s-2);
   background: var(--carbon-high);
   border: 1px solid var(--line);
-  border-radius: var(--r-full);
+  border-radius: var(--r-sm);
   color: var(--mist);
-  font-size: var(--t-sm);
+  font-size: var(--t-xs);
+  letter-spacing: .04em;
   cursor: pointer;
   user-select: none;
-  transition: background-color var(--d-fast) var(--ease),
-              border-color var(--d-fast) var(--ease),
-              color var(--d-fast) var(--ease);
 }
-
-.muscle-group-chip:hover { border-color: var(--line-strong); color: var(--ice); }
-
-.muscle-group-chip.selected {
+.mg-tile:hover { border-color: var(--line-strong); color: var(--ice); }
+.mg-tile .material-icons { font-size: 14px; }
+.mg-tile.on {
   background: var(--volt-a20);
   border-color: var(--volt);
   color: var(--volt);

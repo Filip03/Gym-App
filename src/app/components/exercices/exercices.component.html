@@ -50,30 +50,58 @@
       </div>
 
       <div class="form-group">
-        <label for="exPicture">Slika (opciono)</label>
-        <input id="exPicture" name="exPicture" type="file" accept="image/*" (change)="onPictureFileSelected($event)" />
+        <label>Slika (opciono)</label>
+        <!-- Nativno dugme za fajl se ne može stilizovati — polje je sakriveno,
+             a otvara ga dugme u stilu ostatka aplikacije. -->
+        <input #exPictureInput hidden type="file" accept="image/*" (change)="onPictureFileSelected($event)" />
+        <button type="button" class="file-btn" (click)="exPictureInput.click()">
+          <i class="material-icons">add_photo_alternate</i>
+          <span class="file-name">{{ newPictureFile?.name ?? 'Dodaj sliku' }}</span>
+          <i class="material-icons file-clear" *ngIf="newPictureFile"
+             (click)="clearPicture(exPictureInput); $event.stopPropagation()">close</i>
+        </button>
         <img *ngIf="newPicturePreviewUrl" [src]="newPicturePreviewUrl" class="picture-preview" alt="Pregled slike">
       </div>
 
       <div class="form-group">
+        <label>Osobine</label>
+        <button type="button" class="opt-row" [class.on]="newIsBodyweight"
+                (click)="newIsBodyweight = !newIsBodyweight">
+          <i class="material-icons">accessibility_new</i>
+          <span class="opt-text">Tjelesnom težinom
+            <small>zgibovi, sklekovi — kilaža se upisuje samo kad se doda teg</small></span>
+          <i class="material-icons opt-state">{{ newIsBodyweight ? 'check_circle' : 'radio_button_unchecked' }}</i>
+        </button>
+        <button type="button" class="opt-row" [class.on]="newIsUnilateral"
+                (click)="newIsUnilateral = !newIsUnilateral">
+          <i class="material-icons">pan_tool</i>
+          <span class="opt-text">Jednom rukom/nogom
+            <small>lijeva i desna strana se prate odvojeno</small></span>
+          <i class="material-icons opt-state">{{ newIsUnilateral ? 'check_circle' : 'radio_button_unchecked' }}</i>
+        </button>
+      </div>
+
+      <div class="form-group">
         <label>Mišićne grupe</label>
-        <div class="muscle-group-picker">
-          <span
-            class="muscle-group-chip"
+        <div class="mg-grid">
+          <button
+            type="button"
+            class="mg-tile"
             *ngFor="let mg of muscleGroups"
-            [class.selected]="isMuscleGroupSelected(mg.id)"
+            [class.on]="isMuscleGroupSelected(mg.id)"
             (click)="toggleMuscleGroup(mg.id)"
           >
             {{ mg.name }}
-          </span>
+            <i class="material-icons" *ngIf="isMuscleGroupSelected(mg.id)">check</i>
+          </button>
         </div>
       </div>
 
       <p *ngIf="createError" class="error">{{ createError }}</p>
 
       <div class="form-actions">
-        <button type="button" (click)="closeCreateModal()">Otkaži</button>
-        <button type="submit" [disabled]="creating || !exerciceForm.valid">
+        <button type="button" class="btn-ghost" (click)="closeCreateModal()">Otkaži</button>
+        <button type="submit" class="btn-primary" [disabled]="creating || !exerciceForm.valid">
           {{ creating ? 'Čuvam...' : 'Sačuvaj vježbu' }}
         </button>
       </div>

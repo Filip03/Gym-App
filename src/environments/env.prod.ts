@@ -10,5 +10,6 @@
 export const environment = {
   production: true,
   supabaseUrl: 'https://nsiwfwjpzyzfzxejewar.supabase.co',
-  supabaseKey: 'sb_publishable_CbJq3HcEN3pE7Gr_hWSkCw_jeooBZ0m'
+  supabaseKey: 'sb_publishable_CbJq3HcEN3pE7Gr_hWSkCw_jeooBZ0m',
+  r2PublicUrl: 'https://pub-57773944709f45ac8032f82aa78d6a4c.r2.dev'
 };

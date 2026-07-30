@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
 import { OfflineQueueService } from './offline-queue.service';
 import { DashboardService } from './dashboard.service';
-import { ExerciceLog } from '../models/models';
+import { ExerciceLog, DropsetLog } from '../models/models';
 
 /** Vježba unutar današnjeg treninga, sa svime što ekran treba da prikaže. */
 export interface SessionExercice {
@@ -15,6 +15,12 @@ export interface SessionExercice {
   targetReps: number | null;
   replacedName: string | null;      // naziv vježbe koju je zamijenila
   isExtra: boolean;
+  /** Osnovno se radi tjelesnom težinom (zgibovi...) — vidi exercices.is_bodyweight. */
+  isBodyweight: boolean;
+  /** Prati se svaka ruka odvojeno (L/D) — vidi exercices.is_unilateral. */
+  isUnilateral: boolean;
+  /** Vježba za noge — L/D opcija tada govori o nogama, ne o rukama. */
+  isLegs: boolean;
 }
 
 export interface WorkoutSession {
@@ -24,6 +30,7 @@ export interface WorkoutSession {
   planName: string | null;
   dayLabel: string | null;
   dayTypeName: string | null;
+  startedAt: string | null;
   finishedAt: string | null;
   /**
    * Bilješka uz TAJ dan treninga.
@@ -36,12 +43,34 @@ export interface WorkoutSession {
   exercices: SessionExercice[];
 }
 
+/** Strana tijela kod jednoručnih vježbi. null = obje ruke zajedno. */
+export type Side = 'L' | 'D' | null;
+
+/** Dropset odrađen uz seriju prethodnog treninga. */
+export interface EchoDropset {
+  reps: number;
+  weight: number;
+}
+
 /** Rezultat jedne serije iz prethodnog treninga — "duh" u polju za unos. */
 export interface EchoSet {
   setNumber: number;
   reps: number;
   weight: number;
+  side: Side;
+  /** Dropsetovi te serije prošli put, redom kojim su rađeni. */
+  dropsets: EchoDropset[];
 }
+
+/**
+ * Koliko redova najviše povući po vježbi kad se traži prethodni trening.
+ *
+ * Mora biti veće od broja serija koje neko odradi na jednoj vježbi u jednom
+ * danu. Realno je to do desetak; 20 ostavlja prostora. Ko bi u jednom danu
+ * upisao više od 20 serija iste vježbe, duh bi mu pokazao prvih 20 — ostatak
+ * treninga je i dalje ispravan, samo se ne bi vidio kao duh.
+ */
+const ECHO_ROW_LIMIT = 20;
 
 export interface Echo {
   date: string;
@@ -69,7 +98,8 @@ export class TrainingService {
       date: entry.date,
       setNumber: entry.setNumber,
       reps: entry.reps,
-      weight: entry.weight
+      weight: entry.weight,
+      side: entry.side ?? null
     }));
   }
 
@@ -181,11 +211,12 @@ export class TrainingService {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
       .select(`
-        id, date, plan_id, day_label, day_type_name, finished_at, note,
+        id, date, plan_id, day_label, day_type_name, started_at, finished_at, note,
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
-          exercices:exercice_id ( name, picture ),
+          exercices:exercice_id ( name, picture, is_bodyweight, is_unilateral,
+            exercice_muscle ( muscle_group:muscle_group_id ( name ) ) ),
           replaced:replaced_exercice_id ( name )
         )
       `)
@@ -205,6 +236,7 @@ export class TrainingService {
       planName: row.workout_plan?.name ?? null,
       dayLabel: row.day_label,
       dayTypeName: row.day_type_name,
+      startedAt: row.started_at,
       finishedAt: row.finished_at,
       note: row.note ?? null,
       exercices: ((row.session_exercices ?? []) as any[])
@@ -218,7 +250,11 @@ export class TrainingService {
           targetSets: se.target_sets,
           targetReps: se.target_reps,
           replacedName: se.replaced?.name ?? null,
-          isExtra: se.is_extra
+          isExtra: se.is_extra,
+          isBodyweight: se.exercices?.is_bodyweight ?? false,
+          isUnilateral: se.exercices?.is_unilateral ?? false,
+          isLegs: ((se.exercices?.exercice_muscle ?? []) as any[])
+            .some(m => /leg/i.test(m.muscle_group?.name ?? ''))
         }))
     };
   }
@@ -365,16 +401,23 @@ export class TrainingService {
   }
 
   /** Da li je korisnik danas označio trening kao gotov. */
-  async getFinishedAt(userId: string, date: string): Promise<string | null> {
+  /** Početak i kraj današnje sesije — za dugme „Započni trening" na dashboardu. */
+  async getSessionTimes(
+    userId: string,
+    date: string
+  ): Promise<{ startedAt: string | null; finishedAt: string | null }> {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
-      .select('finished_at')
+      .select('started_at, finished_at')
       .eq('user_id', userId)
       .eq('date', date)
       .maybeSingle();
 
     if (error) throw error;
-    return data?.finished_at ?? null;
+    return {
+      startedAt: data?.started_at ?? null,
+      finishedAt: data?.finished_at ?? null
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -392,6 +435,22 @@ export class TrainingService {
     return data as ExerciceLog[];
   }
 
+  /**
+   * Pali/gasi praćenje po stranama (L/D) za vježbu.
+   *
+   * Na nivou VJEŽBE, ne treninga: ko jednom odluči da lateral raise radi
+   * jednoruko, tako ga radi svaki put — a važi i za sve ostale koji je rade,
+   * jer je katalog vježbi zajednički.
+   */
+  async setUnilateral(exerciceId: string, value: boolean): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('exercices')
+      .update({ is_unilateral: value })
+      .eq('id', exerciceId);
+
+    if (error) throw error;
+  }
+
   async logSet(entry: {
     userId: string;
     sessionId: string;
@@ -401,6 +460,7 @@ export class TrainingService {
     setNumber: number;
     reps: number;
     weight: number;
+    side?: Side;
   }): Promise<ExerciceLog> {
     return this.insertLog(entry);
   }
@@ -414,6 +474,7 @@ export class TrainingService {
     setNumber: number;
     reps: number;
     weight: number;
+    side?: Side;
   }): Promise<ExerciceLog> {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
@@ -425,7 +486,8 @@ export class TrainingService {
         date: entry.date,
         set_number: entry.setNumber,
         reps: entry.reps,
-        weight: entry.weight
+        weight: entry.weight,
+        side: entry.side ?? null
       })
       .select()
       .single();
@@ -444,6 +506,78 @@ export class TrainingService {
 
     if (error) throw error;
     return data as ExerciceLog;
+  }
+
+  // -------------------------------------------------------------------------
+  // Dropset — vezan za jednu working seriju, van exercice_logs (vidi
+  // 20260727000000_dropset_logs.sql).
+  // -------------------------------------------------------------------------
+
+  /** Svi dropsetovi za sesiju, grupisani po working seriji kojoj pripadaju. */
+  async getSessionDropsets(sessionId: string): Promise<Map<string, DropsetLog[]>> {
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .select('id, exercice_log_id, order_num, reps, weight, exercice_logs!inner(session_id)')
+      .eq('exercice_logs.session_id', sessionId)
+      .order('order_num', { ascending: true });
+
+    if (error) throw error;
+
+    const result = new Map<string, DropsetLog[]>();
+    for (const row of (data ?? []) as any[]) {
+      const list = result.get(row.exercice_log_id) ?? [];
+      list.push({
+        id: row.id,
+        exercice_log_id: row.exercice_log_id,
+        order_num: row.order_num,
+        reps: row.reps,
+        weight: row.weight
+      });
+      result.set(row.exercice_log_id, list);
+    }
+    return result;
+  }
+
+  async logDropset(entry: {
+    exerciceLogId: string;
+    orderNum: number;
+    reps: number;
+    weight: number;
+  }): Promise<DropsetLog> {
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .insert({
+        exercice_log_id: entry.exerciceLogId,
+        order_num: entry.orderNum,
+        reps: entry.reps,
+        weight: entry.weight
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as DropsetLog;
+  }
+
+  async updateDropset(id: string, reps: number, weight: number): Promise<DropsetLog> {
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .update({ reps, weight })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as DropsetLog;
+  }
+
+  async deleteDropset(id: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('dropset_logs')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   }
 
   /** Brisanje pogrešno upisane serije. Preostale se prenumerišu na frontu. */
@@ -484,36 +618,110 @@ export class TrainingService {
     const result = new Map<string, Echo>();
     if (exerciceIds.length === 0) return result;
 
+    // Veza red-iz-baze → duh serije, da se dropsetovi poslije zakače na pravu.
+    const byLogId = new Map<string, EchoSet>();
+
+    // Jedan upit PO VJEŽBI, svaki sa granicom — vidi `lastTrainingSets`.
+    const perExercice = await Promise.all(
+      exerciceIds.map(id => this.lastTrainingSets(userId, id, beforeDate))
+    );
+
+    for (const rows of perExercice) {
+      if (rows.length === 0) continue;
+
+      // Redovi su poređani od najnovijeg datuma, pa je prvi red taj trening.
+      const date = rows[0].date;
+      const sets: EchoSet[] = [];
+
+      for (const row of rows) {
+        if (row.date !== date) break;   // stigli smo do starijeg treninga
+
+        const set: EchoSet = {
+          setNumber: row.set_number,
+          reps: row.reps,
+          weight: row.weight,
+          side: row.side ?? null,
+          dropsets: []
+        };
+        sets.push(set);
+        byLogId.set(row.id, set);
+      }
+
+      result.set(rows[0].exercice_id, { date, sets });
+    }
+
+    await this.attachEchoDropsets(byLogId);
+    return result;
+  }
+
+  /**
+   * Serije POSLJEDNJEG treninga jedne vježbe prije zadatog datuma.
+   *
+   * ZAŠTO PO VJEŽBI, A NE JEDNIM UPITOM ZA SVE
+   *
+   * Ranije je ovo bio jedan upit sa `.in(exercice_id, [...])` i BEZ granice: on
+   * povuče cijelu istoriju korisnika za svih desetak vježbi tog dana, pa se u
+   * pregledaču zadrži samo najskoriji datum i sve ostalo baci.
+   *
+   * Odbačeno raste zauvijek. Ko vježbu radi jednom sedmično, za godinu ima oko
+   * 150 redova po vježbi — dakle oko 1.500 redova povučenih pri svakom otvaranju
+   * ekrana treninga, da bi se zadržalo tridesetak. Za dvije godine dvostruko.
+   * Upravo to se najgore osjeti tamo gdje se ekran i otvara: u teretani, na
+   * slaboj vezi.
+   *
+   * PostgREST ne zna „po jedan najnoviji iz svake grupe" u jednom upitu — za to
+   * bi trebao `DISTINCT ON` kroz RPC, dakle nova migracija koja se mora ručno
+   * pustiti i na cloud. Ovo isto ograničava posao, a ne traži ništa novo u bazi:
+   * po vježbi se traži najviše `ECHO_ROW_LIMIT` redova, i to tačno onim
+   * redoslijedom koji indeks `(user_id, exercice_id, date desc)` već pokriva.
+   *
+   * Upiti idu uporedo i svaki je sitan, pa je i na lošoj vezi ovo jeftinije od
+   * jednog velikog odgovora.
+   */
+  private async lastTrainingSets(
+    userId: string,
+    exerciceId: string,
+    beforeDate: string
+  ): Promise<any[]> {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
-      .select('exercice_id, date, set_number, reps, weight')
+      .select('id, exercice_id, date, set_number, reps, weight, side')
       .eq('user_id', userId)
-      .in('exercice_id', exerciceIds)
+      .eq('exercice_id', exerciceId)
       .lt('date', beforeDate)
       .order('date', { ascending: false })
-      .order('set_number', { ascending: true });
+      .order('set_number', { ascending: true })
+      .limit(ECHO_ROW_LIMIT);
+
+    if (error) throw error;
+    return (data ?? []) as any[];
+  }
+
+  /**
+   * Dokačinje dropsetove na serije prethodnog treninga.
+   *
+   * Ide zasebnim upitom, a ne ugniježđenim `select`-om: `getEcho` čita serije za
+   * SVE vježbe dana pa odbacuje sve osim najskorijeg datuma po vježbi. Vučenje
+   * dropsetova u istom upitu značilo bi povlačiti ih i za sve odbačene treninge.
+   */
+  private async attachEchoDropsets(byLogId: Map<string, EchoSet>): Promise<void> {
+    const ids = [...byLogId.keys()];
+    if (ids.length === 0) return;
+
+    const { data, error } = await this.supabase.client
+      .from('dropset_logs')
+      .select('exercice_log_id, order_num, reps, weight')
+      .in('exercice_log_id', ids)
+      .order('order_num', { ascending: true });
 
     if (error) throw error;
 
     for (const row of (data ?? []) as any[]) {
-      const existing = result.get(row.exercice_id);
-
-      // Redovi stižu od najnovijeg datuma; čim naiđe stariji datum za istu
-      // vježbu, prethodni trening je već kompletan.
-      if (existing && existing.date !== row.date) continue;
-
-      if (!existing) {
-        result.set(row.exercice_id, { date: row.date, sets: [] });
-      }
-
-      result.get(row.exercice_id)!.sets.push({
-        setNumber: row.set_number,
+      byLogId.get(row.exercice_log_id)?.dropsets.push({
         reps: row.reps,
         weight: row.weight
       });
     }
-
-    return result;
   }
 
   /**

@@ -15,6 +15,16 @@
 
   <button
     type="button"
+    class="news-btn"
+    (click)="openNews()"
+    aria-label="Novosti"
+    title="Novosti"
+  >
+    <i class="material-icons">campaign</i>
+  </button>
+
+  <button
+    type="button"
     class="sound"
     (click)="toggleSound()"
     [class.off]="audio.muted"

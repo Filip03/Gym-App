@@ -1,3 +1,7 @@
+// Uvlačenje grane dropseta ispod svoje serije — isti broj služi i za uvlačenje
+// i za širinu spojnice, pa stoji na jednom mjestu.
+$branch-indent: 16px;
+
 // Ekran treninga — najkorišćeniji ekran aplikacije.
 //
 // Koristi se stojeći, jednom rukom, između serija. Zato: krupne dodirne mete,
@@ -268,6 +272,7 @@
 .sets {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: var(--s-2);
   margin-top: var(--s-3);
   padding-top: var(--s-3);
@@ -317,7 +322,6 @@
 }
 .set.ghost .set-n,
 .set.ghost .set-v small { color: var(--echo); }
-.set.ghost.hidden { display: none; }
 
 // --- Izmjena serije --------------------------------------------------------
 
@@ -335,7 +339,7 @@
   width: 62px;
   min-height: 36px;
   padding: 0 var(--s-1);
-  font-size: var(--t-sm);
+  font-size: max(var(--t-sm), var(--t-field-min));
 }
 
 .mini {
@@ -351,9 +355,244 @@
 .mini.save { color: var(--volt); }
 .mini.danger { color: var(--ember); }
 
+// --- Dropset -----------------------------------------------------------------
+//
+// Vizuelno pripada working seriji ispred sebe (strelica + prigušeniji ton),
+// ali ostaje pill u istom flex-wrap redu kao i sve ostale serije — ne
+// pravi novi red niti mijenja postojeći raspored `.sets`.
+
+.drop-icon { font-size: 15px; color: var(--dust); }
+
+.set.dropset {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line);
+  color: var(--mist);
+}
+
+.set.dropset .del {
+  font-size: 16px;
+  color: var(--dust);
+  cursor: pointer;
+}
+.set.dropset .del:hover { color: var(--ember); }
+.set.dropset .del.disabled { pointer-events: none; opacity: .4; }
+
+.dropset-form input { width: 56px; }
+
+// Serija i njeni dropsetovi kao jedna grana.
+//
+// Dok su svi bili stavke istog reda, dropset je samo „stajao negdje iza" svoje
+// serije — a kad se red prelomi, umio je da završi ispod tuđe. Sada grupa ide u
+// kolonu, a spojnica sa lijeve strane povlači granu od serije nadole pa udesno
+// u dropset, pa se pripadnost vidi bez čitanja.
+.set-group {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+// --- Jednoručne vježbe: blok po ruci ---------------------------------------
+//
+// Serije lijeve i desne ruke teku odvojeno (L1, L2... / D1, D2...): lijeva
+// KOLONA je lijeva ruka, desna desna, između njih okomita linija. Serije idu
+// jedna ispod druge, pa se dropsetovi granaju ispod svoje serije kao i inače
+// — a dvije kolone stanu i na telefon, jer je pilula uža od pola ekrana.
+
+.sets.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  // `.sets` inače poravnava na vrh; ovdje se kolone MORAJU rastegnuti na istu
+  // visinu, inače linija između ruku stane kod kraće kolone umjesto do dna.
+  align-items: stretch;
+}
+
+// Serije upisane prije uključivanja praćenja (obje ruke zajedno) idu preko
+// obje kolone, da ne upadnu u mrežu kao da su nečija strana.
+.side-full {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.side-half {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+// Okomita linija koja dijeli ruke — jedini vizuelni znak podjele. Lijevo je
+// lijeva; prva serija lijevo odgovara prvoj desno, pa slova nisu potrebna.
+.side-half + .side-half {
+  border-left: 1px dashed var(--line-strong);
+  padding-left: var(--s-3);
+}
+
+// Izmjena serije i unos dropseta MORAJU stati u svoju kolonu — na telefonu je
+// kolona ~145px, a forma u jednom redu ~280px, pa bi prešla preko druge ruke.
+// Prelamanjem dugmad siđu u novi red, a polja podijele širinu kolone.
+// Grupa je inline-flex (širi se po sadržaju), pa joj kolona sama po sebi ne
+// ograničava širinu — bez ovoga forma za izmjenu pređe preko druge ruke.
+.side-half .set-group { max-width: 100%; width: 100%; }
+
+// Pilula u koloni: puna širina i zbijenije, jer je kolona na telefonu ~145px.
+// Serija sa strelicom (bolje/slabije) i repom za dropset je najširi slučaj —
+// bez sabijanja bi baš ona, ona koja nosi napredak, prva pukla iz kolone.
+.side-half .set-wrap { width: 100%; }
+// Rep za dropset je IZRASTAO iz pilule (dijele okvir) i tako mora i ostati —
+// pilula se po potrebi stisne, rep se nikad ne odvaja u zasebno dugme.
+.side-half .set-wrap .set { flex: 1; min-width: 0; }
+.side-half .set,
+.side-half .set.dropset {
+  max-width: 100%;
+  padding: var(--s-2);
+  gap: var(--s-1);
+}
+.side-half .set-n { min-width: 12px; }
+// Tipografija i strelice ostaju ISTE kao u dvoručnom redu — sabija se samo
+// prazan prostor (padding, razmaci, rep), ne izgled brojeva.
+// Red ispod naziva (cilj, datum, rekord, L/D) — stavke su cjeline: prelamaju
+// se u novi red kao komad, tekst se nikad ne lomi usred riječi.
+.exercice-meta { flex-wrap: wrap; row-gap: 2px; }
+.exercice-meta > span { white-space: nowrap; }
+
+.side-half .set-drop { padding: 0 var(--s-1); }
+.side-half .set-drop .material-icons { font-size: 13px; }
+
+// Izmjena serije i unos dropseta staju u kolonu u JEDNOM redu — polja i
+// dugmad zajedno, ništa se ne prelama u novi red. Zato su u koloni polja
+// elastična a dugmad uža; redni broj se ne ispisuje jer ga kazuje pozicija.
+.side-half .set-edit {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+  max-width: 100%;
+  gap: 2px;
+  padding: var(--s-1);
+}
+.side-half .set-edit .set-n { display: none; }
+.side-half .set-edit input {
+  flex: 1 1 32px;
+  width: auto;
+  min-width: 0;
+  padding-left: 2px;
+  padding-right: 2px;
+  text-align: center;
+}
+.side-half .set-edit .mini { width: 26px; height: 30px; flex: none; }
+.side-half .set-edit .mini .material-icons { font-size: 15px; }
+// U koloni oznaku L+D kazuje title — za tekst nema mjesta u jednom redu.
+.side-half .dropset-form .both-tag { display: none; }
+
+.set-group .dropset,
+.set-group .dropset-form {
+  position: relative;
+  margin-left: $branch-indent;
+}
+
+// Duh dropseta — prošli trening, još neponovljen. Mora biti bljeđi i od običnog
+// dropseta i od duha serije, jer stoji odmah uz oba.
+.set.dropset.ghost {
+  border-style: dashed;
+  border-color: var(--steel);
+  color: var(--echo);
+}
+.set.dropset.ghost .set-v small { color: var(--echo); }
+
+// Spojnica ka duhu je tiša od one ka upisanom dropsetu — grana koja tek čeka.
+.set-group .dropset.ghost::before {
+  border-left-color: var(--line);
+  border-bottom-color: var(--line);
+}
+
+.set-group .dropset::before,
+.set-group .dropset-form::before {
+  content: '';
+  position: absolute;
+  left: -$branch-indent;
+  width: $branch-indent;
+  // Gore ulazi u razmak do elementa iznad, dolje staje na sredini pilule — pa
+  // spojnica kreće ispod serije i ulazi tačno u sredinu dropseta.
+  top: calc(-1 * var(--s-2));
+  bottom: 50%;
+  border-left: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  border-bottom-left-radius: 8px;
+  pointer-events: none;
+}
+
+// Rep sa „+" uz upisanu seriju — jedini put do dropseta.
+//
+// Ranije je ispod svake serije stajalo puno dugme „+ Dropset": sa tri serije to
+// su tri dugmeta u istom redu, a dropset se radi rijetko. Sakriti ga u izmjenu
+// serije nije pomoglo — tamo se ne vidi da postoji.
+//
+// Sada je „+" prišiven uz samu seriju: dijeli okvir sa njom pa se vidi kome
+// pripada, tih je dok se ne dodirne, i zauzima jedan znak umjesto cijele pilule.
+.set-wrap {
+  display: inline-flex;
+  align-items: stretch;
+
+  // Animacija ulaska ide na OMOTAČ, ne na polovine. Kad je svaka imala svoju,
+  // `scale(.9)` je stezao samo seriju pa je između nje i repa zjapila rupa.
+  animation: set-in var(--d-slow) var(--ease-spring) both;
+}
+.set-wrap .set,
+.set-wrap .set-drop { animation: none; }
+
+// Spoj se ravna samo kad rep stvarno postoji (odrađen trening, serija poslata).
+.set-wrap.has-drop .set {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.set-drop {
+  display: inline-flex;
+  align-items: center;
+  // Šire nego što „+" traži — dodirna meta na telefonu, ne veličina znaka.
+  padding: 0 var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  // Ista boja kao redni broj serije — „+" se čita kao dio pilule, ne kao poziv.
+  color: var(--dust);
+  cursor: pointer;
+}
+.set-drop .material-icons { font-size: 14px; }
+
+.tag.sides .material-icons { font-size: 12px; }
+
+// Nacrtana noga — Material set nema samu nogu, a čovječuljak koji hoda nije
+// isto što i ruka-za-ruke. Boja prati tekst, kao i prava ikona.
+.leg-ico { width: 12px; height: 12px; flex: none; }
+.ex-menu .leg-ico.menu { width: 19px; height: 19px; color: var(--dust); }
+
+// „L+D" uz natpis serije u formi — podsjetnik da jedan unos puni obje ruke.
+.both-tag {
+  margin-left: var(--s-2);
+  padding: 1px var(--s-2);
+  font-size: var(--t-2xs);
+  color: var(--dust);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+}
+.set-drop:hover { color: var(--volt); border-color: var(--volt-a40); }
+.set-wrap:hover .set { border-color: var(--line-strong); }
+
 // --- Upis serije -----------------------------------------------------------
 
+// Razmak od reda sa upisanim serijama.
+//
+// `.sets` ima svoju gornju marginu i liniju, ali `.log-form` nije imao nijednu
+// — pa je polje za upis nalijegalo na red serija, linija uz liniju.
 .log-form {
+  margin-top: var(--s-3);
   display: grid;
   grid-template-columns: auto 1fr 1fr auto;
   align-items: center;
@@ -379,6 +618,29 @@
   color: var(--echo);
   font-weight: 600;
 }
+
+// Bodyweight vježbe: polje za kilažu je sakriveno dok se ne klikne ovo dugme.
+.add-weight-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  min-height: 44px;
+  padding: 0 var(--s-3);
+
+  background: var(--carbon-high);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.add-weight-btn .material-icons { font-size: 16px; }
+.add-weight-btn:hover { color: var(--ice); border-color: var(--volt-a40); }
 
 // Stilovi birača vježbe žive u exercice-picker.component.scss — koriste ga i
 // leaderboard i profil, pa ne mogu ostati ovdje.
@@ -752,6 +1014,15 @@
   margin: auto var(--s-4);
   padding: var(--s-8) var(--s-6) var(--s-6);
 
+  // `.modal-overlay` (globalno, _base.scss) već ograničava svoj sadržaj na
+  // prostor između headera i footera preko `top`/`bottom` na overlay-u — ali
+  // .summary-card ne koristi `.modal-card`, pa to ograničenje nikad nije
+  // stiglo do same kartice. Bez ovoga, kartica sa više obarenih rekorda i
+  // redova ishoda naraste preko footera na telefonu.
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
   background: var(--carbon);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-xl);
@@ -795,6 +1066,20 @@
   margin-bottom: var(--s-2);
 }
 [data-tone="record"] .sum-headline { color: var(--gold); }
+
+.sum-elapsed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+  padding: var(--s-1) var(--s-3);
+  background: var(--carbon-high);
+  border-radius: var(--r-full);
+  color: var(--mist);
+  font-size: var(--t-xs);
+}
+
+.sum-elapsed .material-icons { font-size: 15px; }
 
 .sum-line {
   font-size: var(--t-sm);
@@ -914,7 +1199,7 @@
 .note-box textarea {
   min-height: 62px;
   background: var(--carbon);
-  font-size: var(--t-sm);
+  font-size: max(var(--t-sm), var(--t-field-min));
 }
 
 .note-actions {

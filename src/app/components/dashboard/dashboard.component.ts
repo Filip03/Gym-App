@@ -5,8 +5,9 @@ import { AuthService } from '../../services/auth.service';
 import { LeaderboardService, LiveSession } from '../../services/leaderboard.service';
 import { WorkoutPlan, PlanType, DayType, Exercice } from '../../models/models';
 import { DAY_NAMES } from '../../shared/day-names';
-import { ExerciceService } from '../../services/exercice.service';
+import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { TrainingService } from '../../services/training.service';
+import { NewsService, NewsItem } from '../../services/news.service';
 import { DAY_NAMES as DAYS } from '../../shared/day-names';
 
 interface SelectedExercice {
@@ -74,6 +75,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   showExercicePicker = false;
   pickerDay: DayEntry | null = null;
 
+  /** Za Custom plan: vježbe za picker grupisane po mišićnoj grupi, kao na /exercices. */
+  customExerciceGroups: MuscleGroupWithExercices[] = [];
+
   private dayNames = DAY_NAMES;
 
   // Šta je danas na redu — prikazuje se na traci iznad planova.
@@ -81,7 +85,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   todayType: string | null = null;
   todayCount = 0;
   todayFinished = false;
+  todayStartedAt: string | null = null;
+  /** „12:34" ili „1:02:34" — koliko traje današnji trening. Kuca svake sekunde. */
+  elapsedLabel = '';
+  private elapsedTimer: any = null;
 
+  // CUSTOM namjerno nije ovdje — za njega se ne bira tip dana uopšte, vidi
+  // isCustomPlanType/applyCustomDayDefaults().
   private planTypeToDayTypes: { [planTypeName: string]: string[] } = {
     'PPL (PUSHPULLLEGS)': ['PUSH', 'PULL', 'LEGS', 'REST'],
     'UL (UPPERLOWER)': ['UPPER', 'LOWER', 'REST'],
@@ -104,6 +114,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private exerciceService: ExerciceService,
     private trainingService: TrainingService,
     private leaderboardService: LeaderboardService,
+    private newsService: NewsService,
     private router: Router
   ) {}
 
@@ -119,6 +130,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.currentUserId = user.id;
 
     void this.loadLive();
+    void this.checkForNews();
     // Trening traje, pa broj minuta mora da raste sam. Interval se čisti u
     // `ngOnDestroy` — bez toga bi kucao i poslije napuštanja ekrana.
     this.liveTimer = setInterval(() => void this.loadLive(), 60_000);
@@ -148,8 +160,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.todayType = day?.day_type?.name ?? null;
       this.todayCount = (day?.day_exercice ?? []).length;
 
-      const finishedAt = await this.trainingService.getFinishedAt(userId, this.todayDateString());
-      this.todayFinished = !!finishedAt;
+      const times = await this.trainingService.getSessionTimes(userId, this.todayDateString());
+      this.todayFinished = !!times.finishedAt;
+      this.todayStartedAt = times.startedAt;
+
+      // Tajmer kuca svake sekunde, ali samo dok je trening u toku — `tick`
+      // sam isprazni natpis čim trening prestane da se vodi kao aktivan.
+      this.tickElapsed();
+      this.elapsedTimer = setInterval(() => this.tickElapsed(), 1000);
     } catch {
       // Traka je informativna — ako plan ne može da se učita, ostaje samo dan.
     }
@@ -176,8 +194,61 @@ export class DashboardComponent implements OnInit, OnDestroy {
   currentUserId = '';
   private liveTimer: any = null;
 
+  /** Korisnik čiji se pregled profila trenutno prikazuje (klik na profilnu sliku). */
+
+  // --- Novosti ------------------------------------------------------------
+  //
+  // Najnoviji red iz news tabele iskoči prvi put kad ga ovaj uređaj nije
+  // vidio (localStorage, vidi NewsService) — poslije se ne prikazuje ponovo
+  // dok ne stigne noviji. Ikonica u headeru vodi na cio spisak (/news).
+  showNewsPopup = false;
+  latestNews: NewsItem | null = null;
+
+  private async checkForNews() {
+    try {
+      const latest = await this.newsService.getLatestNews();
+      if (latest && latest.id !== this.newsService.getLastSeenId()) {
+        this.latestNews = latest;
+        this.showNewsPopup = true;
+      }
+    } catch {
+      // Novosti su dodatak, ne smiju oboriti dashboard.
+    }
+  }
+
+  closeNewsPopup() {
+    if (this.latestNews) this.newsService.markSeen(this.latestNews.id);
+    this.showNewsPopup = false;
+  }
+
+
+
   ngOnDestroy() {
     if (this.liveTimer) clearInterval(this.liveTimer);
+    if (this.elapsedTimer) clearInterval(this.elapsedTimer);
+  }
+
+  /**
+   * Da li se današnji trening upravo dešava.
+   *
+   * Isto pravilo kao „ko trenira sada": sesija postoji (ekran treninga je
+   * otvaran), nije završena, i nije starija od 4 sata — poslije toga je
+   * vjerovatnije da je čovjek zaboravio da pritisne kraj nego da još trenira.
+   */
+  get todayInProgress(): boolean {
+    if (this.todayFinished || !this.todayStartedAt) return false;
+    return Date.now() - new Date(this.todayStartedAt).getTime() < 4 * 3_600_000;
+  }
+
+  private tickElapsed() {
+    if (!this.todayInProgress) { this.elapsedLabel = ''; return; }
+    const total = Math.floor((Date.now() - new Date(this.todayStartedAt!).getTime()) / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    const mm = `${m}`.padStart(2, '0');
+    const ss = `${sec}`.padStart(2, '0');
+    this.elapsedLabel = h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
   }
 
   private async loadLive() {
@@ -407,7 +478,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.newPlanTypeId = this.viewedPlan.plan_type_id ?? '';
     this.createError = '';
 
-    this.onPlanTypeChange();
+    // Samo filteredDayTypes ovdje — weekDays još nije sastavljen (par redova
+    // ispod), pa applyCustomDayDefaults() ovdje ne bi imao na šta da se primijeni.
+    this.computeFilteredDayTypes();
 
     const workoutDaysByName = new Map<string, any>(
       (this.viewedPlan.workout_days ?? []).map((d: any) => [d.name, d])
@@ -439,14 +512,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
       };
     });
 
-    // Učitaj dostupne vježbe za svaki dan koji već ima izabran tip,
-    // da bi picker modal mogao da ih ponudi za izmenu
-    for (const day of this.weekDays) {
-      if (day.dayTypeId) {
-        try {
-          day.availableExercices = await this.dashboardService.getExercicesForDayType(day.dayTypeId);
-        } catch {
-          // vežbe za taj dan jednostavno neće biti ponuđene za izmenu
+    if (this.isCustomPlanType) {
+      // Plan je Custom — svaki dan dobija CUSTOM tip i cio katalog, bez obzira
+      // šta je ranije bilo upisano po danu.
+      await this.applyCustomDayDefaults();
+    } else {
+      // Učitaj dostupne vježbe za svaki dan koji već ima izabran tip,
+      // da bi picker modal mogao da ih ponudi za izmenu
+      for (const day of this.weekDays) {
+        if (day.dayTypeId) {
+          try {
+            day.availableExercices = await this.dashboardService.getExercicesForDayType(day.dayTypeId);
+          } catch {
+            // vežbe za taj dan jednostavno neće biti ponuđene za izmenu
+          }
         }
       }
     }
@@ -466,24 +545,67 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }));
   }
 
-  onPlanTypeChange() {
+  /**
+   * Tip plana "Custom" ne traži izbor tipa dana po danu — svaki dan
+   * automatski dobija day_type "CUSTOM" i nudi cio katalog vježbi.
+   * Vidi applyCustomDayDefaults() i migraciju 20260728000000_custom_day_type.sql.
+   */
+  get isCustomPlanType(): boolean {
+    const selected = this.planTypes.find(pt => pt.id === this.newPlanTypeId);
+    return (selected?.name ?? '').toUpperCase() === 'CUSTOM';
+  }
+
+  /** "CUSTOM" day_type nije nešto što se ručno bira iz padajućeg menija. */
+  private get pickableDayTypes(): DayType[] {
+    return this.dayTypes.filter(dt => (dt.name ?? '').toUpperCase() !== 'CUSTOM');
+  }
+
+  /** Samo `filteredDayTypes` — bez dodira na weekDays. Vidi onPlanTypeChange(). */
+  private computeFilteredDayTypes() {
     const selectedType = this.planTypes.find(pt => pt.id === this.newPlanTypeId);
 
-    if (!selectedType || !selectedType.name) {
+    if (!selectedType || !selectedType.name || this.isCustomPlanType) {
       this.filteredDayTypes = [];
       return;
     }
 
     const allowedNames = this.planTypeToDayTypes[selectedType.name.toUpperCase()];
 
-    if (!allowedNames) {
-      this.filteredDayTypes = this.dayTypes;
-      return;
-    }
+    this.filteredDayTypes = allowedNames
+      ? this.pickableDayTypes.filter(dt => dt.name && allowedNames.includes(dt.name.toUpperCase()))
+      : this.pickableDayTypes;
+  }
 
-    this.filteredDayTypes = this.dayTypes.filter(dt =>
-      dt.name && allowedNames.includes(dt.name.toUpperCase())
-    );
+  /** Poziva se iz forme kad korisnik promijeni tip plana — weekDays je već spreman. */
+  async onPlanTypeChange() {
+    this.computeFilteredDayTypes();
+    if (this.isCustomPlanType) {
+      await this.applyCustomDayDefaults();
+    }
+  }
+
+  /**
+   * Svaki dan dobija day_type "CUSTOM" i sve vježbe iz kataloga, grupisane po
+   * mišićnoj grupi (isto kao /exercices) za picker — bez filtriranja preko
+   * day_type_muscle_group, da nijedna vježba (ni "Nekategorisano") ne ispadne
+   * iz ponude.
+   */
+  private async applyCustomDayDefaults() {
+    const customId = this.dayTypes.find(dt => (dt.name ?? '').toUpperCase() === 'CUSTOM')?.id;
+    if (!customId) return;
+
+    const groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
+    this.customExerciceGroups = groups.filter(g => g.exercices.length > 0);
+
+    // Ravan spisak bez duplikata (ista vježba može biti u više grupa) — koristi
+    // se samo za provjeru "ima li uopšte vježbi", picker crta iz customExerciceGroups.
+    const byId = new Map(this.customExerciceGroups.flatMap(g => g.exercices).map(ex => [ex.id, ex]));
+    const allExercices = [...byId.values()];
+
+    for (const day of this.weekDays) {
+      day.dayTypeId = customId;
+      day.availableExercices = allExercices;
+    }
   }
 
   async onDayTypeChange(day: DayEntry) {

@@ -27,6 +27,8 @@ export class ExercicesComponent implements OnInit {
   newDescription = '';
   newPictureFile: File | null = null;
   newPicturePreviewUrl: string | null = null;
+  newIsBodyweight = false;
+  newIsUnilateral = false;
   selectedMuscleGroupIds: string[] = [];
 
   constructor(private exerciceService: ExerciceService) {}
@@ -88,12 +90,21 @@ export class ExercicesComponent implements OnInit {
     this.newDescription = '';
     this.newPictureFile = null;
     this.newPicturePreviewUrl = null;
+    this.newIsBodyweight = false;
+    this.newIsUnilateral = false;
     this.selectedMuscleGroupIds = [];
     this.createError = '';
   }
 
   closeCreateModal() {
     this.showCreateModal = false;
+  }
+
+  clearPicture(input: HTMLInputElement) {
+    if (this.newPicturePreviewUrl) URL.revokeObjectURL(this.newPicturePreviewUrl);
+    this.newPictureFile = null;
+    this.newPicturePreviewUrl = null;
+    input.value = '';   // da isti fajl može ponovo da se izabere
   }
 
   onPictureFileSelected(event: Event) {
@@ -140,7 +151,9 @@ export class ExercicesComponent implements OnInit {
         name: this.newName,
         description: this.newDescription,
         muscleGroupIds: this.selectedMuscleGroupIds,
-        pictureFile: this.newPictureFile
+        pictureFile: this.newPictureFile,
+        isBodyweight: this.newIsBodyweight,
+        isUnilateral: this.newIsUnilateral
       });
 
       await this.loadExercices();

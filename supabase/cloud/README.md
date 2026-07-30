@@ -32,6 +32,26 @@ Migracije su pisane tako da se mogu pustiti i dvaput — koriste
 | `20260725000002_grants.sql` | ✅ | ✅ već postojalo — **ne puštati** |
 | `20260726000000_workout_sessions.sql` | ✅ | ⬜ **treba pustiti** |
 | `20260726010000_weight_logs.sql` | ✅ | ❔ **provjeriti sa Filipom** |
+| `20260726020000_blog_media.sql` | ✅ | ❔ Filipova (R2) |
+| `20260726030000_blog_media_size.sql` | ✅ | ❔ Filipova (R2) |
+| `20260726040000_exercices_bodyweight.sql` | ✅ | ❔ Filipova |
+| `20260727000000_dropset_logs.sql` | ✅ | ❔ Filipova |
+| `20260727010000_mark_bodyweight_exercices.sql` | ✅ | ⬜ **treba pustiti** |
+| `20260728000000_unilateral.sql` | ✅ | ⬜ **treba pustiti** |
+| `20260728010000_news.sql` | ✅ | ❔ Filipova — vjerovatno već tamo |
+| `20260728020000_custom_day_type.sql` | ✅ | ❔ Filipova — vjerovatno već tamo |
+
+Napomena: `custom_day_type` je kod Filipa nastala kao `20260728000000_...` — ISTI
+pečat kao `unilateral`, pa je evidencija migracija odbijala duplikat verzije.
+Preimenovana je u `...020000` na grani XFactor; sadržaj je netaknut i idempotentan,
+pa je svejedno pod kojim je imenom ko već pustio.
+
+Posljednja (`unilateral`) donosi praćenje lijeve/desne ruke kod jednoručnih
+vježbi: `exercices.is_unilateral` i `exercice_logs.side`. **Mora se pustiti
+PRIJE deploya koda od 28.07.** — aplikacija od tada kolonu `side` šalje pri
+SVAKOM upisu serije (kod dvoručnih kao `null`), pa bez migracije u produkciji
+puca svaki upis, ne samo jednoručni. Isti uslov važi i za učitavanje ekrana
+treninga, jer se `is_unilateral` čita u istom upitu kao naziv vježbe.
 
 Prve tri migracije su **izvedene iz** cloud baze (iz `pg_dump`-a), pa tamo već
 postoje. Puštanje nema smisla i samo pravi buku.

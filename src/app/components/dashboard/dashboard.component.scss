@@ -266,7 +266,7 @@
   border-radius: 8px;
   padding: 0.6rem 0.8rem;
   color: white;
-  font-size: 0.95rem;
+  font-size: max(0.95rem, var(--t-field-min));
 }
 
 .form-group input:focus,
@@ -362,7 +362,20 @@
   border-radius: 6px;
   padding: 0.4rem 0.5rem;
   color: white;
-  font-size: 0.9rem;
+  font-size: max(0.9rem, var(--t-field-min));
+}
+
+.custom-day-badge {
+  align-self: flex-start;
+  padding: 0.3rem 0.6rem;
+  background: rgba(173, 255, 47, 0.1);
+  border: 1px dashed rgba(173, 255, 47, 0.4);
+  border-radius: 999px;
+  color: greenyellow;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .edit-exercices-btn {
@@ -386,6 +399,15 @@
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+.muscle-group-section h3 {
+  margin-bottom: 0.75rem;
+  color: greenyellow;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .exercice-card {
@@ -444,7 +466,7 @@
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
   color: white;
-  font-size: 0.85rem;
+  font-size: max(0.85rem, var(--t-field-min));
 }
 
 .exercice-picker-inputs input:focus {
@@ -769,6 +791,38 @@
 // izgledalo nedovršeno. Oštar oblik i zelena traka sa strane umjesto obrisa
 // oko cijelog dugmeta: stanje "gotovo" treba da se razlikuje od poziva na
 // akciju i oblikom, ne samo bojom.
+// Trening je u toku: dugme prestaje da zove i počinje da izvještava — tamna
+// pozadina, tačka koja diše i tajmer koji kuca. Isto pravilo kao „ko trenira
+// sada" (sesija otvorena, nezavršena, mlađa od 4h).
+.start-btn.live {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  background: #070B04;
+  color: var(--volt);
+  border: 1px solid var(--volt-a40);
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--volt);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+.live-time {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  opacity: .85;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .3; }
+}
+
 .start-btn.done {
   display: inline-flex;
   align-items: center;
@@ -1268,6 +1322,9 @@
 .live-av img { width: 100%; height: 100%; object-fit: cover; }
 .live-av .material-icons { font-size: 16px; }
 
+.live-av.clickable { cursor: pointer; transition: border-color var(--d-fast) var(--ease); }
+.live-av.clickable:hover { border-color: var(--volt-a40); }
+
 .live-row.me .live-av { border-color: var(--volt); }
 
 .live-name {
@@ -1298,4 +1355,43 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dot-live, .live-row { animation: none; }
+}
+
+// --- Novosti — popup na dashboardu -----------------------------------------
+
+.news-popup-card {
+  max-width: 420px;
+  // Globalni .modal-overlay je na mobilnom align-items:flex-end (bottom-sheet
+  // za velike forme) — ovo je mala najava, ne sheet, pa margin:auto na obje
+  // strane centrira karticu i ostavlja razmak i gore i dolje (isto rješenje
+  // kao .summary-card u training.component.scss).
+  margin: auto var(--s-4);
+  text-align: center;
+}
+
+.news-popup-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+  padding: var(--s-1) var(--s-3);
+  background: var(--volt-a10);
+  border-radius: var(--r-full);
+  color: var(--volt);
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.news-popup-eyebrow .material-icons { font-size: 16px; }
+
+.news-popup-body {
+  margin-top: var(--s-3);
+  color: var(--mist);
+  font-size: var(--t-sm);
+  line-height: var(--lh-body);
+  white-space: pre-line;
+  text-align: left;
 }
