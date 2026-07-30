@@ -2923,3 +2923,12 @@ stranice.
 - **Ne pomjerati sistemski sat radi testiranja tajmera.** Pomjeren sat lomi
   Supabase JWT (aplikacija tada masovno „buguje" na mjestima koja nemaju veze sa
   notifikacijama) i ume da ostavi sesije sa budućim datumom u cloud bazi.
+
+**Dopuna istog dana — rest day otvara trening:** dugme na današnji rest day
+više NIJE ugašeno — do ekrana treninga se dolazi samo kroz njega, a na rest day
+se uvijek može vanredno trenirati („Dodaj" na ekranu treninga). Natpis ostaje
+„Rest day", stil utišan ali živ (`.start-btn.rest`), sa opisom u title.
+Raniji dani bez upisa i budući dani ostaju ugašeni. Uz to: Enter na prijavi
+vodi korisničko ime → lozinka → slanje (isto kroz cijelu registraciju), a
+prekidač notifikacija se prikazuje vizuelno isključen kad Notification API ne
+postoji (HTTP van localhost-a) — ranije je izgledao zaglavljen na uključeno.

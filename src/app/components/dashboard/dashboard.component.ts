@@ -342,11 +342,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return this.todayFinished ? 'Završeni trening' : 'Pogledaj trening';
   }
 
-  /** Rest day, ranije bez upisa i budući dani: dugme ništa ne otvara. */
+  /**
+   * Ranije bez upisa i budući dani: dugme ništa ne otvara. DANAŠNJI rest day
+   * namjerno NIJE ugašen — do treninga se dolazi samo ovuda, a na rest day se
+   * uvijek može vanredno trenirati (ekran treninga nudi „Dodaj").
+   */
   get startDisabled(): boolean {
-    return this.isRestSelected
-        || this.isFuture
-        || (this.isPast && !this.dayHasTraining);
+    return this.isFuture || (this.isPast && !this.dayHasTraining);
   }
 
   startOrView() {

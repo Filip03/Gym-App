@@ -956,6 +956,21 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
 }
 .start-btn.history:hover { background: #0B1206; }
 
+// Današnji rest day: utišano ali ŽIVO — klik vodi na trening („Dodaj" za
+// vanredni). Definisano PRIJE .ghosted, da budući rest dani (ugašeni) zadrže
+// ghosted izgled.
+.start-btn.rest {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  background: #070B04;
+  color: var(--mist);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+.start-btn.rest:hover { border-color: var(--volt-a40); color: var(--ice); }
+
 // Bez treninga tog dana / dan koji tek dolazi — ista geometrija, utišane boje.
 .start-btn.ghosted {
   display: inline-flex;
