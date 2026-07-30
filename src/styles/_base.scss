@@ -555,11 +555,11 @@ button:not(:disabled):active { transform: scale(0.97); }
 html.theme-anim *,
 html.theme-anim *::before,
 html.theme-anim *::after {
-  transition: background-color 320ms var(--ease),
-              color 320ms var(--ease),
-              border-color 320ms var(--ease),
-              fill 320ms var(--ease),
-              stroke 320ms var(--ease) !important;
+  transition: background-color 420ms cubic-bezier(.4, 0, .2, 1),
+              color 420ms cubic-bezier(.4, 0, .2, 1),
+              border-color 420ms cubic-bezier(.4, 0, .2, 1),
+              fill 420ms cubic-bezier(.4, 0, .2, 1),
+              stroke 420ms cubic-bezier(.4, 0, .2, 1) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

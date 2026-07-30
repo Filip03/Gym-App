@@ -38,41 +38,13 @@ export class ThemeService {
   private animTimer: any = null;
 
   /**
-   * Promjena teme kao KAP MASTILA: iz tačke dodira (prekidač) krug u boji
-   * NOVE teme se razlije preko cijelog ekrana, a ispod njega tema procuri —
-   * kućni jezik pokreta primijenjen na najveću moguću promjenu stanja.
-   * Bez tačke (ili uz reduced-motion) ostaje samo globalno pretapanje.
+   * Promjena teme: NJEŽNO — samo meko pretapanje boja kroz cijelu aplikaciju
+   * (klasa `theme-anim`, vidi _base.scss). Sav spektakl živi na samom
+   * prekidaču (opruga palca, kap u pilili, ikona koja izroni) — promjena
+   * pozadine cijelog ekrana ne treba dramu.
    */
-  toggle(origin?: { x: number; y: number }) {
-    const next: Theme = this.theme === 'light' ? 'dark' : 'light';
-
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (origin && !reduced) {
-      const boja = next === 'light' ? '#ECEBE4' : '#06080B';
-      const r = Math.hypot(
-        Math.max(origin.x, window.innerWidth - origin.x),
-        Math.max(origin.y, window.innerHeight - origin.y)
-      );
-      const kap = document.createElement('div');
-      kap.style.cssText = `position:fixed;left:${origin.x - r}px;top:${origin.y - r}px;`
-        + `width:${r * 2}px;height:${r * 2}px;border-radius:50%;background:${boja};`
-        + `transform:scale(0);pointer-events:none;z-index:9999;`;
-      document.body.appendChild(kap);
-      const anim = kap.animate(
-        [{ transform: 'scale(0)', opacity: 1 },
-         { transform: 'scale(1)', opacity: 1, offset: .7 },
-         { transform: 'scale(1)', opacity: 0 }],
-        { duration: 620, easing: 'cubic-bezier(.3,.7,.3,1)' }
-      );
-      // Tema se mijenja dok je kap najveća — novi izgled „procuri" ispod nje.
-      setTimeout(() => this.switchTo(next), 240);
-      anim.onfinish = () => kap.remove();
-      // Sigurnosno: i ako onfinish izostane (skriven tab), kap ne smije ostati.
-      setTimeout(() => kap.remove(), 900);
-      return;
-    }
-
-    this.switchTo(next);
+  toggle() {
+    this.switchTo(this.theme === 'light' ? 'dark' : 'light');
   }
 
   private switchTo(next: Theme) {
@@ -85,7 +57,7 @@ export class ThemeService {
     const root = document.documentElement;
     root.classList.add('theme-anim');
     clearTimeout(this.animTimer);
-    this.animTimer = setTimeout(() => root.classList.remove('theme-anim'), 420);
+    this.animTimer = setTimeout(() => root.classList.remove('theme-anim'), 520);
 
     this.apply();
   }
