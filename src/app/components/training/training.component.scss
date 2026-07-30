@@ -940,7 +940,7 @@ $branch-indent: 16px;
 }
 
 .ti-min {
-  width: 34px;
+  width: 38px;
   min-height: 24px;
   padding: 0;
   background: transparent;
@@ -948,7 +948,9 @@ $branch-indent: 16px;
   border-bottom: 1px solid var(--line-strong);
   border-radius: 0;
   color: var(--ice);
-  font-size: var(--t-sm);
+  // Kroz max() OBAVEZNO — polje ispod 16px na dodirnom ekranu iOS zumira
+  // cijelu stranicu, a u nativnoj ljusci nema ni načina da se odzumira.
+  font-size: max(var(--t-sm), var(--t-field-min));
   text-align: center;
 }
 .ti-min:focus { outline: none; border-bottom-color: var(--volt); }
