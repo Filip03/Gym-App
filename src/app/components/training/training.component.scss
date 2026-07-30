@@ -24,14 +24,23 @@ $branch-indent: 16px;
 
 // Na telefonu dugmad idu u svoj red ispod naslova — u istom redu su se gnječila
 // sa "Nedelja · LEGS" i lomila tekst.
+//
+// Tajmer pauze (ikonica + polje za minute) ide u SVOJ red iznad ostalih dugmadi
+// — u istom redu sa "Dodaj"/"Bilješka"/"Preuredi" je prelazio širinu ekrana.
 @media (max-width: 560px) {
   .training-header {
     flex-direction: column;
     align-items: stretch;
     gap: var(--s-3);
   }
-  .header-right { justify-content: flex-start; }
-  .reorder-btn  { flex: 1; justify-content: center; min-height: 38px; }
+  .header-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s-2);
+  }
+  .rest-timer-group { justify-content: flex-start; }
+  .header-actions   { justify-content: flex-start; }
+  .header-actions .reorder-btn { flex: 1; justify-content: center; min-height: 38px; }
 }
 
 .training-header h2 {
@@ -759,6 +768,13 @@ $branch-indent: 16px;
   align-items: center;
   gap: var(--s-2);
   flex-shrink: 0;
+}
+
+.rest-timer-group,
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
 }
 
 .reorder-btn {

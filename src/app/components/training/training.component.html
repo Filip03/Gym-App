@@ -12,32 +12,37 @@
       <span class="view-date num" *ngIf="viewOnly">{{ todayDate | date:'dd.MM.yyyy.' }}</span>
     </div>
     <div class="header-right" *ngIf="viewOnly">
-      <button type="button" class="reorder-btn" [class.on]="restTimer.enabled"
-              *ngIf="!reordering" (click)="restTimer.toggle()"
-              [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
-        <i class="material-icons">{{ restTimer.enabled ? 'timer' : 'timer_off' }}</i>
-      </button>
-      <input type="number" class="rest-timer-minutes" *ngIf="!reordering && restTimer.enabled"
-             min="1" max="30" step="1"
-             [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
-             title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
-      <span class="rest-timer-unit" *ngIf="!reordering && restTimer.enabled">min</span>
-      <button type="button" class="reorder-btn" *ngIf="!reordering"
-              (click)="openAdd()" title="Dodaj vježbu za danas">
-        <i class="material-icons">add</i>
-        Dodaj
-      </button>
-      <button type="button" class="reorder-btn" [class.on]="showNote || session?.note"
-              *ngIf="!reordering" (click)="toggleNote()"
-              title="Bilješka uz današnji trening">
-        <i class="material-icons">edit_note</i>
-        Bilješka
-      </button>
-      <button type="button" class="reorder-btn" [class.on]="reordering"
-              *ngIf="!isRestDay" (click)="toggleReorder()">
-        <i class="material-icons">{{ reordering ? 'done' : 'swap_vert' }}</i>
-        {{ reordering ? 'Gotovo' : 'Preuredi' }}
-      </button>
+      <div class="rest-timer-group">
+        <button type="button" class="reorder-btn" [class.on]="restTimer.enabled"
+                *ngIf="!reordering" (click)="restTimer.toggle()"
+                [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
+          <i class="material-icons">{{ restTimer.enabled ? 'timer' : 'timer_off' }}</i>
+        </button>
+        <input type="number" class="rest-timer-minutes" *ngIf="!reordering && restTimer.enabled"
+               min="1" max="30" step="1"
+               [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
+               title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
+        <span class="rest-timer-unit" *ngIf="!reordering && restTimer.enabled">min</span>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="reorder-btn" *ngIf="!reordering"
+                (click)="openAdd()" title="Dodaj vježbu za danas">
+          <i class="material-icons">add</i>
+          Dodaj
+        </button>
+        <button type="button" class="reorder-btn" [class.on]="showNote || session?.note"
+                *ngIf="!reordering" (click)="toggleNote()"
+                title="Bilješka uz današnji trening">
+          <i class="material-icons">edit_note</i>
+          Bilješka
+        </button>
+        <button type="button" class="reorder-btn" [class.on]="reordering"
+                *ngIf="!isRestDay" (click)="toggleReorder()">
+          <i class="material-icons">{{ reordering ? 'done' : 'swap_vert' }}</i>
+          {{ reordering ? 'Gotovo' : 'Preuredi' }}
+        </button>
+      </div>
     </div>
   </div>
 
