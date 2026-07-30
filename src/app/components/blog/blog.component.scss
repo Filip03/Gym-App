@@ -449,3 +449,28 @@
 @media (prefers-reduced-motion: reduce) {
   .post, .lb, .work-bar.indeterminate { animation: none; }
 }
+
+// --- Ulazne animacije — isti jezik kao ostatak aplikacije ------------------
+// Objave izranjaju odozdo talasom (kašnjenje po objavi iz šablona), naslovi
+// grupa stižu korak ranije. `backwards` da kašnjenje ne pokaže goli sadržaj.
+
+.group > h3, .group > .group-head { animation: post-head-in 420ms var(--ease-out) backwards; }
+
+// I sama ploča ulazi — da i prazan blog (bez ijedne objave) ima isti ulaz
+// kao ostali ekrani, a ne da samo pukne na ekran.
+.sec { animation: post-in 520ms var(--ease-spring) backwards; }
+
+.post { animation: post-in 520ms var(--ease-spring) backwards; }
+
+@keyframes post-in {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes post-head-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post, .group > h3, .group > .group-head { animation: none; }
+}

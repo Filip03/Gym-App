@@ -250,9 +250,9 @@ export class ProfileComponent implements OnInit {
     this.pulseTimer = setTimeout(() => this.switchPulse = null, 500);
   }
 
-  toggleTheme() {
+  toggleTheme(event?: MouseEvent) {
     this.pulse('theme');
-    this.theme.toggle();
+    this.theme.toggle(event ? { x: event.clientX, y: event.clientY } : undefined);
   }
 
   async togglePush() {

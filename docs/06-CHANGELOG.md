@@ -3137,3 +3137,14 @@ provjereno i piksel-poređenjem boja headera i futera.
 - `backdrop-filter` na staklenim stanjima je samo za svijetlu temu i samo na
   jednom malom dugmetu; header ga i dalje izbjegava iz razloga performansi
   (zamućenje preko velike površine je ranije kočilo otvaranje menija).
+
+**Dopuna — kap preko cijelog ekrana i ulazi na blogu:**
+1. Promjena teme je sada KAP MASTILA preko cijelog ekrana: iz same tačke
+   dodira na prekidaču krug u boji NOVE teme se razlije preko stranice
+   (Web Animations, poluprečnik do najdaljeg ugla), tema procuri ispod njega
+   dok je kap najveća, pa kap izblijedi. Uz `prefers-reduced-motion` (ili bez
+   tačke dodira) ostaje samo globalno pretapanje. Sigurnosni tajmer čisti kap
+   i ako `onfinish` izostane.
+2. Blog dobio ulazne animacije u kućnom jeziku: objave izranjaju odozdo
+   talasom (kašnjenje po grupi i objavi), naslovi grupa korak ranije, a i sama
+   ploča ulazi — pa i prazan blog diše kao ostatak aplikacije.
