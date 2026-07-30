@@ -3006,3 +3006,13 @@ se isteže, pa se slegne), kap volt boje krene iz ikone i razlije se kroz
 pilulu pa izblijedi (ink-bloom preko ::after), a broj i „min" izranjaju odozdo
 sa razmakom od jednog koraka (isti talas kao na velikom dugmetu). Sve ugašeno
 uz prefers-reduced-motion.
+
+**Dopuna — tečnost i pri gašenju i pri startu odbrojavanja:** gašenje ostrva
+sada ima obrnutu kap (mastilo se POVUČE nazad u ikonu — `ink-retreat`) i
+obrnuti stisak (`island-sip`); CSS ne umije animaciju na uklanjanju klase, pa
+kratko stanje `tiClosing` vodi komponenta. Prelaz iz minuta u živo odbrojavanje
+(prva upisana serija) dobio isti razliv i kap na `.running` klasi — ranije se
+sadržaj samo preklopio u novu funkciju, kao treptaj. Jezik pokreta
+(squash & stretch + ink-bloom + talas sadržaja) usvojen kao kućno pravilo za
+promjene stanja — referentne implementacije: tajmer-ostrvo i split-flap natpis
+na velikom dugmetu.

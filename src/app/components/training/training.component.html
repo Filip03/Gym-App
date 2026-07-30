@@ -20,9 +20,10 @@
            nosi živo odbrojavanje; na isteku „pauza gotova" u volt boji. -->
       <div class="timer-island" *ngIf="!reordering"
            [class.on]="restTimer.enabled"
+           [class.closing]="tiClosing"
            [class.running]="!!restTimer.remainingLabel"
            [class.done]="restTimer.expired">
-        <button type="button" class="ti-toggle" (click)="restTimer.toggle()"
+        <button type="button" class="ti-toggle" (click)="toggleTimer()"
                 [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
           <i class="material-icons">{{ restTimer.enabled ? 'timer' : 'timer_off' }}</i>
         </button>

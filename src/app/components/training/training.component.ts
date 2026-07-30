@@ -142,6 +142,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   @ViewChildren('exRow') rowEls!: QueryList<ElementRef<HTMLElement>>;
 
   private saveTimer: any = null;
+  /** Kratko stanje za animaciju SKUPLJANJA tajmer-ostrva — CSS ne umije da
+   *  odsvira animaciju na uklanjanju klase, pa je vodi komponenta. */
+  tiClosing = false;
+  private tiClosingTimer: any = null;
   /** Sekundni otkucaj SAMO za odbrojavanje pauze — bez njega se natpis ne
    *  osvježava (getter se računa tek pri ciklusu provjere promjena). */
   private restTick: any = setInterval(() => {}, 1000);
@@ -809,10 +813,21 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     this.queue.onFlushed = null;
     clearTimeout(this.saveTimer);
     clearInterval(this.restTick);
+    clearTimeout(this.tiClosingTimer);
     // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
     // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
     // futera) dok je neki edit mod bio otvoren.
     this.navLock.unlock();
+  }
+
+  /** Paljenje/gašenje tajmera — gašenje nosi svoju animaciju skupljanja. */
+  async toggleTimer() {
+    if (this.restTimer.enabled) {
+      this.tiClosing = true;
+      clearTimeout(this.tiClosingTimer);
+      this.tiClosingTimer = setTimeout(() => this.tiClosing = false, 480);
+    }
+    await this.restTimer.toggle();
   }
 
   /** Klik na sam red poništava izbor; klik na strelice ne (one pomjeraju). */

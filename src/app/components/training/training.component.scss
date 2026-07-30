@@ -863,6 +863,38 @@ $branch-indent: 16px;
   100% { transform: translate(-50%, -50%) scale(24); opacity: 0; }
 }
 
+// Gašenje: ista tečnost unazad — pilula se stisne pa slegne, a mastilo se
+// POVUČE nazad u ikonu (kap se skuplja umjesto da se širi).
+.timer-island.closing {
+  animation: island-sip 460ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.closing::after {
+  animation: ink-retreat 420ms var(--ease);
+}
+
+@keyframes island-sip {
+  0%   { transform: scale(1, 1); }
+  35%  { transform: scale(.96, 1.06); }
+  70%  { transform: scale(1.015, .97); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes ink-retreat {
+  0%   { transform: translate(-50%, -50%) scale(18); opacity: 0; }
+  45%  { opacity: .35; }
+  100% { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+}
+
+// Prelaz minuta → odbrojavanje (prva serija upisana): ISTI jezik — razliv i
+// kap — pa zamjena sadržaja ne djeluje kao treptaj nego kao promjena stanja.
+.timer-island.running {
+  animation: island-splash 520ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.running::after {
+  animation: ink-bloom 560ms var(--ease-out);
+}
+
 .timer-island .ti-toggle {
   display: grid;
   place-items: center;
@@ -947,7 +979,8 @@ $branch-indent: 16px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ti-body, .ti-count, .timer-island.on,
+  .ti-body, .ti-count, .timer-island.on, .timer-island.closing,
+  .timer-island.running,
   .timer-island.on .ti-min, .timer-island.on .ti-unit { transition: none; animation: none; }
   .timer-island::after { display: none; }
 }
