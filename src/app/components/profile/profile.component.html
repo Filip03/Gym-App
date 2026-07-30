@@ -75,7 +75,10 @@
             <span class="push-title">Notifikacije</span>
             <span class="push-status">{{ pushStatus }}</span>
           </div>
-          <button type="button" class="push-toggle" [class.on]="push.enabled"
+          <!-- Kad API ne postoji (HTTP van localhost-a), prekidač je ugašen i
+               VIZUELNO isključen — inače izgleda „zaglavljen na uključeno". -->
+          <button type="button" class="push-toggle"
+                  [class.on]="push.enabled && push.permission !== 'unsupported'"
                   [disabled]="pushBusy || push.permission === 'unsupported'"
                   (click)="togglePush()"
                   [attr.aria-label]="push.enabled ? 'Isključi notifikacije' : 'Uključi notifikacije'">

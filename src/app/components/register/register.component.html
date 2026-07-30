@@ -7,27 +7,31 @@
     <form (ngSubmit)="onSubmit()" #registerForm="ngForm">
       <div class="email">
         <label for="username">Korisničko ime</label>
-        <input id="username" name="username" type="text" [(ngModel)]="username" required />
+        <input id="username" name="username" type="text" [(ngModel)]="username" required
+               (keydown.enter)="$event.preventDefault(); regEmail.focus()" />
       </div>
 
       <div class="email">
         <label for="email">Email</label>
-        <input id="email" name="email" type="email" [(ngModel)]="email" required />
+        <input #regEmail id="email" name="email" type="email" [(ngModel)]="email" required
+               (keydown.enter)="$event.preventDefault(); regPass.focus()" />
       </div>
 
       <div class="password">
         <label for="password">Lozinka</label>
-        <input id="password" name="password" type="password" [(ngModel)]="password" required minlength="6" />
+        <input #regPass id="password" name="password" type="password" [(ngModel)]="password" required minlength="6"
+               (keydown.enter)="$event.preventDefault(); regWeight.focus()" />
       </div>
 
       <div class="wh">
         <label for="weight">Težina (kg)</label>
-        <input id="weight" name="weight" appNumField [(ngModel)]="weight" required/>
+        <input #regWeight id="weight" name="weight" appNumField keyboard="text" [(ngModel)]="weight" required
+               (keydown.enter)="$event.preventDefault(); regHeight.focus()"/>
       </div>
 
       <div class="wh">
         <label for="height">Visina (cm)</label>
-        <input id="height" name="height" appNumField="integer" [(ngModel)]="height" required/>
+        <input #regHeight id="height" name="height" appNumField="integer" keyboard="text" [(ngModel)]="height" required/>
       </div>
 
       <button class="btn" type="submit" [disabled]="loading || !registerForm.valid">
