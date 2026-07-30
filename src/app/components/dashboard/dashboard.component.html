@@ -9,13 +9,19 @@
                 [class.live]="todayInProgress" [class.history]="isPast && dayHasTraining"
                 [class.ghosted]="startDisabled" [disabled]="startDisabled"
                 (click)="startOrView()">
-            <i class="material-icons" *ngIf="isToday && todayFinished">check_circle</i>
-            <i class="material-icons" *ngIf="isPast && dayHasTraining">history</i>
-            <i class="material-icons" *ngIf="isRestSelected">self_improvement</i>
-            <i class="material-icons" *ngIf="isFuture && !isRestSelected">hourglass_empty</i>
-            <span class="live-dot" *ngIf="todayInProgress"></span>
-            {{ startLabel }}
-            <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
+            <!-- `ngFor` po ključu: promjena dana rodi sadržaj iznova, pa
+                 ulazna animacija odsvira — tekst klizne iz smjera listanja. -->
+            <span class="btn-face" *ngFor="let k of [faceKey]"
+                  [class.from-left]="slideDir === -1"
+                  [class.from-right]="slideDir === 1">
+              <i class="material-icons" *ngIf="isToday && todayFinished">check_circle</i>
+              <i class="material-icons" *ngIf="isPast && dayHasTraining">history</i>
+              <i class="material-icons" *ngIf="isRestSelected">self_improvement</i>
+              <i class="material-icons" *ngIf="isFuture && !isRestSelected">hourglass_empty</i>
+              <span class="live-dot" *ngIf="todayInProgress"></span>
+              {{ startLabel }}
+              <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
+            </span>
         </button>
 
         <button type="button" class="day-arrow right" (click)="shiftDay(1)" aria-label="Dan kasnije">

@@ -2691,3 +2691,18 @@ da li je bio odmor. Ako je neko ipak trenirao na rest day, upisi pobjeđuju:
 stanja treninga (u toku/završen/pogledaj) imaju prednost nad odmorom. Ekran
 treninga ostaje dostupan kroz donju navigaciju, pa se vanredni trening na rest
 day i dalje može odraditi.
+
+**Dopuna istog dana — dva doćerivanja po povratnoj informaciji:**
+
+1. „Trening u toku" na dashboardu sada traži i **bar jednu upisanu seriju** —
+   isto pravilo kao „ko trenira sada". Sesija nastaje čim se ekran treninga
+   otvori, pa je i bacanje pogleda na raspored prikazivalo trening u toku;
+   sada otvoren ekran bez upisa nije trening. (`todayInProgress` +
+   `dayHasTraining` i za današnji dan.)
+2. Sadržaj velikog dugmeta se pri listanju dana više ne mijenja naglo: rađa se
+   iznova (`faceKey` + `ngFor` trik) i uklizi iz smjera listanja — nazad
+   slijeva, naprijed zdesna — a boje stanja se pretapaju prelazom umjesto
+   preskoka. Uz `prefers-reduced-motion` animacija je ugašena. Provjereno i da
+   je dugme u SVIM stanjima tačno iste širine (300px), pa strelice uvijek
+   stoje na istom mjestu — ranija verzija reda sa strelicama u toku je dugme
+   stiskala kad je natpis duži.

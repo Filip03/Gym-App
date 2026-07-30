@@ -91,6 +91,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   /** Izabrani dan (YYYY-MM-DD). Danas = normalan rad; ranije = samo pregled. */
   selectedDate = '';
   showDatePicker = false;
+  /**
+   * Ključ sadržaja dugmeta: svaka promjena dana ga uveća, pa se sadržaj
+   * ponovo rodi i odsvira ulaznu animaciju — bez ovoga se tekst samo naglo
+   * zamijeni. Smjer klizanja prati smjer listanja (nazad ulazi slijeva).
+   */
+  faceKey = 0;
+  slideDir: -1 | 0 | 1 = 0;
   /** Za ranije dane: da li tog dana postoji ijedan upis. */
   dayHasTraining = false;
   /** Za ranije dane: da li sesija uopšte postoji (bez nje ne znamo ni tip dana). */
@@ -221,6 +228,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (token !== this.dayLoadToken) return;
         this.todayFinished = !!times.finishedAt;
         this.todayStartedAt = times.startedAt;
+
+        // I za danas: „u toku" tek od PRVE upisane serije. Sesija nastaje čim
+        // se ekran treninga otvori, pa bi inače i bacanje pogleda na raspored
+        // prikazalo trening u toku — isto pravilo kao „ko trenira sada".
+        if (times.startedAt && !times.finishedAt) {
+          const session = await this.trainingService.getSessionByDate(this.currentUserId, this.selectedDate);
+          if (token !== this.dayLoadToken) return;
+          if (session) {
+            const logs = await this.trainingService.getSessionLogs(session.id);
+            if (token !== this.dayLoadToken) return;
+            this.dayHasTraining = logs.length > 0;
+          }
+        }
       }
     } catch {
       // Traka je informativna — ako se dan ne može učitati, ostaje samo naziv.
@@ -230,7 +250,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
   selectDate(iso: string) {
     this.showDatePicker = false;
     if (!iso || iso === this.selectedDate) return;
+    this.slideDir = iso > this.selectedDate ? 1 : -1;
     this.selectedDate = iso;
+    this.faceKey++;
     void this.loadDay();
   }
 
@@ -345,6 +367,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
    */
   get todayInProgress(): boolean {
     if (this.todayFinished || !this.todayStartedAt) return false;
+    if (!this.dayHasTraining) return false;   // otvoren ekran još nije trening
     return Date.now() - new Date(this.todayStartedAt).getTime() < 4 * 3_600_000;
   }
 

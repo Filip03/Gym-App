@@ -823,6 +823,42 @@
   50%      { opacity: .3; }
 }
 
+// Sadržaj dugmeta — rađa se iznova pri promjeni dana (vidi faceKey) i uklizi
+// iz smjera listanja. Boje stanja dugmeta se pretapaju, ne preskaču.
+.start-btn {
+  transition: background-color var(--d-base) var(--ease),
+              border-color var(--d-base) var(--ease),
+              color var(--d-base) var(--ease);
+}
+
+.btn-face {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-width: 0;
+  animation: face-in 240ms var(--ease-out) both;
+}
+.btn-face.from-left  { animation-name: face-in-l; }
+.btn-face.from-right { animation-name: face-in-r; }
+
+@keyframes face-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes face-in-l {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes face-in-r {
+  from { opacity: 0; transform: translateX(12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-face { animation: none; }
+}
+
 // Red sa strelicama: dugme zadržava TAČNO širinu bloka (ista mjera kao traka
 // ispod — ona je njegov produžetak), a strelice vise IZVAN te širine, bez
 // okvira — samo znak. Tako je cjelina šira, a dugme i traka ostaju poravnati.
