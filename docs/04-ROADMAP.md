@@ -88,7 +88,7 @@ Cilj: ono što je zapravo bila poenta — takmičenje i zabava u grupi.
 | 3.1 | Feed: ko je danas trenirao, čiji je PR pao | D7 | ☑ GOTOVO — ekran „Ekipa“ |
 | 3.2 | Blog kao prava objava — autor, opis, reakcije, brisanje | D8 | ☐ ČEKA |
 | 3.3 | Prikaz ko prati moj plan | D10 | ☐ ČEKA |
-| 3.4 | Push notifikacije (PWA infrastruktura već postoji) | D9 | ☐ ČEKA |
+| 3.4 | Push notifikacije (PWA infrastruktura već postoji) | D9 | ◐ U TOKU — registracija tokena i slanje potvrđeni uživo lokalno (ADR-0002), fali samo deploy backenda |
 | 3.5 | Proširen leaderboard: po mišićnoj grupi, po tonaži, sedmični | — | ◐ U TOKU — opsezi i „Sve vrijeme“ gotovi |
 
 ---
