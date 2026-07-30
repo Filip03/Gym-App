@@ -567,3 +567,27 @@ html.theme-anim *::after {
   html.theme-anim *::before,
   html.theme-anim *::after { transition: none !important; }
 }
+
+// Prelaz teme kroz View Transitions: NOVA tema se otkriva MEKOM ivicom koja
+// putuje odozgo nadolje — stara slika mirno stoji ispod dok je talas ne spere.
+// Maska je 220% visine sa mekim prelazom u sredini, pa ivica nikad nije oštra.
+// MEKI MORF: stara slika blago potone i izblijedi, nova udahne kroz jedva
+// primjetan zoom (0.8%) — fluidno i moderno, bez ivica i bez bljeska.
+::view-transition-old(root) {
+  animation: vt-old 380ms cubic-bezier(.4, 0, .2, 1) both;
+}
+::view-transition-new(root) {
+  animation: vt-new 380ms cubic-bezier(.4, 0, .2, 1) both;
+}
+
+@keyframes vt-old {
+  to { opacity: 0; transform: scale(.992); }
+}
+@keyframes vt-new {
+  from { opacity: 0; transform: scale(1.008); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}

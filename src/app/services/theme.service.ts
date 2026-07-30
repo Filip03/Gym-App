@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, NgZone } from '@angular/core';
 
 const THEME_KEY = 'gymapp.theme';
 export type Theme = 'dark' | 'light';
@@ -29,7 +29,7 @@ export class ThemeService {
 
   theme: Theme = (localStorage.getItem(THEME_KEY) === 'light') ? 'light' : 'dark';
 
-  constructor() {
+  constructor(private zone: NgZone) {
     this.apply();
   }
 
@@ -44,12 +44,27 @@ export class ThemeService {
    * pozadine cijelog ekrana ne treba dramu.
    */
   toggle() {
-    this.switchTo(this.theme === 'light' ? 'dark' : 'light');
+    const next: Theme = this.theme === 'light' ? 'dark' : 'light';
+
+    // Moderan, fluidan prelaz: View Transitions — pregledač snimi staro i novo
+    // stanje ekrana, a CSS (vidi _base.scss) novu temu OTKRIVA mekim talasom
+    // odozgo nadolje. Gdje API ne postoji (stariji Safari) ili je pokret
+    // isključen, ostaje nježno pretapanje boja.
+    const doc = document as any;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (doc.startViewTransition && !reduced) {
+      // U zoni! — callback ide van Angulara, pa bez ovoga natpisi i prekidač
+      // ostanu na starom stanju dok nešto drugo ne pokrene provjeru promjena.
+      doc.startViewTransition(() => this.zone.run(() => this.switchTo(next, true)));
+      return;
+    }
+    this.switchTo(next);
   }
 
-  private switchTo(next: Theme) {
+  private switchTo(next: Theme, skipCrossfade = false) {
     this.theme = next;
     localStorage.setItem(THEME_KEY, this.theme);
+    if (skipCrossfade) { this.apply(); return; }   // talas režira View Transition
 
     // Kućno pravilo: nijedna promjena stanja bez pokreta — pa ni tema. Klasa
     // na <html> nakratko upali globalno pretapanje boja (vidi _base.scss),
