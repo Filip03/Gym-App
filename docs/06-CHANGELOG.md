@@ -2606,7 +2606,6 @@ lightbox provjeren statički (z-indeksi).
 **Napomene:** Pravilo za dalje: novo mjesto sa avatarom = samo atribut, nikakve
 metode u komponenti.
 
-<<<<<<< HEAD
 ---
 
 ## [2026-07-30] Istorija treninga — listanje po danima sa dashboarda
@@ -2749,7 +2748,6 @@ dashboarda. Dva konflikta riješena unijom: konstruktor treninga dobio i njegov
 jedna upisana serija" — ono pokriva i njegov uslov za rest day
 (`todayCount === 0`), a bolje radi kad neko ipak trenira na rest day.
 `env.ts` po običaju vraćen na lokalni Supabase.
-=======
 ## [2026-07-30] Push notifikacije — Firebase Cloud Messaging preko Spring Boot servisa
 **Tip:** funkcionalnost
 **Ref:** Roadmap 3.4 (D9), ADR-0002
@@ -2805,4 +2803,3 @@ token` u backend logu, bez greške. Tri bagova nađena i popravljena usput:
 **Napomene:** Backend trenutno radi samo lokalno (`localhost:8080`) — deploy
 je zasebna, namjerno odložena odluka (vidi ADR-0002, Posljedice). Rad je na
 grani `feature/fcm-push-notifications`, ne na `main`.
->>>>>>> feature/fcm-push-notifications

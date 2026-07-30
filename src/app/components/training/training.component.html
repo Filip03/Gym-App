@@ -11,10 +11,7 @@
       <span class="plan-name">{{ session.planName }}</span>
       <span class="view-date num" *ngIf="viewOnly">{{ todayDate | date:'dd.MM.yyyy.' }}</span>
     </div>
-<<<<<<< HEAD
-    <div class="header-right" *ngIf="!viewOnly">
-=======
-    <div class="header-right">
+    <div class="header-right" *ngIf="viewOnly">
       <button type="button" class="reorder-btn" [class.on]="restTimer.enabled"
               *ngIf="!reordering" (click)="restTimer.toggle()"
               [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
@@ -25,7 +22,6 @@
              [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
              title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
       <span class="rest-timer-unit" *ngIf="!reordering && restTimer.enabled">min</span>
->>>>>>> feature/fcm-push-notifications
       <button type="button" class="reorder-btn" *ngIf="!reordering"
               (click)="openAdd()" title="Dodaj vježbu za danas">
         <i class="material-icons">add</i>
