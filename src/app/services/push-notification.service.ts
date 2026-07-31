@@ -115,11 +115,16 @@ export class PushNotificationService {
       // Dok je aplikacija otvorena i u fokusu, service worker (onBackgroundMessage)
       // se ne poziva — FCM ide kroz onMessage, pa notifikaciju moramo sami prikazati
       // (inače korisnik ne vidi ništa, poruka samo tiho stigne).
+      // Poruke su namjerno BEZ "notification" payload-a (samo "data") — vidi
+      // napomenu u backend NotificationServiceImpl.dataOf(). Sa "notification"
+      // poljem, browser zna sam prikazati notifikaciju UZ ovaj ručni prikaz,
+      // pa korisnik dobije istu poruku dvaput.
       onMessage(this.messaging, (payload) => {
-        const title = payload.notification?.title ?? 'GymApp';
+        const title = payload.data?.['title'] ?? 'GymApp';
         registration.showNotification(title, {
-          body: payload.notification?.body,
+          body: payload.data?.['body'],
           icon: '/assets/icons/icon-192x192.png',
+          image: payload.data?.['image'],
           data: payload.data
         });
       });

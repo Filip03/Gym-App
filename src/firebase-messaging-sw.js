@@ -20,11 +20,15 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Poruke su namjerno BEZ "notification" payload-a (samo "data") — sa
+// "notification" poljem browser zna sam prikazati notifikaciju UZ ovaj ručni
+// prikaz, pa korisnik dobije istu poruku dvaput.
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title ?? 'GymApp';
+  const title = payload.data?.title ?? 'GymApp';
   self.registration.showNotification(title, {
-    body: payload.notification?.body,
+    body: payload.data?.body,
     icon: '/assets/icons/icon-192x192.png',
+    image: payload.data?.image,
     data: payload.data
   });
 });
