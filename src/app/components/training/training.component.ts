@@ -14,7 +14,7 @@ import {
   TrainingService, WorkoutSession, SessionExercice, Echo, EchoSet, EchoDropset, Side
 } from '../../services/training.service';
 import { DropsetLog } from '../../models/models';
-import { prHaptics } from '../../shared/haptics';
+import { progressHaptics } from '../../shared/haptics';
 import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../../shared/warmup-grace';
 
 /** Poređenje jedne serije sa istom serijom prošlog treninga. */
@@ -500,7 +500,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.celebrateKey = Date.now();
     ex.celebrating = true;
     this.audio.play('record');
-    prHaptics();   // telefon zavibrira uz plamen (gdje uređaj umije)
+    progressHaptics('record');   // najjača vibracija — uz plamen (gdje uređaj umije)
     setTimeout(() => ex.celebrating = false, 1800);   // dužina snimka
   }
 
@@ -710,6 +710,17 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     });
     const entry = mkEntry(sides[0]);
 
+    // Vibracija po veličini trenutka, JEDNOM po upisu (ne po strani): rekord
+    // dobija svoju najjaču u refreshPr (uz plamen); bez rekorda — veća kilaža
+    // od prošlog puta srednju, više ponavljanja kratku. Poređenje se računa
+    // unaprijed jer `accept` čisti formu.
+    const cmp = this.compare(ex.echo, setNumber, weight, reps, sides[0]);
+    const buzzProgress = () => {
+      if (ex.celebrating) return;   // rekord je već odsvirao jaču
+      if (cmp.weightDelta === 'up') progressHaptics('weight');
+      else if (cmp.repsDelta === 'up') progressHaptics('reps');
+    };
+
     const accept = (id: string, pending: boolean, side: Side = sides[0]) => {
       ex.loggedSets.push({
         id,
@@ -739,6 +750,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     // Bez mreže se ni ne pokušava — odmah u red, bez čekanja na istek veze.
     if (!navigator.onLine) {
       sides.forEach(side => accept(this.queue.enqueue(mkEntry(side)).id, true, side));
+      buzzProgress();
       this.restTimer.restart();
       ex.saving = false;
       return;
@@ -749,6 +761,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
         const saved = await this.trainingService.logSet(mkEntry(side));
         accept(saved.id, false, side);
       }
+      buzzProgress();
       this.restTimer.restart();
     } catch (err: any) {
       // Samo pad MREŽE ide u red. Odbijanje od baze (npr. prekršeno pravilo)

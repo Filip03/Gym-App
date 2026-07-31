@@ -3378,3 +3378,23 @@ red na telefonima, plus izvedena analiza njegovih izmjena van repoa:
 3. **`supabase/cloud/README.md`** — statusi migracija ažurirani po stvarnom
    stanju clouda (REST provjere 31.07.): workout_sessions, bodyweight,
    unilateral i news su primijenjene.
+
+---
+
+## [2026-07-31] Gradirane vibracije napretka
+**Tip:** funkcija
+
+Vibracija je dosad postojala samo za rekord i bila prekratka/pretiha na
+telefonu (Markova primjedba iz teretane). Sada tri jačine, po veličini
+trenutka (`src/app/shared/haptics.ts` — `progressHaptics(tier)`):
+
+- **'reps'** — više ponavljanja nego prošli put: kratak tap (Light impact / 45ms).
+- **'weight'** — veća kilaža nego prošli put: dva srednja udarca (~300ms).
+- **'record'** — novi lični rekord: kreščendo od tri teška udarca + dugi zvon
+  (~1.2s), prati animaciju plamena; u nativnoj ljusci ide kroz Capacitor
+  Haptics (radi i na iPhoneu), na webu `navigator.vibrate`.
+
+Okidanje u `saveLog` (`training.component.ts` — `buzzProgress()`): jednom po
+upisu (ne po L/D strani), poređenje sa istom serijom prošlog treninga
+(`compare`); rekord ima prednost (vibrira iz `refreshPr` uz plamen, manje se
+tada preskaču). Bez poređenja (prvi put) — bez vibracije.
