@@ -30,7 +30,7 @@
   left: var(--s-5);
   width: 44px;
   height: 2px;
-  background: var(--volt);
+  background: var(--volt-fill);
   border-radius: var(--r-full);
   box-shadow: 0 0 12px -2px var(--volt);
 }
@@ -58,7 +58,7 @@
   min-height: 40px;
   padding: 0 var(--s-4);
 
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
   border-radius: var(--r-sm);
   font-family: var(--font-display);
@@ -103,7 +103,7 @@
 .work-bar {
   display: block;
   height: 100%;
-  background: var(--volt);
+  background: var(--volt-fill);
   border-radius: var(--r-full);
   transition: width var(--d-base) var(--ease);
 }
@@ -245,13 +245,13 @@
   height: 54px;
   border-radius: var(--r-full);
 
-  background: rgba(6, 8, 11, .68);
+  background: color-mix(in srgb, var(--void) 68%, transparent);
   border: 1px solid var(--line-strong);
   color: var(--ice);
 }
 
 .play .material-icons { font-size: 30px; }
-.post-media:hover .play { background: var(--volt); color: var(--volt-ink); }
+.post-media:hover .play { background: var(--volt-fill); color: var(--volt-ink); }
 
 @keyframes post-in {
   from { opacity: 0; transform: translateY(14px); }
@@ -280,6 +280,7 @@
 // Ranije `inset: 0`: dugme za izlaz je završavalo uz samu ivicu ekrana, ispod
 // pregledačeve trake, pa se na telefonu nije moglo pogoditi. Sada je unutar
 // vidljivog dijela, kao i sve ostalo.
+// Pregled slika je MRAK u OBJE teme — fotografije se gledaju na crnom, pa
 .lb {
   position: fixed;
   top: calc(var(--header-h) + var(--safe-t));
@@ -304,6 +305,13 @@
   // Sadržaj se centrira unutar samog polja, ne rastezanjem reda.
   align-items: stretch;
 
+  // Podloga pregleda PRATI temu, ne ostaje crna.
+  //
+  // Sav sadržaj pregleda je na tokenima koji se okreću sa temom — ime
+  // (--ice), datum (--mist), brojač (--dust), dugmad (--carbon-high). Da je
+  // podloga stalno skoro crna, u svijetloj temi bi tekst na njoj nestao.
+  // Isti izbor je već napravljen na `.post-media img`, gdje okvir oko slike
+  // takođe koristi --void.
   background: rgba(3, 5, 7, .94);
   animation: lb-in var(--d-base) var(--ease-out) both;
 }
@@ -319,7 +327,7 @@
   // Više prostora od vrha. Ranije je dugme za izlaz bilo zalijepljeno za samu
   // ivicu ekrana — tamo gdje je pregledačeva traka i gdje palac teško dohvata.
   padding: var(--s-4);
-  background: linear-gradient(180deg, rgba(3, 5, 7, .9) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(3, 5, 7, .90) 0%, transparent 100%);
 }
 
 .lb-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -348,7 +356,7 @@
   height: 44px;
   border-radius: var(--r-full);
 
-  background: rgba(19, 26, 34, .92);
+  background: color-mix(in srgb, var(--carbon-high) 92%, transparent);
   border: 1px solid var(--line-strong);
   color: var(--ice);
 }
@@ -404,7 +412,7 @@
   height: 44px;
   margin: 0 var(--s-2);
   border-radius: var(--r-full);
-  background: rgba(19, 26, 34, .8);
+  background: color-mix(in srgb, var(--carbon-high) 80%, transparent);
   color: var(--ice);
 }
 
@@ -440,4 +448,29 @@
 
 @media (prefers-reduced-motion: reduce) {
   .post, .lb, .work-bar.indeterminate { animation: none; }
+}
+
+// --- Ulazne animacije — isti jezik kao ostatak aplikacije ------------------
+// Objave izranjaju odozdo talasom (kašnjenje po objavi iz šablona), naslovi
+// grupa stižu korak ranije. `backwards` da kašnjenje ne pokaže goli sadržaj.
+
+.group > h3, .group > .group-head { animation: post-head-in 420ms var(--ease-out) backwards; }
+
+// I sama ploča ulazi — da i prazan blog (bez ijedne objave) ima isti ulaz
+// kao ostali ekrani, a ne da samo pukne na ekran.
+.sec { animation: post-in 520ms var(--ease-spring) backwards; }
+
+.post { animation: post-in 520ms var(--ease-spring) backwards; }
+
+@keyframes post-in {
+  from { opacity: 0; transform: translateY(14px) scale(.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes post-head-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post, .group > h3, .group > .group-head { animation: none; }
 }

@@ -10,6 +10,7 @@ import {
 } from '../shared/exercice-picker/exercice-picker.component';
 import { formatIsoDate } from '../shared/date-picker/date-picker.component';
 import { PushNotificationService } from '../../services/push-notification.service';
+import { ThemeService } from '../../services/theme.service';
 
 /** Jedno polje u kalendaru treninga. */
 interface CalCell {
@@ -229,7 +230,8 @@ export class ProfileComponent implements OnInit {
     private profileService: ProfileService,
     private exerciceService: ExerciceService,
     private route: ActivatedRoute,
-    public push: PushNotificationService
+    public push: PushNotificationService,
+    public theme: ThemeService
   ) {}
 
   // --- Notifikacije --------------------------------------------------------
@@ -238,9 +240,24 @@ export class ProfileComponent implements OnInit {
   // ODBIJENA, sajt je ne može ponovo tražiti — jedino što možemo je reći
   // korisniku gdje da je upali ručno. Zato tekst ispod prekidača.
   pushBusy = false;
+  /** Koji je klizač upravo pritisnut — kap mastila puca na svaki klik. */
+  switchPulse: 'theme' | 'push' | null = null;
+  private pulseTimer: any = null;
+
+  private pulse(which: 'theme' | 'push') {
+    this.switchPulse = which;
+    clearTimeout(this.pulseTimer);
+    this.pulseTimer = setTimeout(() => this.switchPulse = null, 500);
+  }
+
+  toggleTheme() {
+    this.pulse('theme');
+    this.theme.toggle();
+  }
 
   async togglePush() {
     if (this.pushBusy) return;
+    this.pulse('push');
     this.pushBusy = true;
     try {
       await this.push.setEnabled(!this.push.enabled);

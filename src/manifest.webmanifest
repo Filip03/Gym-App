@@ -1,8 +1,8 @@
 {
   "name": "gym-app",
   "short_name": "gym-app",
-  "theme_color": "#1976d2",
-  "background_color": "#fafafa",
+  "theme_color": "#06080B",
+  "background_color": "#06080B",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",

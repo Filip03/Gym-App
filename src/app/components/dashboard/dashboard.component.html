@@ -68,7 +68,7 @@
     <div class="dashboard-container">
 
     <p *ngIf="loading">Učitavanje...</p>
-    <p *ngIf="errorMessage" style="color: red;">{{ errorMessage }}</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 
     <div class="sections" *ngIf="!loading && !errorMessage">
 

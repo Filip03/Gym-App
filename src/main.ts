@@ -3,6 +3,13 @@ import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
 
 import { AppModule } from './app/app.module';
 
+// Tema se primjenjuje PRIJE bootstrapa — inače svijetli korisnik pri svakom
+// otvaranju vidi bljesak tamne teme dok se Angular podiže.
+document.documentElement.setAttribute(
+  'data-theme',
+  localStorage.getItem('gymapp.theme') === 'light' ? 'light' : 'dark'
+);
+
 
 /**
  * U razvoju se skida svaki zaostali service worker.

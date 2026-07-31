@@ -221,3 +221,21 @@ Pravila:
 Referentne implementacije: tajmer-ostrvo (`training.component.scss`) i
 split-flap natpis dugmeta (`dashboard.component.scss`). Pun recept:
 `.claude/skills/tecne-animacije/SKILL.md`.
+
+---
+
+## Polja za kucanje — bez zumiranja (obavezno)
+
+Svako polje (`input`, `textarea`, `select`) veličinu fonta propušta kroz:
+
+```scss
+font-size: max(<željena>, var(--t-field-min));
+```
+
+Token (`_tokens.scss`) je `0px` na mišu i `16px` na dodirnom ekranu. Bez ovoga
+iOS zumira cijelu stranicu pri fokusu polja i ne vrati zum — u nativnoj ljusci
+se ne može ni ručno odzumirati. Komponentni stilovi se učitavaju POSLIJE
+globalnih, pa pravilo koje samo postavi `font-size` tiho probije zaštitu.
+
+Brza revizija: potražiti `font-size` u selektorima sa poljima bez
+`t-field-min` (rupa se već dvaput potkrala).

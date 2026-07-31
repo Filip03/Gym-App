@@ -47,6 +47,7 @@
       <h3 class="group-label">{{ g.label }}</h3>
 
       <article class="post" *ngFor="let item of g.items; let i = index"
+               [style.animation-delay.ms]="gi * 120 + i * 70"
                [class.mine]="isMine(item)"
                [style.animation-delay.ms]="Math.min(gi * 90 + i * 60, 700)">
 
