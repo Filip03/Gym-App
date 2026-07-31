@@ -1,26 +1,74 @@
 <div class="start-block">
-    <button type="button" class="start-btn" [class.done]="todayFinished"
-            [class.live]="todayInProgress" (click)="goToTraining()">
-        <i class="material-icons" *ngIf="todayFinished">check_circle</i>
-        <span class="live-dot" *ngIf="todayInProgress"></span>
-        {{ todayFinished ? 'Trening završen'
-           : todayInProgress ? 'Trening u toku' : 'Započni trening' }}
-        <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
-    </button>
+    <div class="start-row">
+        <!-- Listanje po danima: dan nazad / dan naprijed -->
+        <button type="button" class="day-arrow left" (click)="shiftDay(-1)" aria-label="Dan ranije">
+            <i class="material-icons">chevron_left</i>
+        </button>
 
+        <button type="button" class="start-btn" [class.done]="isToday && todayFinished"
+                [class.live]="todayInProgress" [class.history]="isPast && dayHasTraining"
+                [class.rest]="isToday && isRestSelected"
+                [class.ghosted]="startDisabled" [disabled]="startDisabled"
+                [title]="isToday && isRestSelected ? 'Rest day — otvori ako ipak treniraš' : ''"
+                (click)="startOrView()">
+            <!-- Odlazeći natpis: bježi gore kao JEDAN komad, SA svojom ikonom. -->
+            <span class="btn-face out" *ngIf="outFace" aria-hidden="true">
+              <i class="material-icons" *ngIf="outFace.icon">{{ outFace.icon }}</i>
+              <span class="live-dot" *ngIf="outFace.dot"></span>
+              {{ outFace.label }}
+            </span>
+
+            <!-- Novi natpis se rađa tek kad podaci dana stignu (faceKey), pa
+                 slova uklizaju odozdo sa gotovim tekstom — bez treptaja. -->
+            <span class="btn-face" *ngIf="!pendingFace" [attr.data-k]="faceKey">
+              <ng-container *ngFor="let k of [faceKey]">
+                <i class="material-icons in-ch" [style.animation-delay.ms]="CH_IN_BASE"
+                   *ngIf="faceIcon">{{ faceIcon }}</i>
+                <span class="live-dot" *ngIf="todayInProgress"></span>
+                <span class="label-chs"><span class="ch in-ch"
+                      *ngFor="let ch of chars(startLabel); let i = index"
+                      [style.animation-delay.ms]="delayFor(i, startLabel.length)">{{ ch }}</span></span>
+                <span class="live-time num" *ngIf="todayInProgress">{{ elapsedLabel }}</span>
+              </ng-container>
+            </span>
+        </button>
+
+        <button type="button" class="day-arrow right" (click)="shiftDay(1)" aria-label="Dan kasnije">
+            <i class="material-icons">chevron_right</i>
+        </button>
+    </div>
+
+    <!-- Mreža 1fr|auto|1fr: čip skroz lijevo U TOKU (ne apsolutno — apsolutni
+         je mijenjao visinu trake), dan i tip matematički centrirani. -->
     <div class="start-today" *ngIf="todayName">
-        <span class="st-day">{{ todayName }}</span>
-        <span class="st-sep" *ngIf="todayType">·</span>
-        <span class="st-type" *ngIf="todayType">{{ todayType }}</span>
-        <span class="st-type rest" *ngIf="!todayType">Rest day</span>
+        <span class="st-left">
+            <!-- Kalendar: skok na bilo koji datum — istorija treninga -->
+            <button type="button" class="date-btn" (click)="showDatePicker = true"
+                    title="Izaberi datum">
+                <i class="material-icons">calendar_month</i>
+                <span class="num">{{ selectedDate | date:'d.M' }}</span>
+            </button>
+        </span>
+        <span class="st-mid">
+            <span class="st-day">{{ todayName }}</span>
+            <span class="st-sep" *ngIf="todayType">·</span>
+            <span class="st-type" *ngIf="todayType">{{ todayType }}</span>
+            <span class="st-type rest" *ngIf="!todayType && (isToday || isFuture)">odmor</span>
+        </span>
+        <span class="st-right"></span>
     </div>
 </div>
+
+<app-date-picker *ngIf="showDatePicker" [value]="selectedDate"
+                 title="Istorija treninga"
+                 (pick)="selectDate($event)"
+                 (dismiss)="showDatePicker = false"></app-date-picker>
 
 <div class="wrapper">
     <div class="dashboard-container">
 
     <p *ngIf="loading">Učitavanje...</p>
-    <p *ngIf="errorMessage" style="color: red;">{{ errorMessage }}</p>
+    <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 
     <div class="sections" *ngIf="!loading && !errorMessage">
 
@@ -72,8 +120,9 @@
     <!-- Ko je BAŠ SAD u teretani.
          Na dnu, poslije planova — nije to zbog čega se ekran otvara, ali je
          prijatno vidjeti. Prikazuje se UVIJEK, i kad nema nikoga: prazno polje
-         govori da funkcija postoji, a nestanak bi izgledao kao kvar. -->
-    <div class="live" *ngIf="!loading && !errorMessage">
+         govori da funkcija postoji, a nestanak bi izgledao kao kvar. Namjerno
+         NE visi na errorMessage — greška planova ne smije odnijeti i ovo. -->
+    <div class="live" *ngIf="!loading">
         <div class="live-head">
             <span class="dot-live" [class.off]="live.length === 0"></span>
             <span class="live-title">Trenira sada</span>
@@ -91,7 +140,10 @@
                 <i class="material-icons" *ngIf="!l.avatarUrl">person</i>
             </div>
             <span class="live-name">{{ l.username }}</span>
-            <span class="live-sets num">{{ l.sets }} serija</span>
+            <!-- Dva *ngIf-a namjerno: kad padne prva serija, stari span umre a
+                 novi se RODI, pa ulazna animacija odsvira prelaz. -->
+            <span class="live-sets warming" *ngIf="l.warmingUp">zagrijava se</span>
+            <span class="live-sets num" *ngIf="!l.warmingUp">{{ l.sets }} serija</span>
             <span class="live-time num">{{ liveTime(l.minutes) }}</span>
         </div>
     </div>
@@ -102,6 +154,10 @@
 <div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
   <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
     <h2>{{ editingPlanId ? 'Izmijeni plan' : 'Novi plan' }}</h2>
+    <p class="modal-note" *ngIf="adaptingFromPlanId">
+      Pravi se tvoj novi plan na osnovu ovog rasporeda — original ostaje nepromijenjen.
+      Naziv i opis su obavezni.
+    </p>
 
     <form (ngSubmit)="onSubmitPlan()" #planForm="ngForm">
 
@@ -114,7 +170,8 @@
 
         <div class="form-group">
           <label for="description">Opis</label>
-          <textarea id="description" name="description" [(ngModel)]="newPlanDescription" rows="2"></textarea>
+          <textarea id="description" name="description" [(ngModel)]="newPlanDescription" rows="2"
+                    [required]="!!adaptingFromPlanId"></textarea>
         </div>
 
         <div class="form-group">
@@ -231,6 +288,14 @@
               (click)="toggleFollowPlan($event)"
             >
               {{ isFollowing ? 'Prestani pratiti' : 'Prati plan' }}
+            </button>
+            <button
+              type="button"
+              class="edit-plan-btn"
+              *ngIf="!isOwnPlan"
+              (click)="adaptPlan()"
+            >
+              Prilagodi sebi
             </button>
           </div>
         </div>

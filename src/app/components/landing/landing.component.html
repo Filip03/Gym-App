@@ -1,4 +1,32 @@
-<div class="landing" [class.fade-out]="fadeOut">
-    <img src="assets/logo.png">
-    <p><span>Jeba</span> ne smije da stane</p>
+<!-- Splash: kratak udarac (pljesak krede prije dizanja), iz kojeg izranja
+     identitet. Klik/dodir bilo gdje preskače na login (vidi skip()). -->
+<div class="landing" [class.leaving]="fadeOut" (click)="skip()">
+
+  <!-- Mekan sjaj iza identiteta — statičan, samo da ekran ne bude ravna ploča. -->
+  <div class="veil" aria-hidden="true"></div>
+
+  <div class="identity">
+
+    <div class="mark-wrap">
+      <!-- Oblak krede: četiri mrlje, svaka bježi u svom pravcu — čupavo, ne
+           savršen krug. -->
+      <span class="puff p1" aria-hidden="true"></span>
+      <span class="puff p2" aria-hidden="true"></span>
+      <span class="puff p3" aria-hidden="true"></span>
+      <span class="puff p4" aria-hidden="true"></span>
+
+      <!-- Logo prati temu — svijetla ima svoju varijantu. -->
+      <img class="mark" alt="Jeba"
+           [src]="theme.isLight ? 'assets/logo_light_mode.png' : 'assets/logo.png'">
+    </div>
+
+    <p class="tagline">
+      <span class="lead">JEBA</span><span class="tail"> NE SMIJE DA STANE</span>
+    </p>
+
+    <div class="readout" aria-hidden="true">
+      <span class="bar-track"><span class="bar-fill"></span></span>
+    </div>
+
+  </div>
 </div>

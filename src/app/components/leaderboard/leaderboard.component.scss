@@ -35,7 +35,7 @@
   left: var(--s-5);
   width: 44px;
   height: 2px;
-  background: var(--volt);
+  background: var(--volt-fill);
   border-radius: var(--r-full);
   box-shadow: 0 0 12px -2px var(--volt);
 }
@@ -139,7 +139,7 @@
 }
 
 .dot.on {
-  background: var(--volt);
+  background: var(--volt-fill);
   box-shadow: 0 0 10px -3px var(--volt);
 }
 .dot.on em { color: var(--volt-ink); font-weight: 700; }
@@ -290,7 +290,7 @@
   top: -26px;
   font-size: 22px;
   color: var(--gold);
-  filter: drop-shadow(0 0 8px rgba(255, 201, 74, .5));
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gold) 50%, transparent));
   animation: crown-in 600ms var(--ease-spring) 480ms both;
 }
 
@@ -354,14 +354,17 @@
 .spot[data-rank="1"] .place { color: var(--volt-ink); }
 
 .spot[data-rank="2"] .avatar { border-color: var(--silver); }
+// Donji kraj gradijenta je tamnija stepenica ISTE boje, izračunata iz tokena.
+// Zakucana vrijednost je ostajala ista i kad se --silver u svijetloj temi
+// potamni, pa je blok gubio prelaz.
 .spot[data-rank="2"] .block::before {
-  background: linear-gradient(180deg, var(--silver) 0%, #7C8894 100%);
+  background: linear-gradient(180deg, var(--silver) 0%, color-mix(in srgb, var(--silver) 65%, #000) 100%);
 }
 .spot[data-rank="2"] .place { color: var(--void); }
 
 .spot[data-rank="3"] .avatar { border-color: var(--bronze); }
 .spot[data-rank="3"] .block::before {
-  background: linear-gradient(180deg, var(--bronze) 0%, #8A5934 100%);
+  background: linear-gradient(180deg, var(--bronze) 0%, color-mix(in srgb, var(--bronze) 64%, #000) 100%);
 }
 .spot[data-rank="3"] .place { color: var(--void); }
 
@@ -481,7 +484,7 @@
 .rank-row[data-rank="1"] .place,
 .rank-row[data-rank="1"] .rank-name,
 .rank-row[data-rank="1"] .rank-kg { color: var(--volt); }
-.rank-row[data-rank="1"] .bar { background: var(--volt); }
+.rank-row[data-rank="1"] .bar { background: var(--volt-fill); }
 
 .rank-row[data-rank="2"] .place,
 .rank-row[data-rank="2"] .rank-name,

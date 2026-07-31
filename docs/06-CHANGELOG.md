@@ -2605,3 +2605,1220 @@ lightbox provjeren statički (z-indeksi).
 
 **Napomene:** Pravilo za dalje: novo mjesto sa avatarom = samo atribut, nikakve
 metode u komponenti.
+
+---
+
+## [2026-07-30] Istorija treninga — listanje po danima sa dashboarda
+**Tip:** funkcionalnost
+
+**Problem:** Nije postojao način da se vidi raniji trening. Dugme „Započni
+trening" je znalo samo za danas — sve odrađeno juče ili prije nedjelju dana
+stajalo je u bazi, ali iz aplikacije nedostupno.
+
+**Rješenje:** U tri dijela — čitanje sesije po datumu, ekran treninga koji zna
+za režim pregleda, i listanje po danima na dashboardu.
+
+**1. `getSessionByDate` u `training.service`.** Javni omotač postojećeg
+privatnog `findSession`: vraća sesiju za dati datum BEZ pravljenja nove.
+Ključna odluka koju vrijedi zapisati: istorija se čita iz SESIJE tog dana, ne
+iz plana. Sesija je snimak — naziv dana, tip i vježbe u tadašnjem redoslijedu —
+pa kasnija promjena ili brisanje plana ne mijenja ono što je odrađeno.
+
+**2. Ekran treninga zna režim pregleda.** `?date=YYYY-MM-DD` u adresi, ako je
+različit od današnjeg datuma, uključuje `viewOnly`. `todayDate` tada nosi
+gledani datum, pa se duhovi, poređenja i lični rekord računaju u odnosu na TAJ
+dan — kako je izgledalo tada, ne danas. `isFinished` uključuje `viewOnly`, pa
+sve postojeće brave rade same: nema upisa, izmjene serije, ni dropseta.
+Dodatno je sakriveno ono što brave ne pokrivaju: zaglavlje sa
+Dodaj/Bilješka/Preuredi i dugme „Otvori ponovo" na traci završenog treninga;
+`toggleNote` je dobio bravu. Stvarna zamka bio je `queue.onFlushed` — u
+pregledu se NE kači, jer bi osvježavanje poslije prolaska reda napravilo sesiju
+za gledani datum. U zaglavlju stoji bedž sa datumom, a ako sesije za taj dan
+nema: „Tog dana nije bilo treninga."
+
+**3. Dashboard lista dane.** `selectedDate`, strelice ‹ › oko velikog dugmeta
+(dan nazad, dan naprijed) i dugme sa datumom u traci koje otvara postojeći
+`app-date-picker`. Stanja dugmeta:
+
+1. **danas** — tri postojeća stanja (Započni trening / Trening u toku sa
+   tajmerom / Trening završen);
+2. **raniji dan sa upisima** — „Pogledaj trening" ili „Završeni trening", vodi
+   na `/training?date=...`;
+3. **raniji dan bez upisa** — „Nije trenirano", ugašeno;
+4. **budući dan** — „Trening koji čeka", ugašeno, tip dana iz plana.
+
+Traka ispod dugmeta za ranije dane čita naziv i tip iz sesije (snimak), a za
+danas i buduće dane iz plana. `dayLoadToken` čuva od utrke: pri brzom listanju
+strelicama važi samo posljednje traženje.
+
+**Dizajn** (po povratnoj informaciji odmah u toku rada): strelice su bez
+okvira — samo volt ševroni koji vise IZVAN širine dugmeta, apsolutno
+pozicionirani, sa blagim „diši" pokretom ka strani na koju vode (ugašen uz
+`prefers-reduced-motion`). Dugme zadržava tačno širinu bloka (300px) da traka
+ispod ostane njegov produžetak. Stanja „istorija" i „ugašeno" koriste ISTI
+jezik kao postojeća `done`/`live` stanja: tamna podloga `#070B04`, volt
+odnosno utišan tekst.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts` — `getSessionByDate`
+- `src/app/components/training/training.component.ts` — `viewOnly`, čitanje
+  sesije po datumu, brave
+- `src/app/components/training/training.component.html`/`.scss` — bedž sa
+  datumom, sakriveno zaglavlje i „Otvori ponovo"
+- `src/app/components/dashboard/dashboard.component.ts` — `selectedDate`,
+  `loadDay`, `shiftDay`, `startLabel`, `startDisabled`, `dayLoadToken`
+- `src/app/components/dashboard/dashboard.component.html`/`.scss` — strelice,
+  dugme sa datumom, kalendar, stanja velikog dugmeta
+
+**Efekat:** Provjereno u pregledaču nad stvarnim podacima: 30.07. „Započni
+trening" (REST po planu); 29.07. „Nije trenirano", ugašeno; 28.07. „Završeni
+trening" otvara čitanje — PUSH dan sa bedžom 28.07.2026., serije L/D para i
+dropset grana vidljivi, a nijedno dugme za upis, meni, završetak ni ponovno
+otvaranje ne postoji u DOM-u; 31.07. „Trening koji čeka" (PULL iz plana),
+ugašeno.
+
+**Napomene:** Za dane prije uvođenja tabele `workout_sessions` sesije ne
+postoje, pa će stariji datumi pokazati „Nije trenirano" iako u `exercice_logs`
+možda ima upisa — svjesno ograničenje, evidentirano kao mogući kasniji fallback
+na same upise. Budući dani namjerno ne vode nikud: trening se ne može započeti
+unaprijed.
+
+**Dopuna istog dana — rest day:** dugme na rest day ne poziva „Započni trening"
+nego kaže „Rest day" (ikona `self_improvement`, ugašeno). Danas i ubuduće se
+čita iz plana (tip REST ili bez tipa), za ranije dane iz snimka sesije — i samo
+ako sesija postoji; bez nje ostaje „Nije trenirano", jer se bez sesije ne zna
+da li je bio odmor. Ako je neko ipak trenirao na rest day, upisi pobjeđuju:
+stanja treninga (u toku/završen/pogledaj) imaju prednost nad odmorom. Ekran
+treninga ostaje dostupan kroz donju navigaciju, pa se vanredni trening na rest
+day i dalje može odraditi.
+
+**Dopuna istog dana — dva doćerivanja po povratnoj informaciji:**
+
+1. „Trening u toku" na dashboardu sada traži i **bar jednu upisanu seriju** —
+   isto pravilo kao „ko trenira sada". Sesija nastaje čim se ekran treninga
+   otvori, pa je i bacanje pogleda na raspored prikazivalo trening u toku;
+   sada otvoren ekran bez upisa nije trening. (`todayInProgress` +
+   `dayHasTraining` i za današnji dan.)
+2. Sadržaj velikog dugmeta se pri listanju dana više ne mijenja naglo: rađa se
+   iznova (`faceKey` + `ngFor` trik) i uklizi iz smjera listanja — nazad
+   slijeva, naprijed zdesna — a boje stanja se pretapaju prelazom umjesto
+   preskoka. Uz `prefers-reduced-motion` animacija je ugašena. Provjereno i da
+   je dugme u SVIM stanjima tačno iste širine (300px), pa strelice uvijek
+   stoje na istom mjestu — ranija verzija reda sa strelicama u toku je dugme
+   stiskala kad je natpis duži.
+
+**Dopuna istog dana — split-flap natpis i datum-čip:** promjena natpisa na
+velikom dugmetu je sada po slovima: stara slova bježe GORE a nova ulaze ODOZDO,
+svako sa kašnjenjem od 22 ms po redu; pri listanju unazad kašnjenje teče
+obrnutim redom, pa se vidi i smjer. Novi natpis se rađa tek kad podaci dana
+stignu (`pendingFace`), pa slova animiraju konačan tekst — bez treptaja
+međustanja. Dugme je dobilo `overflow: hidden` da odbjegla slova ne vire, a uz
+`prefers-reduced-motion` sve je isključeno. Datum-čip: ikona `calendar_month`
+u volt boji, ispisuje se samo dan (`29.`) — mjesec je višak jer kalendar na
+klik ionako pokazuje sve.
+
+**Dopuna istog dana — smirivanje animacije dugmeta (četiri ispravke po
+povratnim informacijama):**
+
+1. Treptaj cijelog bloka pri pritisku: dugme na tren ostane bez sadržaja, a
+   PRAZAN inline-block pomjeri baseline reda pa sve ispod poskoči. `.start-row`
+   je sada flex (dugme flex stavka) — izmjereno: traka i visina dugmeta
+   nepomični kroz cijelu animaciju.
+2. Preklapanje starih i novih slova: stari natpis sada odlazi gore kao JEDAN
+   komad (130 ms), a talas po slovima ostaje samo na ulasku, sa baznim ofsetom
+   od 170 ms — na brzoj mreži su se ranije pola starog i pola novog teksta
+   znali sresti u nečitljiv hibrid, što je bio i uzrok „jerky" utiska pri
+   listanju unazad.
+3. Ikona stanja (pješčanik, odmor, istorija...) je nestajala u trenutku
+   promjene: odlazeći snimak sada nosi i ikonu i tačkicu „u toku"
+   (`outFace.icon/dot`), a četiri `*ngIf` ikone svedene na jedan `faceIcon`.
+4. Datum-čip: vraćen U TOK (apsolutni je mijenjao visinu trake i pomjerao
+   elemente) — traka je mreža `1fr auto 1fr`, čip skroz lijevo, dan i tip
+   matematički centrirani, sve u jednoj liniji (poravnanje izmjereno).
+
+---
+
+## [2026-07-30] Spajanje main: Filipov „plan adjust" i zaključavanje navigacije
+**Tip:** infrastruktura
+
+**Problem/Rješenje:** Filip je prihvatio naš PR (#5) i dodao `NavLockService`
+(strelica nazad zaključana dok je otvorena izmjena na treningu) i dorade
+dashboarda. Dva konflikta riješena unijom: konstruktor treninga dobio i njegov
+`navLock` i našu `route`; kod `todayInProgress` zadržano naše pravilo „bar
+jedna upisana serija" — ono pokriva i njegov uslov za rest day
+(`todayCount === 0`), a bolje radi kad neko ipak trenira na rest day.
+`env.ts` po običaju vraćen na lokalni Supabase.
+## [2026-07-30] Push notifikacije — Firebase Cloud Messaging preko Spring Boot servisa
+**Tip:** funkcionalnost
+**Ref:** Roadmap 3.4 (D9), ADR-0002
+
+**Problem:** Aplikacija nije imala način da pošalje push notifikaciju korisniku.
+PWA infrastruktura (`@angular/service-worker`) je postojala, ali slanje kroz
+Firebase Cloud Messaging traži tajni service account ključ koji ne smije da
+završi u browseru — direktan poziv iz Angulara ka FCM-u nije bio moguć.
+
+**Rješenje:** Napravljen zaseban Spring Boot servis ("Gym app backend", `dev/`)
+koji drži Firebase Admin SDK ključ i izlaže REST endpointe za slanje i za
+registraciju FCM tokena. Angular strana: dodat `firebase` (JS SDK) i ručno
+registrovan `firebase-messaging-sw.js` na zaseban scope (odvojeno od
+`ngsw-worker.js`, da se ne sudare). Poslije logina se traži dozvola, dobija se
+FCM token i šalje na backend uz Supabase JWT kao dokaz identiteta; prije
+signOut-a se token briše sa backend-a. Backend čuva `user_id ↔ token` u istoj
+Supabase Postgres bazi (Hibernate, tabela `device_tokens`), validira Supabase
+JWT preko JWKS-a, i briše token automatski kad FCM javi da je nevažeći.
+Detalji odluke (zašto Spring Boot umjesto Supabase Edge Function) u ADR-0002.
+
+**Dodirnuti fajlovi:**
+- `package.json` — nova zavisnost `firebase`
+- `src/environments/env.ts`, `env.prod.ts` — dodato `apiBaseUrl` i `firebase`
+  (config + VAPID ključ); `env.prod.ts.apiBaseUrl` je TODO placeholder dok
+  backend ne bude javno deployovan
+- `src/firebase-messaging-sw.js` — novo: service worker za pozadinske push poruke
+- `angular.json` — SW dodat u `build.options.assets`
+- `src/app/services/push-notification.service.ts` — novo: `registerForPush()`,
+  `unregisterFromPush()`
+- `src/app/components/login/login.component.ts` — poziva `registerForPush()`
+  poslije uspješnog logina (bez `await`, ne smije usporiti prijavu)
+- `src/app/components/footer/footer.component.ts` — poziva
+  `unregisterFromPush()` prije `signOut()`
+
+**Efekat:** Nakon logina se traži dozvola za notifikacije; ako se odobri, FCM
+token se registruje na backendu vezan za korisnika. Provjereno uživo (pravi
+nalog, `localhost:4300` ↔ `localhost:8080`, local Supabase profil): login →
+dozvola → FCM token → `POST /api/notifications/register-token` → `Authenticated
+token` u backend logu, bez greške. Tri bagova nađena i popravljena usput:
+
+1. `NimbusJwtDecoder.withJwkSetUri(...).build()` po defaultu očekuje RS256;
+   Supabase potpisuje sa ES256 (P-256) — trebalo je eksplicitno
+   `.jwsAlgorithm(SignatureAlgorithm.ES256)` (`SecurityConfig.java`).
+2. Custom audience validator je čitao `aud` preko `getClaimAsString("aud")`,
+   što vraća `null` kad Supabase pošalje `aud` kao listu, ne kao plain string —
+   zamijenjeno sa `jwt.getAudience().contains("authenticated")`, koje
+   normalizuje oba oblika (`SecurityConfig.java`).
+3. `getToken()` (Firebase SDK) poziva `PushManager.subscribe()` odmah nakon
+   `serviceWorker.register()`, dok je worker još "installing" —
+   `AbortError: no active Service Worker`. Dodato čekanje na `statechange`
+   događaj do `activated` prije poziva `getToken()` (`push-notification.service.ts`).
+
+**Napomene:** Backend trenutno radi samo lokalno (`localhost:8080`) — deploy
+je zasebna, namjerno odložena odluka (vidi ADR-0002, Posljedice). Rad je na
+grani `feature/fcm-push-notifications`, ne na `main`.
+
+---
+
+## [2026-07-30] Spajanje main (FCM notifikacije i tajmer pauze) — popravke i prekidač u profilu
+**Tip:** infrastruktura + popravka
+**Ref:** Filipov ADR-0002 (FCM push preko Spring Boot servisa)
+
+**Problem:** Sa `origin/main` je stiglo Filipovo veliko parče: FCM push
+notifikacije preko novog Spring Boot servisa (sada deployovanog na Renderu) i
+tajmer pauze između serija. Spajanje je, međutim, donijelo i četiri stvari koje
+su morale da se poprave prije nego što se na tome dalje gradi — od kojih je
+jedna obarala trening u cjelini. Uz to, notifikacije nisu imale nijedno mjesto
+u aplikaciji sa kojeg bi ih korisnik mogao ugasiti.
+
+**Šta je donio main (Filipovo, zadržano kako jeste):**
+
+- Push notifikacije preko FCM-a: `push-notification.service.ts` i
+  `firebase-messaging-sw.js` registrovan na SVOM scope-u (odvojeno od
+  `ngsw-worker.js`, da se dva service workera ne otimaju o `/`). Token se
+  registruje poslije prijave, a odjavljuje prije `signOut()`-a — dok Supabase
+  sesija još važi za `Authorization` zaglavlje. Novi paket `firebase` u
+  `package.json`.
+- Tajmer pauze između serija (`rest-timer.service.ts`): odbrojavanje se zakazuje
+  na BACKENDU kao prava push poruka, ne lokalnim `setTimeout`-om — lokalni
+  tajmer umre čim se telefon zaključa ili aplikacija zatvori, a push stiže i
+  tada. Restartuje se poslije SVAKOG upisa serije, pa je uvijek aktivan tačno
+  jedan. UI (prekidač i izbor trajanja) stoji u zaglavlju treninga.
+- `ADR-0002-fcm-push-preko-spring-boot.md` — obrazloženje zašto zaseban Spring
+  Boot servis umjesto Supabase Edge funkcije.
+
+**Rješenje — nađeni i popravljeni problemi:**
+
+1. **Zaglavlje treninga je bilo obrnuto.** Pri Filipovom rješavanju konflikata
+   uslov na `.header-right` je postao `*ngIf="viewOnly"` umjesto `!viewOnly` —
+   dakle dugmad Dodaj / Bilješka / Preuredi i cijela grupa tajmera postojali su
+   SAMO u pregledu istorije, a nestali sa živog treninga. Posljedica nije
+   kozmetička: na custom planu se trening bez dugmeta „Dodaj" ne može ni
+   započeti. Vraćeno na `!viewOnly` i provjereno u pregledaču — današnji trening
+   ima dugmad i grupu tajmera, pregled istorije nula.
+2. **`env.ts` sa main-a je opet gađao cloud, i nije se ni kompajlirao.** Nova
+   verzija je izgubila liniju `const host` koju šablonski string koristi, pa je
+   build pucao na `TS2304: Cannot find name 'host'`. Vraćen lokalni Supabase i
+   `host` linija; Filipov blok sa `firebase` konfiguracijom i `apiBaseUrl`
+   zadržan netaknut.
+3. **Odjava je tiho preskakala brisanje tokena.** `unregisterFromPush()` je
+   radio samo u SESIJI u kojoj je registracija urađena — poslije osvježavanja
+   stranice su `messaging` i `registration` bili `null`, pa je metoda izlazila
+   na prvom `if`-u iako token u pregledaču i dalje postoji. Rezultat: push bi
+   stizao i poslije odjave. Sada se registracija prvo obnovi kroz
+   `navigator.serviceWorker.getRegistration(FCM_SW_SCOPE)`, pa se tek onda
+   odlučuje ima li šta da se briše.
+4. **Token se registrovao samo pri ručnoj prijavi.** Postojana sesija — svako
+   osvježavanje stranice, svaki nov dan bez odjave — nikad nije prošla kroz
+   `registerForPush()`, pa uređaj ostaje bez notifikacija do sljedeće ručne
+   prijave. Dodat `ensureRegistered()`, koji se zove pri svakom pokretanju
+   aplikacije iz `app.component.ts`: tih je i ne otvara nikakav prompt, jer radi
+   samo ako je dozvola već `granted` i prekidač u aplikaciji uključen.
+
+**Novo — prekidač za notifikacije u profilu:** u profil je dodata sekcija
+„Notifikacije" sa prekidačem u aplikaciji (`gymapp.pushEnabled` u
+`localStorage`) i tekstom stanja dozvole pregledača ispod njega. Suština je u
+tome što se dozvola pregledača, kad je korisnik jednom ODBIJE, više ne može
+tražiti iz koda — sajt tu nema drugi potez osim da kaže gdje se pali ručno, i
+tekst ispod prekidača upravo to i radi. Pet stanja: uključeno / isključeno u
+aplikaciji / blokirano u pregledaču (sa uputstvom) / pregledač će pitati /
+nepodržano. `registerForPush()` sada poštuje prekidač, pa gašenje u aplikaciji
+znači i brisanje tokena sa backend-a. Provjereno u pregledaču: sekcija se
+prikazuje, prekidač mijenja i stanje i tekst, a uključivanje pri dozvoli
+`default` otvara pravi prompt pregledača.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html` — `*ngIf="!viewOnly"` na
+  `.header-right` (uz komentar zašto, da se pri sljedećem spajanju ne obrne
+  opet); `.scss` i `.ts` treninga sa main-a (UI tajmera)
+- `src/environments/env.ts` — vraćen `const host` i lokalni Supabase, zadržan
+  Filipov `firebase` / `apiBaseUrl` blok; `env.prod.ts` sa main-a
+- `src/app/services/push-notification.service.ts` — `enabled`, `permission`,
+  `setEnabled()`, `ensureRegistered()`; obnova registracije u
+  `unregisterFromPush()`; provjera prekidača u `registerForPush()`
+- `src/app/services/rest-timer.service.ts` — Filipov, nije diran
+- `src/app/app.component.ts` — `ensureRegistered()` pri pokretanju
+- `src/app/components/profile/profile.component.ts` — `togglePush()`,
+  `pushStatus`, `pushBusy`
+- `src/app/components/profile/profile.component.html` — sekcija „Notifikacije"
+- `src/app/components/profile/profile.component.scss` — stil prekidača i sekcije
+- `src/firebase-messaging-sw.js`, `angular.json` (SW u `assets`),
+  `src/app/components/login/login.component.ts`,
+  `src/app/components/footer/footer.component.ts` — sa main-a
+- `package.json` / `package-lock.json` — zavisnost `firebase`
+- `docs/05-decisions/ADR-0002-fcm-push-preko-spring-boot.md`,
+  `docs/05-decisions/README.md`, `docs/04-ROADMAP.md` — sa main-a
+
+**Efekat:** Živi trening je opet upotrebljiv — dugmad i tajmer su tamo gdje im
+je mjesto, a pregled istorije ostaje čist. Lokalni build prolazi i aplikacija
+opet gleda u lokalni Supabase. Notifikacije se sada drže korisnikovog izbora u
+oba smjera: registruju se same pri svakom pokretanju kad su uključene, a gašenje
+u profilu ili odjava stvarno brišu token sa backend-a — i poslije osvježavanja
+stranice.
+
+**Napomene:**
+
+- **Gdje push uopšte radi.** Chrome, Edge i Firefox na računaru i Androidu — da.
+  iOS Safari — samo kao instalirana PWA (Add to Home Screen, iOS 16.4 naviše);
+  u običnom tabu ne. U našoj nativnoj Capacitor ljusci (grana `native-app`) web
+  push NE radi uopšte, jer `WKWebView` nema Web Push — tamo bi trebale prave
+  APNs notifikacije, a to traži plaćeni Apple nalog. Zapisano kao poznato
+  ograničenje, ne kao bag.
+- **Render na besplatnom tieru spava.** Prvi zahtjev poslije pauze čeka hladan
+  start od pedesetak sekundi, pa tajmer za PRVU seriju u treningu može stići
+  kasno ili se izgubiti. Svjesno prihvaćeno za sada — evidentirano da se zna
+  odakle dolazi, ako se pojavi kao „tajmer ne radi".
+- **Spring Boot backend je arhitektonska promjena.** `CLAUDE.md` i dalje tvrdi
+  „nema backend servera" — Filipov ADR-0002 novo stanje dokumentuje, ali
+  `CLAUDE.md` treba ažurirati u zasebnom prolazu, da ne bude dvije istine.
+- **Sudar brojeva ADR-ova.** Filipov ADR nosi broj 0002, isto kao naš ADR o
+  nativnoj ljusci na grani `native-app`. Pri spajanju te dvije grane jedan mora
+  da se prenumeriše — naš ide na 0003, jer je Filipov već na main-u.
+- **Ne pomjerati sistemski sat radi testiranja tajmera.** Pomjeren sat lomi
+  Supabase JWT (aplikacija tada masovno „buguje" na mjestima koja nemaju veze sa
+  notifikacijama) i ume da ostavi sesije sa budućim datumom u cloud bazi.
+
+**Dopuna istog dana — rest day otvara trening:** dugme na današnji rest day
+više NIJE ugašeno — do ekrana treninga se dolazi samo kroz njega, a na rest day
+se uvijek može vanredno trenirati („Dodaj" na ekranu treninga). Natpis ostaje
+„Rest day", stil utišan ali živ (`.start-btn.rest`), sa opisom u title.
+Raniji dani bez upisa i budući dani ostaju ugašeni. Uz to: Enter na prijavi
+vodi korisničko ime → lozinka → slanje (isto kroz cijelu registraciju), a
+prekidač notifikacija se prikazuje vizuelno isključen kad Notification API ne
+postoji (HTTP van localhost-a) — ranije je izgledao zaglavljen na uključeno.
+
+---
+
+## [2026-07-30] Vibracija uz plamen ličnog rekorda
+**Tip:** funkcionalnost
+
+**Problem:** Rekord se slavi animacijom i zvukom, a telefon ćuti — na spravi se
+često ni ne gleda u ekran u tom trenutku.
+
+**Rješenje:** `prHaptics()` u `src/app/shared/haptics.ts`, pozvana na istom
+mjestu gdje kreću plamen i zvuk (`refreshPr`). Tri svijeta, jedan poziv:
+nativna ljuska preko `window.Capacitor` globala (pravi haptički motor, radi i
+na iPhoneu — bez uvoza @capacitor paketa u web kod), Android Chrome preko
+`navigator.vibrate` (obrazac prati animaciju: udar-pauza-udar-pauza-duži udar),
+iOS Safari tiho preskoči (nema nijedan API — vibracija tamo stiže tek kroz
+ljusku). Provjereno špijunom na `vibrate`: slavlje okida obrazac
+`[90,70,90,70,160]`.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/haptics.ts` — novo
+- `src/app/components/training/training.component.ts` — poziv u `refreshPr`
+
+**Napomene:** Custom zvuk za push notifikaciju tajmera NIJE moguć na webu —
+zvuk sistemske notifikacije bira operativni sistem, sajt tu nema pristup ni uz
+kakvu migraciju. Custom zvuk je izvodljiv u nativnoj ljusci (lokalne
+notifikacije nose svoj zvučni fajl) — zabilježeno za native-app granu; izbor
+zvuka bi tada bio podešavanje po uređaju (localStorage), bez migracije.
+
+---
+
+## [2026-07-30] Tajmer pauze: živo odbrojavanje na ekranu; probna notifikacija u profilu
+**Tip:** funkcionalnost
+
+**Problem:** Tajmer je postojao samo kao obećanje — upišeš seriju i ne vidiš
+ništa: ni da odbrojavanje teče, ni koliko je ostalo, ni da li će notifikacija
+uopšte stići. A prekidač u profilu kaže šta dozvola TVRDI, ne i da li
+notifikacije stvarno iskaču.
+
+**Rješenje:**
+1. LOKALNO odbrojavanje u `RestTimerService` (`deadline` u memoriji, kreće
+   odmah pri upisu serije — i kad je backend nedostupan). U zaglavlju treninga
+   se ispisuje „1:47" pa na isteku „pauza gotova" (volt, tri pulsa, skloni se
+   sam). Push notifikacija ostaje za zaključan telefon; ovo pokriva „gledam u
+   aplikaciju". Sekundni otkucaj u komponenti postoji samo da tjera ciklus
+   provjere promjena.
+2. Dugme „Probaj" u profilu (vidljivo kad su notifikacije uključene i dozvola
+   data): ispali PRAVU notifikaciju kroz service worker — isti put kao
+   tajmerske — pa se pristup dokazuje, ne pretpostavlja.
+3. Poruka za nepodržano okruženje sada objašnjava i zašto: „treba HTTPS — na
+   pravoj adresi aplikacije rade" (dev preko http://IP sa telefona).
+
+**Dodirnuti fajlovi:**
+- `src/app/services/rest-timer.service.ts` — deadline, `remainingLabel`, `expired`
+- `src/app/components/training/training.component.html/.ts/.scss` — prikaz + otkucaj
+- `src/app/services/push-notification.service.ts` — `testNotification()`
+- `src/app/components/profile/*` — dugme „Probaj", jasniji status
+
+**Efekat:** Provjereno u pregledaču: odbrojavanje 0:59 → 0:57, na isteku
+„pauza gotova" sa pulsom; probna notifikacija stvarno iskočila (granted).
+
+**Dopuna istog dana — tajmer-ostrvo:** rasuti elementi tajmera (dugme, polje,
+„min", odbrojavanje) spojeni u JEDNU pilulu u stilu aplikacije. Ugašeno = samo
+precrtana ikona; paljenjem se tijelo tečno razvuče (max-width + opružni prelaz
+— uzor dynamic island) i pokaže minute; dok pauza teče, tijelo nosi živo
+odbrojavanje umjesto minuta; na isteku „pauza gotova" u volt boji sa pulsom.
+Zamka za ubuduće: tijelo je flex stavka pa je `min-width: 0` OBAVEZAN — inače
+`min-width: auto` pobijedi `max-width: 0` i pilula se nikad ne skupi.
+
+**Dopuna — „mastilo" na tajmer-ostrvu:** paljenje sada ima tri sloja pokreta u
+istom taktu: pilula se blago RAZLIJE (squash & stretch — stisne po visini dok
+se isteže, pa se slegne), kap volt boje krene iz ikone i razlije se kroz
+pilulu pa izblijedi (ink-bloom preko ::after), a broj i „min" izranjaju odozdo
+sa razmakom od jednog koraka (isti talas kao na velikom dugmetu). Sve ugašeno
+uz prefers-reduced-motion.
+
+**Dopuna — tečnost i pri gašenju i pri startu odbrojavanja:** gašenje ostrva
+sada ima obrnutu kap (mastilo se POVUČE nazad u ikonu — `ink-retreat`) i
+obrnuti stisak (`island-sip`); CSS ne umije animaciju na uklanjanju klase, pa
+kratko stanje `tiClosing` vodi komponenta. Prelaz iz minuta u živo odbrojavanje
+(prva upisana serija) dobio isti razliv i kap na `.running` klasi — ranije se
+sadržaj samo preklopio u novu funkciju, kao treptaj. Jezik pokreta
+(squash & stretch + ink-bloom + talas sadržaja) usvojen kao kućno pravilo za
+promjene stanja — referentne implementacije: tajmer-ostrvo i split-flap natpis
+na velikom dugmetu.
+
+**Dopuna — kompletan lanac faza tajmera animiran + pravilo trajno zapisano:**
+`watchTimerPhase` u komponenti prati faze (mirovanje → odbrojavanje → „pauza
+gotova" → povratak na minute) i svaki prelaz dobija svoj pokret: istek = jači
+razliv + volt kap (alias keyframes `island-splash-done`/`ink-bloom-done` — CSS
+ponovo pokreće animaciju SAMO kad se ime promijeni, pa isti keyframes sa
+`.running` klase ne bi odsvirao ništa; zapisano kao zamka), natpis izranja pa
+pulsira; povratak = skupljanje + kap unazad, minute ponovo izranjaju. Jezik
+pokreta ozvaničen kao kućno pravilo: sekcija u `CLAUDE.md` (obavezna), skill
+`.claude/skills/tecne-animacije/SKILL.md` (pun recept i zamke) i sekcija u
+`docs/08-KONVENCIJE.md` — dakle prisutno u svakoj sesiji i za svakog
+saradnika, ne samo u memoriji alata.
+
+---
+
+## [2026-07-31] Svijetla tema za cijelu aplikaciju
+**Tip:** funkcionalnost
+
+**Problem:** Aplikacija je znala samo jedno osvjetljenje — mrak. Ko voli
+svijetli interfejs (ili ga jednostavno bolje vidi na dnevnom svjetlu u
+teretani) nije imao izbor. Uz to, ispod površine je stajala prepreka: iako je
+dizajn sistem odavno na tokenima, kroz `src/` su ostale i zakucane boje —
+naslijeđeni `greenyellow`, `white`, sirove `rgba(...)` vrijednosti — koje ne bi
+poslušale nikakvu promjenu teme.
+
+**Rješenje:**
+
+1. **Tema je jedan atribut.** Pošto sve boje već žive u `_tokens.scss`, tema je
+   svedena na `data-theme` na `<html>`: blok `:root[data-theme='light']` nosi
+   kompletnu svijetlu paletu i `color-scheme: light`, pa se svaki ekran
+   preslika sam. Novi `ThemeService` pamti izbor u `localStorage`
+   (`gymapp.theme`), a isti atribut se postavlja i u `main.ts` PRIJE bootstrapa
+   — bez toga bi svijetli korisnik na svakom otvaranju vidio bljesak tamne teme
+   dok se Angular podiže. Prekidač „Izgled" je u profilu, klizač sa
+   suncem/mjesecom.
+2. **Promjena teme se PRETAPA, ne puca.** Po kućnom pravilu o pokretu: klasa
+   `theme-anim` stoji na `<html>` oko 420ms i za to vrijeme pali globalni
+   prelaz boja (`_base.scss`), pa se aplikacija prelije iz teme u temu. Poslije
+   se klasa skine i sve je po starom.
+3. **Paleta — podloga kost, kartice bijele.** Svijetla podloga je mliječna
+   (`#ECEBE4`), a kartice čisto bijele: kontrast dolazi iz podloge, ne iz
+   sjenki. Header i futer su u svijetloj temi NEPROVIDNI i iste boje kao
+   podloga — providnost je puštala kartice da prosijavaju kroz njih, pa se
+   futer u listanju razlikovao od headera.
+4. **Energija ostaje neon.** Neon na bijelom je nečitljiv kao tekst (oko
+   1.2:1), ali kao punjenje je identitet aplikacije. Zato je token razdvojen:
+   `--volt-fill`/`--volt-fill-soft` (pozadine dugmadi, klizača, traka) ostaju
+   neonski u OBJE teme, dok `--volt` u svijetloj postaje živa zasićena zelena
+   `#3E9400` za tekst, ikone i ivice.
+5. **„Duboka ostrva" ne prate temu.** `--deep`/`--deep-high` su skoro crni u
+   obje teme, sa stalnim neonom (`--on-deep`) i stalnim svijetlim tekstom
+   (`--on-deep-ice`/`--on-deep-mist`) — traka završenog treninga tako u
+   svijetloj temi postaje upečatljivo tamno ostrvo umjesto da izblijedi.
+6. **Novi tokeni:** `--volt-hi` (hover neona), `--scrim` (zatamnjenje iza
+   modala, svjetlije u svijetloj temi), `--ember-a30`, `--ember-ink`, i meke
+   sjenke `--lift-1/2/3` za svijetlu temu — 60% crne bi na svijetlom djelovalo
+   kao rupa u stranici.
+7. **Pozadinska fotografija ostaje ista slika**, samo pod svijetlim velom
+   (93–97%) — tokenizovano kroz `color-mix` sa `--void`, bez novog asseta.
+8. **Okvir pregledača.** `theme-color` meta i `manifest.webmanifest` prebačeni
+   sa stare Angular plave (`#1976d2`) na vrijednost `--void`; meta se pri svakoj
+   promjeni teme prepisuje iz `ThemeService`, pa statusna traka ne ostane u
+   jednoj temi dok se sadržaj prelije u drugu.
+
+**Veliko čišćenje:** popisano je i zamijenjeno 147 zakucanih boja kroz cio
+`src/` — samo u `dashboard.component.scss` bilo ih je 93 (naslijeđeni
+`greenyellow`, `white`, sirove `rgba`). Sve je prešlo na tokene ili
+`color-mix` izvedenice; jednokratne stvari idu kroz
+`:host-context([data-theme='light'])` override. Poseban slučaj je SVG grafikon
+progresa u profilu: atribut `stop-color` ne prima `var()`, pa su prelazi
+prešli na CSS klase (`.area-stop.me` / `.area-stop.compare`), dok prozirnost
+ostaje na `stop-opacity`. Pregled slika u blogu NAMJERNO ostaje mrak u obje
+teme — fotografije se gledaju na crnom — pa tamo stoje sirove vrijednosti sa
+komentarom zašto.
+
+**Dotjerivanja po živom pregledu:**
+- **Stanja velikog dugmeta na dashboardu** u svijetloj temi su FROSTED GLASS:
+  `backdrop-filter: blur(16px) saturate(1.35)`, poluprovidno bijelo staklo sa
+  zelenim tintom po stanju i mekom sjenkom. Probani su i tamna ostrva i obični
+  prozirni tintovi — staklo daje dubinu bez utiska da je komad tamne teme
+  presađen na svijetlu stranicu. Tamna tema zadržava ostrva sa neonom.
+- **Prekidači u profilu** su prerađeni: pruga se puni neonom, palac se okreće u
+  tamno slovo sa neonskom ikonom (čist kontrast u obje teme, umjesto neona na
+  neonu), palac leti oprugom, a kap mastila puca na SVAKI klik — kratku klasu
+  `pulse` vodi komponenta, jer CSS ne odsvira animaciju pri skidanju stanja.
+- **Tekst i ikone na svijetlom:** `--ice #101923`, `--mist #46596B`, uz `--dust`
+  i `--echo` kao svijetle duhove.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/theme.service.ts` — NOV: izbor teme, pamćenje, pretapanje,
+  osvježavanje `theme-color` mete
+- `src/styles/_tokens.scss` — blok svijetle teme, `--volt-fill`, `--volt-hi`,
+  `--deep`/`--on-deep`, `--scrim`, `--ember-a30`/`--ember-ink`, `--lift-*`
+- `src/styles/_base.scss` — pretapanje teme, svijetli veo preko pozadinske
+  fotografije, tokenizovana dugmad/modali/greške
+- `src/main.ts` — atribut teme prije bootstrapa
+- `src/index.html`, `src/manifest.webmanifest` — `theme_color` i
+  `background_color` na `--void`
+- `src/app/components/profile/*` — prekidač „Izgled", klase za SVG prelaze,
+  prerađeni klizači
+- `src/app/components/dashboard/*` — staklena stanja velikog dugmeta i najveći
+  dio čišćenja boja
+- `src/app/components/training|blog|leaderboard|login|register|landing|exercices|news|profile-preview|header|footer|shared/date-picker` —
+  zamjena zakucanih boja tokenima i override-i za svijetlu temu
+
+**Efekat:** Prošeteno kroz obje teme, ekran po ekran: dashboard sa svim
+stanjima dugmeta, trening sa tajmerom i trakom završenog treninga, rang lista
+sa sedmicom i rekordima, profil sa kalendarom i grafikonom, blog, vježbe. U
+svijetloj temi nema ostataka tamne (nema tamnih ostrva koja „vise", nema
+nečitljivog neon teksta), a tamna tema je poslije čišćenja bez regresija —
+provjereno i piksel-poređenjem boja headera i futera.
+
+**Napomene:**
+- `color-mix()` se sada koristi znatno šire (Safari 16.2+ / Chrome 111+). Nije
+  nov zahtjev — funkcija je već bila u kodu, prag podrške je nepromijenjen.
+- `THEME_COLOR` u `ThemeService` je ručni duplikat vrijednosti `--void`, jer
+  `<meta>` ne može čitati CSS varijablu. U kodu stoji komentar da se drži u
+  sinhronu sa tokenima.
+- `backdrop-filter` na staklenim stanjima je samo za svijetlu temu i samo na
+  jednom malom dugmetu; header ga i dalje izbjegava iz razloga performansi
+  (zamućenje preko velike površine je ranije kočilo otvaranje menija).
+
+**Dopuna — kap preko cijelog ekrana i ulazi na blogu:**
+1. Promjena teme je sada KAP MASTILA preko cijelog ekrana: iz same tačke
+   dodira na prekidaču krug u boji NOVE teme se razlije preko stranice
+   (Web Animations, poluprečnik do najdaljeg ugla), tema procuri ispod njega
+   dok je kap najveća, pa kap izblijedi. Uz `prefers-reduced-motion` (ili bez
+   tačke dodira) ostaje samo globalno pretapanje. Sigurnosni tajmer čisti kap
+   i ako `onfinish` izostane.
+2. Blog dobio ulazne animacije u kućnom jeziku: objave izranjaju odozdo
+   talasom (kašnjenje po grupi i objavi), naslovi grupa korak ranije, a i sama
+   ploča ulazi — pa i prazan blog diše kao ostatak aplikacije.
+
+---
+
+## [2026-07-31] Vježbe tjelesnom težinom: čip „BW" umjesto jednosmjernog otkrivanja
+**Tip:** popravka
+
+**Problem:** Unos bodyweight vježbe (zgibovi, propadanja) radio je samo u jednom
+smjeru i na više mjesta tiho nije radio ništa.
+
+1. **Nema povratka na čist BW.** Polje kilaže se otkrivalo dugmetom „+ KILAŽA"
+   (`revealWeightInput`) i više se nije moglo skloniti. Ko jednom doda teg,
+   ostatak treninga gleda polje koje mu ne treba.
+2. **Prefil je upisivao nulu.** `toggleLogForm` je punio `weightInput` iz prošle
+   serije bez izuzetka, pa je čista BW vježba dobijala „0" u polju — koja se
+   morala brisati rukom prije svake serije, jer polje sa nulom ne izgleda prazno.
+3. **Dropset i izmjena serije nisu znali za BW.** Oba upisa su tražila
+   `weight != null` bez izuzetka za bodyweight, pa je dugme „sačuvaj" nad
+   praznim poljem kilaže tiho ne radilo ništa — bez poruke, bez ikakvog znaka.
+4. **BW oznaka se nije mogla dodati.** `exercices.is_bodyweight` se mijenjao
+   samo ručno u bazi; u aplikaciji nije postojao put do njega, iako za praćenje
+   ruku (`is_unilateral`) put postoji odavno.
+5. **Nule su curile u prikaz.** Odrađen dropset se ispisivao kao „0kg × 12", a
+   opis prošle serije kao „Prošli put: 0kg × 8".
+6. **Čista BW vježba nikad nije mogla dobiti plamen.** Rekord se mjerio isključivo
+   kilažom, a kod zgibova je ona uvijek 0 — pa ni 20 zgibova naspram ranijih 8
+   nije bilo dostignuće.
+
+**Rješenje:**
+
+1. **Dvosmjerni čip „BW".** Kod bodyweight vježbe uz mjesto za kilažu uvijek
+   stoji mali čip. Upaljen (volt ispuna) znači ČIST BW: polje kilaže je skupljeno,
+   `weightInput` je `null`, u bazu ide 0. Prigušen znači BW + TEG: polje se
+   razlilo pored čipa, sa prefilom iz prošle serije ako ga je bilo. Klik radi u
+   OBA smjera, a povratak na čist BW briše `weightInput` — inače bi prefilovani
+   teg tiho završio u bazi iako čip kaže da ga nema. Dugme „+ KILAŽA" i
+   `revealWeightInput()` su uklonjeni.
+2. **Pokret po kućnom jeziku.** Polje se ne uklanja iz DOM-a nego skuplja, da
+   prelaz ima animaciju u oba smjera: kap mastila kreće iz čipa (`ink-bloom`) i
+   povlači se nazad u njega (`ink-retreat`), slot se razlije pa slegne
+   (`island-splash` / `island-sip`), a polje izranja talasom (`ch-rise`) — isti
+   keyframes koje već koristi tajmer-ostrvo. Smjer nosi kratko stanje `bwFlip`
+   u komponenti, jer CSS ne svira animaciju na uklanjanju klase. Sve se gasi uz
+   `prefers-reduced-motion`.
+3. **Kilaža i ponavljanja postali su JEDNA flex ćelija** (`.log-fields`) umjesto
+   dvije grid kolone. Skupljanje ide kroz `flex-grow` (broj, pa se interpolira
+   glatko), a ne kroz `max-width` čiju bi krajnju vrijednost trebalo pogađati;
+   ponavljanja tako sama preuzmu oslobođeni prostor, kontinuirano i bez skoka.
+4. **„Tjelesna težina" u meniju vježbe**, jedan-na-jedan po uzoru na „Prati ruke
+   odvojeno": novi `setBodyweight()` u servisu, uz `setUnilateral`. Time SVAKA
+   vježba može naknadno dobiti BW opciju. U zaglavlju reda stoji bedž „BW",
+   istim jezikom kao postojeći „L·D".
+5. **Isti BW tretman u dropsetu i izmjeni serije.** Prazno polje kilaže znači 0
+   (`?? (ex.isBodyweight ? 0 : null)`, isti obrazac kao `saveLog`), placeholder
+   je „BW" umjesto „kg", a izmjena BW serije otvara polje PRAZNO umjesto sa
+   nulom. Čip tu namjerno NEMA — te forme su pilule uz seriju i ne trpe još
+   jedno dugme.
+6. **Rekord za čiste BW vježbe.** Novi `getBodyweightBests()` vraća najviše
+   ponavljanja odrađenih bez tega prije današnjeg dana. Kad su i današnja i
+   ranija najbolja kilaža 0, `hasPr` mjeri ponavljanja; ponašanje kad ima tega
+   je netaknuto. Oznaka rekorda, njen opis i sažetak treninga tada pišu
+   „12 pon." umjesto „0kg" — kroz jedan izvor istine, `prMetric()`.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts:472` — nov `setBodyweight(exerciceId, value)`,
+  odmah uz `setUnilateral`, istim stilom
+- `src/app/services/training.service.ts:793` — nov `getBodyweightBests()`: najviše
+  ponavljanja sa `weight = 0` prije zadatog datuma (prag rekorda za čist BW)
+- `src/app/components/training/training.component.ts:73` — novo polje
+  `previousBestReps` na `TodayExercice`
+- `src/app/components/training/training.component.ts:93` — `showWeightInput`
+  dobio novo značenje (stanje čipa, ne jednokratno otkrivanje) + novo `bwFlip`
+  za smjer animacije
+- `src/app/components/training/training.component.ts:288` — peti paralelni upit
+  u `hydrate()`; `prShown` se pamti u mjeri rekorda, ne uvijek u kilaži
+- `src/app/components/training/training.component.ts:387` — `prevLabel` piše „BW"
+  umjesto „0kg"
+- `src/app/components/training/training.component.ts:401` — `hasPr` dobio treći
+  argument i granu za čist bodyweight; novi `prMetric()` i `prTitle()`
+- `src/app/components/training/training.component.ts:454` — `refreshPr` poredi
+  MJERU rekorda, pa plamen padne i kad zgibovi porastu sa 10 na 12
+- `src/app/components/training/training.component.ts:581` — `echoPlaceholder` za
+  prošlu kilažu 0 vraća „Kilaža", ne „0"
+- `src/app/components/training/training.component.ts:549` — nov `toggleBodyweight()`
+- `src/app/components/training/training.component.ts:603` — `toggleLogForm` više
+  ne prefiluje nulu; nov `toggleBodyweightWeight()` umjesto `revealWeightInput()`
+- `src/app/components/training/training.component.ts:757` — `startEditSet(ex, set)`
+  otvara BW seriju sa praznim poljem kilaže
+- `src/app/components/training/training.component.ts:770`,
+  `:856`, `:915`, `:927` — BW izuzetak u `saveEditSet`, `saveDropset`,
+  `startEditDropset`, `saveEditDropset`
+- `src/app/components/training/training.component.ts:1018` — `records` u sažetku
+  nose i jedinicu
+- `src/app/components/training/training.component.html:150` — oznaka rekorda kroz
+  `prMetric`/`prTitle`; `:162` nov bedž „BW"
+- `src/app/components/training/training.component.html:220` — stavka „Tjelesna
+  težina" u meniju vježbe
+- `src/app/components/training/training.component.html:255`, `:289`, `:309`,
+  `:311`, `:319`, `:346` — BW placeholderi, zaštita „0kg ×" na odrađenom
+  dropsetu, proslijeđen `ex` u izmjenu serije/dropseta
+- `src/app/components/training/training.component.html:423` — forma za upis:
+  `.log-fields` + `.weight-slot` sa čipom
+- `src/app/components/training/training.component.scss:235` — bedž `.tag.bw`
+- `src/app/components/training/training.component.scss:271` — meni vježbe dobio
+  sedmu stavku, granica visine podignuta na 440px
+- `src/app/components/training/training.component.scss:624` — `.log-form` sa tri
+  kolone + nov `.log-fields`
+- `src/app/components/training/training.component.scss:680` — `.weight-slot`,
+  `.bw-chip` i sve animacije prelaza; `.add-weight-btn` uklonjen
+- `src/app/components/training/training.component.scss:199`, `:806` — telefonski
+  raspored forme (jedna kolona; polja drži flex, ne grid)
+
+**Efekat:** Zgibovi se upisuju bez ijednog brisanja nule — otvoriš formu, ukucaš
+ponavljanja, sačuvaš. Ako je bio i teg, jedan dodir na „BW" ga otvori (sa prošlom
+kilažom u polju), a drugi dodir ga vrati. Dropset i izmjena serije rade i sa
+praznom kilažom. Svaka vježba može dobiti ili izgubiti BW oznaku iz svog menija.
+Nule su nestale iz prikaza, a čist bodyweight konačno može oboriti rekord — po
+broju ponavljanja.
+
+**Napomene:**
+- Baza nije dirana: konvencija ostaje `exercice_logs.weight = 0` za čist BW, a
+  flag `is_bodyweight` i dalje stoji na `exercices` (dakle vrijedi za sve
+  korisnike, isto kao `is_unilateral`).
+- Početno stanje forme i dalje čita ECHO (prošli trening), ne prethodnu današnju
+  seriju — nepromijenjeno ponašanje, samo sada bez upisane nule.
+- `getBodyweightBests` je zaseban upit umjesto proširenja `getPersonalBests`,
+  da postojeći prag rekorda ostane netaknut.
+
+---
+
+## [2026-07-31] Status treninga: pošten started_at, grace za zagrijavanje, živo osvježavanje
+**Tip:** popravka (regresija)
+
+**Problem:** `workout_sessions.started_at` nastaje `default now()` pri PRVOM
+otvaranju ekrana treninga za taj datum i nikad se ne ispravlja — jučerašnje
+listanje rasporeda ostavi pečat od juče (provjereno na produkcijskim podacima:
+sesija za petak sa started_at od četvrtka 17:03). Uz uslov „bar jedna serija"
+(commit ceea517) status „Trening u toku" se gasio baš na početku treninga, 4h
+prozor od lažnog starta gasio ga do kraja dana, tajmer je zbog toga brojao
+glupost, dashboard se nije osvježavao dok je otvoren, a „Trenira sada" je
+nestajalo i kad pukne učitavanje planova.
+
+**Rješenje:** Sat se resetuje kad trening STVARNO počne, a status dobija grace
+prozor od 30 minuta (`WARMUP_GRACE_MIN`, zajednička konstanta) — prisustvo se
+računa i bez serija prvih pola sata od poštenog starta (svlačionica +
+zagrijavanje); poslije toga bez ijedne serije status se sam gasi, jer
+zavirivanje nije trening. Bez migracija — postojeća šema.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/warmup-grace.ts` — NOVO: `WARMUP_GRACE_MIN = 30` sa
+  obrazloženjem; jedna istina za sva tri mjesta koja je koriste. Tu je preseljen
+  i 4h živi prozor (`LIVE_WINDOW_H = 4`, ranije lokalni `LIVE_MAX_HOURS` u
+  leaderboard servisu) — ista granica za „Trenira sada", dashboard dugme i
+  reset sata pri „Otvori ponovo"
+- `src/app/services/training.service.ts:422` — `restartSessionClock(sessionId)`:
+  `update workout_sessions set started_at = now()` (isti stil kao
+  `finishSession`)
+- `src/app/components/training/training.component.ts:276` — poziv poslije
+  `hydrate()` u ngOnInit; `:295` nova `restartClockIfStale()`: živa sesija
+  (ne viewOnly, ne završena) sa 0 upisanih serija i satom starijim od 30 min
+  → reset sata + lokalni `session.startedAt`; try/catch tiho, ne obara ekran;
+  `:1163` „Otvori ponovo" (`reopenTraining`): ako je start ispao iz 4h živog
+  prozora, sat se vraća na sada — ponovno otvoren trening opet živi na
+  dashboardu i u „Trenira sada" (sesija već ima serije, pa sets>0 prolazi);
+  start mlađi od 4h se NE dira — „zaboravio sam jednu seriju" odmah po
+  zatvaranju nastavlja od pravog početka, rezime ostaje istinit
+- `src/app/components/dashboard/dashboard.component.ts:12` — import konstante;
+  `:187` postojeći 60s `liveTimer` tik sada zove i `refreshDayStatus()`
+  (`loadLive()` se i ranije zvao odmah u ngOnInit, to je ostalo); `:301` nova
+  `refreshDayStatus()`: tiho osvježi started/finished/serije za DANAS bez
+  `loadDay()`-evog resetovanja trake, a promjenu natpisa protjera kroz
+  postojeći split-flap tok (outFace + faceKey — mehanizam nije diran); `:372`
+  komentar u `isRestSelected` (grace stiže kroz `todayInProgress`); `:483`
+  `todayInProgress` = nije završen ∧ ima start ∧ start < 4h ∧ (ima serija ∨
+  start < 30 min)
+- `src/app/services/leaderboard.service.ts:90` — `LiveSession.warmingUp`;
+  `:343` getLiveSessions: sesija bez serija ulazi ako je start mlađi od 30 min
+  (`warmingUp: true`); sa serijama nepromijenjeno (4h prozor); lokalni
+  `LIVE_MAX_HOURS` zamijenjen zajedničkim `LIVE_WINDOW_H`
+- `src/app/components/dashboard/dashboard.component.html:125` — sekcija
+  „Trenira sada" visi samo na `!loading`, ne više i na `errorMessage`; `:145`
+  red za `warmingUp` piše „zagrijava se" umjesto broja serija — dva `*ngIf`-a
+  da se pri prvoj seriji span rodi iznova i prelaz odsvira
+- `src/app/components/dashboard/dashboard.component.scss:1588` — `.live-sets`
+  dobio postojeću `live-in` ulaznu animaciju (prelaz „zagrijava se" → broj) i
+  `.warming` varijantu (italic, ista paleta); ugašeno uz
+  `prefers-reduced-motion`
+
+**Efekat:** Ulazak u teretanu odmah pali „Trening u toku" (i na rest day) i
+tajmer koji broji od stvarnog dolaska; jučerašnje/jutarnje zavirivanje više ne
+truje ni tajmer ni „Trenira sada"; ko otvori trening pa ništa ne upiše, nestaje
+sa oba mjesta poslije 30 min; dashboard prati promjene i dok stoji otvoren
+(60s); „Trenira sada" preživi grešku planova. „Otvori ponovo" na davno
+završenom treningu vraća živi status: dugme opet „Trening u toku" sa tajmerom,
+korisnik opet u „Trenira sada" — a `todayFinished` padne pri prvom sljedećem
+osvježavanju (60s tik `refreshDayStatus`, ili `loadDay` pri povratku na ekran;
+nema keša — `getSessionTimes` uvijek čita bazu).
+
+**Napomene:**
+- `exercice_logs` nema kolonu vremena, pa se „vrijeme posljednje serije" ne
+  može koristiti — zato sva logika ide preko poštenog `started_at`.
+- Reset sata namjerno gleda samo serije VIDLJIVE na ekranu (preko učitanih
+  vježbi sesije) — isti skup koji korisnik vidi.
+
+---
+
+## [2026-07-31] Merge Filipovih data-only push poruka + paritet šeme (device_tokens)
+**Tip:** merge + dokumentacija
+
+Sa main-a povučena dva Filipova commita koja su notifikacije konačno dovela u
+red na telefonima, plus izvedena analiza njegovih izmjena van repoa:
+
+1. **Data-only FCM poruke** (`b023e2d`, `c52f9a6`): backend
+   (`NotificationServiceImpl.dataOf()`) šalje poruke BEZ `notification`
+   payload-a — samo `data`. Razlog: sa `notification` poljem browser sam
+   prikaže notifikaciju UZ ručni `showNotification()` iz aplikacije, pa
+   korisnik dobije istu poruku dvaput. `onMessage`
+   (`push-notification.service.ts:122`) i `onBackgroundMessage`
+   (`firebase-messaging-sw.js`) sada čitaju `payload.data`, uz novo `image`
+   polje (`assets/noti.jpeg`).
+2. **Nova tabela u cloud bazi: `device_tokens`** (id, user_id, token,
+   created_at, updated_at) — backend u nju upisuje FCM tokene
+   (`/api/notifications/register-token`). Nastala direktno u cloudu, bez
+   migracije u repou → dodana rekonstrukcija
+   `supabase/migrations/20260731000000_device_tokens.sql` radi pariteta
+   lokalne šeme (frontend tabelu ne dira). ⚠️ U produkciji je tabela čitljiva
+   publishable ključem — tuđi FCM tokeni izloženi; zabilježeno za Fazu 5
+   (sigurnost), nije popravljano.
+3. **`supabase/cloud/README.md`** — statusi migracija ažurirani po stvarnom
+   stanju clouda (REST provjere 31.07.): workout_sessions, bodyweight,
+   unilateral i news su primijenjene.
+
+---
+
+## [2026-07-31] Gradirane vibracije napretka
+**Tip:** funkcija
+
+Vibracija je dosad postojala samo za rekord i bila prekratka/pretiha na
+telefonu (Markova primjedba iz teretane). Sada tri jačine, po veličini
+trenutka (`src/app/shared/haptics.ts` — `progressHaptics(tier)`):
+
+- **'reps'** — više ponavljanja nego prošli put: kratak tap (Light impact / 45ms).
+- **'weight'** — veća kilaža nego prošli put: dva srednja udarca (~300ms).
+- **'record'** — novi lični rekord: kreščendo od tri teška udarca + dugi zvon
+  (~1.2s), prati animaciju plamena; u nativnoj ljusci ide kroz Capacitor
+  Haptics (radi i na iPhoneu), na webu `navigator.vibrate`.
+
+Okidanje u `saveLog` (`training.component.ts` — `buzzProgress()`): jednom po
+upisu (ne po L/D strani), poređenje sa istom serijom prošlog treninga
+(`compare`); rekord ima prednost (vibrira iz `refreshPr` uz plamen, manje se
+tada preskaču). Bez poređenja (prvi put) — bez vibracije.
+
+---
+
+## [2026-07-31] Istorija treninga se crta po PODACIMA, ne po današnjem flagu
+**Tip:** popravka
+
+**Problem:** `exercices.is_unilateral` i `exercices.is_bodyweight` su GLOBALNI
+katalog-flagovi — pale se i gase kroz meni vježbe, za sve korisnike odjednom.
+Ekran treninga je po njima crtao SVE: raspored serija, bedževe, duhove,
+poređenja, brojanje i sažetak. Snimak dana (`session_exercices`) flagove ne
+čuva, pa je promjena flaga retroaktivno prepisivala istoriju: dan odrađen
+dvoručno se poslije paljenja L/D prikazivao kao dvije prazne kolone pune
+duhova, brojač serija se udvostručavao ili zamrzavao, a numeracija je pravila
+rupe i duplikate. Istinu nose same serije — `exercice_logs.side` kaže je li se
+strana pratila, kilaža 0 da je serija odrađena tjelesnom težinom.
+
+**Rješenje:** uvedena su izvedena stanja dana (`dayHasSides`,
+`dayHasBodyweight`, `echoHasSides`), jedan getter `splitLayout(ex)` kao jedini
+izvor istine o rasporedu, jedno pravilo brojanja (broj različitih `set_number`
+vrijednosti) i simetrični fallbackovi za duhove i poređenja („pravilo slabije
+strane").
+
+### Ključni podslučajevi — prije i poslije
+
+| Slučaj | Prije | Poslije |
+|---|---|---|
+| Istorija dvoručnog dana, L/D flag danas UPALJEN | dvije prazne kolone sa duhovima, dvoručne serije stisnute u `.side-full` | jedan red, tačno kako je dan rađen |
+| Istorija L/D dana, flag danas UGAŠEN | sve serije u jednom redu, L i D jedna do druge bez oznake | dvije kolone — dan JESTE rađen po stranama |
+| Brojač poslije gašenja flaga (A4) | par L+D brojan kao dvije serije → „6/3" | par je jedna serija → „3/3" |
+| Numeracija poslije gašenja usred dana (A6) | `doneCount + 1` preskoči na 5 → rupa u brojevima | `max(set_number) + 1` → numeracija teče dalje |
+| Paljenje flaga usred dana (B2) | brojač zamrznut na „4" zauvijek → duplikati istog `set_number` | par L5/D5, pa L6/D6 — numeracija ide dalje |
+| Danas dvoručno, prošli dan L/D | nijedan duh, nijedna strelica (`compare` nije našao red) | duh i poređenje po slabijoj strani |
+| Danas L/D, prošli dan dvoručni | radilo | i dalje radi — nije dirano |
+| Bedževi „L·D" / „BW" u istoriji | po katalogu — bedž na danu koji tako nije rađen | po tragu u danu (strane u serijama, kilaža 0) |
+| Izmjena stare BW serije poslije gašenja flaga | polje se otvara sa „0", placeholder „kg", prazno polje tiho odbija upis | prazan prefil, placeholder „BW", prazno polje čuva 0 |
+| BW rekord po ponavljanjima kod vježbe rađene i sa tegom | uslov `previousBest === 0` gutao svaki takav rekord | rekord pada; bez ranijeg BW upisa i dalje nema rekorda |
+| Kalendar u profilu | jednoručni dan brojan dvostruko | broje se parovi `exercice_id#set_number` |
+
+### Pravilo slabije strane
+
+Kad se današnja DVORUČNA serija poredi sa danom rađenim po stranama, nema
+jednog reda za poređenje nego dva. Uzima se **slabiji: manja kilaža, a pri
+istoj kilaži manje ponavljanja.** Duh je cilj koji treba dostići, a poređenje
+presuda: jača ruka nije mjera dvoručne serije (10 kg po ruci nije 10 kg sa
+obje), pa bi po njoj svaki dvoručni dan ispao nazadak. Slabija strana je ono
+što je sigurno odrađeno — presuda ostaje poštena, a cilj dostižan. Isto pravilo
+važi za duhove serija, duhove dropsetova, prefil forme (`echoFor`) i ocjenu
+para u sažetku.
+
+### Jedno pravilo brojanja
+
+Serija je jedan `set_number`, ne jedan red u bazi. Par L+D su dva reda a JEDNA
+odrađena serija; pošto se praćenje ruku pali i gasi usred dana, dan zna imati i
+dvoručnih i jednoručnih redova — jedno pravilo pokriva sve. Sljedeći redni broj
+je `max(set_number) + 1` (ne „broj odrađenih + 1"), pa promjena flaga usred
+dana ne može napraviti ni duplikat ni rupu. Isti ključ (vježba, redni broj)
+sada broji serije na sva tri mjesta: ekran treninga, kalendar profila i rang
+lista (`LeaderboardService.getLiveSessions:327`).
+
+**Dodirnuti fajlovi:**
+- `training.component.ts:62-103` — `TodayExercice` dobio `dayHasSides`,
+  `dayHasBodyweight`, `echoHasSides`, `layoutFlow`
+- `training.component.ts:385-388` — `hydrate` računa izvedena stanja iz upisanih
+  serija i iz echa
+- `training.component.ts:420-423` — `refreshDerived(ex)`, zove se iz upisa
+  (`:946`), izmjene (`:1038`), brisanja (`:1074`) i oba toggle-a (`:744`, `:786`)
+- `training.component.ts:436-438` — `splitLayout(ex)`: u istoriji/završenom
+  treningu isključivo `dayHasSides`, na živom `dayHasSides || isUnilateral`
+- `training.component.ts:444-451` — `showSidesBadge` / `showBwBadge`
+- `training.component.ts:460-468` — `echoHint(ex)`: opis uz datum prošlog
+  treninga kad duh dolazi iz drugačijeg rasporeda (jedini čitalac `echoHasSides`)
+- `training.component.ts:479-481` — `bwField(ex, weight)`: BW tretman i po flagu
+  i po samom redu (kilaža 0)
+- `training.component.ts:495-528` — `weakerSet` + `echoSetIn`: jedno mjesto za
+  oba nesimetrična slučaja (prošli dvoručni red važi za obje ruke; prošli L/D
+  par se svodi na slabiju stranu)
+- `training.component.ts:544` — `compare` ide kroz `echoSetIn`
+- `training.component.ts:594` — `hasPr`: uklonjen uslov `previousBest === 0`
+- `training.component.ts:675-676` — `echoFor` bira stranu po `splitLayout`
+  (ranije „prvi red iz niza" — nedeterministički kad je prošli dan bio L/D)
+- `training.component.ts:696-717` — `setNumbers` / `doneCount` / `nextSetNumber`
+- `training.component.ts:724-731` — `sideGhosts` kroz `echoSetIn`
+- `training.component.ts:757-767` — `flowLayout`: kratko stanje za animaciju
+  prelaza rasporeda
+- `training.component.ts:806` — `ghostDropsets` kroz `echoSetIn`
+- `training.component.ts:1011`, `:1022`, `:1115`, `:1176`, `:1185` — BW polja kroz
+  `bwField` (`startEditSet`, `saveEditSet`, `saveDropset`, `startEditDropset`,
+  `saveEditDropset`)
+- `training.component.ts:1297`, `:1354-1362` — sažetak broji po seriji
+  (`setDeltas`); par vrijedi koliko njegova slabija strana
+- `training.component.ts:1381-1383` — `totalSets` po `doneCount`
+- `training.component.html:150` — datum prošlog treninga dobio opis `echoHint`
+- `training.component.html:169`, `:176` — bedževi po `showBwBadge`/`showSidesBadge`
+- `training.component.html:245`, `:393`, `:403` — sve grane rasporeda vezane za
+  `splitLayout(ex)`; `.sets` dobio `[class.reflow]`
+- `training.component.html:298`, `:328`, `:355` — placeholderi „BW" po `bwField`
+- `training.component.scss:241-248` — bedževi „BW"/„L·D" dobili ulaznu animaciju
+  (`tag-in`), gašenje uz `prefers-reduced-motion`
+- `training.component.scss:462-498` — prelaz rasporeda (jedan red ↔ dvije
+  kolone): razliv `sets-reflow` + kap `sets-ink`, ugašeno uz reduced-motion
+- `training.service.ts:66-77` — `ECHO_ROW_LIMIT` 20 → 40; komentar ispravljen
+  (granica je u REDOVIMA, a jednoručni dan ima dva reda po seriji, pa se dan od
+  desetak serija sjekao u pola)
+- `profile.service.ts:186-202` — kalendar broji parove `exercice_id#set_number`
+
+**Efekat:** Paljenje ili gašenje L/D i BW na vježbi više ne mijenja nijedan
+raniji dan — istorija prikazuje kako je dan stvarno rađen. Promjena flaga usred
+treninga je bezbjedna: numeracija teče dalje, brojač je tačan u oba smjera.
+Dvoručni dan poslije jednoručnog konačno ima duhove i strelice. Stara BW serija
+ostaje izmjenjiva i pošto se flag ugasi. Rekord po ponavljanjima pada i kod
+vježbe koja se ranije radila sa tegom. Prelaz rasporeda i pojava bedževa imaju
+pokret (kućni „tečni" jezik), sve ugašeno uz `prefers-reduced-motion`.
+
+**Napomene:**
+- `saveLog` namjerno i dalje bira strane po FLAGU (`isUnilateral ? ['L','D'] :
+  [null]`): flag kaže kako se vježba prati OD SADA, `splitLayout` kako se dan
+  crta. Ko ugasi flag usred dana, nastavlja dvoručno, a već upisane L/D serije
+  ostaju u svojim kolonama.
+- `deleteSet` i dalje prenumeriše unutar strane. Kod dana koji miješa dvoručne i
+  L/D redove (flag mijenjan usred treninga) brisanje zna ostaviti rupu u
+  numeraciji — brojanje po različitim `set_number` vrijednostima je tačno i
+  tada, samo brojevi na pilulama nisu uzastopni. Rijedak slučaj, ostavljen.
+- `session_exercices` i dalje ne čuva flagove — nije potrebno, jer serije nose
+  istinu. Migracija nije rađena.
+
+---
+
+## [2026-07-31] Donja navigacija „Kupola" (opt-in prototip) + sklopiva Podešavanja u profilu
+**Tip:** funkcija (eksperiment iza prekidača)
+
+**Šta:** Donja navigacija dobila drugi izgled — „Kupola": luk koji izranja sa
+dna ekrana, ikone sjede na rubu luka, a preko njih se prstom prevlači
+izdignuto svijetleće TJEME koje uz oprugu sjeda na najbližu stavku i navigira
+(tap radi kao i uvijek; prevlačenje na odjavu se odbija — odjava traži tap).
+Pokret je kućni jezik: squash & stretch kupole pri prevlačenju, ink-bloom iz
+tjemena pri promjeni rute, ikone izranjaju talasom; `prefers-reduced-motion`
+sve gasi, tjeme tada preskače.
+
+- `src/app/services/nav-mode.service.ts` (novo) — izbor `classic`/`dome` po
+  uređaju (localStorage `gymapp.footerMode`), primjena uživo (BehaviorSubject),
+  klasa `nav-dome` na `<html>`. **Podrazumijevano je `classic`** — kupola je
+  opt-in dok se isprobava, niko ne vidi promjenu dok je sam ne upali.
+- `src/app/components/footer/*` — klasični futer NETAKNUT (stilovi vraćeni iz
+  HEAD-a nakon što ih je međukorak bio progutao); kupola pod svojim klasama:
+  geometrija luka i položaji ikona se računaju u TS-u (elipsa + Gausova
+  blizina tjemenu + magnetni klizaj), opruga za snap, ResizeObserver za sve
+  širine (na laptopu ostrvo u sredini).
+- Kupola NE rezerviše traku: host visine 0, dok lebdi preko sadržaja
+  (`footer.component.scss`), sadržaj teče ispod luka i vidi se i dodiruje
+  kroz providne uglove (`pointer-events` propušta sve van oblika luka);
+  prostor za skrol iznad tjemena vraća `app.component.scss`
+  (`.content.app-scroll` padding uz `nav-dome`); `--footer-h` raste na 96px
+  samo uz `nav-dome` (`_tokens.scss`) pa se modali i lebdeća dugmad sami
+  poravnaju, a klasični režim ostaje na 64px — piksel u piksel kao prije.
+- `src/app/components/profile/*` — sistemske kartice (Izgled, Notifikacije +
+  nova „Meni") preseljene u jednu SKLOPIVU sekciju „Podešavanja" (zatvorena
+  po defaultu, stanje u localStorage; tijelo se razliva, kartice izranjaju
+  talasom sa korakom po kartici) — profil više nije pretrpan prekidačima.
+
+**Zašto:** Markova ideja — donji meni kao „slider/polukrug sa moćnom
+animacijom"; prekidač omogućava testiranje u produkciji (LiveContainer) bez
+uticaja na ostale korisnike.
+
+**Dopuna istog dana — tečni jezik i u klasičnom režimu (Markova primjedba):**
+klasični futer je restauracijom ostao bez ijedne ulazne animacije, pa je dobio
+isti jezik kao kupola, u diskretnijoj mjeri (`footer.component.scss`): ikone
+pri ulasku izranjaju talasom (60ms korak po ikoni), novoaktivirana ikona se
+slegne uz squash & stretch pop, a iz nje se razlije kap mastila kroz pilulu
+aktivne rute. Sve ugašeno uz `prefers-reduced-motion`.
+
+**Dopuna istog dana — visina klasičnog futera:** `--footer-h` 64 → 72px
+(`_tokens.scss:159`) — ikone su na telefonu sjedale prenisko uz ivicu pa ih je
+bilo teško pogoditi palcem. Kupola i dalje diže token na 96px kroz `nav-dome`.
+
+**Dopuna istog dana — vitkije zaglavlje:** `--header-h` 86 → 74px
+(`_tokens.scss`) i logo 62 → 50px (`header.component.scss`) — zaglavlje je na
+telefonu djelovalo masivno, najviše zbog loga. Potrošači tokena (blog „nazad",
+login/register, globalni offseti) poravnavaju se sami.
+
+---
+
+## [2026-07-31] Cyberpunk „glitch" preko ekrana za trenutke napretka (volt/gold)
+**Tip:** funkcija (vizuelni efekat)
+
+**Šta:** Trenuci moći dobili drugi registar pokreta — kratki „glitch" preko
+cijelog ekrana u stilu Cyberpunk 2077 efekata: volt vinjeta po ivicama,
+pixel-stretch trake sa trzajem i skew-om, nagovještaj RGB splita (crvena +
+cijan nit), scanline treptaj; uz rekord još i dijagonalni holografski šimer i
+„datamosh" blokovi. Tečni/mastilo jezik ostaje za svakodnevne prelaze — glitch
+svira SAMO uz napredak.
+
+- `src/app/services/glitch.service.ts` (novo) — `trigger('volt' | 'gold')`,
+  Subject sa rastućim ključem; novi ključ ponovo rodi slojeve overlaya
+  (`*ngFor="let k of burst"` trik iz skill-a tecne-animacije), pa se animacija
+  restartuje i usred prethodnog prolaza.
+- `src/app/components/glitch-overlay/*` (novo) — `<app-glitch-overlay>`:
+  fixed, inset 0, `pointer-events: none`, z-index 120 (iznad sadržaja, headera
+  50, futera 60 i toasta 100; ISPOD svih modala 150–300). Registrovan u
+  `app.module.ts`, ubačen na dno `app.component.html` (uz profile-preview).
+  - **'volt'** (~520ms, veća kilaža): vinjeta 520ms + 3 trake 430–520ms
+    (kaskada 0/40/90ms) + RGB niti 300ms + scanline 380ms — udar, treptaj,
+    signal se uhvati i sve nestane.
+  - **'gold'** (~880ms, rekord): ista mašinerija u zlatnoj paleti (lokalni
+    #FFD75A/#F5C445 tonovi — zlata nema u tokenima) + šimer 700ms + 3 datamosh
+    bloka na `steps(2)`; tempiran da udari u istom taktu sa plamenom rekorda.
+- Performanse (iPhone WKWebView): animira se isključivo transform/opacity,
+  slojevi su statični gradijenti, nema filter/backdrop-filter; `will-change`
+  važi samo dok slojevi postoje (rađaju se po okidanju, tajmer ih ukloni,
+  čisti se u ngOnDestroy). `prefers-reduced-motion` — overlay se uopšte ne
+  rađa (matchMedia guard u komponenti + `display: none` u CSS-u).
+- Obje teme: 'volt' čita tokene pa se sam preslika (u svijetloj je volt
+  tamnozelen; vinjeta prigušena kroz `:host-context([data-theme='light'])`,
+  trake/blokovi prelaze na `multiply` — mastilo umjesto neona); 'gold' u
+  svijetloj dobija dublji jantar (#A67C00 tonovi).
+- `src/app/components/training/training.component.ts` — okidači: u
+  `buzzProgress` (unutar `saveLog`) uz `progressHaptics('weight')` ide
+  `glitch.trigger('volt')` + `audio.play('glitch')` — SAMO za granu veće
+  kilaže, ne za ponavljanja; u `refreshPr` uz `progressHaptics('record')` ide
+  `glitch.trigger('gold')` — vibracija + glitch + zvuk = jedan sinhron trenutak.
+- `src/app/services/audio.service.ts` — novi slot `'glitch'` po postojećem
+  obrascu, ali sa PRAZNIM nazivom fajla: snimak još nije nabavljen, pa se svaki
+  poziv tiho preskoči (guard `!CLIPS[name]` u `play`/`prefetch`/`playElement` —
+  bez mrežnog zahtjeva i bez 404 u konzoli). Kad Marko izabere snimak, samo se
+  upiše naziv fajla u `CLIPS`.
+
+**Zašto:** Markova želja — da napredak u kilaži i rekord „udare" kao special
+effect iz Cyberpunka 2077, sinhrono sa vibracijom i zvukom, a da ostatak
+aplikacije zadrži tečni jezik pokreta.
+
+**Dopuna istog dana — sigurna zona iPhone-a je bila isključena:**
+`src/index.html` viewport meta nije imao `viewport-fit=cover`, pa je iPhone
+držao `env(safe-area-inset-*)` na nuli — futer (i klasični i kupola) lijepio
+se za samu donju ivicu ispod trake za gestove, ma koliko se visina štimala.
+Sada `--safe-b`/`--safe-t` stvarno rade: futer sam odskoči iznad trake za
+gestove, zaglavlje ispod notcha. Uz to kupola: rub luka blaže pada na uskim
+ekranima (0.17→0.13 širine, kapa 60px) i krajnje ikone + tjeme su zaštićeni
+od isijecanja (clamp na visinu doka u `render()`), jer su na iPhone-u home i
+odjava virili van ekrana.
+
+**Dopuna istog dana — logo prati temu:** zaglavlje u svijetloj temi koristi
+novu varijantu loga (`assets/logo_light_mode.png`, Marko dodao) —
+`header.component.html` bira po `ThemeService.isLight`, promjena je trenutna
+pri prebacivanju teme.
+
+**Dopuna istog dana — logo prati temu SVUDA + futer vraćen na 64px:** svijetla
+varijanta loga sada i na landing/login/register ekranima (ThemeService +
+`[src]` na sva četiri mjesta gdje logo postoji); `--footer-h` vraćen 72 → 64px
+— „prenisko" je zapravo bila isključena sigurna zona, pa je poslije
+`viewport-fit=cover` popravke 72px postalo previsoko.
+
+**Dopuna istog dana — kompaktniji futer uz živu sigurnu zonu:** ukupna traka
+(pojas ikona + ~34px gestova) bila je previsoka — `--footer-h` 64 → 52px
+(dugmad od 46px i dalje staju), kupola 96 → 86px.
+
+**Dopuna istog dana — traka se vizuelno završava ispod ikona (IMG_4577):**
+pozadina klasičnog futera blijedi kroz zonu gestova umjesto da je farba —
+pojas ikona + sigurna zona ofarbani istom bojom činili su jednu ogromnu ploču
+na dnu telefona. Ikone i dalje sjede iznad zone gestova; na desktopu
+(safe-b = 0) gradijent se sam uruši u punu boju.
+
+**Dopuna istog dana — redizajn po Markovoj povratnoj informaciji:** prva
+verzija (vinjeta + poluprovidne trake + RGB niti + scanline) presuđena kao
+„očajna, konfuzna, nema dopamin" — zamijenjena drskim sci-fi efektom u TRI
+faze, i efekat sada NOSI PORUKU (`trigger(kind, message)`):
+
+1. **Trzaj samog UI-ja (0–240ms):** overlay lijepi klasu `glitch-jolt` na
+   `<html>` (skida je tajmerom, restart zamjenom klase preko reflow-a, čisti u
+   ngOnDestroy); globalni stil na dnu `_base.scss` pod njom trza CIJELI
+   `.shell` u tvrdim `steps(1)` koracima — translateX ±5–8px + na tren isječen
+   `clip-path` kadar (na ~50ms ostane samo srednji pojas slike). Sadržaj se
+   stvarno pomjeri.
+2. **Neprovidne trake (0–350ms):** 4 krupne pune trake (4–9vh; naizmjenično
+   `--volt-fill`/zlatna i `--deep`), tvrde ivice, skoče u `steps(2)` pa nestanu
+   na rez — pomjereni redovi piksela, vidljivo i drsko.
+3. **Oluja znakova + dekodiranje (120ms–kraj):** velika mono poruka
+   (`--font-data`, clamp 28–40px, volt/zlatna + glow) skremblovana JS
+   intervalom (45ms) iz skupa `#?!01<>/\_ΔΞ$%&` pa se slova slijeva nadesno
+   zaključavaju u konačan tekst; oko nje 10–14 malih znakova (Math.random
+   pozicije/kašnjenja) blicne pop-om kaskadno; poruka odstoji pa se raspadne u
+   3 tvrda koraka (`steps(1)` opacity/translate/skew). Interval i svi tajmeri
+   se čiste u ngOnDestroy i pri restartu.
+
+Trajanja: volt ~950ms (dekodiranje ~230ms, poruka stoji do 720ms), gold
+~1350ms (dekodiranje ~500ms, poruka stoji do 1120ms, zadržan holografski
+šimer 100–800ms; i dalje u taktu sa plamenom). Poruke iz
+`training.component.ts`: volt = razlika kilaže prema istoj seriji prošlog
+treninga preko `echoSetIn` („+2,5 kg" — pola kile zaokruženo, zapeta), gold =
+`prMetric` vrijednost i jedinica („NOVI REKORD · 32 kg", za čist BW
+„NOVI REKORD · 15 pon."). Performans pravila ista (transform/opacity +
+clip-path samo na shell trzaju; bez filtera); `prefers-reduced-motion` i dalje
+gasi sve, uključujući klasu na `<html>`. Stara mašinerija (vinjeta, stretch
+trake, RGB niti, scanline, datamosh) uklonjena.
+
+**Dopuna istog dana — safe-area podizač uklonjen (Markova presuda):**
+`viewport-fit=cover` vraćen iz index.html (iOS sam drži stranicu iznad trake
+za gestove — kao prije), `--footer-h` nazad na zatečenih 64px. Gradijent i
+`--footer-gap` u futeru ostaju u kodu ali miruju (safe-b = 0). Kupola ostaje
+na 86px sa zaštitom krajnjih ikona.
+
+**Dopuna istog dana — prekidač „Efekti" u Podešavanjima:** glitch spektakl
+preko cijelog ekrana je po izboru (`GlitchService.enabled`, localStorage
+`gymapp.glitchFx`, podrazumijevano uključen) — slabiji telefon ili mirniji
+ukus ga gasi u Profil → Podešavanja → Efekti. Gasi SAMO glitch: plamen
+rekorda, zvuk i vibracije ostaju uvijek (Markova specifikacija).
+
+## [2026-07-31] Splash redizajniran: ASCII talas-polje iz kojeg izranja identitet
+**Tip:** funkcija (vizuelni efekat)
+
+**Šta:** Landing je bio logo + natpis bez ijedne animacije. Sada je cijeli
+ekran ASCII more od monospace znakova koje se stvarno talasa, a identitet iz
+njega IZRANJA — kućnim tečnim jezikom, uz nagovještaj glitch registra
+(dekodiranje natpisa iz šuma). Splash je uz to skraćen sa 4s na 3,4s i može se
+preskočiti dodirom.
+
+**Kadar (vremenska osa je u konstantama na vrhu `landing.component.ts`, SCSS
+kašnjenja moraju je pratiti):**
+
+1. **0–900ms** — more se budi iz praznine: raste i amplituda i srednji nivo
+   gustine, pa ekran krene kao rijetka prašina znakova pa se ispuni talasima
+   (da raste samo amplituda, prvi kadar bi bio ravan zid od jednog znaka).
+   Istovremeno se kroz polje SKUPLJA udar ka centru (implozija koja jača kako
+   se sabija) i stiže tačno na ~700ms.
+2. **560ms** — logo izranja: `mark-surface` (istegnut po visini dok se diže →
+   prebačaj → slijeganje, squash & stretch) + `ink-bloom` kap `--volt-a40` iza
+   njega + prsten `ring-out` koji odlazi sa loga. U istom trenutku voda oko
+   identiteta se RAZMAKNE — gustina pada ka nuli u elipsi (viša nego šira, jer
+   ispod loga stoje natpis i mjerač), pa u moru ostane rupa u koju identitet
+   stane.
+3. **640ms** — drugi udar odlazi napolje kroz polje (parnjak prstena sa loga).
+4. **980–1540ms** — natpis „JEBA NE SMIJE DA STANE" se DEKODIRA iz šuma
+   slijeva nadesno (isti postupak kao `glitch-overlay`, skup znakova
+   `#?!01<>/\_$%&*+=~`, samo ASCII). Mono font je obavezan: da slova nisu
+   jednake širine, linija bi se trzala dok se zaključavaju.
+5. **1560–2880ms** — mjerač `ZAGRIJAVANJE [######--------]` se puni do samog
+   preusmjerenja.
+6. **2880ms** — izlaz: posljednji udar iz centra + amplituda nabuja 90%, kadar
+   se blago udalji i pretopi, identitet POTONE nazad (ink-retreat osjećaj).
+7. **3380ms** — `waitForSession()` pa `/dashboard` ili `/login` (tok zadržan).
+
+**Kako se crta i koliko košta:**
+
+- `src/app/components/landing/landing.component.html` — polje su **dva `<pre>`
+  čvora** i ništa više: `.deep` nosi mirnu vodu, `.crest` samo grebene u volt
+  boji. Svaka ćelija ide u tačno jedan sloj, drugi na tom mjestu dobija
+  razmak — znakovi se ne preklapaju, a `text-shadow` sjaj pada samo na ~7–9%
+  ćelija koje ga traže. Po kadru se upisuju dva `textContent`-a; nijedan DOM
+  čvor se ne pravi ni ne briše (nema canvasa, nema hiljadu `<span>`-ova).
+- `landing.component.ts:331` (`draw`) — visina talasa je zbir tri sinusa, ali
+  se sinusi računaju PO KOLONI i PO REDU, ne po ćeliji: dijagonalni član se
+  razlaže preko `sin(a+b) = sin a·cos b + cos a·sin b`, pa u unutrašnjoj petlji
+  ostanu samo sabiranja i množenja. Rastojanje ćelije od centra (za prsten
+  udara) i težina mirne vode računaju se JEDNOM pri mjerenju, u
+  `Float32Array`-ima.
+- `landing.component.ts:260` (`layout`) — mreža se izvodi iz širine ekrana
+  (~34 kolone, znak 10–20px), a stvarna širina znaka se IZMJERI skrivenim
+  lenjirom od 20 „M" umjesto da se vjeruje konstanti 0.6em — ako font zakasni
+  ili padne na sistemski, mreža bi inače bila kriva. Ista mjera se ponovi na
+  `resize` (150ms odgoda) i na `document.fonts.ready`.
+- Mjereno (Node, ista petlja): **~0,07ms po kadru** za 1100–1850 ćelija
+  (telefon 36×38, laptop 74×25). Petlja radi na ~30fps (`rAF` sa preskokom na
+  33ms), **van Angular zone** i piše direktno u `textContent` — nijedan kadar
+  ne pokreće provjeru promjena. U zonu se vraća samo preusmjerenje.
+- Sve ostalo je transform/opacity.
+
+**Preskok:** klik/dodir bilo gdje (`(click)="skip()"` na korijenu) ili bilo
+koji taster (`@HostListener('document:keydown')`) — pretapanje krene odmah kao
+potvrda i ide se pravo na login/dashboard; `leaving` zastavica čuva od dvostrukog
+preusmjerenja.
+
+**Obje teme:** boje idu kroz tokene pa se preslikaju same — mirna voda je
+`color-mix(--ice 15%)` (na kosti tanak grafitni reljef), grebeni `--volt`. U
+svijetloj temi (`:host-context([data-theme='light'])`) grebeni se spuštaju na
+66% tamnozelene i GASI im se sjaj — neon glow na svijetlom samo zamuti znak;
+sjenka loga sa 90% crne prelazi na `--ice` mix, jer je crna na kosti mrlja a
+ne dubina.
+
+**`prefers-reduced-motion`:** JS ne pokreće petlju nego nacrta JEDAN statičan
+kadar (`draw(1400)`), natpis je odmah dekodiran, mjerač pun; CSS gasi sve
+ulaze, kap, prsten i pretapanje. Tok i trajanje ostaju isti.
+
+**Čišćenje:** `stop()` u jednom mjestu gasi `requestAnimationFrame`, oba
+tajmera (izlaz i preusmjerenje), odgodu resize-a i sam `resize` osluškivač;
+zove se i iz `ngOnDestroy` i pri odlasku sa ekrana, pa ništa ne tiktače nakon
+splasha.
+
+**Dopuna istog dana — zvukovi efekata (Markovi fajlovi):** `level_up_kg.mp3`
+ide uz volt glitch (veća kilaža), a pri rekordu se PREKO dugog `record` klipa
+pušta i kratki `new_PR.mp3` — novi `AudioService.playOver()` sloj kroz
+WebAudio (više izvora kroz isti gain, bez prekidanja glavnog kanala).
+
+**Dopuna istog dana — V3: ASCII talas umjesto traka (Markovo oduševljenje
+landingom):** poslije ASCII mora na splashu („takvom nečemu sam se nadao kod
+glitch efekata") neprovidne trake i mala oluja znakova iz v2 su izbačene, a na
+njihovo mjesto došao **ASCII TALAS** — nalet polja monospace znakova koji
+prohuja preko ekrana slijeva nadesno, kao da se more sa landinga na tren
+prelije preko aplikacije. Mijenjana SAMO glitch-overlay komponenta; trzaj
+shella (`glitch-jolt` u `_base.scss`), poruka sa dekodiranjem, okidači u
+trainingu i servis ostali isti.
+
+- **Tehnika iz landinga** (`glitch-overlay.component.ts`): dva <pre> čvora
+  (`deep` providan volt ton, `crest` grebeni + glow na ~15% ćelija),
+  `textContent` po kadru na ~30 fps, rAF petlja VAN Angular zone (nijedan
+  kadar ne pokreće CD), lenjir mjeri stvarnu širinu znaka, mreža i statično
+  zrno po ćeliji (Float32Array) se prave samo kad se broj ćelija promijeni.
+  Polje je stalno u DOM-u (prazno ne košta ništa) da ViewChild reference
+  postoje prije prvog kadra.
+- **Front i gustina:** front ide konstantnom brzinom (ulazi/izlazi van
+  ekrana), po redu krivuda kroz dva sinusa računata PO REDU; gustina ćelije =
+  1 na frontu, uski sprej ispred (3–4 kolone, linearno), iza fronta
+  eksponencijalno gašenje kroz unaprijed izračunatu WAKE tabelu (bez exp() u
+  petlji); ćelija se pali kad gustina nadmaši njeno zrno — prorjeđivanje je
+  doslovno vjerovatnoća. Treptaj daje pomak indeksa zrna po kadru, grebeni
+  povremeno blicnu znakom šuma (talas JE oluja — mali sparkovi iz v2 stopljeni
+  u njega). Redovi mimo fronta se pune isječcima gotovog praznog reda.
+- **Registri:** volt ~950ms (talas 860ms, rep 14 kolona), gold ~1350ms (talas
+  1200ms, gušći ×1.25, rep 20 kolona, zadržan šimer 100–800ms; u taktu sa
+  plamenom). Teme kao landing: svijetla bez glowa, volt kroz tokene
+  (tamnozelen), zlato duboki jantar #A67C00.
+- **Cijena kadra** (Node simulacija iste petlje, mreža telefona 36×42): volt
+  0,008ms, gold 0,010ms; laptop 76×50: 0,014ms — cilj <0,2ms premašen ~20×.
+- **Čišćenje:** rAF se sam gasi kad talas istekne (`stopWave` briše oba
+  <pre>), restart okidanja prekida prethodni rAF pa kreće novi sat; u
+  `ngOnDestroy` se gase rAF, interval skremblovanja, svi tajmeri i skida
+  `glitch-jolt` sa <html>.

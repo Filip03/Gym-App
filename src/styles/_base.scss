@@ -55,11 +55,26 @@ body::before {
   pointer-events: none;
 
   background-image:
-    linear-gradient(180deg, rgba(6,8,11,.80) 0%, rgba(6,8,11,.93) 55%, var(--void) 100%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--void) 80%, transparent) 0%,
+      color-mix(in srgb, var(--void) 93%, transparent) 55%,
+      var(--void) 100%),
     url('/assets/background.jpg');
   background-size: cover, cover;
   background-position: center, center top;
   background-repeat: no-repeat, no-repeat;
+}
+
+// Svijetla tema: ISTA fotografija, ali skoro potpuno prekrivena svijetlim
+// velom — tekstura sprave ostane u naznakama, a stranica je svijetla. Bez
+// posebne slike, bez novog asseta.
+:root[data-theme='light'] body::before {
+  background-image:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--void) 93%, transparent) 0%,
+      color-mix(in srgb, var(--void) 97%, transparent) 55%,
+      var(--void) 100%),
+    url('/assets/background.jpg');
 }
 
 // Rezervu za footer nosi `.content.app-scroll` u app.component.scss — stil
@@ -249,7 +264,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   min-height: 46px;
   padding: 0 var(--s-6);
 
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
   border-radius: var(--r-sm);
   font-family: var(--font-display);
@@ -258,7 +273,7 @@ button:not(:disabled):active { transform: scale(0.97); }
 }
 
 .btn-primary:not(:disabled):hover {
-  background: #D4FF5E;
+  background: var(--volt-hi);
   box-shadow: 0 0 20px -4px var(--volt-a40);
 }
 
@@ -369,7 +384,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   left: 3px;
   width: calc((100% - 6px) / var(--seg-count, 2));
 
-  background: var(--volt);
+  background: var(--volt-fill);
   border-radius: calc(var(--r-sm) - 2px);
   box-shadow: 0 0 14px -4px var(--volt);
 
@@ -452,7 +467,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   align-items: flex-end;
   justify-content: center;
 
-  background: rgba(3, 5, 7, 0.72);
+  background: var(--scrim);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 
@@ -502,7 +517,7 @@ button:not(:disabled):active { transform: scale(0.97); }
   gap: var(--s-2);
   padding: var(--s-3) var(--s-4);
   background: var(--ember-a15);
-  border: 1px solid rgba(255, 107, 92, .3);
+  border: 1px solid var(--ember-a30);
   border-radius: var(--r-sm);
   color: var(--ember);
   font-size: var(--t-sm);
@@ -533,3 +548,75 @@ button:not(:disabled):active { transform: scale(0.97); }
 
 // Element sa [appProfilePreview] zakačkom — otvara brzi pregled profila.
 .pp-clickable { cursor: pointer; }
+
+// Pretapanje pri promjeni teme: klasa stoji na <html> ~420ms (ThemeService).
+// !important namjerno — privremeno pregazi i transitions komponenti, da se
+// SVE boje preliju u istom taktu; poslije se klasa skine i sve je po starom.
+html.theme-anim *,
+html.theme-anim *::before,
+html.theme-anim *::after {
+  transition: background-color 420ms cubic-bezier(.4, 0, .2, 1),
+              color 420ms cubic-bezier(.4, 0, .2, 1),
+              border-color 420ms cubic-bezier(.4, 0, .2, 1),
+              fill 420ms cubic-bezier(.4, 0, .2, 1),
+              stroke 420ms cubic-bezier(.4, 0, .2, 1) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-anim *,
+  html.theme-anim *::before,
+  html.theme-anim *::after { transition: none !important; }
+}
+
+// Prelaz teme kroz View Transitions: NOVA tema se otkriva MEKOM ivicom koja
+// putuje odozgo nadolje — stara slika mirno stoji ispod dok je talas ne spere.
+// Maska je 220% visine sa mekim prelazom u sredini, pa ivica nikad nije oštra.
+// MEKI MORF: stara slika blago potone i izblijedi, nova udahne kroz jedva
+// primjetan zoom (0.8%) — fluidno i moderno, bez ivica i bez bljeska.
+::view-transition-old(root) {
+  animation: vt-old 380ms cubic-bezier(.4, 0, .2, 1) both;
+}
+::view-transition-new(root) {
+  animation: vt-new 380ms cubic-bezier(.4, 0, .2, 1) both;
+}
+
+@keyframes vt-old {
+  to { opacity: 0; transform: scale(.992); }
+}
+@keyframes vt-new {
+  from { opacity: 0; transform: scale(1.008); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}
+
+// ---------------------------------------------------------------------------
+// GLITCH TRZAJ CIJELOG UI-ja — faza 1 cyberpunk efekta za trenutke napretka.
+//
+// GlitchOverlayComponent zalijepi klasu `glitch-jolt` na <html> na ~240ms
+// (skine je tajmerom; restart ide zamjenom klase preko reflow-a). Pod njom se
+// CIJELI .shell — header, sadržaj i futer zajedno — trza u TVRDIM koracima:
+// steps(1) drži svaki kadar pa reže na sljedeći, bez klizanja. Uz pomak ide i
+// isječen clip-path kadar (na tren ostane samo pojas slike, kao pokidan
+// signal). Sadržaj se STVARNO pomjeri — to je „sve se zaglitchovalo".
+//
+// Performanse: samo transform + clip-path, bez filtera; 240ms, jedan element.
+// ---------------------------------------------------------------------------
+:root.glitch-jolt .shell {
+  animation: shell-glitch 240ms steps(1, end) both;
+}
+
+@keyframes shell-glitch {
+  0%   { transform: translate3d(0, 0, 0);    clip-path: inset(0 0 0 0); }
+  20%  { transform: translate3d(-7px, 0, 0); clip-path: inset(4% 0 16% 0); }
+  45%  { transform: translate3d(8px, 0, 0);  clip-path: inset(36% 0 30% 0); }
+  70%  { transform: translate3d(-5px, 0, 0); clip-path: inset(9% 0 3% 0); }
+  100% { transform: translate3d(0, 0, 0);    clip-path: inset(0 0 0 0); }
+}
+
+// Komponenta klasu ni ne lijepi uz smanjen pokret — ovo je pojas spasa.
+@media (prefers-reduced-motion: reduce) {
+  :root.glitch-jolt .shell { animation: none; }
+}

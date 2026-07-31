@@ -9,6 +9,10 @@ import {
   PickerGroup, PickerOption, toPickerGroups
 } from '../shared/exercice-picker/exercice-picker.component';
 import { formatIsoDate } from '../shared/date-picker/date-picker.component';
+import { PushNotificationService } from '../../services/push-notification.service';
+import { ThemeService } from '../../services/theme.service';
+import { NavModeService } from '../../services/nav-mode.service';
+import { GlitchService } from '../../services/glitch.service';
 
 /** Jedno polje u kalendaru treninga. */
 interface CalCell {
@@ -227,8 +231,89 @@ export class ProfileComponent implements OnInit {
     private audio: AudioService,
     private profileService: ProfileService,
     private exerciceService: ExerciceService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    public push: PushNotificationService,
+    public theme: ThemeService,
+    public navMode: NavModeService,
+    public glitch: GlitchService
   ) {}
+
+  // --- Podešavanja (sklopiva sekcija) --------------------------------------
+  //
+  // Sistemske kartice (izgled, notifikacije, meni) žive u jednoj sklopivoj
+  // sekciji da profil ne bude pretrpan prekidačima. Stanje se pamti po
+  // uređaju — ko ih često dira, zatiče ih otvorene.
+  settingsOpen = localStorage.getItem('gymapp.settingsOpen') === 'on';
+
+  toggleSettings() {
+    this.settingsOpen = !this.settingsOpen;
+    localStorage.setItem('gymapp.settingsOpen', this.settingsOpen ? 'on' : 'off');
+  }
+
+  toggleNavMode() {
+    this.pulse('nav');
+    this.navMode.toggle();
+  }
+
+  toggleGlitchFx() {
+    this.pulse('fx');
+    this.glitch.setEnabled(!this.glitch.enabled);
+  }
+
+  // --- Notifikacije --------------------------------------------------------
+  //
+  // Prekidač u aplikaciji + stanje dozvole pregledača. Kad je dozvola jednom
+  // ODBIJENA, sajt je ne može ponovo tražiti — jedino što možemo je reći
+  // korisniku gdje da je upali ručno. Zato tekst ispod prekidača.
+  pushBusy = false;
+  /** Koji je klizač upravo pritisnut — kap mastila puca na svaki klik. */
+  switchPulse: 'theme' | 'push' | 'nav' | 'fx' | null = null;
+  private pulseTimer: any = null;
+
+  private pulse(which: 'theme' | 'push' | 'nav' | 'fx') {
+    this.switchPulse = which;
+    clearTimeout(this.pulseTimer);
+    this.pulseTimer = setTimeout(() => this.switchPulse = null, 500);
+  }
+
+  toggleTheme() {
+    this.pulse('theme');
+    this.theme.toggle();
+  }
+
+  async togglePush() {
+    if (this.pushBusy) return;
+    this.pulse('push');
+    this.pushBusy = true;
+    try {
+      await this.push.setEnabled(!this.push.enabled);
+    } finally {
+      this.pushBusy = false;
+    }
+  }
+
+  pushTestSent = false;
+
+  async testPush() {
+    const ok = await this.push.testNotification();
+    this.pushTestSent = ok;
+    setTimeout(() => this.pushTestSent = false, 4000);
+  }
+
+  get pushStatus(): string {
+    if (this.push.permission === 'unsupported') {
+      // Najčešći slučaj: otvoreno preko http://IP (dev sa telefona) — API tada
+      // uopšte ne postoji, pa prekidač ne može ništa. Na pravoj adresi radi.
+      return 'Ovdje notifikacije nisu moguće (treba HTTPS) — na pravoj adresi aplikacije rade.';
+    }
+    if (!this.push.enabled) return 'Isključene u aplikaciji.';
+    switch (this.push.permission) {
+      case 'granted': return 'Uključene — stižu i kad je aplikacija zatvorena.';
+      case 'denied':  return 'Blokirane u pregledaču. Upali ih u podešavanjima '
+                           + 'sajta (ikonica pored adrese), pa se vrati ovdje.';
+      default:        return 'Pregledač će pitati za dozvolu pri uključivanju.';
+    }
+  }
 
   async ngOnInit() {
     const user = this.authService.getCurrentUser();

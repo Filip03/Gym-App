@@ -102,7 +102,7 @@
 .dp-day.today { border-color: var(--line-strong); color: var(--ice); }
 
 .dp-day.selected {
-  background: var(--volt);
+  background: var(--volt-fill);
   border-color: var(--volt);
   color: var(--volt-ink);
   font-weight: 700;

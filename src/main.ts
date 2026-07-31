@@ -3,6 +3,13 @@ import { platformBrowserDynamic } from '@angular/platform-browser-dynamic';
 
 import { AppModule } from './app/app.module';
 
+// Tema se primjenjuje PRIJE bootstrapa — inače svijetli korisnik pri svakom
+// otvaranju vidi bljesak tamne teme dok se Angular podiže.
+document.documentElement.setAttribute(
+  'data-theme',
+  localStorage.getItem('gymapp.theme') === 'light' ? 'light' : 'dark'
+);
+
 
 /**
  * U razvoju se skida svaki zaostali service worker.
@@ -18,11 +25,20 @@ import { AppModule } from './app/app.module';
  */
 if (isDevMode() && 'serviceWorker' in navigator) {
   void navigator.serviceWorker.getRegistrations()
-    .then(regs => Promise.all(regs.map(r => r.unregister())))
+    .then(regs => {
+      // SAMO Angularov ngsw! Firebase-ov messaging worker se registruje u toku
+      // rada (dozvola za notifikacije) — brisati njega znači: registracija →
+      // reload → brisanje → registracija... beskonačna petlja osvježavanja.
+      const ngsw = regs.filter(r =>
+        [r.active, r.installing, r.waiting]
+          .some(w => w?.scriptURL.includes('ngsw-worker.js')));
+      return Promise.all(ngsw.map(r => r.unregister()));
+    })
     .then(unregistered => {
-      // Keš preživi odjavu workera, pa se briše zasebno.
+      // Keš preživi odjavu workera, pa se briše zasebno — ali samo ngsw keševi.
       if (unregistered.some(Boolean) && 'caches' in window) {
-        return caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))))
+        return caches.keys()
+          .then(keys => Promise.all(keys.filter(k => k.startsWith('ngsw:')).map(k => caches.delete(k))))
           .then(() => location.reload());
       }
       return undefined;

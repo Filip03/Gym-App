@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
+import { ThemeService } from '../../services/theme.service';
 import { Router, RouterLink } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
 import { humanError } from '../../shared/errors';
@@ -27,7 +28,8 @@ export class RegisterComponent{
   constructor(
     private authService: AuthService,
     private router: Router,
-    private audio: AudioService
+    private audio: AudioService,
+    public theme: ThemeService
   ) {}
 
   async onSubmit() {

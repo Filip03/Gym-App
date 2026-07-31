@@ -1,40 +1,242 @@
-div{
-    width: 100%;
-    height: 100svh;   // `svh` — `vh` je viši od vidljivog na telefonu
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    opacity: 1;
-    transition: opacity 1.5s ease;
-    padding: 0 20px;
+// ---------------------------------------------------------------------------
+// SPLASH — „PLJESAK KREDE"
+//
+// Tri sloja:
+//   1. `.veil`     — statičan mekan sjaj iza identiteta,
+//   2. `.mark-wrap` — logo + oblak krede (4 mrlje) + prsten udara,
+//   3. natpis i traka punjenja.
+//
+// Sve su transform/opacity keyframe animacije sa fiksnim `animation-delay`-om
+// — vremenska osa mora pratiti T_EXIT/T_LEAVE u landing.component.ts.
+// ---------------------------------------------------------------------------
+
+:host { display: block; }
+
+// Fiksirano preko cijelog ekrana: komponenta živi unutar `.content` koji ima
+// svoju maksimalnu širinu i padding, a splash mora do same ivice stakla.
+.landing {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+
+  display: grid;
+  place-items: center;
+
+  overflow: hidden;
+  background: var(--void);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  transition: opacity 460ms var(--ease), transform 520ms var(--ease-out);
 }
 
-.landing.fade-out{
-    opacity: 0;
+// Izlaz: cijeli kadar se blago udalji i pretopi.
+.landing.leaving {
+  opacity: 0;
+  transform: scale(1.035);
 }
 
-img{
-    width: 500px;
-    max-width: 80%;
-    height: auto;
+.veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(46% 34% at 50% 42%, var(--volt-a10) 0%, transparent 72%);
 }
 
-p{
-    color: white;
-    font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
-    font-size: 40px;
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    text-align: center;
+// --- Identitet -------------------------------------------------------------
+
+.identity {
+  position: relative;
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-5);
+
+  padding: 0 var(--s-5);
+  text-align: center;
+
+  transition: transform 460ms var(--ease);
 }
 
-span{
-    color: greenyellow;
+// Izlaz: identitet blago potone dok se sve gasi.
+.landing.leaving .identity {
+  transform: translateY(10px) scaleX(1.04) scaleY(.94);
 }
 
-@media (max-width: 480px) {
-    p {
-        font-size: 28px;
-    }
+.mark-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+
+// Oblak krede: četiri mrlje, svaka bježi u svom pravcu (--dx/--dy) dok raste
+// i blijedi — čupavo, ne savršen krug, kao stvarna prašina.
+//
+// NAMJERNO ISPRED loga (bez z-index trika): `.mark` (img) je nepozicioniran
+// element, pa bi čak i z-index:-1 na mrljama zavisio od suptilnih pravila
+// slaganja stacking konteksta. Ovako je zagarantovano vidljivo — prašina
+// stvarno i poleti oko/preko ruku pri pljesku, ne iza njih.
+.puff {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--mist) 75%, transparent) 0%,
+    transparent 70%);
+  filter: blur(2px);
+
+  opacity: 0;
+  animation: puff-bloom 820ms var(--ease-out) both;
+}
+
+.puff.p1 { --dx: -68px; --dy: -42px; animation-delay: 140ms; }
+.puff.p2 { --dx: 62px;  --dy: -30px; animation-delay: 165ms; }
+.puff.p3 { --dx: -34px; --dy: 58px;  animation-delay: 155ms; }
+.puff.p4 { --dx: 44px;  --dy: 52px;  animation-delay: 180ms; }
+
+@keyframes puff-bloom {
+  0%   { opacity: 0;  transform: translate(0, 0) scale(.2); }
+  28%  { opacity: .9; }
+  100% { opacity: 0;  transform: translate(var(--dx), var(--dy)) scale(6); }
+}
+
+// Prsten udara: vidljivi "zvuk" pljeska, ide u akcentnoj boji.
+.mark-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--volt-a40);
+  pointer-events: none;
+  animation: ring-out 760ms var(--ease-out) 150ms both;
+}
+
+@keyframes ring-out {
+  0%   { opacity: 0;  transform: scale(.86); }
+  22%  { opacity: .9; }
+  100% { opacity: 0;  transform: scale(1.42); }
+}
+
+// Logo IZRANJA od udarca: stisne se po širini dok se diže, pa se slegne
+// (squash & stretch).
+.mark {
+  width: clamp(128px, 36vw, 184px);
+  aspect-ratio: 1;
+  height: auto;
+  object-fit: cover;
+
+  border-radius: var(--r-xl);
+  border: 1px solid var(--volt-a40);
+  box-shadow:
+    0 0 0 6px var(--volt-a10),
+    0 24px 60px -20px rgba(0, 0, 0, .9),
+    0 0 48px -12px var(--volt-a20);
+
+  animation: mark-surface 620ms var(--ease-out) 150ms both;
+}
+
+@keyframes mark-surface {
+  0%   { opacity: 0; transform: translateY(18%) scaleX(.84) scaleY(1.16); }
+  40%  { opacity: 1; }
+  62%  { transform: translateY(-4%) scaleX(1.06) scaleY(.94); }
+  82%  { transform: translateY(1%)  scaleX(.985) scaleY(1.015); }
+  100% { opacity: 1; transform: translateY(0) scaleX(1) scaleY(1); }
+}
+
+.tagline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(0.9375rem, 4.2vw, 1.25rem);
+  font-weight: 500;
+  letter-spacing: var(--ls-wide);
+  line-height: var(--lh-tight);
+  color: var(--mist);
+
+  animation: rise 520ms var(--ease-spring) 620ms both;
+}
+
+.tagline .lead {
+  color: var(--volt);
+  text-shadow: 0 0 14px var(--volt-a20);
+}
+
+// Traka punjenja: puni se do samog preusmjerenja (širina uvijek 100%, samo se
+// razvlači skalom — vidi zamke u skillu tečne-animacije o animiranju širine).
+.readout {
+  width: 120px;
+  animation: rise 460ms var(--ease-spring) 900ms both;
+}
+
+.bar-track {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--mist) 28%, transparent);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: var(--volt);
+  border-radius: inherit;
+  animation: bar-fill 1700ms linear 900ms both;
+}
+
+@keyframes bar-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+// Talas sadržaja: djeca ulaze odozdo.
+@keyframes rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// --- Svijetla tema -----------------------------------------------------------
+// Sjenka od 90% crne je na svijetloj podlozi mrlja, a ne dubina.
+:host-context([data-theme='light']) {
+  .tagline .lead { text-shadow: none; }
+
+  .mark {
+    box-shadow:
+      0 0 0 6px var(--volt-a10),
+      0 24px 60px -20px color-mix(in srgb, var(--ice) 26%, transparent),
+      0 0 48px -12px var(--volt-a20);
+  }
+}
+
+// --- Smanjen pokret ----------------------------------------------------------
+// Statično krajnje stanje: logo pun, natpis vidljiv, traka puna, bez oblaka
+// krede ni prstena.
+@media (prefers-reduced-motion: reduce) {
+
+  .mark,
+  .tagline,
+  .readout,
+  .bar-fill { animation: none; }
+
+  .bar-fill { transform: scaleX(1); }
+
+  .puff,
+  .mark-wrap::before { display: none; }
+
+  .landing,
+  .identity { transition: none; }
+
+  .landing.leaving { transform: none; }
 }

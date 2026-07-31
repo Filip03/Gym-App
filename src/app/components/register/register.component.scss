@@ -59,11 +59,21 @@
 
   border: 1px solid var(--volt-a40);
   box-shadow:
-    0 0 0 6px rgba(198, 255, 59, .05),
+    0 0 0 6px var(--volt-a10),
     0 18px 50px -18px rgba(0, 0, 0, .9),
     0 0 40px -12px var(--volt-a20);
 
   animation: mark-in var(--d-slower) var(--ease-spring) both;
+}
+
+// Svijetla tema: bačena sjenka od 90% crne je ispod logoa na svijetloj podlozi
+// tamna mrlja, a ne dubina. Spušta se na blagu sjenku izvedenu iz --ice, koji
+// je u svijetloj temi tamno plavosiv — prsten i sjaj ostaju isti.
+:host-context([data-theme='light']) .j {
+  box-shadow:
+    0 0 0 6px var(--volt-a10),
+    0 18px 50px -18px color-mix(in srgb, var(--ice) 28%, transparent),
+    0 0 40px -12px var(--volt-a20);
 }
 
 @keyframes mark-in {
@@ -97,7 +107,7 @@ form {
   min-height: 48px;
   margin-top: var(--s-1);
 
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
   border-radius: var(--r-sm);
 
@@ -107,7 +117,7 @@ form {
 }
 
 .btn:not(:disabled):hover {
-  background: #D4FF5E;
+  background: var(--volt-hi);
   box-shadow: 0 0 24px -6px var(--volt-a40);
 }
 

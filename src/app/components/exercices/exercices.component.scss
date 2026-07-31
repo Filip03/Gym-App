@@ -279,7 +279,7 @@
   font-weight: 600;
 }
 
-.form-actions button[type="submit"] { background: var(--volt); color: var(--volt-ink); }
+.form-actions button[type="submit"] { background: var(--volt-fill); color: var(--volt-ink); }
 .form-actions button[type="button"] {
   background: transparent;
   border: 1px solid var(--line-strong);
@@ -339,7 +339,7 @@
   height: 38px;
   border-radius: var(--r-full);
 
-  background: rgba(6, 8, 11, .72);
+  background: color-mix(in srgb, var(--void) 72%, transparent);
   color: var(--ice);
 }
 

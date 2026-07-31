@@ -9,24 +9,57 @@
       <span class="day-sep" *ngIf="session.dayTypeName">·</span>
       <span class="day-type" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
       <span class="plan-name">{{ session.planName }}</span>
+      <span class="view-date num" *ngIf="viewOnly">{{ todayDate | date:'dd.MM.yyyy.' }}</span>
     </div>
-    <div class="header-right">
-      <button type="button" class="reorder-btn" *ngIf="!reordering"
-              (click)="openAdd()" title="Dodaj vježbu za danas">
-        <i class="material-icons">add</i>
-        Dodaj
-      </button>
-      <button type="button" class="reorder-btn" [class.on]="showNote || session?.note"
-              *ngIf="!reordering" (click)="toggleNote()"
-              title="Bilješka uz današnji trening">
-        <i class="material-icons">edit_note</i>
-        Bilješka
-      </button>
-      <button type="button" class="reorder-btn" [class.on]="reordering"
-              *ngIf="!isRestDay" (click)="toggleReorder()">
-        <i class="material-icons">{{ reordering ? 'done' : 'swap_vert' }}</i>
-        {{ reordering ? 'Gotovo' : 'Preuredi' }}
-      </button>
+    <!-- Alatke zaglavlja postoje samo u ŽIVOM treningu — u pregledu istorije
+         nema ni dodavanja ni tajmera. (Pri Filipovom merge-u uslov se obrnuo,
+         pa su dugmad nestala baš tamo gdje trebaju: na današnjem treningu.) -->
+    <div class="header-right" *ngIf="!viewOnly">
+      <!-- Tajmer-ostrvo: jedna pilula za sve. Ugašeno = samo precrtana ikona;
+           paljenjem se tečno RAZVUČE i pokaže minute; dok pauza teče, tijelo
+           nosi živo odbrojavanje; na isteku „pauza gotova" u volt boji. -->
+      <div class="timer-island" *ngIf="!reordering"
+           [class.on]="restTimer.enabled"
+           [class.closing]="tiClosing"
+           [class.running]="!!restTimer.remainingLabel"
+           [class.done]="restTimer.expired"
+           [class.flash-done]="tiFlashDone"
+           [class.return]="tiReturn">
+        <button type="button" class="ti-toggle" (click)="toggleTimer()"
+                [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
+          <i class="material-icons">{{ restTimer.enabled ? 'timer' : 'timer_off' }}</i>
+        </button>
+        <span class="ti-body">
+          <ng-container *ngIf="!restTimer.remainingLabel">
+            <input class="ti-min num" appNumField="integer" keyboard="text"
+                   [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
+                   title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
+            <span class="ti-unit">min</span>
+          </ng-container>
+          <span class="ti-count num" *ngIf="restTimer.remainingLabel">
+            {{ restTimer.expired ? 'pauza gotova' : restTimer.remainingLabel }}
+          </span>
+        </span>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="reorder-btn" *ngIf="!reordering"
+                (click)="openAdd()" title="Dodaj vježbu za danas">
+          <i class="material-icons">add</i>
+          Dodaj
+        </button>
+        <button type="button" class="reorder-btn" [class.on]="showNote || session?.note"
+                *ngIf="!reordering" (click)="toggleNote()"
+                title="Bilješka uz današnji trening">
+          <i class="material-icons">edit_note</i>
+          Bilješka
+        </button>
+        <button type="button" class="reorder-btn" [class.on]="reordering"
+                *ngIf="!isRestDay" (click)="toggleReorder()">
+          <i class="material-icons">{{ reordering ? 'done' : 'swap_vert' }}</i>
+          {{ reordering ? 'Gotovo' : 'Preuredi' }}
+        </button>
+      </div>
     </div>
   </div>
 
@@ -76,7 +109,8 @@
       Trening završen
       <small *ngIf="totalSets">· {{ totalSets }} {{ totalSets === 1 ? 'serija' : 'serija' }}</small>
     </span>
-    <button type="button" class="fb-reopen" [disabled]="finishing" (click)="reopenTraining()">
+    <!-- U istoriji nema ponovnog otvaranja — prošli dani se samo gledaju. -->
+    <button type="button" class="fb-reopen" *ngIf="!viewOnly" [disabled]="finishing" (click)="reopenTraining()">
       Otvori ponovo
     </button>
   </div>
@@ -109,21 +143,37 @@
                vježbe na telefonu ostane cijel, bez sabijanja i tri tačke. -->
           <div class="exercice-meta" *ngIf="!reordering">
             <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
-            <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
+            <!-- Duh zna doći iz drugačijeg rasporeda nego što je današnji
+                 (prošli put po stranama, danas objema — i obrnuto); opis
+                 kaže odakle brojka dolazi. -->
+            <span class="echo-date num" *ngIf="ex.echo"
+                  [title]="echoHint(ex)">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
 
             <!-- Lični rekord: jedan po vježbi, ne po seriji -->
             <span class="pr" *ngIf="ex.isPr" [class.celebrate]="ex.celebrating"
-                  [title]="'Novi lični rekord — prošli najbolji ' + ex.previousBest + 'kg'">
+                  [title]="prTitle(ex)">
               <!-- Query parametar tjera pregledač da animaciju odsvira ispočetka;
                    bez njega bi drugi rekord u istom treningu zatekao već
                    odvrćen snimak i ništa se ne bi vidjelo. -->
               <img class="pr-burst" *ngIf="ex.celebrating" alt=""
                    [src]="'assets/animation/flame-burst.webp?v=' + ex.celebrateKey">
               <i class="material-icons">local_fire_department</i>
-              <span class="pr-text num">{{ todayBest(ex) }}<small>kg</small></span>
+              <!-- Kod čiste bodyweight vježbe rekord se mjeri ponavljanjima —
+                   kilaža bi uvijek glasila „0kg". -->
+              <span class="pr-text num" *ngIf="prMetric(ex) as m">{{ m.value }}<small>{{ m.unit }}</small></span>
             </span>
 
-            <span class="tag sides" *ngIf="ex.isUnilateral"
+            <!-- Bedževi u istoriji govore kako je dan RAĐEN (kilaža 0, strane
+                 u serijama), na živom treningu kako se vježba prati od sada —
+                 vidi showBwBadge/showSidesBadge. -->
+            <span class="tag bw" *ngIf="showBwBadge(ex)"
+                  [title]="isFinished ? 'Tog dana rađeno tjelesnom težinom'
+                                      : 'Osnovno se radi tjelesnom težinom'">
+              <i class="material-icons">accessibility_new</i>
+              BW
+            </span>
+
+            <span class="tag sides" *ngIf="showSidesBadge(ex)"
                   [title]="ex.isLegs ? 'Svaka noga se prati odvojeno' : 'Svaka ruka se prati odvojeno'">
               <i class="material-icons" *ngIf="!ex.isLegs">pan_tool</i>
               <!-- Noge nema u Material ikonama — ikona "Leg" (Delapouite,
@@ -175,6 +225,10 @@
                  ? (ex.isLegs ? 'Ne prati noge odvojeno' : 'Ne prati ruke odvojeno')
                  : (ex.isLegs ? 'Prati noge odvojeno (L/D)' : 'Prati ruke odvojeno (L/D)') }}
           </button>
+          <button type="button" (click)="toggleBodyweight(ex)">
+            <i class="material-icons">accessibility_new</i>
+            {{ ex.isBodyweight ? 'Nije tjelesna težina' : 'Tjelesna težina' }}
+          </button>
           <button type="button" (click)="goToLeaderboard(ex)">
             <i class="material-icons">leaderboard</i> Rang lista
           </button>
@@ -188,7 +242,7 @@
       </div>
 
       <!-- Serije: današnje pune, prošle kao duh -->
-      <div class="sets" [class.split]="ex.isUnilateral"
+      <div class="sets" [class.split]="splitLayout(ex)" [class.reflow]="ex.layoutFlow"
            *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
         <!-- Grupa = jedna working serija sa svojim dropsetovima ispod nje.
              Dropset se ne smije naći u istom redu kao tuđa serija, pa grupa ide
@@ -206,7 +260,7 @@
                   [class.pending]="set.pending"
                   [title]="set.pending ? 'Čeka mrežu — sačuvano na telefonu'
                                        : (set.prevLabel ?? 'Prvi put ova serija')"
-                  (click)="startEditSet(set)">
+                  (click)="startEditSet(ex, set)">
             <span class="set-n num">{{ set.setNumber }}</span>
 
             <!-- Naglašava se BAŠ ono što se promijenilo, da se iz "95kg × 11"
@@ -237,7 +291,11 @@
 
           <div class="set-edit" *ngIf="set.editing">
             <span class="set-n num">{{ set.setNumber }}</span>
-            <input appNumField keyboard="text" [(ngModel)]="set.editWeight" placeholder="kg"
+            <!-- Prazno polje znači tjelesnu težinu, pa i duh u polju to kaže
+                 umjesto da traži kilažu. Gleda se i sam red (bwField), pa
+                 serija odrađena bez tega ostaje „BW" i kad se flag ugasi. -->
+            <input appNumField keyboard="text" [(ngModel)]="set.editWeight"
+                   [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
                    (keydown.enter)="editReps.focus()" />
             <input #editReps keyboard="text" appNumField="integer" [(ngModel)]="set.editReps" placeholder="pon."
                    (keydown.enter)="saveEditSet(ex, set)" />
@@ -257,18 +315,21 @@
                pripadaju, pa bi strelica bila isto rečeno dvaput. -->
           <ng-container *ngFor="let d of set.dropsets">
             <button type="button" class="set dropset" *ngIf="!d.editing" [disabled]="isFinished"
-                    title="Dodirni za izmjenu" (click)="startEditDropset(d)">
-              <span class="set-v num">{{ d.weight }}<small>kg</small> × {{ d.reps }}</span>
+                    title="Dodirni za izmjenu" (click)="startEditDropset(ex, d)">
+              <span class="set-v num">
+                <ng-container *ngIf="d.weight > 0">{{ d.weight }}<small>kg</small> × </ng-container>{{ d.reps }}
+              </span>
               <i class="material-icons del" *ngIf="!isFinished" [class.disabled]="d.deleting"
                  (click)="deleteDropset(set, d); $event.stopPropagation()">close</i>
             </button>
 
             <div class="set-edit dropset-form" *ngIf="d.editing">
-              <input appNumField keyboard="text" [(ngModel)]="d.editWeight" placeholder="kg"
+              <input appNumField keyboard="text" [(ngModel)]="d.editWeight"
+                     [placeholder]="bwField(ex, d.weight) ? 'BW' : 'kg'"
                      (keydown.enter)="dropEditReps.focus()" />
               <input #dropEditReps appNumField="integer" keyboard="text" [(ngModel)]="d.editReps" placeholder="pon."
-                     (keydown.enter)="saveEditDropset(d)" />
-              <button type="button" class="mini save" [disabled]="d.saving" (click)="saveEditDropset(d)">
+                     (keydown.enter)="saveEditDropset(ex, d)" />
+              <button type="button" class="mini save" [disabled]="d.saving" (click)="saveEditDropset(ex, d)">
                 <i class="material-icons">check</i>
               </button>
               <button type="button" class="mini" (click)="cancelEditDropset(d)">
@@ -290,7 +351,8 @@
           <div class="set-edit dropset-form" *ngIf="set.addingDropset">
             <span class="both-tag" *ngIf="ex.isUnilateral && set.side"
                   title="Upisuje se i na istu seriju druge ruke">L+D</span>
-            <input appNumField keyboard="text" [(ngModel)]="set.dropsetWeightInput" placeholder="kg"
+            <input appNumField keyboard="text" [(ngModel)]="set.dropsetWeightInput"
+                   [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
                    (keydown.enter)="dropReps.focus()" />
             <input #dropReps keyboard="text" appNumField="integer" [(ngModel)]="set.dropsetRepsInput" placeholder="pon."
                    (keydown.enter)="saveDropset(ex, set)" />
@@ -325,8 +387,10 @@
         </div>
         </ng-template>
 
-        <!-- Dvoručno: sve u jednom prelamajućem redu, kao do sada -->
-        <ng-container *ngIf="!ex.isUnilateral">
+        <!-- Dvoručno: sve u jednom prelamajućem redu, kao do sada.
+             Raspored bira splitLayout — po PODACIMA dana, ne po katalog-flagu:
+             dan odrađen dvoručno ostaje dvoručan i kad se L/D poslije upali. -->
+        <ng-container *ngIf="!splitLayout(ex)">
           <ng-container *ngFor="let set of ex.loggedSets">
             <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
           </ng-container>
@@ -336,7 +400,7 @@
         </ng-container>
 
         <!-- Jednoručno: blok po ruci, serije teku odvojeno L1, L2... / D1, D2... -->
-        <ng-container *ngIf="ex.isUnilateral">
+        <ng-container *ngIf="splitLayout(ex)">
           <!-- Upisano prije uključivanja praćenja ruku — obje zajedno -->
           <div class="side-full" *ngIf="setsFor(ex, null).length > 0">
             <ng-container *ngFor="let set of setsFor(ex, null)">
@@ -365,24 +429,41 @@
               *ngIf="ex.isUnilateral"
               title="Upisuje obje ruke — ako se desna razlikovala, dodirni njenu seriju i ispravi">L+D</span></span>
 
-        <label class="field" *ngIf="ex.showWeightInput">
-          <input appNumField keyboard="text" [(ngModel)]="ex.weightInput"
-                 [placeholder]="echoPlaceholder(ex, 'weight')"
-                 (keydown.enter)="logReps.focus()" />
-          <span class="unit">kg</span>
-        </label>
+        <!-- Kilaža i ponavljanja dijele isti red: kad se kilaža skupi u čip
+             „BW", ponavljanja tečno preuzmu oslobođeni prostor. -->
+        <div class="log-fields">
 
-        <button type="button" class="add-weight-btn" *ngIf="ex.isBodyweight && !ex.showWeightInput"
-                (click)="revealWeightInput(ex)">
-          <i class="material-icons">add</i> Kilaža
-        </button>
+          <!-- Bodyweight vježba: čip prebacuje između „čistog BW" (u bazu ide
+               0) i „BW + teg". Polje se NE uklanja iz DOM-a nego skuplja, da
+               prelaz ima pokret u oba smjera. -->
+          <div class="weight-slot"
+               [class.bw]="ex.isBodyweight"
+               [class.plain]="ex.isBodyweight && !ex.showWeightInput"
+               [class.bloom]="ex.bwFlip === 'in'"
+               [class.sip]="ex.bwFlip === 'out'">
 
-        <label class="field">
-          <input #logReps keyboard="text" appNumField="integer" [(ngModel)]="ex.repsInput"
-                 [placeholder]="echoPlaceholder(ex, 'reps')"
-                 (keydown.enter)="saveLog(ex)" />
-          <span class="unit">pon.</span>
-        </label>
+            <button type="button" class="bw-chip" *ngIf="ex.isBodyweight"
+                    [title]="ex.showWeightInput
+                               ? 'Vrati na čistu tjelesnu težinu'
+                               : 'Dodaj teg uz tjelesnu težinu'"
+                    (click)="toggleBodyweightWeight(ex)">BW</button>
+
+            <label class="field">
+              <input appNumField keyboard="text" [(ngModel)]="ex.weightInput"
+                     [disabled]="ex.isBodyweight && !ex.showWeightInput"
+                     [placeholder]="echoPlaceholder(ex, 'weight')"
+                     (keydown.enter)="logReps.focus()" />
+              <span class="unit">kg</span>
+            </label>
+          </div>
+
+          <label class="field">
+            <input #logReps keyboard="text" appNumField="integer" [(ngModel)]="ex.repsInput"
+                   [placeholder]="echoPlaceholder(ex, 'reps')"
+                   (keydown.enter)="saveLog(ex)" />
+            <span class="unit">pon.</span>
+          </label>
+        </div>
 
         <button type="button" class="save-log-btn"
                 [disabled]="ex.saving || ex.repsInput == null || (ex.weightInput == null && !ex.isBodyweight)"
@@ -472,7 +553,7 @@
         <span class="rn">{{ r.name }}</span>
         <span class="rw num">
           <span class="prev" *ngIf="r.previous !== null">{{ r.previous }} →</span>
-          {{ r.weight }}<small>kg</small>
+          {{ r.weight }}<small>{{ r.unit }}</small>
         </span>
       </div>
     </div>

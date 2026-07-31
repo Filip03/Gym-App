@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <title>GymApp</title>
   <base href="/">
+  <!-- Namjerno BEZ viewport-fit=cover: iOS tada sam drži stranicu iznad trake
+       za gestove (env(safe-area-inset-*) je 0 i sav safe-area kod miruje).
+       Probano sa cover (31.07.2026): futer se manuelnim podizanjem uvijek
+       činio ili previsok ili prenizak — Markova presuda: vrati kako je bilo. -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,7 +17,9 @@
   <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
 
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#1976d2">
+  <!-- Podrazumijevano tamna podloga (--void). ThemeService azurira ovu vrijednost
+       pri svakoj promjeni teme. -->
+  <meta name="theme-color" content="#06080B">
 </head>
 <body>
   <app-root></app-root>
