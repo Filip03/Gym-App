@@ -235,6 +235,21 @@ $branch-indent: 16px;
 .tag.bw { font-weight: 600; }
 .tag.bw .material-icons { font-size: 12px; }
 
+// Bedževi „BW" i „L·D" se pale i gase — kroz meni na živom treningu, a u
+// istoriji po izvedenom stanju dana. Pojava ne smije biti preskok: kap koja
+// naraste i slegne se, istim jezikom kao pilula serije (`set-in`).
+.tag.bw,
+.tag.sides { animation: tag-in var(--d-slow) var(--ease-spring) both; }
+
+@keyframes tag-in {
+  from { transform: scale(.6); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tag.bw, .tag.sides { animation: none; }
+}
+
 .icon-btn {
   display: grid;
   place-items: center;
@@ -436,6 +451,50 @@ $branch-indent: 16px;
   // `.sets` inače poravnava na vrh; ovdje se kolone MORAJU rastegnuti na istu
   // visinu, inače linija između ruku stane kod kraće kolone umjesto do dna.
   align-items: stretch;
+}
+
+// Prelaz rasporeda: jedan red ↔ dvije kolone.
+//
+// Kućno pravilo — nijedan trenutni preskok: blok se razlije po širini dok se
+// stisne po visini pa slegne (squash & stretch), a kap akcenta pređe preko
+// njega (ink-bloom). Stanje `reflow` pali komponenta (`flowLayout`), jer CSS
+// ne svira animaciju na uklanjanju klase.
+.sets { position: relative; }
+
+.sets.reflow {
+  animation: sets-reflow 520ms var(--ease-spring) both;
+  transform-origin: center top;
+}
+
+.sets.reflow::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  pointer-events: none;
+  animation: sets-ink 560ms var(--ease-out) both;
+}
+
+@keyframes sets-reflow {
+  0%   { transform: scaleY(1)    scaleX(1);    }
+  35%  { transform: scaleY(.94)  scaleX(1.03); }
+  70%  { transform: scaleY(1.03) scaleX(.995); }
+  100% { transform: scaleY(1)    scaleX(1);    }
+}
+
+@keyframes sets-ink {
+  from { transform: scale(0);  opacity: .6; }
+  to   { transform: scale(26); opacity: 0;  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sets.reflow { animation: none; }
+  .sets.reflow::after { display: none; }
 }
 
 // Serije upisane prije uključivanja praćenja (obje ruke zajedno) idu preko

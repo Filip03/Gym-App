@@ -170,7 +170,7 @@ export class ProfileService {
         .gte('date', sinceIso),
       this.supabase.client
         .from('exercice_logs')
-        .select('date')
+        .select('date, exercice_id, set_number')
         .eq('user_id', userId)
         .gte('date', sinceIso)
     ]);
@@ -185,8 +185,20 @@ export class ProfileService {
       byDate.set(row.date, byDate.get(row.date) ?? 0);
     }
 
+    // Broje se PAROVI (vježba, redni broj), ne redovi: kod jednoručne vježbe su
+    // lijeva i desna ruka dva reda a JEDNA odrađena serija, pa je takav dan
+    // ranije ispadao dvostruko jači u kalendaru. Isti ključ koristi i ekran
+    // treninga (`doneCount`) i rang lista (`LeaderboardService.getLiveSessions`)
+    // — jedno pravilo brojanja svuda.
+    const pairsByDate = new Map<string, Set<string>>();
     for (const row of (logs.data ?? []) as any[]) {
-      byDate.set(row.date, (byDate.get(row.date) ?? 0) + 1);
+      const seen = pairsByDate.get(row.date) ?? new Set<string>();
+      seen.add(`${row.exercice_id}#${row.set_number}`);
+      pairsByDate.set(row.date, seen);
+    }
+
+    for (const [date, seen] of pairsByDate) {
+      byDate.set(date, seen.size);
     }
 
     return [...byDate.entries()]

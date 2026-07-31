@@ -3398,3 +3398,127 @@ Okidanje u `saveLog` (`training.component.ts` — `buzzProgress()`): jednom po
 upisu (ne po L/D strani), poređenje sa istom serijom prošlog treninga
 (`compare`); rekord ima prednost (vibrira iz `refreshPr` uz plamen, manje se
 tada preskaču). Bez poređenja (prvi put) — bez vibracije.
+
+---
+
+## [2026-07-31] Istorija treninga se crta po PODACIMA, ne po današnjem flagu
+**Tip:** popravka
+
+**Problem:** `exercices.is_unilateral` i `exercices.is_bodyweight` su GLOBALNI
+katalog-flagovi — pale se i gase kroz meni vježbe, za sve korisnike odjednom.
+Ekran treninga je po njima crtao SVE: raspored serija, bedževe, duhove,
+poređenja, brojanje i sažetak. Snimak dana (`session_exercices`) flagove ne
+čuva, pa je promjena flaga retroaktivno prepisivala istoriju: dan odrađen
+dvoručno se poslije paljenja L/D prikazivao kao dvije prazne kolone pune
+duhova, brojač serija se udvostručavao ili zamrzavao, a numeracija je pravila
+rupe i duplikate. Istinu nose same serije — `exercice_logs.side` kaže je li se
+strana pratila, kilaža 0 da je serija odrađena tjelesnom težinom.
+
+**Rješenje:** uvedena su izvedena stanja dana (`dayHasSides`,
+`dayHasBodyweight`, `echoHasSides`), jedan getter `splitLayout(ex)` kao jedini
+izvor istine o rasporedu, jedno pravilo brojanja (broj različitih `set_number`
+vrijednosti) i simetrični fallbackovi za duhove i poređenja („pravilo slabije
+strane").
+
+### Ključni podslučajevi — prije i poslije
+
+| Slučaj | Prije | Poslije |
+|---|---|---|
+| Istorija dvoručnog dana, L/D flag danas UPALJEN | dvije prazne kolone sa duhovima, dvoručne serije stisnute u `.side-full` | jedan red, tačno kako je dan rađen |
+| Istorija L/D dana, flag danas UGAŠEN | sve serije u jednom redu, L i D jedna do druge bez oznake | dvije kolone — dan JESTE rađen po stranama |
+| Brojač poslije gašenja flaga (A4) | par L+D brojan kao dvije serije → „6/3" | par je jedna serija → „3/3" |
+| Numeracija poslije gašenja usred dana (A6) | `doneCount + 1` preskoči na 5 → rupa u brojevima | `max(set_number) + 1` → numeracija teče dalje |
+| Paljenje flaga usred dana (B2) | brojač zamrznut na „4" zauvijek → duplikati istog `set_number` | par L5/D5, pa L6/D6 — numeracija ide dalje |
+| Danas dvoručno, prošli dan L/D | nijedan duh, nijedna strelica (`compare` nije našao red) | duh i poređenje po slabijoj strani |
+| Danas L/D, prošli dan dvoručni | radilo | i dalje radi — nije dirano |
+| Bedževi „L·D" / „BW" u istoriji | po katalogu — bedž na danu koji tako nije rađen | po tragu u danu (strane u serijama, kilaža 0) |
+| Izmjena stare BW serije poslije gašenja flaga | polje se otvara sa „0", placeholder „kg", prazno polje tiho odbija upis | prazan prefil, placeholder „BW", prazno polje čuva 0 |
+| BW rekord po ponavljanjima kod vježbe rađene i sa tegom | uslov `previousBest === 0` gutao svaki takav rekord | rekord pada; bez ranijeg BW upisa i dalje nema rekorda |
+| Kalendar u profilu | jednoručni dan brojan dvostruko | broje se parovi `exercice_id#set_number` |
+
+### Pravilo slabije strane
+
+Kad se današnja DVORUČNA serija poredi sa danom rađenim po stranama, nema
+jednog reda za poređenje nego dva. Uzima se **slabiji: manja kilaža, a pri
+istoj kilaži manje ponavljanja.** Duh je cilj koji treba dostići, a poređenje
+presuda: jača ruka nije mjera dvoručne serije (10 kg po ruci nije 10 kg sa
+obje), pa bi po njoj svaki dvoručni dan ispao nazadak. Slabija strana je ono
+što je sigurno odrađeno — presuda ostaje poštena, a cilj dostižan. Isto pravilo
+važi za duhove serija, duhove dropsetova, prefil forme (`echoFor`) i ocjenu
+para u sažetku.
+
+### Jedno pravilo brojanja
+
+Serija je jedan `set_number`, ne jedan red u bazi. Par L+D su dva reda a JEDNA
+odrađena serija; pošto se praćenje ruku pali i gasi usred dana, dan zna imati i
+dvoručnih i jednoručnih redova — jedno pravilo pokriva sve. Sljedeći redni broj
+je `max(set_number) + 1` (ne „broj odrađenih + 1"), pa promjena flaga usred
+dana ne može napraviti ni duplikat ni rupu. Isti ključ (vježba, redni broj)
+sada broji serije na sva tri mjesta: ekran treninga, kalendar profila i rang
+lista (`LeaderboardService.getLiveSessions:327`).
+
+**Dodirnuti fajlovi:**
+- `training.component.ts:62-103` — `TodayExercice` dobio `dayHasSides`,
+  `dayHasBodyweight`, `echoHasSides`, `layoutFlow`
+- `training.component.ts:385-388` — `hydrate` računa izvedena stanja iz upisanih
+  serija i iz echa
+- `training.component.ts:420-423` — `refreshDerived(ex)`, zove se iz upisa
+  (`:946`), izmjene (`:1038`), brisanja (`:1074`) i oba toggle-a (`:744`, `:786`)
+- `training.component.ts:436-438` — `splitLayout(ex)`: u istoriji/završenom
+  treningu isključivo `dayHasSides`, na živom `dayHasSides || isUnilateral`
+- `training.component.ts:444-451` — `showSidesBadge` / `showBwBadge`
+- `training.component.ts:460-468` — `echoHint(ex)`: opis uz datum prošlog
+  treninga kad duh dolazi iz drugačijeg rasporeda (jedini čitalac `echoHasSides`)
+- `training.component.ts:479-481` — `bwField(ex, weight)`: BW tretman i po flagu
+  i po samom redu (kilaža 0)
+- `training.component.ts:495-528` — `weakerSet` + `echoSetIn`: jedno mjesto za
+  oba nesimetrična slučaja (prošli dvoručni red važi za obje ruke; prošli L/D
+  par se svodi na slabiju stranu)
+- `training.component.ts:544` — `compare` ide kroz `echoSetIn`
+- `training.component.ts:594` — `hasPr`: uklonjen uslov `previousBest === 0`
+- `training.component.ts:675-676` — `echoFor` bira stranu po `splitLayout`
+  (ranije „prvi red iz niza" — nedeterministički kad je prošli dan bio L/D)
+- `training.component.ts:696-717` — `setNumbers` / `doneCount` / `nextSetNumber`
+- `training.component.ts:724-731` — `sideGhosts` kroz `echoSetIn`
+- `training.component.ts:757-767` — `flowLayout`: kratko stanje za animaciju
+  prelaza rasporeda
+- `training.component.ts:806` — `ghostDropsets` kroz `echoSetIn`
+- `training.component.ts:1011`, `:1022`, `:1115`, `:1176`, `:1185` — BW polja kroz
+  `bwField` (`startEditSet`, `saveEditSet`, `saveDropset`, `startEditDropset`,
+  `saveEditDropset`)
+- `training.component.ts:1297`, `:1354-1362` — sažetak broji po seriji
+  (`setDeltas`); par vrijedi koliko njegova slabija strana
+- `training.component.ts:1381-1383` — `totalSets` po `doneCount`
+- `training.component.html:150` — datum prošlog treninga dobio opis `echoHint`
+- `training.component.html:169`, `:176` — bedževi po `showBwBadge`/`showSidesBadge`
+- `training.component.html:245`, `:393`, `:403` — sve grane rasporeda vezane za
+  `splitLayout(ex)`; `.sets` dobio `[class.reflow]`
+- `training.component.html:298`, `:328`, `:355` — placeholderi „BW" po `bwField`
+- `training.component.scss:241-248` — bedževi „BW"/„L·D" dobili ulaznu animaciju
+  (`tag-in`), gašenje uz `prefers-reduced-motion`
+- `training.component.scss:462-498` — prelaz rasporeda (jedan red ↔ dvije
+  kolone): razliv `sets-reflow` + kap `sets-ink`, ugašeno uz reduced-motion
+- `training.service.ts:66-77` — `ECHO_ROW_LIMIT` 20 → 40; komentar ispravljen
+  (granica je u REDOVIMA, a jednoručni dan ima dva reda po seriji, pa se dan od
+  desetak serija sjekao u pola)
+- `profile.service.ts:186-202` — kalendar broji parove `exercice_id#set_number`
+
+**Efekat:** Paljenje ili gašenje L/D i BW na vježbi više ne mijenja nijedan
+raniji dan — istorija prikazuje kako je dan stvarno rađen. Promjena flaga usred
+treninga je bezbjedna: numeracija teče dalje, brojač je tačan u oba smjera.
+Dvoručni dan poslije jednoručnog konačno ima duhove i strelice. Stara BW serija
+ostaje izmjenjiva i pošto se flag ugasi. Rekord po ponavljanjima pada i kod
+vježbe koja se ranije radila sa tegom. Prelaz rasporeda i pojava bedževa imaju
+pokret (kućni „tečni" jezik), sve ugašeno uz `prefers-reduced-motion`.
+
+**Napomene:**
+- `saveLog` namjerno i dalje bira strane po FLAGU (`isUnilateral ? ['L','D'] :
+  [null]`): flag kaže kako se vježba prati OD SADA, `splitLayout` kako se dan
+  crta. Ko ugasi flag usred dana, nastavlja dvoručno, a već upisane L/D serije
+  ostaju u svojim kolonama.
+- `deleteSet` i dalje prenumeriše unutar strane. Kod dana koji miješa dvoručne i
+  L/D redove (flag mijenjan usred treninga) brisanje zna ostaviti rupu u
+  numeraciji — brojanje po različitim `set_number` vrijednostima je tačno i
+  tada, samo brojevi na pilulama nisu uzastopni. Rijedak slučaj, ostavljen.
+- `session_exercices` i dalje ne čuva flagove — nije potrebno, jer serije nose
+  istinu. Migracija nije rađena.

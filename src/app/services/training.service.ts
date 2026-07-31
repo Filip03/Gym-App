@@ -63,14 +63,18 @@ export interface EchoSet {
 }
 
 /**
- * Koliko redova najviše povući po vježbi kad se traži prethodni trening.
+ * Koliko REDOVA najviše povući po vježbi kad se traži prethodni trening.
  *
- * Mora biti veće od broja serija koje neko odradi na jednoj vježbi u jednom
- * danu. Realno je to do desetak; 20 ostavlja prostora. Ko bi u jednom danu
- * upisao više od 20 serija iste vježbe, duh bi mu pokazao prvih 20 — ostatak
- * treninga je i dalje ispravan, samo se ne bi vidio kao duh.
+ * Redova, ne serija: kod jednoručne vježbe jedna odrađena serija su DVA reda
+ * (L i D), pa dan od desetak serija zna imati dvadesetak redova. Sa granicom
+ * od 20 se takav dan sjekao u pola — duh druge polovine treninga bi nestao,
+ * i to baš na vježbama koje se prate po rukama.
+ *
+ * 40 pokriva i jednoručni dan od dvadeset serija. Ko bi upisao više, duh bi mu
+ * pokazao prvih 40 redova — ostatak treninga je i dalje ispravan, samo se ne bi
+ * vidio kao duh.
  */
-const ECHO_ROW_LIMIT = 20;
+const ECHO_ROW_LIMIT = 40;
 
 export interface Echo {
   date: string;

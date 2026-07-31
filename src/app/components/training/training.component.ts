@@ -63,6 +63,26 @@ interface TodayExercice extends SessionExercice {
   loggedSets: LoggedSet[];
   echo: Echo | null;
 
+  // --- Izvedena stanja: istina o tome kako je dan STVARNO rađen -------------
+  //
+  // `isUnilateral` i `isBodyweight` su GLOBALNI katalog-flagovi — pale se i
+  // gase kroz meni, i to za sve korisnike odjednom. Istorija ne smije visjeti
+  // o njima: dan odrađen dvoručno mora ostati dvoručan i pošto neko na toj
+  // vježbi upali praćenje ruku. Istinu nose same serije — `side` kaže je li se
+  // strana pratila, kilaža 0 da je serija odrađena tjelesnom težinom.
+
+  /** Današnji upisi imaju bar jednu seriju sa stranom (L ili D). */
+  dayHasSides: boolean;
+  /** Današnji upisi imaju bar jednu seriju bez tega (kilaža 0). */
+  dayHasBodyweight: boolean;
+  /** Prošli trening je rađen po stranama — za duhove i poređenja. */
+  echoHasSides: boolean;
+  /**
+   * Kratko stanje za animaciju prelaza rasporeda (jedan red ↔ dvije kolone).
+   * CSS ne svira animaciju na uklanjanju klase, pa je vodi komponenta.
+   */
+  layoutFlow: boolean;
+
   /** Najbolja kilaža PRIJE današnjeg treninga. Prag za lični rekord. */
   previousBest: number | null;
   /**
@@ -164,6 +184,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   private saveTimer: any = null;
   /** Traje koliko i animacija prelaza čipa „BW" — vidi `toggleBodyweightWeight`. */
   private bwFlipTimer: any = null;
+  /** Traje koliko i razliv bloka serija pri promjeni rasporeda — `flowLayout`. */
+  private layoutTimer: any = null;
   /** Kratko stanje za animaciju SKUPLJANJA tajmer-ostrva — CSS ne umije da
    *  odsvira animaciju na uklanjanju klase, pa je vodi komponenta. */
   tiClosing = false;
@@ -359,6 +381,11 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       return {
         ...se,
         echo: ec,
+        // Izvedeno IZ PODATAKA, ne iz katalog-flaga — vidi `splitLayout`.
+        dayHasSides: sets.some(s => s.side !== null),
+        dayHasBodyweight: sets.some(s => s.weight === 0),
+        echoHasSides: (ec?.sets ?? []).some(s => s.side !== null),
+        layoutFlow: false,
         previousBest,
         previousBestReps,
         isPr,
@@ -380,6 +407,123 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     });
   }
 
+  // -------------------------------------------------------------------------
+  // Izvedena stanja — raspored i bedževi se crtaju po PODACIMA, ne po flagu
+  // -------------------------------------------------------------------------
+
+  /**
+   * Osvježi izvedena stanja dana. Zove se iz SVAKE radnje koja mijenja serije
+   * (upis, izmjena, brisanje) i iz paljenja/gašenja flagova — raspored,
+   * bedževi i brojanje se crtaju po njima, pa moraju pratiti podatke u istom
+   * trenutku, bez ponovnog učitavanja ekrana.
+   */
+  private refreshDerived(ex: TodayExercice) {
+    ex.dayHasSides = ex.loggedSets.some(s => s.side !== null);
+    ex.dayHasBodyweight = ex.loggedSets.some(s => s.weight === 0);
+  }
+
+  /**
+   * JEDINI izvor istine o rasporedu serija: dvije kolone (L/D) ili jedan red.
+   *
+   * U istoriji i na završenom treningu ISKLJUČIVO po podacima: dan bez ijedne
+   * serije sa stranom bio je dvoručan, ma šta katalog danas tvrdio. Bez ovoga
+   * bi paljenje L/D na vježbi retroaktivno pocijepalo svaki raniji dan u dvije
+   * prazne kolone pune duhova.
+   *
+   * Na ŽIVOM treningu flag ima pravo glasa: tek upaljen, još bez ijedne serije,
+   * mora odmah ponuditi dvije kolone — inače se ne bi imalo gdje upisati.
+   */
+  splitLayout(ex: TodayExercice): boolean {
+    return this.isFinished ? ex.dayHasSides : (ex.dayHasSides || ex.isUnilateral);
+  }
+
+  /**
+   * Bedž „L·D": u istoriji govori kako je dan RAĐEN, na živom treningu kako se
+   * vježba prati od sada. Isto pravilo kao raspored.
+   */
+  showSidesBadge(ex: TodayExercice): boolean {
+    return this.isFinished ? ex.dayHasSides : ex.isUnilateral;
+  }
+
+  /** Bedž „BW": u istoriji po tragu u danu (kilaža 0), na živom po flagu. */
+  showBwBadge(ex: TodayExercice): boolean {
+    return this.isFinished ? ex.dayHasBodyweight : ex.isBodyweight;
+  }
+
+  /**
+   * Opis uz datum prošlog treninga.
+   *
+   * Kad prošli dan nije rađen istim rasporedom kao današnji, duh ne dolazi iz
+   * jednog reda — treba reći odakle dolazi, inače brojka u duhu izgleda kao da
+   * je iz vazduha.
+   */
+  echoHint(ex: TodayExercice): string {
+    if (ex.echoHasSides && !this.splitLayout(ex)) {
+      return 'Prošli put rađeno po stranama — duh pokazuje slabiju stranu';
+    }
+    if (!ex.echoHasSides && this.splitLayout(ex)) {
+      return 'Prošli put rađeno objema — isti duh važi za obje strane';
+    }
+    return 'Prošli trening ove vježbe';
+  }
+
+  /**
+   * Da li se polje kilaže ponaša kao bodyweight — prazno polje znači 0.
+   *
+   * Ne gleda samo flag vježbe nego i SAM RED: kilaža 0 jeste trag da je serija
+   * odrađena tjelesnom težinom, pa se takav red i pošto se flag ugasi otvara
+   * prazan, sa duhom „BW", a prazno polje mu čuva nulu umjesto da tiho odbije
+   * izmjenu. Kod vježbi koje se ne rade tjelesnom težinom nula se praktično ne
+   * javlja, a i kad se javi — tretman je isti i tačan.
+   */
+  bwField(ex: TodayExercice, weight: number): boolean {
+    return ex.isBodyweight || weight === 0;
+  }
+
+  /**
+   * PRAVILO SLABIJE STRANE.
+   *
+   * Kad se današnja DVORUČNA serija poredi sa danom rađenim po stranama, nema
+   * jednog reda za poređenje nego dva. Uzima se slabiji: manja kilaža, a pri
+   * istoj kilaži manje ponavljanja.
+   *
+   * Zašto slabiji: duh je cilj koji treba dostići, a poređenje presuda. Jača
+   * ruka nije mjera dvoručne serije (10kg po ruci nije 10kg sa obje), pa bi po
+   * njoj svaki dvoručni dan ispao nazadak. Slabija strana je ono što je sigurno
+   * odrađeno — presuda ostaje poštena, a cilj dostižan.
+   */
+  private weakerSet(a: EchoSet, b: EchoSet): EchoSet {
+    if (a.weight !== b.weight) return a.weight < b.weight ? a : b;
+    return a.reps <= b.reps ? a : b;
+  }
+
+  /**
+   * Duh/referenca prošlog treninga za jednu seriju i jednu stranu.
+   *
+   * Jedno mjesto za oba nesimetrična slučaja:
+   *   • danas L/D, prošlost dvoručna — dvoručni red važi za OBJE ruke
+   *     (10kg × 12 sa obje bučice jeste 10kg po ruci),
+   *   • danas dvoručno, prošlost L/D — svodi se na slabiju stranu.
+   *
+   * Ranije je drugi smjer nigdje nije bio pokriven, pa je dan poslije gašenja
+   * L/D ostajao bez ijednog duha i bez ijedne strelice.
+   */
+  private echoSetIn(echo: Echo | null, setNumber: number, side: Side): EchoSet | null {
+    const rows = (echo?.sets ?? []).filter(s => s.setNumber === setNumber);
+    if (rows.length === 0) return null;
+
+    // Ista strana sa istom stranom.
+    const exact = rows.find(s => s.side === side);
+    if (exact) return exact;
+
+    // Tražena je strana, prošlost dvoručna.
+    if (side !== null) return rows.find(s => s.side === null) ?? null;
+
+    // Tražena je dvoručna serija, prošlost po stranama — slabija strana.
+    const sided = rows.filter(s => s.side !== null);
+    return sided.length > 0 ? sided.reduce((a, b) => this.weakerSet(a, b)) : null;
+  }
+
   /**
    * Poređenje SERIJE sa istom serijom prošlog treninga.
    *
@@ -394,10 +538,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   private compare(echo: Echo | null, setNumber: number, weight: number, reps: number, side: Side = null): {
     delta: Delta; weightDelta: Delta; repsDelta: Delta; prevLabel: string | null;
   } {
-    // Ista strana sa istom stranom. Dvoručni prošli unos (side null) važi kao
-    // referenca za OBJE ruke — 10kg × 12 sa obje bučice jeste 10kg po ruci.
-    const prev = echo?.sets.find(s => s.setNumber === setNumber
-                                   && (s.side === side || s.side === null));
+    // Strana se bira po `echoSetIn` — ista strana ako je ima, inače prošli
+    // dvoručni red (važi za obje ruke) ili slabija strana (vidi pravilo
+    // slabije strane).
+    const prev = this.echoSetIn(echo, setNumber, side);
     if (!prev) {
       return { delta: null, weightDelta: null, repsDelta: null, prevLabel: null };
     }
@@ -438,10 +582,16 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     const best = Math.max(...sets.map(s => s.weight));
     if (best > previousBest) return true;
 
-    // Čista bodyweight vježba (zgibovi bez tega): kilaža i danas i ranije stoji
-    // na 0, pa se po njoj rekord nikad ne bi mogao oboriti. Kad tega nema ni sa
-    // jedne strane poređenja, mjeri se broj ponavljanja.
-    if (best === 0 && previousBest === 0 && previousBestReps !== null) {
+    // Današnji dan je odrađen bez tega (zgibovi, sklekovi): kilaža stoji na 0,
+    // pa se po njoj rekord nikad ne bi mogao oboriti — mjeri se broj
+    // ponavljanja, u odnosu na najviše ranije odrađenih BEZ tega.
+    //
+    // NE traži se da je i ranije SVE bilo bez tega: ko je vježbu prije radio i
+    // sa tegom imao je prag `previousBest > 0`, pa je stari uslov
+    // `previousBest === 0` gutao svaki rekord po ponavljanjima. Bez ijednog
+    // ranijeg upisa bez tega (prag null) rekorda i dalje nema — prvi put nije
+    // dostignuće.
+    if (best === 0 && previousBestReps !== null) {
       return Math.max(...sets.map(s => s.reps)) > previousBestReps;
     }
 
@@ -514,14 +664,16 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   // Echo — vrijednosti prošlog treninga
   // -------------------------------------------------------------------------
 
-  /** Prošli trening za seriju koju korisnik upravo upisuje. */
+  /**
+   * Prošli trening za seriju koju korisnik upravo upisuje.
+   *
+   * Strana se traži po rasporedu kojim se DANAS upisuje: u dvije kolone jedan
+   * unos puni obje ruke, pa se predlaže lijeva; u jednom redu se traži prošla
+   * dvoručna serija. Ranije je dvoručna grana uzimala „prvi red iz niza" — kad
+   * je prošli dan bio L/D, prijedlog je zavisio od redoslijeda redova iz baze.
+   */
   echoFor(ex: TodayExercice, setNumber: number): EchoSet | null {
-    if (!ex.isUnilateral) {
-      return ex.echo?.sets.find(s => s.setNumber === setNumber) ?? null;
-    }
-    // Jedan unos puni obje ruke; predlaže se lijeva (ili prošli dvoručni upis).
-    return ex.echo?.sets.find(s => s.setNumber === setNumber
-                                && (s.side === 'L' || s.side === null)) ?? null;
+    return this.echoSetIn(ex.echo, setNumber, this.splitLayout(ex) ? 'L' : null);
   }
 
   /** Serije jedne strane; null = dvoručne. */
@@ -530,33 +682,53 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   /**
-   * Broj ODRAĐENIH serija — kod jednoručne vježbe par L+D je JEDNA serija.
-   * Uzima se jača strana, da poslije ručnog brisanja jedne pilule brojka ne
-   * stane; parovi ionako nastaju zajedno.
+   * JEDNO PRAVILO BROJANJA: serija je jedan `set_number`, ne jedan red u bazi.
+   *
+   * Kod jednoručne vježbe su par L+D dva reda a JEDNA odrađena serija. Pošto se
+   * praćenje ruku pali i gasi usred dana, dan zna imati i dvoručnih i
+   * jednoručnih redova — brojanje različitih rednih brojeva pokriva sve te
+   * slučajeve istim pravilom. Ranije se brojalo čas po redovima čas po jačoj
+   * strani, pa je gašenje flaga udvostručavalo brojač, a paljenje ga zamrzavalo.
+   *
+   * Isti ključ (vježba, redni broj) broji serije i na rang listi
+   * (`LeaderboardService.getLiveSessions`) i u kalendaru profila.
    */
-  doneCount(ex: TodayExercice): number {
-    if (!ex.isUnilateral) return ex.loggedSets.length;
-    return Math.max(this.setsFor(ex, 'L').length, this.setsFor(ex, 'D').length,
-                    this.setsFor(ex, null).length);
+  private setNumbers(ex: TodayExercice): number[] {
+    return [...new Set(ex.loggedSets.map(s => s.setNumber))].sort((a, b) => a - b);
   }
 
+  doneCount(ex: TodayExercice): number {
+    return new Set(ex.loggedSets.map(s => s.setNumber)).size;
+  }
+
+  /**
+   * Redni broj sljedeće serije = NAJVEĆI upisani + 1, preko svih redova.
+   *
+   * Namjerno ne „broj odrađenih + 1": kad se L/D upali usred dana, tri ranije
+   * dvoručne serije daju brojku 3, pa bi svaka naredna serija zauvijek bila
+   * „4" i upisivala duplikat istog rednog broja. Po najvećem broju numeracija
+   * uvijek ide dalje, a poslije gašenja flaga ne pravi rupu.
+   */
   nextSetNumber(ex: TodayExercice): number {
-    return this.doneCount(ex) + 1;
+    return ex.loggedSets.reduce((max, s) => Math.max(max, s.setNumber), 0) + 1;
   }
 
   /**
    * Duhovi serija za jednu stranu bloka.
    *
-   * Prošli dvoručni trening (sve strane null) služi kao referenca za OBJE
-   * ruke, pa se tada isti duhovi pokažu u oba bloka. Skriva se onoliko sa
-   * početka koliko ta strana danas ima upisano.
+   * Duh se traži za SVAKI redni broj iz prošlog treninga, preko `echoSetIn` —
+   * pa rade oba nesimetrična slučaja: prošli dvoručni dan daje iste duhove u
+   * obje kolone, a prošli L/D dan daje duhove i u dvoručnom redu (slabija
+   * strana). Skriva se onoliko sa početka koliko ta strana danas ima upisano.
    */
   sideGhosts(ex: TodayExercice, side: Side): EchoSet[] {
-    const all = ex.echo?.sets ?? [];
-    let mine = all.filter(g => g.side === side);
-    if (mine.length === 0 && side !== null) mine = all.filter(g => g.side === null);
     const done = this.setsFor(ex, side).length;
-    return mine.filter(g => g.setNumber > done);
+
+    return [...new Set((ex.echo?.sets ?? []).map(g => g.setNumber))]
+      .sort((a, b) => a - b)
+      .filter(n => n > done)
+      .map(n => this.echoSetIn(ex.echo, n, side))
+      .filter((g): g is EchoSet => g !== null);
   }
 
   /** Pali/gasi praćenje ruku odvojeno — trajno, na nivou vježbe. */
@@ -566,9 +738,32 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     try {
       await this.trainingService.setUnilateral(ex.exerciceId, value);
       ex.isUnilateral = value;
+      // Raspored se crta po izvedenom stanju — osvježi ga odmah i pusti da se
+      // prelaz vidi. Numeracija po najvećem rednom broju čini promjenu usred
+      // dana bezbjednom: ni duplikata ni rupe.
+      this.refreshDerived(ex);
+      this.flowLayout(ex);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri promjeni praćenja ruku.');
     }
+  }
+
+  /**
+   * Prelaz rasporeda serija (jedan red ↔ dvije kolone) mora imati pokret —
+   * kućno pravilo: nijedan trenutni preskok. Blok se razlije po širini dok se
+   * stisne po visini pa slegne, a kap akcenta pređe preko njega. CSS ne svira
+   * animaciju na uklanjanju klase, pa kratko stanje vodi komponenta.
+   */
+  private flowLayout(ex: TodayExercice) {
+    clearTimeout(this.layoutTimer);
+    this.exercices.forEach(e => e.layoutFlow = false);
+
+    // Sljedeći takt: klasa se prvo stvarno skine pa opet doda, inače pregledač
+    // vidi isto stanje i animacija se ne odsvira ponovo.
+    setTimeout(() => {
+      ex.layoutFlow = true;
+      this.layoutTimer = setTimeout(() => ex.layoutFlow = false, 560);
+    });
   }
 
   /**
@@ -586,6 +781,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       ex.isBodyweight = value;
       // Bez tjelesne težine kilaža je opet obavezna — polje mora ostati otvoreno.
       if (!value) ex.showWeightInput = true;
+      // Bedž „BW" u istoriji stoji po tragu u danu (kilaža 0), pa se izvedeno
+      // stanje osvježava i ovdje — već upisane serije bez tega ostaju BW.
+      this.refreshDerived(ex);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri promjeni tjelesne težine.');
     }
@@ -602,9 +800,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
    * prvi dropset, on staje na mjesto prvog duha, a ostali duhovi ostaju.
    */
   ghostDropsets(ex: TodayExercice, set: LoggedSet): EchoDropset[] {
-    // Duh dropseta dolazi sa iste strane kao serija (prošli dvoručni važi za obje).
-    const prev = ex.echo?.sets.find(s => s.setNumber === set.setNumber
-                                      && (s.side === set.side || s.side === null))?.dropsets ?? [];
+    // Duh dropseta dolazi sa iste strane kao serija, po istom pravilu kao duh
+    // serije: prošli dvoručni red važi za obje ruke, a prošli L/D par se za
+    // današnju dvoručnu seriju svodi na slabiju stranu.
+    const prev = this.echoSetIn(ex.echo, set.setNumber, set.side)?.dropsets ?? [];
     const done = set.dropsets.length;
     return done >= prev.length ? [] : prev.slice(done);
   }
@@ -742,6 +941,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       });
 
       this.refreshPr(ex);
+      // Prva serija sa stranom pretvara raspored u dvije kolone, prva bez tega
+      // pali bedž „BW" — izvedena stanja moraju pratiti upis odmah.
+      this.refreshDerived(ex);
       ex.showLogForm = false;
       ex.repsInput = null;
       ex.weightInput = null;
@@ -803,9 +1005,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     if (set.pending) return;   // još nije u bazi — nema šta da se mijenja
     set.editing = true;
     set.editReps = set.reps;
-    // Kod bodyweight vježbe kilaža 0 znači „bez tega" — polje se otvara prazno,
-    // da se nula ne mora brisati rukom prije nego što se teg upiše.
-    set.editWeight = (ex.isBodyweight && set.weight === 0) ? null : set.weight;
+    // Kilaža 0 znači „bez tega" — polje se otvara prazno, da se nula ne mora
+    // brisati rukom prije nego što se teg upiše. Vrijedi i kad je flag vježbe
+    // u međuvremenu ugašen: red koji JESTE bio bodyweight ostaje BW-tretiran.
+    set.editWeight = this.bwField(ex, set.weight) ? null : set.weight;
   }
 
   cancelEditSet(set: LoggedSet) {
@@ -813,9 +1016,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   async saveEditSet(ex: TodayExercice, set: LoggedSet) {
-    // Prazno polje kod bodyweight vježbe je 0, isto kao pri upisu serije —
-    // inače bi dugme „sačuvaj" tiho ne radilo ništa.
-    const weight = set.editWeight ?? (ex.isBodyweight ? 0 : null);
+    // Prazno polje na bodyweight redu je 0, isto kao pri upisu serije — inače
+    // bi dugme „sačuvaj" tiho ne radilo ništa. Gleda se i sam red (`bwField`),
+    // pa serija odrađena bez tega ostaje izmjenjiva i poslije gašenja flaga.
+    const weight = set.editWeight ?? (this.bwField(ex, set.weight) ? 0 : null);
     if (set.editReps == null || weight == null || set.saving) return;
     if (weight < 0 || weight > 1000) return;
 
@@ -829,8 +1033,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       set.editing = false;
 
       // Izmjena može i stvoriti i poništiti rekord — zato ista provjera kao
-      // pri upisu, uključujući i animaciju.
+      // pri upisu, uključujući i animaciju. Kilaža 0 ↔ teg mijenja i bedž „BW".
       this.refreshPr(ex);
+      this.refreshDerived(ex);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom izmjene rezultata.');
     } finally {
@@ -863,6 +1068,11 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       }
 
       this.refreshPr(ex);
+      // Brisanje posljednje serije sa stranom vraća dan u dvoručni raspored —
+      // izvedeno stanje mora pasti zajedno sa podatkom.
+      const wasSplit = this.splitLayout(ex);
+      this.refreshDerived(ex);
+      if (wasSplit !== this.splitLayout(ex)) this.flowLayout(ex);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom brisanja serije.');
       set.saving = false;
@@ -899,9 +1109,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   async saveDropset(ex: TodayExercice, set: LoggedSet) {
-    // Kod bodyweight vježbe prazno polje kilaže znači tjelesnu težinu (0) —
-    // isti obrazac kao pri upisu serije. Bez ovoga dugme ne bi radilo ništa.
-    const weight = set.dropsetWeightInput ?? (ex.isBodyweight ? 0 : null);
+    // Prazno polje kilaže znači tjelesnu težinu (0) — isti obrazac kao pri
+    // upisu serije. Mjeri se i po samoj seriji: drop na seriji odrađenoj bez
+    // tega ostaje BW i pošto se flag vježbe ugasi.
+    const weight = set.dropsetWeightInput ?? (this.bwField(ex, set.weight) ? 0 : null);
     if (set.dropsetRepsInput == null || weight == null || set.savingDropset) return;
     if (weight < 0 || weight > 1000) return;
 
@@ -960,8 +1171,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   startEditDropset(ex: TodayExercice, dropset: DropsetEntry) {
     if (this.isFinished || dropset.deleting) return;
     dropset.editing = true;
-    // Kao i kod serije: kilaža 0 na bodyweight vježbi je „bez tega", ne nula.
-    dropset.editWeight = (ex.isBodyweight && dropset.weight === 0) ? null : dropset.weight;
+    // Kao i kod serije: kilaža 0 je „bez tega", ne nula — i po flagu vježbe i
+    // po samom redu, pa stari BW dropset ostaje takav i poslije gašenja flaga.
+    dropset.editWeight = this.bwField(ex, dropset.weight) ? null : dropset.weight;
     dropset.editReps = dropset.reps;
   }
 
@@ -970,7 +1182,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   async saveEditDropset(ex: TodayExercice, dropset: DropsetEntry) {
-    const weight = dropset.editWeight ?? (ex.isBodyweight ? 0 : null);
+    const weight = dropset.editWeight ?? (this.bwField(ex, dropset.weight) ? 0 : null);
     if (dropset.editReps == null || weight == null || dropset.saving) return;
     if (weight < 0 || weight > 1000) return;
 
@@ -1013,6 +1225,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     clearTimeout(this.tiClosingTimer);
     clearTimeout(this.tiFlashTimer);
     clearTimeout(this.bwFlipTimer);
+    clearTimeout(this.layoutTimer);
     // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
     // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
     // futera) dok je neki edit mod bio otvoren.
@@ -1079,9 +1292,12 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
         continue;   // rekord se prikazuje zasebno, ne i u spisku ishoda
       }
 
-      const up = ex.loggedSets.filter(s => s.delta === 'up').length;
-      const down = ex.loggedSets.filter(s => s.delta === 'down').length;
-      const compared = ex.loggedSets.filter(s => s.delta !== null).length;
+      // Ishod se broji po SERIJI, ne po redu u bazi — inače jednoručni dan
+      // prijavi „6 serija bolje" tamo gdje ih je odrađeno tri.
+      const perSet = this.setDeltas(ex);
+      const up = perSet.filter(d => d === 'up').length;
+      const down = perSet.filter(d => d === 'down').length;
+      const compared = perSet.filter(d => d !== null).length;
       if (compared === 0) continue;   // prvi put — nema se s čim porediti
 
       const outcome: 'up' | 'same' | 'down' = up > down ? 'up' : down > up ? 'down' : 'same';
@@ -1128,6 +1344,23 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     this.summary = { tone, headline, elapsedLabel, line, records, rows };
   }
 
+  /**
+   * Jedna ocjena po SERIJI (kod jednoručne vježbe po paru L+D).
+   *
+   * Par vrijedi onoliko koliko njegova SLABIJA strana: napredak je napredak tek
+   * kad nijedna ruka nije nazadovala. Serija koja se nema s čim porediti daje
+   * `null` i ne ulazi u sažetak.
+   */
+  private setDeltas(ex: TodayExercice): Delta[] {
+    const rank: Record<string, number> = { down: 0, same: 1, up: 2 };
+
+    return this.setNumbers(ex).map(n => {
+      const rows = ex.loggedSets.filter(s => s.setNumber === n && s.delta !== null);
+      if (rows.length === 0) return null;
+      return rows.reduce((worst, s) => rank[s.delta!] < rank[worst.delta!] ? s : worst).delta;
+    });
+  }
+
   /** "42 min" / "1 h 15 min" — isti format kao "Trenira sada" na dashboardu. */
   private formatElapsed(startedAt: string, finishedAt: string): string {
     const ms = new Date(finishedAt).getTime() - new Date(startedAt).getTime();
@@ -1141,9 +1374,12 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
 
   closeSummary() { this.showSummary = false; }
 
-  /** Ukupno upisanih serija danas — prikazuje se uz oznaku da je trening gotov. */
+  /**
+   * Ukupno ODRAĐENIH serija danas — prikazuje se uz oznaku da je trening gotov.
+   * Po istom pravilu kao `doneCount`: par L+D je jedna serija, ne dvije.
+   */
   get totalSets(): number {
-    return this.exercices.reduce((n, e) => n + e.loggedSets.length, 0);
+    return this.exercices.reduce((n, e) => n + this.doneCount(e), 0);
   }
 
   async finishTraining() {

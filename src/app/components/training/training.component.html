@@ -143,7 +143,11 @@
                vježbe na telefonu ostane cijel, bez sabijanja i tri tačke. -->
           <div class="exercice-meta" *ngIf="!reordering">
             <span class="target num">{{ progressLabel(ex) }}<span class="sep" *ngIf="ex.targetReps"> × {{ ex.targetReps }}</span></span>
-            <span class="echo-date num" *ngIf="ex.echo">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
+            <!-- Duh zna doći iz drugačijeg rasporeda nego što je današnji
+                 (prošli put po stranama, danas objema — i obrnuto); opis
+                 kaže odakle brojka dolazi. -->
+            <span class="echo-date num" *ngIf="ex.echo"
+                  [title]="echoHint(ex)">· prošli put {{ ex.echo.date | date:'dd.MM.' }}</span>
 
             <!-- Lični rekord: jedan po vježbi, ne po seriji -->
             <span class="pr" *ngIf="ex.isPr" [class.celebrate]="ex.celebrating"
@@ -159,13 +163,17 @@
               <span class="pr-text num" *ngIf="prMetric(ex) as m">{{ m.value }}<small>{{ m.unit }}</small></span>
             </span>
 
-            <span class="tag bw" *ngIf="ex.isBodyweight"
-                  title="Osnovno se radi tjelesnom težinom">
+            <!-- Bedževi u istoriji govore kako je dan RAĐEN (kilaža 0, strane
+                 u serijama), na živom treningu kako se vježba prati od sada —
+                 vidi showBwBadge/showSidesBadge. -->
+            <span class="tag bw" *ngIf="showBwBadge(ex)"
+                  [title]="isFinished ? 'Tog dana rađeno tjelesnom težinom'
+                                      : 'Osnovno se radi tjelesnom težinom'">
               <i class="material-icons">accessibility_new</i>
               BW
             </span>
 
-            <span class="tag sides" *ngIf="ex.isUnilateral"
+            <span class="tag sides" *ngIf="showSidesBadge(ex)"
                   [title]="ex.isLegs ? 'Svaka noga se prati odvojeno' : 'Svaka ruka se prati odvojeno'">
               <i class="material-icons" *ngIf="!ex.isLegs">pan_tool</i>
               <!-- Noge nema u Material ikonama — ikona "Leg" (Delapouite,
@@ -234,7 +242,7 @@
       </div>
 
       <!-- Serije: današnje pune, prošle kao duh -->
-      <div class="sets" [class.split]="ex.isUnilateral"
+      <div class="sets" [class.split]="splitLayout(ex)" [class.reflow]="ex.layoutFlow"
            *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
         <!-- Grupa = jedna working serija sa svojim dropsetovima ispod nje.
              Dropset se ne smije naći u istom redu kao tuđa serija, pa grupa ide
@@ -283,10 +291,11 @@
 
           <div class="set-edit" *ngIf="set.editing">
             <span class="set-n num">{{ set.setNumber }}</span>
-            <!-- Kod bodyweight vježbe prazno polje znači tjelesnu težinu, pa i
-                 duh u polju to kaže umjesto da traži kilažu. -->
+            <!-- Prazno polje znači tjelesnu težinu, pa i duh u polju to kaže
+                 umjesto da traži kilažu. Gleda se i sam red (bwField), pa
+                 serija odrađena bez tega ostaje „BW" i kad se flag ugasi. -->
             <input appNumField keyboard="text" [(ngModel)]="set.editWeight"
-                   [placeholder]="ex.isBodyweight ? 'BW' : 'kg'"
+                   [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
                    (keydown.enter)="editReps.focus()" />
             <input #editReps keyboard="text" appNumField="integer" [(ngModel)]="set.editReps" placeholder="pon."
                    (keydown.enter)="saveEditSet(ex, set)" />
@@ -316,7 +325,7 @@
 
             <div class="set-edit dropset-form" *ngIf="d.editing">
               <input appNumField keyboard="text" [(ngModel)]="d.editWeight"
-                     [placeholder]="ex.isBodyweight ? 'BW' : 'kg'"
+                     [placeholder]="bwField(ex, d.weight) ? 'BW' : 'kg'"
                      (keydown.enter)="dropEditReps.focus()" />
               <input #dropEditReps appNumField="integer" keyboard="text" [(ngModel)]="d.editReps" placeholder="pon."
                      (keydown.enter)="saveEditDropset(ex, d)" />
@@ -343,7 +352,7 @@
             <span class="both-tag" *ngIf="ex.isUnilateral && set.side"
                   title="Upisuje se i na istu seriju druge ruke">L+D</span>
             <input appNumField keyboard="text" [(ngModel)]="set.dropsetWeightInput"
-                   [placeholder]="ex.isBodyweight ? 'BW' : 'kg'"
+                   [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
                    (keydown.enter)="dropReps.focus()" />
             <input #dropReps keyboard="text" appNumField="integer" [(ngModel)]="set.dropsetRepsInput" placeholder="pon."
                    (keydown.enter)="saveDropset(ex, set)" />
@@ -378,8 +387,10 @@
         </div>
         </ng-template>
 
-        <!-- Dvoručno: sve u jednom prelamajućem redu, kao do sada -->
-        <ng-container *ngIf="!ex.isUnilateral">
+        <!-- Dvoručno: sve u jednom prelamajućem redu, kao do sada.
+             Raspored bira splitLayout — po PODACIMA dana, ne po katalog-flagu:
+             dan odrađen dvoručno ostaje dvoručan i kad se L/D poslije upali. -->
+        <ng-container *ngIf="!splitLayout(ex)">
           <ng-container *ngFor="let set of ex.loggedSets">
             <ng-container *ngTemplateOutlet="setGroupTpl; context: { $implicit: set }"></ng-container>
           </ng-container>
@@ -389,7 +400,7 @@
         </ng-container>
 
         <!-- Jednoručno: blok po ruci, serije teku odvojeno L1, L2... / D1, D2... -->
-        <ng-container *ngIf="ex.isUnilateral">
+        <ng-container *ngIf="splitLayout(ex)">
           <!-- Upisano prije uključivanja praćenja ruku — obje zajedno -->
           <div class="side-full" *ngIf="setsFor(ex, null).length > 0">
             <ng-container *ngFor="let set of setsFor(ex, null)">
