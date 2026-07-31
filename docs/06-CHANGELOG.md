@@ -3148,3 +3148,129 @@ provjereno i piksel-poređenjem boja headera i futera.
 2. Blog dobio ulazne animacije u kućnom jeziku: objave izranjaju odozdo
    talasom (kašnjenje po grupi i objavi), naslovi grupa korak ranije, a i sama
    ploča ulazi — pa i prazan blog diše kao ostatak aplikacije.
+
+---
+
+## [2026-07-31] Vježbe tjelesnom težinom: čip „BW" umjesto jednosmjernog otkrivanja
+**Tip:** popravka
+
+**Problem:** Unos bodyweight vježbe (zgibovi, propadanja) radio je samo u jednom
+smjeru i na više mjesta tiho nije radio ništa.
+
+1. **Nema povratka na čist BW.** Polje kilaže se otkrivalo dugmetom „+ KILAŽA"
+   (`revealWeightInput`) i više se nije moglo skloniti. Ko jednom doda teg,
+   ostatak treninga gleda polje koje mu ne treba.
+2. **Prefil je upisivao nulu.** `toggleLogForm` je punio `weightInput` iz prošle
+   serije bez izuzetka, pa je čista BW vježba dobijala „0" u polju — koja se
+   morala brisati rukom prije svake serije, jer polje sa nulom ne izgleda prazno.
+3. **Dropset i izmjena serije nisu znali za BW.** Oba upisa su tražila
+   `weight != null` bez izuzetka za bodyweight, pa je dugme „sačuvaj" nad
+   praznim poljem kilaže tiho ne radilo ništa — bez poruke, bez ikakvog znaka.
+4. **BW oznaka se nije mogla dodati.** `exercices.is_bodyweight` se mijenjao
+   samo ručno u bazi; u aplikaciji nije postojao put do njega, iako za praćenje
+   ruku (`is_unilateral`) put postoji odavno.
+5. **Nule su curile u prikaz.** Odrađen dropset se ispisivao kao „0kg × 12", a
+   opis prošle serije kao „Prošli put: 0kg × 8".
+6. **Čista BW vježba nikad nije mogla dobiti plamen.** Rekord se mjerio isključivo
+   kilažom, a kod zgibova je ona uvijek 0 — pa ni 20 zgibova naspram ranijih 8
+   nije bilo dostignuće.
+
+**Rješenje:**
+
+1. **Dvosmjerni čip „BW".** Kod bodyweight vježbe uz mjesto za kilažu uvijek
+   stoji mali čip. Upaljen (volt ispuna) znači ČIST BW: polje kilaže je skupljeno,
+   `weightInput` je `null`, u bazu ide 0. Prigušen znači BW + TEG: polje se
+   razlilo pored čipa, sa prefilom iz prošle serije ako ga je bilo. Klik radi u
+   OBA smjera, a povratak na čist BW briše `weightInput` — inače bi prefilovani
+   teg tiho završio u bazi iako čip kaže da ga nema. Dugme „+ KILAŽA" i
+   `revealWeightInput()` su uklonjeni.
+2. **Pokret po kućnom jeziku.** Polje se ne uklanja iz DOM-a nego skuplja, da
+   prelaz ima animaciju u oba smjera: kap mastila kreće iz čipa (`ink-bloom`) i
+   povlači se nazad u njega (`ink-retreat`), slot se razlije pa slegne
+   (`island-splash` / `island-sip`), a polje izranja talasom (`ch-rise`) — isti
+   keyframes koje već koristi tajmer-ostrvo. Smjer nosi kratko stanje `bwFlip`
+   u komponenti, jer CSS ne svira animaciju na uklanjanju klase. Sve se gasi uz
+   `prefers-reduced-motion`.
+3. **Kilaža i ponavljanja postali su JEDNA flex ćelija** (`.log-fields`) umjesto
+   dvije grid kolone. Skupljanje ide kroz `flex-grow` (broj, pa se interpolira
+   glatko), a ne kroz `max-width` čiju bi krajnju vrijednost trebalo pogađati;
+   ponavljanja tako sama preuzmu oslobođeni prostor, kontinuirano i bez skoka.
+4. **„Tjelesna težina" u meniju vježbe**, jedan-na-jedan po uzoru na „Prati ruke
+   odvojeno": novi `setBodyweight()` u servisu, uz `setUnilateral`. Time SVAKA
+   vježba može naknadno dobiti BW opciju. U zaglavlju reda stoji bedž „BW",
+   istim jezikom kao postojeći „L·D".
+5. **Isti BW tretman u dropsetu i izmjeni serije.** Prazno polje kilaže znači 0
+   (`?? (ex.isBodyweight ? 0 : null)`, isti obrazac kao `saveLog`), placeholder
+   je „BW" umjesto „kg", a izmjena BW serije otvara polje PRAZNO umjesto sa
+   nulom. Čip tu namjerno NEMA — te forme su pilule uz seriju i ne trpe još
+   jedno dugme.
+6. **Rekord za čiste BW vježbe.** Novi `getBodyweightBests()` vraća najviše
+   ponavljanja odrađenih bez tega prije današnjeg dana. Kad su i današnja i
+   ranija najbolja kilaža 0, `hasPr` mjeri ponavljanja; ponašanje kad ima tega
+   je netaknuto. Oznaka rekorda, njen opis i sažetak treninga tada pišu
+   „12 pon." umjesto „0kg" — kroz jedan izvor istine, `prMetric()`.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/training.service.ts:472` — nov `setBodyweight(exerciceId, value)`,
+  odmah uz `setUnilateral`, istim stilom
+- `src/app/services/training.service.ts:793` — nov `getBodyweightBests()`: najviše
+  ponavljanja sa `weight = 0` prije zadatog datuma (prag rekorda za čist BW)
+- `src/app/components/training/training.component.ts:73` — novo polje
+  `previousBestReps` na `TodayExercice`
+- `src/app/components/training/training.component.ts:93` — `showWeightInput`
+  dobio novo značenje (stanje čipa, ne jednokratno otkrivanje) + novo `bwFlip`
+  za smjer animacije
+- `src/app/components/training/training.component.ts:288` — peti paralelni upit
+  u `hydrate()`; `prShown` se pamti u mjeri rekorda, ne uvijek u kilaži
+- `src/app/components/training/training.component.ts:387` — `prevLabel` piše „BW"
+  umjesto „0kg"
+- `src/app/components/training/training.component.ts:401` — `hasPr` dobio treći
+  argument i granu za čist bodyweight; novi `prMetric()` i `prTitle()`
+- `src/app/components/training/training.component.ts:454` — `refreshPr` poredi
+  MJERU rekorda, pa plamen padne i kad zgibovi porastu sa 10 na 12
+- `src/app/components/training/training.component.ts:581` — `echoPlaceholder` za
+  prošlu kilažu 0 vraća „Kilaža", ne „0"
+- `src/app/components/training/training.component.ts:549` — nov `toggleBodyweight()`
+- `src/app/components/training/training.component.ts:603` — `toggleLogForm` više
+  ne prefiluje nulu; nov `toggleBodyweightWeight()` umjesto `revealWeightInput()`
+- `src/app/components/training/training.component.ts:757` — `startEditSet(ex, set)`
+  otvara BW seriju sa praznim poljem kilaže
+- `src/app/components/training/training.component.ts:770`,
+  `:856`, `:915`, `:927` — BW izuzetak u `saveEditSet`, `saveDropset`,
+  `startEditDropset`, `saveEditDropset`
+- `src/app/components/training/training.component.ts:1018` — `records` u sažetku
+  nose i jedinicu
+- `src/app/components/training/training.component.html:150` — oznaka rekorda kroz
+  `prMetric`/`prTitle`; `:162` nov bedž „BW"
+- `src/app/components/training/training.component.html:220` — stavka „Tjelesna
+  težina" u meniju vježbe
+- `src/app/components/training/training.component.html:255`, `:289`, `:309`,
+  `:311`, `:319`, `:346` — BW placeholderi, zaštita „0kg ×" na odrađenom
+  dropsetu, proslijeđen `ex` u izmjenu serije/dropseta
+- `src/app/components/training/training.component.html:423` — forma za upis:
+  `.log-fields` + `.weight-slot` sa čipom
+- `src/app/components/training/training.component.scss:235` — bedž `.tag.bw`
+- `src/app/components/training/training.component.scss:271` — meni vježbe dobio
+  sedmu stavku, granica visine podignuta na 440px
+- `src/app/components/training/training.component.scss:624` — `.log-form` sa tri
+  kolone + nov `.log-fields`
+- `src/app/components/training/training.component.scss:680` — `.weight-slot`,
+  `.bw-chip` i sve animacije prelaza; `.add-weight-btn` uklonjen
+- `src/app/components/training/training.component.scss:199`, `:806` — telefonski
+  raspored forme (jedna kolona; polja drži flex, ne grid)
+
+**Efekat:** Zgibovi se upisuju bez ijednog brisanja nule — otvoriš formu, ukucaš
+ponavljanja, sačuvaš. Ako je bio i teg, jedan dodir na „BW" ga otvori (sa prošlom
+kilažom u polju), a drugi dodir ga vrati. Dropset i izmjena serije rade i sa
+praznom kilažom. Svaka vježba može dobiti ili izgubiti BW oznaku iz svog menija.
+Nule su nestale iz prikaza, a čist bodyweight konačno može oboriti rekord — po
+broju ponavljanja.
+
+**Napomene:**
+- Baza nije dirana: konvencija ostaje `exercice_logs.weight = 0` za čist BW, a
+  flag `is_bodyweight` i dalje stoji na `exercices` (dakle vrijedi za sve
+  korisnike, isto kao `is_unilateral`).
+- Početno stanje forme i dalje čita ECHO (prošli trening), ne prethodnu današnju
+  seriju — nepromijenjeno ponašanje, samo sada bez upisane nule.
+- `getBodyweightBests` je zaseban upit umjesto proširenja `getPersonalBests`,
+  da postojeći prag rekorda ostane netaknut.

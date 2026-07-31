@@ -462,6 +462,22 @@ export class TrainingService {
     if (error) throw error;
   }
 
+  /**
+   * Pali/gasi tjelesnu težinu kao osnovu vježbe.
+   *
+   * Isto pravilo kao kod praćenja po stranama: na nivou VJEŽBE, ne treninga —
+   * zgibovi su zgibovi svakome ko ih radi, jer je katalog vježbi zajednički.
+   * Bez ovoga se oznaka mogla dobiti samo ručno u bazi.
+   */
+  async setBodyweight(exerciceId: string, value: boolean): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('exercices')
+      .update({ is_bodyweight: value })
+      .eq('id', exerciceId);
+
+    if (error) throw error;
+  }
+
   async logSet(entry: {
     userId: string;
     sessionId: string;
@@ -762,6 +778,39 @@ export class TrainingService {
 
     for (const row of (data ?? []) as any[]) {
       if (!best.has(row.exercice_id)) best.set(row.exercice_id, row.weight);
+    }
+
+    return best;
+  }
+
+  /**
+   * Najviše ponavljanja odrađenih BEZ tega (weight = 0), prije zadatog datuma.
+   *
+   * Prag ličnog rekorda za čiste bodyweight vježbe. Kad tega nema ni danas ni
+   * ranije, kilaže se uvijek izjednače na nuli, pa se po njima rekord ne bi
+   * mogao oboriti — jedina mjera napretka je broj ponavljanja.
+   */
+  async getBodyweightBests(
+    userId: string,
+    exerciceIds: string[],
+    beforeDate: string
+  ): Promise<Map<string, number>> {
+    const best = new Map<string, number>();
+    if (exerciceIds.length === 0) return best;
+
+    const { data, error } = await this.supabase.client
+      .from('exercice_logs')
+      .select('exercice_id, reps')
+      .eq('user_id', userId)
+      .in('exercice_id', exerciceIds)
+      .eq('weight', 0)
+      .lt('date', beforeDate)
+      .order('reps', { ascending: false });
+
+    if (error) throw error;
+
+    for (const row of (data ?? []) as any[]) {
+      if (!best.has(row.exercice_id)) best.set(row.exercice_id, row.reps);
     }
 
     return best;

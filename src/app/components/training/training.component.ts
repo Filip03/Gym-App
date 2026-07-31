@@ -64,6 +64,13 @@ interface TodayExercice extends SessionExercice {
 
   /** Najbolja kilaža PRIJE današnjeg treninga. Prag za lični rekord. */
   previousBest: number | null;
+  /**
+   * Najviše ponavljanja odrađenih BEZ tega (weight = 0) prije današnjeg treninga.
+   *
+   * Prag za rekord kod čistih bodyweight vježbi: tamo kilaža uvijek stoji na 0,
+   * pa se rekord ne može mjeriti njome — mjeri se brojem ponavljanja.
+   */
+  previousBestReps: number | null;
   /** Da li je današnji trening oborio taj prag. Jedan po vježbi, ne po seriji. */
   isPr: boolean;
   /** Uključuje se samo u trenutku obaranja — pokreće animaciju slavlja. */
@@ -76,8 +83,20 @@ interface TodayExercice extends SessionExercice {
   showLogForm: boolean;
   repsInput: number | null;
   weightInput: number | null;
-  /** Za bodyweight vježbe: da li je polje za kilažu otkriveno (podrazumijevano sakriveno). */
+  /**
+   * Da li je polje za kilažu rašireno.
+   *
+   * Kod vježbi bez tjelesne težine je uvijek `true` — kilaža je obavezna. Kod
+   * bodyweight vježbi je to stanje čipa „BW": skupljeno polje znači čist BW (u
+   * bazu ide 0), rašireno znači tjelesna težina PLUS teg.
+   */
   showWeightInput: boolean;
+  /**
+   * Kratko stanje za animaciju prelaza između ta dva stanja — CSS ne svira
+   * animaciju na uklanjanju klase, pa smjer vodi komponenta: „in" = polje se
+   * razliva iz čipa, „out" = povlači se nazad u njega.
+   */
+  bwFlip: 'in' | 'out' | null;
   saving: boolean;
   menuOpen: boolean;
 }
@@ -142,6 +161,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   @ViewChildren('exRow') rowEls!: QueryList<ElementRef<HTMLElement>>;
 
   private saveTimer: any = null;
+  /** Traje koliko i animacija prelaza čipa „BW" — vidi `toggleBodyweightWeight`. */
+  private bwFlipTimer: any = null;
   /** Kratko stanje za animaciju SKUPLJANJA tajmer-ostrva — CSS ne umije da
    *  odsvira animaciju na uklanjanju klase, pa je vodi komponenta. */
   tiClosing = false;
@@ -263,11 +284,12 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     const exerciceIds = this.session.exercices.map(e => e.exerciceId);
     this.isRestDay = exerciceIds.length === 0;
 
-    // Četiri nezavisna upita — paralelno, da ekran ne čeka lanac.
-    const [logs, echo, bests, dropsetsByLog] = await Promise.all([
+    // Pet nezavisnih upita — paralelno, da ekran ne čeka lanac.
+    const [logs, echo, bests, bwBests, dropsetsByLog] = await Promise.all([
       this.trainingService.getSessionLogs(this.session.id),
       this.trainingService.getEcho(this.currentUserId, exerciceIds, this.todayDate),
       this.trainingService.getPersonalBests(this.currentUserId, exerciceIds, this.todayDate),
+      this.trainingService.getBodyweightBests(this.currentUserId, exerciceIds, this.todayDate),
       this.trainingService.getSessionDropsets(this.session.id)
     ]);
 
@@ -275,6 +297,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       const own = logs.filter(l => l.exercice_id === se.exerciceId);
       const ec = echo.get(se.exerciceId) ?? null;
       const previousBest = bests.get(se.exerciceId) ?? null;
+      const previousBestReps = bwBests.get(se.exerciceId) ?? null;
 
       const sets: LoggedSet[] = own.map(l => ({
         id: l.id,
@@ -294,23 +317,31 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
         savingDropset: false
       }));
 
-      const isPr = this.hasPr(sets, previousBest);
+      const isPr = this.hasPr(sets, previousBest, previousBestReps);
+
+      // Mjera rekorda je kilaža, a kod čistog bodyweighta broj ponavljanja —
+      // ista logika kao u `prMetric`, samo prije nego što vježba postoji.
+      const bestWeight = sets.length ? Math.max(...sets.map(s => s.weight)) : 0;
+      const bestReps = sets.length ? Math.max(...sets.map(s => s.reps)) : 0;
 
       return {
         ...se,
         echo: ec,
         previousBest,
+        previousBestReps,
         isPr,
         // Zatečeni rekord se NE slavi pri učitavanju ekrana — samo onaj koji
         // padne pred korisnikom.
-        prShown: isPr ? Math.max(...sets.map(s => s.weight)) : null,
+        prShown: isPr ? (bestWeight > 0 ? bestWeight : bestReps) : null,
         celebrating: false,
         celebrateKey: 0,
         loggedSets: sets,
         showLogForm: false,
         repsInput: null,
         weightInput: null,
-        showWeightInput: false,
+        // Bez tjelesne težine kilaža je obavezna, pa je polje uvijek rašireno.
+        showWeightInput: !se.isBodyweight,
+        bwFlip: null,
         saving: false,
         menuOpen: false
       };
@@ -352,7 +383,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       delta,
       weightDelta,
       repsDelta,
-      prevLabel: `Prošli put: ${prev.weight}kg × ${prev.reps}`
+      // Kilaža 0 znači čistu tjelesnu težinu — „0kg × 8" ne govori ništa.
+      prevLabel: `Prošli put: ${prev.weight > 0 ? prev.weight + 'kg' : 'BW'} × ${prev.reps}`
     };
   }
 
@@ -366,9 +398,46 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
    * Vježba bez ijednog ranijeg upisa NEMA rekord — prvi put kad nešto radiš
    * nije dostignuće, nema se šta nadmašiti.
    */
-  private hasPr(sets: LoggedSet[], previousBest: number | null): boolean {
+  private hasPr(
+    sets: LoggedSet[], previousBest: number | null, previousBestReps: number | null
+  ): boolean {
     if (sets.length === 0 || previousBest === null) return false;
-    return Math.max(...sets.map(s => s.weight)) > previousBest;
+
+    const best = Math.max(...sets.map(s => s.weight));
+    if (best > previousBest) return true;
+
+    // Čista bodyweight vježba (zgibovi bez tega): kilaža i danas i ranije stoji
+    // na 0, pa se po njoj rekord nikad ne bi mogao oboriti. Kad tega nema ni sa
+    // jedne strane poređenja, mjeri se broj ponavljanja.
+    if (best === 0 && previousBest === 0 && previousBestReps !== null) {
+      return Math.max(...sets.map(s => s.reps)) > previousBestReps;
+    }
+
+    return false;
+  }
+
+  /**
+   * Vrijednost i jedinica po kojoj se mjeri rekord ove vježbe.
+   *
+   * Kod čiste bodyweight vježbe to nisu kilogrami nego ponavljanja — inače bi
+   * oznaka rekorda glasila „0kg".
+   */
+  prMetric(ex: TodayExercice): { value: number; previous: number | null; unit: string } {
+    const weight = this.todayBest(ex) ?? 0;
+    if (weight > 0) return { value: weight, previous: ex.previousBest, unit: 'kg' };
+
+    return {
+      value: ex.loggedSets.length ? Math.max(...ex.loggedSets.map(s => s.reps)) : 0,
+      previous: ex.previousBestReps,
+      unit: 'pon.'
+    };
+  }
+
+  /** Opis uz oznaku rekorda — u istoj jedinici u kojoj se rekord i mjeri. */
+  prTitle(ex: TodayExercice): string {
+    const m = this.prMetric(ex);
+    if (m.previous === null) return 'Novi lični rekord';
+    return `Novi lični rekord — prošli najbolji ${m.previous}${m.unit === 'kg' ? 'kg' : ' pon.'}`;
   }
 
   /**
@@ -383,14 +452,16 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
    * jednom u istom treningu.
    */
   private refreshPr(ex: TodayExercice) {
-    ex.isPr = this.hasPr(ex.loggedSets, ex.previousBest);
+    ex.isPr = this.hasPr(ex.loggedSets, ex.previousBest, ex.previousBestReps);
 
     if (!ex.isPr) {
       ex.prShown = null;
       return;
     }
 
-    const best = this.todayBest(ex)!;
+    // Ne kilaža nego MJERA rekorda: kod čistog bodyweighta to su ponavljanja,
+    // pa se plamen ponovi i kad rekord naraste sa 10 na 12 zgibova.
+    const best = this.prMetric(ex).value;
     if (ex.prShown !== null && best <= ex.prShown) return;
 
     ex.prShown = best;
@@ -469,6 +540,26 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   /**
+   * Pali/gasi tjelesnu težinu kao osnovu vježbe — trajno, na nivou vježbe.
+   *
+   * Isto kao praćenje ruku: katalog vježbi je zajednički, pa ko jednom kaže da
+   * su zgibovi bodyweight, takvi su svima. Bez ovoga se BW opcija mogla dobiti
+   * samo ako je vježba već u bazi bila označena.
+   */
+  async toggleBodyweight(ex: TodayExercice) {
+    ex.menuOpen = false;
+    const value = !ex.isBodyweight;
+    try {
+      await this.trainingService.setBodyweight(ex.exerciceId, value);
+      ex.isBodyweight = value;
+      // Bez tjelesne težine kilaža je opet obavezna — polje mora ostati otvoreno.
+      if (!value) ex.showWeightInput = true;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška pri promjeni tjelesne težine.');
+    }
+  }
+
+  /**
    * Dropsetovi prošlog treninga koji danas još nisu ponovljeni.
    *
    * Prikazuju se blijedo, uz seriju kojoj su pripadali — isto kao što se duh
@@ -490,7 +581,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   echoPlaceholder(ex: TodayExercice, field: 'reps' | 'weight'): string {
     const prev = this.echoFor(ex, this.nextSetNumber(ex));
     if (!prev) return field === 'reps' ? 'Ponavljanja' : 'Kilaža';
-    return field === 'reps' ? `${prev.reps}` : `${prev.weight}`;
+    if (field === 'reps') return `${prev.reps}`;
+    // Prošli put bez tega — nula kao duh bi zvučala kao prijedlog da se upiše 0.
+    return prev.weight > 0 ? `${prev.weight}` : 'Kilaža';
   }
 
   /** Koliko je serija plan predvidio, a koliko ih je odrađeno. */
@@ -510,21 +603,45 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   toggleLogForm(ex: TodayExercice) {
     ex.showLogForm = !ex.showLogForm;
     ex.menuOpen = false;
+    ex.bwFlip = null;
 
     // Predloži prošli rezultat kao polaznu vrijednost — u teretani se najčešće
     // ponavlja isto ili se dodaje mali korak.
     const prev = this.echoFor(ex, this.nextSetNumber(ex));
-    ex.repsInput = ex.showLogForm ? prev?.reps ?? null : null;
-    ex.weightInput = ex.showLogForm ? prev?.weight ?? null : null;
 
-    // Bodyweight vježbe: polje za kilažu je sakriveno dok korisnik eksplicitno
-    // ne doda teg — OSIM ako je prošli put nešto dodavao, tada ostaje otkriveno.
-    ex.showWeightInput = !ex.isBodyweight || (prev?.weight ?? 0) > 0;
+    // Bodyweight vježba se otvara u stanju „čist BW" — osim ako je prošli put
+    // stvarno bilo tega, tada se polje otvara sa tom kilažom. Ranije je prefil
+    // upisivao i nulu, pa se morala brisati rukom prije svake serije.
+    const withWeight = !ex.isBodyweight || (prev?.weight ?? 0) > 0;
+
+    ex.repsInput = ex.showLogForm ? prev?.reps ?? null : null;
+    ex.weightInput = (ex.showLogForm && withWeight) ? prev?.weight ?? null : null;
+    ex.showWeightInput = withWeight;
   }
 
-  /** Otkrivanje polja za dodatnu kilažu kod bodyweight vježbi. */
-  revealWeightInput(ex: TodayExercice) {
-    ex.showWeightInput = true;
+  /**
+   * Čip „BW": prebacuje bodyweight vježbu između „čistog BW" i „BW + teg",
+   * u OBA smjera.
+   *
+   * Povratak na čist BW briše upisanu kilažu — inače bi prefilovani teg tiho
+   * završio u bazi iako je čip kaže da ga nema. Kratko stanje `bwFlip` nosi
+   * smjer animacije: CSS ne umije da odsvira prelaz na uklanjanju klase.
+   */
+  toggleBodyweightWeight(ex: TodayExercice) {
+    const opening = !ex.showWeightInput;
+    ex.showWeightInput = opening;
+
+    if (opening) {
+      const prev = this.echoFor(ex, this.nextSetNumber(ex));
+      ex.weightInput = (prev?.weight ?? 0) > 0 ? prev!.weight : null;
+    } else {
+      ex.weightInput = null;
+    }
+
+    this.exercices.forEach(e => e.bwFlip = null);
+    ex.bwFlip = opening ? 'in' : 'out';
+    clearTimeout(this.bwFlipTimer);
+    this.bwFlipTimer = setTimeout(() => ex.bwFlip = null, 560);
   }
 
   async saveLog(ex: TodayExercice) {
@@ -637,11 +754,13 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       || msg.includes('load failed');
   }
 
-  startEditSet(set: LoggedSet) {
+  startEditSet(ex: TodayExercice, set: LoggedSet) {
     if (set.pending) return;   // još nije u bazi — nema šta da se mijenja
     set.editing = true;
     set.editReps = set.reps;
-    set.editWeight = set.weight;
+    // Kod bodyweight vježbe kilaža 0 znači „bez tega" — polje se otvara prazno,
+    // da se nula ne mora brisati rukom prije nego što se teg upiše.
+    set.editWeight = (ex.isBodyweight && set.weight === 0) ? null : set.weight;
   }
 
   cancelEditSet(set: LoggedSet) {
@@ -649,12 +768,16 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   async saveEditSet(ex: TodayExercice, set: LoggedSet) {
-    if (set.editReps == null || set.editWeight == null || set.saving) return;
+    // Prazno polje kod bodyweight vježbe je 0, isto kao pri upisu serije —
+    // inače bi dugme „sačuvaj" tiho ne radilo ništa.
+    const weight = set.editWeight ?? (ex.isBodyweight ? 0 : null);
+    if (set.editReps == null || weight == null || set.saving) return;
+    if (weight < 0 || weight > 1000) return;
 
     set.saving = true;
 
     try {
-      const updated = await this.trainingService.updateLog(set.id, set.editReps, set.editWeight);
+      const updated = await this.trainingService.updateLog(set.id, set.editReps, weight);
       set.reps = updated.reps;
       set.weight = updated.weight;
       Object.assign(set, this.compare(ex.echo, set.setNumber, set.weight, set.reps, set.side));
@@ -731,12 +854,14 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   async saveDropset(ex: TodayExercice, set: LoggedSet) {
-    if (set.dropsetRepsInput == null || set.dropsetWeightInput == null || set.savingDropset) return;
-    if (set.dropsetWeightInput < 0 || set.dropsetWeightInput > 1000) return;
+    // Kod bodyweight vježbe prazno polje kilaže znači tjelesnu težinu (0) —
+    // isti obrazac kao pri upisu serije. Bez ovoga dugme ne bi radilo ništa.
+    const weight = set.dropsetWeightInput ?? (ex.isBodyweight ? 0 : null);
+    if (set.dropsetRepsInput == null || weight == null || set.savingDropset) return;
+    if (weight < 0 || weight > 1000) return;
 
     set.savingDropset = true;
     const reps = set.dropsetRepsInput;
-    const weight = set.dropsetWeightInput;
 
     try {
       const saved = await this.trainingService.logDropset({
@@ -787,10 +912,11 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
    * samo nastanak (da se ne kuca dvaput), a izmjena postoji baš zato da se
    * jedna strana ispravi kad se razlikovala.
    */
-  startEditDropset(dropset: DropsetEntry) {
+  startEditDropset(ex: TodayExercice, dropset: DropsetEntry) {
     if (this.isFinished || dropset.deleting) return;
     dropset.editing = true;
-    dropset.editWeight = dropset.weight;
+    // Kao i kod serije: kilaža 0 na bodyweight vježbi je „bez tega", ne nula.
+    dropset.editWeight = (ex.isBodyweight && dropset.weight === 0) ? null : dropset.weight;
     dropset.editReps = dropset.reps;
   }
 
@@ -798,14 +924,15 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     dropset.editing = false;
   }
 
-  async saveEditDropset(dropset: DropsetEntry) {
-    if (dropset.editReps == null || dropset.editWeight == null || dropset.saving) return;
-    if (dropset.editWeight < 0 || dropset.editWeight > 1000) return;
+  async saveEditDropset(ex: TodayExercice, dropset: DropsetEntry) {
+    const weight = dropset.editWeight ?? (ex.isBodyweight ? 0 : null);
+    if (dropset.editReps == null || weight == null || dropset.saving) return;
+    if (weight < 0 || weight > 1000) return;
 
     dropset.saving = true;
     try {
       const updated = await this.trainingService.updateDropset(
-        dropset.id, dropset.editReps, dropset.editWeight
+        dropset.id, dropset.editReps, weight
       );
       dropset.reps = updated.reps;
       dropset.weight = updated.weight;
@@ -840,6 +967,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     clearInterval(this.restTick);
     clearTimeout(this.tiClosingTimer);
     clearTimeout(this.tiFlashTimer);
+    clearTimeout(this.bwFlipTimer);
     // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
     // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
     // futera) dok je neki edit mod bio otvoren.
@@ -886,21 +1014,23 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     /** "42 min" / "1 h 15 min" — koliko je trening trajao, od početka do kraja. */
     elapsedLabel: string | null;
     line: string;
-    records: { name: string; weight: number; previous: number | null }[];
+    /** `unit` je „kg", a kod čistih bodyweight vježbi „pon." — vidi `prMetric`. */
+    records: { name: string; weight: number; previous: number | null; unit: string }[];
     rows: { name: string; outcome: 'up' | 'same' | 'down'; detail: string }[];
   } | null = null;
 
   showSummary = false;
 
   private buildSummary() {
-    const records: { name: string; weight: number; previous: number | null }[] = [];
+    const records: { name: string; weight: number; previous: number | null; unit: string }[] = [];
     const rows: { name: string; outcome: 'up' | 'same' | 'down'; detail: string }[] = [];
 
     for (const ex of this.exercices) {
       if (ex.loggedSets.length === 0) continue;
 
       if (ex.isPr) {
-        records.push({ name: ex.name, weight: this.todayBest(ex)!, previous: ex.previousBest });
+        const m = this.prMetric(ex);
+        records.push({ name: ex.name, weight: m.value, previous: m.previous, unit: m.unit });
         continue;   // rekord se prikazuje zasebno, ne i u spisku ishoda
       }
 
