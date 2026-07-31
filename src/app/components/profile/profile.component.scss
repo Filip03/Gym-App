@@ -1014,6 +1014,100 @@
   border-radius: var(--r-md);
 }
 
+// --- Podešavanja — sklopiva sekcija ----------------------------------------
+//
+// Sistemske kartice (izgled, notifikacije, meni) žive iza jednog zaglavlja.
+// Otvaranje je kućni jezik: tijelo se razlije (max-height + prozirnost), a
+// kartice izranjaju talasom — svaka sa korakom kašnjenja (`--i` iz šablona).
+
+.settings-section {
+  margin-top: var(--s-4);
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--s-3) var(--s-4);
+
+  background: var(--carbon);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ice);
+  cursor: pointer;
+  text-align: left;
+
+  transition: border-color var(--d-base) var(--ease),
+              border-radius var(--d-slow) var(--ease);
+
+  > .material-icons { font-size: 20px; color: var(--volt); }
+}
+
+.st-title { font-weight: 700; }
+
+.st-sub {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--t-2xs);
+  color: var(--dust);
+  text-align: right;
+}
+
+.st-chev {
+  flex: none;
+  margin-left: auto;
+  color: var(--dust);
+  transition: transform var(--d-slow) var(--ease-spring);
+}
+.settings-head:hover .st-chev { color: var(--ice); }
+.st-sub + .st-chev { margin-left: 0; }
+
+.settings-section.open .st-chev { transform: rotate(180deg); }
+.settings-section.open .settings-head {
+  border-color: var(--volt-a20);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+// max-height umjesto grid-template-rows: mjereno na meniju vježbe da 0fr↔1fr
+// u praksi preskoči umjesto da klizi. Granica je namjerno veća od sadržaja.
+.settings-body {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height var(--d-slower) var(--ease),
+              opacity var(--d-slow) var(--ease);
+}
+
+.settings-section.open .settings-body {
+  max-height: 620px;   // četiri kartice (izgled, notifikacije, efekti, meni)
+  opacity: 1;
+}
+
+// Kartice unutar tijela izranjaju talasom pri svakom otvaranju.
+.settings-section.open .settings-body .push-section {
+  margin-top: var(--s-3);
+  animation: st-rise var(--d-slower) var(--ease-spring) calc(var(--i) * 80ms) backwards;
+}
+
+@keyframes st-rise {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-head, .st-chev, .settings-body,
+  .settings-section.open .settings-body .push-section {
+    transition: none;
+    animation: none;
+  }
+}
+
 .push-row {
   display: flex;
   align-items: center;

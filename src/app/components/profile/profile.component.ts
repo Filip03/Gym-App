@@ -11,6 +11,8 @@ import {
 import { formatIsoDate } from '../shared/date-picker/date-picker.component';
 import { PushNotificationService } from '../../services/push-notification.service';
 import { ThemeService } from '../../services/theme.service';
+import { NavModeService } from '../../services/nav-mode.service';
+import { GlitchService } from '../../services/glitch.service';
 
 /** Jedno polje u kalendaru treninga. */
 interface CalCell {
@@ -231,8 +233,32 @@ export class ProfileComponent implements OnInit {
     private exerciceService: ExerciceService,
     private route: ActivatedRoute,
     public push: PushNotificationService,
-    public theme: ThemeService
+    public theme: ThemeService,
+    public navMode: NavModeService,
+    public glitch: GlitchService
   ) {}
+
+  // --- Podešavanja (sklopiva sekcija) --------------------------------------
+  //
+  // Sistemske kartice (izgled, notifikacije, meni) žive u jednoj sklopivoj
+  // sekciji da profil ne bude pretrpan prekidačima. Stanje se pamti po
+  // uređaju — ko ih često dira, zatiče ih otvorene.
+  settingsOpen = localStorage.getItem('gymapp.settingsOpen') === 'on';
+
+  toggleSettings() {
+    this.settingsOpen = !this.settingsOpen;
+    localStorage.setItem('gymapp.settingsOpen', this.settingsOpen ? 'on' : 'off');
+  }
+
+  toggleNavMode() {
+    this.pulse('nav');
+    this.navMode.toggle();
+  }
+
+  toggleGlitchFx() {
+    this.pulse('fx');
+    this.glitch.setEnabled(!this.glitch.enabled);
+  }
 
   // --- Notifikacije --------------------------------------------------------
   //
@@ -241,10 +267,10 @@ export class ProfileComponent implements OnInit {
   // korisniku gdje da je upali ručno. Zato tekst ispod prekidača.
   pushBusy = false;
   /** Koji je klizač upravo pritisnut — kap mastila puca na svaki klik. */
-  switchPulse: 'theme' | 'push' | null = null;
+  switchPulse: 'theme' | 'push' | 'nav' | 'fx' | null = null;
   private pulseTimer: any = null;
 
-  private pulse(which: 'theme' | 'push') {
+  private pulse(which: 'theme' | 'push' | 'nav' | 'fx') {
     this.switchPulse = which;
     clearTimeout(this.pulseTimer);
     this.pulseTimer = setTimeout(() => this.switchPulse = null, 500);

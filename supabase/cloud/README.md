@@ -30,16 +30,17 @@ Migracije su pisane tako da se mogu pustiti i dvaput — koriste
 | `20260725000000_initial_schema.sql` | ✅ | ✅ već postojalo — **ne puštati** |
 | `20260725000001_storage_policies.sql` | ✅ | ✅ već postojalo — **ne puštati** |
 | `20260725000002_grants.sql` | ✅ | ✅ već postojalo — **ne puštati** |
-| `20260726000000_workout_sessions.sql` | ✅ | ⬜ **treba pustiti** |
+| `20260726000000_workout_sessions.sql` | ✅ | ✅ potvrđeno REST-om 31.07. |
 | `20260726010000_weight_logs.sql` | ✅ | ❔ **provjeriti sa Filipom** |
 | `20260726020000_blog_media.sql` | ✅ | ❔ Filipova (R2) |
 | `20260726030000_blog_media_size.sql` | ✅ | ❔ Filipova (R2) |
-| `20260726040000_exercices_bodyweight.sql` | ✅ | ❔ Filipova |
+| `20260726040000_exercices_bodyweight.sql` | ✅ | ✅ potvrđeno REST-om 31.07. |
 | `20260727000000_dropset_logs.sql` | ✅ | ❔ Filipova |
-| `20260727010000_mark_bodyweight_exercices.sql` | ✅ | ⬜ **treba pustiti** |
-| `20260728000000_unilateral.sql` | ✅ | ⬜ **treba pustiti** |
-| `20260728010000_news.sql` | ✅ | ❔ Filipova — vjerovatno već tamo |
+| `20260727010000_mark_bodyweight_exercices.sql` | ✅ | ✅ kolona postoji (31.07.) |
+| `20260728000000_unilateral.sql` | ✅ | ✅ potvrđeno REST-om 31.07. |
+| `20260728010000_news.sql` | ✅ | ✅ news tabela živa (unosi 1.0–2.2) |
 | `20260728020000_custom_day_type.sql` | ✅ | ❔ Filipova — vjerovatno već tamo |
+| `20260731000000_device_tokens.sql` | ✅ | ✅ **nastala U cloudu** (Filip, backend push) — migracija je rekonstrukcija za lokalni paritet, ne puštati |
 
 Napomena: `custom_day_type` je kod Filipa nastala kao `20260728000000_...` — ISTI
 pečat kao `unilateral`, pa je evidencija migracija odbijala duplikat verzije.

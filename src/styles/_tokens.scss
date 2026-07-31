@@ -155,7 +155,10 @@
   --d-slower: 520ms;
 
   // --- Raspored -------------------------------------------------------------
-  --header-h: 86px;
+  // 86 -> 74: zaglavlje je na telefonu djelovalo masivno (Markova primjedba
+  // 31.07.2026) — najviše zbog velikog loga, koji je istovremeno smanjen
+  // 62 -> 50px u header.component.scss.
+  --header-h: 74px;
   --footer-h: 64px;
   // Aplikacija je prvenstveno za telefon. Na laptopu se lista drži uske kolone
   // (oko ne prati red od 1100px), a mreža kartica dobija više prostora.
@@ -165,6 +168,14 @@
   // Sigurna zona iPhone-a — bez ovoga footer upada u traku za gestove.
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
+}
+
+// Donja navigacija u režimu „Kupola" (NavModeService lijepi klasu na <html>).
+// Luku treba više visine nego ravnom redu ikona, a `--footer-h` je ono što
+// modali i lebdeća dugmad koriste da se poravnaju sa vrhom futera. Klasični
+// režim ovu klasu nema, pa ostaje na zatečenih 64 px — piksel u piksel.
+:root.nav-dome {
+  --footer-h: 86px;
 }
 
 // Poštuj sistemsku postavku za smanjen pokret.

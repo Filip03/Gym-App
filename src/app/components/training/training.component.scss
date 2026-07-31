@@ -194,7 +194,10 @@ $branch-indent: 16px;
 }
 
 @media (max-width: 520px) {
-  .log-form, .edit-set-form { grid-template-columns: 1fr 1fr; }
+  // Natpis serije, red sa poljima i dugme — svako u svom redu. Sama polja
+  // ostaju jedno pored drugog, jer ih drži `.log-fields`, ne grid.
+  .log-form { grid-template-columns: 1fr; }
+  .edit-set-form { grid-template-columns: 1fr 1fr; }
   .set-label { grid-column: 1 / -1; }
 }
 
@@ -227,6 +230,25 @@ $branch-indent: 16px;
 }
 .tag.swapped { background: var(--volt-a10); color: var(--volt-soft); }
 .tag.extra   { background: var(--carbon-high); color: var(--mist); border: 1px solid var(--line); }
+// „BW" bedž ide istim jezikom kao „L·D": prigušena oznaka sa ikonom, bez
+// pozadine — bedževi u zaglavlju reda govore ŠTA je vježba, ne traže pažnju.
+.tag.bw { font-weight: 600; }
+.tag.bw .material-icons { font-size: 12px; }
+
+// Bedževi „BW" i „L·D" se pale i gase — kroz meni na živom treningu, a u
+// istoriji po izvedenom stanju dana. Pojava ne smije biti preskok: kap koja
+// naraste i slegne se, istim jezikom kao pilula serije (`set-in`).
+.tag.bw,
+.tag.sides { animation: tag-in var(--d-slow) var(--ease-spring) both; }
+
+@keyframes tag-in {
+  from { transform: scale(.6); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tag.bw, .tag.sides { animation: none; }
+}
 
 .icon-btn {
   display: grid;
@@ -248,7 +270,7 @@ $branch-indent: 16px;
 .ex-menu-wrap {
   // max-height, a NE grid-template-rows: mjereno je da prelaz između 0fr i 1fr
   // u praksi ne animira nego preskoči. Gornja granica je namjerno veća od
-  // sadržaja (pet stavki, oko 240px) — višak se ne vidi jer se animira i
+  // sadržaja (sedam stavki, oko 340px) — višak se ne vidi jer se animira i
   // prozirnost.
   max-height: 0;
   overflow: hidden;
@@ -261,7 +283,7 @@ $branch-indent: 16px;
 }
 
 .ex-menu-wrap.open {
-  max-height: 360px;
+  max-height: 440px;
   opacity: 1;
   margin-top: var(--s-3);
 }
@@ -429,6 +451,50 @@ $branch-indent: 16px;
   // `.sets` inače poravnava na vrh; ovdje se kolone MORAJU rastegnuti na istu
   // visinu, inače linija između ruku stane kod kraće kolone umjesto do dna.
   align-items: stretch;
+}
+
+// Prelaz rasporeda: jedan red ↔ dvije kolone.
+//
+// Kućno pravilo — nijedan trenutni preskok: blok se razlije po širini dok se
+// stisne po visini pa slegne (squash & stretch), a kap akcenta pređe preko
+// njega (ink-bloom). Stanje `reflow` pali komponenta (`flowLayout`), jer CSS
+// ne svira animaciju na uklanjanju klase.
+.sets { position: relative; }
+
+.sets.reflow {
+  animation: sets-reflow 520ms var(--ease-spring) both;
+  transform-origin: center top;
+}
+
+.sets.reflow::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  pointer-events: none;
+  animation: sets-ink 560ms var(--ease-out) both;
+}
+
+@keyframes sets-reflow {
+  0%   { transform: scaleY(1)    scaleX(1);    }
+  35%  { transform: scaleY(.94)  scaleX(1.03); }
+  70%  { transform: scaleY(1.03) scaleX(.995); }
+  100% { transform: scaleY(1)    scaleX(1);    }
+}
+
+@keyframes sets-ink {
+  from { transform: scale(0);  opacity: .6; }
+  to   { transform: scale(26); opacity: 0;  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sets.reflow { animation: none; }
+  .sets.reflow::after { display: none; }
 }
 
 // Serije upisane prije uključivanja praćenja (obje ruke zajedno) idu preko
@@ -617,10 +683,28 @@ $branch-indent: 16px;
 .log-form {
   margin-top: var(--s-3);
   display: grid;
-  grid-template-columns: auto 1fr 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--s-2);
 }
+
+// Kilaža i ponavljanja su JEDNA flex ćelija, a ne dvije grid kolone.
+//
+// Bodyweight vježba skuplja polje kilaže na čip „BW"; da su to dvije grid
+// kolone, oslobođeni prostor bi ostao prazan između čipa i ponavljanja jer se
+// `grid-template-columns` ne može tečno animirati. Ovako ponavljanja rastu sama
+// od sebe, kroz flex — kontinuirano i bez skoka.
+.log-fields {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.log-fields > .field { flex: 1 1 0; min-width: 0; }
+
+// Kroz max() OBAVEZNO — polje ispod 16px na dodirnom ekranu tjera iOS da
+// zumira cijelu stranicu. Ista veličina koju daje i globalno pravilo.
+.log-fields input { font-size: max(var(--t-base), var(--t-field-min)); }
 
 .field { position: relative; margin: 0; }
 .field input { padding-right: var(--s-10); }
@@ -642,28 +726,121 @@ $branch-indent: 16px;
   font-weight: 600;
 }
 
-// Bodyweight vježbe: polje za kilažu je sakriveno dok se ne klikne ovo dugme.
-.add-weight-btn {
+// --- Bodyweight: čip „BW" i polje koje se razliva iz njega -----------------
+//
+// Dva stanja, oba dostupna u oba smjera:
+//   čist BW  — čip upaljen (volt), polje kilaže skupljeno na nulu, u bazu ide 0
+//   BW + teg — čip prigušen, polje se razlilo pored njega
+//
+// Skupljanje ide kroz `flex-grow` (broj, pa se interpolira glatko i bez
+// pogađanja krajnje širine kao kod `max-width`), a čip ostaje vidljiv jer
+// `min-width` slota ne pada ispod njegove širine.
+
+.weight-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.weight-slot > .field { flex: 1 1 0; min-width: 0; }
+.weight-slot > .field input { min-width: 0; }
+
+.weight-slot.bw {
+  // Bez ovoga bi se ulaz vidio kako viri iz slota dok se skuplja.
+  overflow: hidden;
+  // Čip ne smije da se stisne ispod svoje širine kad slot prestane da raste.
+  min-width: 46px;
+  transition: flex-grow 460ms var(--ease-spring),
+              gap var(--d-slow) var(--ease);
+}
+
+.weight-slot.bw > .field {
+  transition: opacity var(--d-base) var(--ease);
+}
+
+// Čip je uzeo dio širine reda, pa jedinica „kg" ne treba pun razmak koji polje
+// inače ostavlja za nju — na uskom telefonu bi za kucanje ostalo premalo.
+.weight-slot.bw > .field input { padding-right: var(--s-6); }
+.weight-slot.bw > .field .unit { right: var(--s-2); }
+
+.weight-slot.bw.plain { flex-grow: 0; gap: 0; }
+.weight-slot.bw.plain > .field { opacity: 0; pointer-events: none; }
+
+.bw-chip {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--s-1);
+  width: 46px;
   min-height: 44px;
-  padding: 0 var(--s-3);
 
   background: var(--carbon-high);
   border: 1px dashed var(--line-strong);
   border-radius: var(--r-sm);
   color: var(--mist);
+  font-family: var(--font-data);
   font-size: var(--t-2xs);
-  font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: .06em;
+  cursor: pointer;
+
+  transition: background-color var(--d-base) var(--ease),
+              border-color var(--d-base) var(--ease),
+              color var(--d-base) var(--ease);
 }
 
-.add-weight-btn .material-icons { font-size: 16px; }
-.add-weight-btn:hover { color: var(--ice); border-color: var(--volt-a40); }
+.bw-chip:hover { color: var(--ice); border-color: var(--volt-a40); }
+
+// Upaljen čip = tjelesna težina JESTE opterećenje, teg se ne upisuje.
+.weight-slot.bw.plain .bw-chip {
+  background: var(--volt-fill);
+  border: 1px solid transparent;
+  color: var(--volt-ink);
+}
+.weight-slot.bw.plain .bw-chip:hover { background: var(--volt-fill-soft); color: var(--volt-ink); }
+
+// Mastilo: kap krene iz čipa i razlije se kroz slot (`ink-bloom`), a pri
+// povratku na čist BW se povuče nazad u njega (`ink-retreat`) — isti jezik i
+// isti keyframes kao na tajmer-ostrvu.
+.weight-slot::after {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+// Razliv i skupljanje: squash & stretch, u suprotnim smjerovima.
+.weight-slot.bloom {
+  animation: island-splash 520ms var(--ease-spring);
+  transform-origin: left center;
+}
+.weight-slot.bloom::after { animation: ink-bloom 560ms var(--ease-out); }
+
+.weight-slot.sip {
+  animation: island-sip 460ms var(--ease-spring);
+  transform-origin: left center;
+}
+.weight-slot.sip::after { animation: ink-retreat 420ms var(--ease); }
+
+// Sadržaj izranja talasom — polje kilaže dolazi odozdo, korak iza kapi.
+.weight-slot.bloom > .field { animation: ch-rise 260ms var(--ease-spring) 120ms both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .weight-slot.bw, .weight-slot.bw > .field, .bw-chip,
+  .weight-slot.bloom, .weight-slot.sip,
+  .weight-slot.bloom > .field { transition: none; animation: none; }
+  .weight-slot::after { display: none; }
+}
 
 // Stilovi birača vježbe žive u exercice-picker.component.scss — koriste ga i
 // leaderboard i profil, pa ne mogu ostati ovdje.
@@ -690,7 +867,7 @@ $branch-indent: 16px;
 }
 
 @media (max-width: 520px) {
-  .log-form { grid-template-columns: 1fr 1fr; }
+  .log-form { grid-template-columns: 1fr; }
   .set-label { grid-column: 1 / -1; }
   .log-form .save-log-btn { grid-column: 1 / -1; }
 }

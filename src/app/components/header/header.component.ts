@@ -3,6 +3,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Subscription, filter } from 'rxjs';
 import { AudioService } from '../../services/audio.service';
 import { NavLockService } from '../../services/nav-lock.service';
+import { ThemeService } from '../../services/theme.service';
 
 interface RouteMeta {
   title: string;
@@ -35,7 +36,8 @@ export class HeaderComponent implements OnDestroy {
 
   private sub: Subscription;
 
-  constructor(private router: Router, public audio: AudioService, public navLock: NavLockService) {
+  constructor(private router: Router, public audio: AudioService, public navLock: NavLockService,
+              public theme: ThemeService) {
     this.apply(this.router.url);
 
     this.sub = this.router.events

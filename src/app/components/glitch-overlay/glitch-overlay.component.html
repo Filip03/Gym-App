@@ -1,0 +1,32 @@
+<!-- ASCII talas-polje: STALNO u DOM-u (prazan <pre> ne košta ništa), da
+     ViewChild referencije postoje prije prvog kadra. JS upisuje textContent
+     po kadru van zone — tehnika landinga: `deep` tamnija voda, `crest` samo
+     grebeni u boji trenutka; lenjir mjeri stvarnu širinu znaka. -->
+<div class="glitch-field" #field aria-hidden="true"
+     [class.volt]="kind === 'volt'"
+     [class.gold]="kind === 'gold'">
+    <span class="ruler" #ruler>MMMMMMMMMMMMMMMMMMMM</span>
+    <pre class="glyphs deep" #deep></pre>
+    <pre class="glyphs crest" #crest></pre>
+</div>
+
+<!-- Jedan prolaz poruke. `*ngFor` preko jednočlanog niza: promjena ključa
+     ponovo rodi sloj, pa animacije krenu ispočetka i usred prethodnog prolaza.
+     Čisto dekorativno — sakriveno od čitača ekrana. Trzaj samog UI-ja (faza 1)
+     ne stanuje ovdje nego kao klasa na <html> + _base.scss. -->
+<div class="glitch-pass"
+     *ngFor="let k of burst"
+     [class.volt]="kind === 'volt'"
+     [class.gold]="kind === 'gold'"
+     aria-hidden="true">
+
+    <!-- Samo uz rekord: holografski šimer jednom pređe preko ekrana. -->
+    <span class="shimmer" *ngIf="kind === 'gold'"></span>
+
+    <!-- Velika poruka — skrembluje se pa dekodira slijeva nadesno, odstoji,
+         pa se raspadne u tvrdim koracima. Sadržaj vrti komponenta. -->
+    <div class="msg-box">
+        <span class="msg">{{ displayText }}</span>
+    </div>
+
+</div>

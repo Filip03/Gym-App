@@ -1583,7 +1583,16 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
   white-space: nowrap;
 }
 
-.live-sets { font-size: var(--t-2xs); color: var(--dust); }
+// Ulazna animacija i ovdje: span se kroz *ngIf RODI iznova pri prelazu
+// „zagrijava se" → broj serija, pa smjena odsvira istim talasom kao red.
+.live-sets {
+  font-size: var(--t-2xs);
+  color: var(--dust);
+  animation: live-in 380ms var(--ease-out) backwards;
+}
+
+// Još bez serija — diskretno, istim glasom kao ostatak reda, samo iskošeno.
+.live-sets.warming { font-style: italic; }
 
 .live-time {
   flex: none;
@@ -1598,7 +1607,7 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dot-live, .live-row { animation: none; }
+  .dot-live, .live-row, .live-sets { animation: none; }
 }
 
 // --- Novosti — popup na dashboardu -----------------------------------------

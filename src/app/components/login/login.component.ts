@@ -6,6 +6,7 @@ import { AuthService } from '../../services/auth.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AudioService } from '../../services/audio.service';
 import { PushNotificationService } from '../../services/push-notification.service';
+import { ThemeService } from '../../services/theme.service';
 import { humanError } from '../../shared/errors';
 
 @Component({
@@ -32,7 +33,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private audio: AudioService,
-    private pushNotifications: PushNotificationService
+    private pushNotifications: PushNotificationService,
+    public theme: ThemeService
   ) {}
 
   ngOnInit(){

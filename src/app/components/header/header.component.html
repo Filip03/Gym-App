@@ -9,7 +9,9 @@
     <i class="material-icons">arrow_back</i>
   </button>
 
-  <img class="mark" *ngIf="!backTo || navLock.locked" src="assets/logo.png" alt="">
+  <!-- Logo prati temu — svijetla ima svoju varijantu (Marko dodao u assets). -->
+  <img class="mark" *ngIf="!backTo || navLock.locked"
+       [src]="theme.isLight ? 'assets/logo_light_mode.png' : 'assets/logo.png'" alt="">
 
   <h1 class="title">{{ title }}</h1>
 

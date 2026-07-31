@@ -63,14 +63,18 @@ export interface EchoSet {
 }
 
 /**
- * Koliko redova najviše povući po vježbi kad se traži prethodni trening.
+ * Koliko REDOVA najviše povući po vježbi kad se traži prethodni trening.
  *
- * Mora biti veće od broja serija koje neko odradi na jednoj vježbi u jednom
- * danu. Realno je to do desetak; 20 ostavlja prostora. Ko bi u jednom danu
- * upisao više od 20 serija iste vježbe, duh bi mu pokazao prvih 20 — ostatak
- * treninga je i dalje ispravan, samo se ne bi vidio kao duh.
+ * Redova, ne serija: kod jednoručne vježbe jedna odrađena serija su DVA reda
+ * (L i D), pa dan od desetak serija zna imati dvadesetak redova. Sa granicom
+ * od 20 se takav dan sjekao u pola — duh druge polovine treninga bi nestao,
+ * i to baš na vježbama koje se prate po rukama.
+ *
+ * 40 pokriva i jednoručni dan od dvadeset serija. Ko bi upisao više, duh bi mu
+ * pokazao prvih 40 redova — ostatak treninga je i dalje ispravan, samo se ne bi
+ * vidio kao duh.
  */
-const ECHO_ROW_LIMIT = 20;
+const ECHO_ROW_LIMIT = 40;
 
 export interface Echo {
   date: string;
@@ -411,6 +415,23 @@ export class TrainingService {
     if (error) throw error;
   }
 
+  /**
+   * Vraća sat treninga na sada — pošten `started_at`.
+   *
+   * `started_at` nastaje `default now()` čim se ekran treninga PRVI PUT otvori
+   * za taj datum, dakle i kad neko dan ranije samo lista raspored. Kad trening
+   * stvarno počne, sat se resetuje, pa tajmer i „trenira sada" mjere dolazak u
+   * teretanu (uključujući zagrijavanje), a ne bacanje pogleda.
+   */
+  async restartSessionClock(sessionId: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('workout_sessions')
+      .update({ started_at: new Date().toISOString() })
+      .eq('id', sessionId);
+
+    if (error) throw error;
+  }
+
   /** Da li je korisnik danas označio trening kao gotov. */
   /** Početak i kraj današnje sesije — za dugme „Započni trening" na dashboardu. */
   async getSessionTimes(
@@ -457,6 +478,22 @@ export class TrainingService {
     const { error } = await this.supabase.client
       .from('exercices')
       .update({ is_unilateral: value })
+      .eq('id', exerciceId);
+
+    if (error) throw error;
+  }
+
+  /**
+   * Pali/gasi tjelesnu težinu kao osnovu vježbe.
+   *
+   * Isto pravilo kao kod praćenja po stranama: na nivou VJEŽBE, ne treninga —
+   * zgibovi su zgibovi svakome ko ih radi, jer je katalog vježbi zajednički.
+   * Bez ovoga se oznaka mogla dobiti samo ručno u bazi.
+   */
+  async setBodyweight(exerciceId: string, value: boolean): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('exercices')
+      .update({ is_bodyweight: value })
       .eq('id', exerciceId);
 
     if (error) throw error;
@@ -762,6 +799,39 @@ export class TrainingService {
 
     for (const row of (data ?? []) as any[]) {
       if (!best.has(row.exercice_id)) best.set(row.exercice_id, row.weight);
+    }
+
+    return best;
+  }
+
+  /**
+   * Najviše ponavljanja odrađenih BEZ tega (weight = 0), prije zadatog datuma.
+   *
+   * Prag ličnog rekorda za čiste bodyweight vježbe. Kad tega nema ni danas ni
+   * ranije, kilaže se uvijek izjednače na nuli, pa se po njima rekord ne bi
+   * mogao oboriti — jedina mjera napretka je broj ponavljanja.
+   */
+  async getBodyweightBests(
+    userId: string,
+    exerciceIds: string[],
+    beforeDate: string
+  ): Promise<Map<string, number>> {
+    const best = new Map<string, number>();
+    if (exerciceIds.length === 0) return best;
+
+    const { data, error } = await this.supabase.client
+      .from('exercice_logs')
+      .select('exercice_id, reps')
+      .eq('user_id', userId)
+      .in('exercice_id', exerciceIds)
+      .eq('weight', 0)
+      .lt('date', beforeDate)
+      .order('reps', { ascending: false });
+
+    if (error) throw error;
+
+    for (const row of (data ?? []) as any[]) {
+      if (!best.has(row.exercice_id)) best.set(row.exercice_id, row.reps);
     }
 
     return best;
