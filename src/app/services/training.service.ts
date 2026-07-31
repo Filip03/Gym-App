@@ -411,6 +411,23 @@ export class TrainingService {
     if (error) throw error;
   }
 
+  /**
+   * Vraća sat treninga na sada — pošten `started_at`.
+   *
+   * `started_at` nastaje `default now()` čim se ekran treninga PRVI PUT otvori
+   * za taj datum, dakle i kad neko dan ranije samo lista raspored. Kad trening
+   * stvarno počne, sat se resetuje, pa tajmer i „trenira sada" mjere dolazak u
+   * teretanu (uključujući zagrijavanje), a ne bacanje pogleda.
+   */
+  async restartSessionClock(sessionId: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('workout_sessions')
+      .update({ started_at: new Date().toISOString() })
+      .eq('id', sessionId);
+
+    if (error) throw error;
+  }
+
   /** Da li je korisnik danas označio trening kao gotov. */
   /** Početak i kraj današnje sesije — za dugme „Započni trening" na dashboardu. */
   async getSessionTimes(

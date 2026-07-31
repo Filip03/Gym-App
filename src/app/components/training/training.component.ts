@@ -15,6 +15,7 @@ import {
 } from '../../services/training.service';
 import { DropsetLog } from '../../models/models';
 import { prHaptics } from '../../shared/haptics';
+import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../../shared/warmup-grace';
 
 /** Poređenje jedne serije sa istom serijom prošlog treninga. */
 type Delta = 'up' | 'down' | 'same' | null;
@@ -270,10 +271,41 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       }
 
       await this.hydrate();
+
+      // Poslije hydrate-a, jer odluka zavisi od upisanih serija.
+      await this.restartClockIfStale();
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri učitavanju treninga.');
     } finally {
       this.loading = false;
+    }
+  }
+
+  /**
+   * Pošten sat treninga pri ulasku na ekran.
+   *
+   * `started_at` nastane `default now()` već pri PRVOM otvaranju ekrana za taj
+   * datum — i jučerašnje listanje rasporeda ostavi pečat od juče, koji onda
+   * truje tajmer i „trenira sada". Zato: ako trening tek počinje (nijedna
+   * upisana serija) a sat je stariji od WARMUP_GRACE_MIN minuta, vraća se na
+   * sada — tajmer broji od stvarnog dolaska u teretanu, zagrijavanje uključeno.
+   *
+   * Tiho na grešci: sat je ukras, ne smije oboriti učitavanje ekrana.
+   */
+  private async restartClockIfStale(): Promise<void> {
+    const s = this.session;
+    if (!s || this.viewOnly || s.finishedAt || !s.startedAt) return;
+    if (this.exercices.some(e => e.loggedSets.length > 0)) return;
+
+    const ageMs = Date.now() - new Date(s.startedAt).getTime();
+    if (ageMs < WARMUP_GRACE_MIN * 60_000) return;
+
+    try {
+      const now = new Date().toISOString();
+      await this.trainingService.restartSessionClock(s.id);
+      s.startedAt = now;
+    } catch {
+      // Bez sata se i dalje normalno trenira.
     }
   }
 
@@ -1127,6 +1159,22 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     try {
       await this.trainingService.reopenSession(this.session.id);
       this.session.finishedAt = null;
+
+      // Ponovno otvaranje poslije isteka živog prozora: sat se vraća na sada,
+      // inače bi „Trening u toku" i „Trenira sada" ostali mrtvi iako se
+      // ponovo trenira (jutarnji trening + večernje otvaranje). Skorije
+      // otvaranje ne dira sat — nastavlja od pravog početka, rezime istinit.
+      const started = this.session.startedAt
+        ? new Date(this.session.startedAt).getTime() : 0;
+      if (Date.now() - started > LIVE_WINDOW_H * 3_600_000) {
+        try {
+          const now = new Date().toISOString();
+          await this.trainingService.restartSessionClock(this.session.id);
+          this.session.startedAt = now;
+        } catch {
+          // Sat je ukras — ne smije oboriti ponovno otvaranje.
+        }
+      }
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom otvaranja treninga.');
     } finally {

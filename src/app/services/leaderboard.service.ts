@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
 import { ExerciceService, MuscleGroupWithExercices } from './exercice.service';
 import { ProfileService } from './profile.service';
+import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../shared/warmup-grace';
 
 /**
  * Podaci za ekran „Ekipa" (ranije „Leaderboard").
@@ -85,6 +86,8 @@ export interface LiveSession {
   minutes: number;
   /** Koliko je serija dosad upisao. */
   sets: number;
+  /** Još bez ijedne serije — u prozoru zagrijavanja (WARMUP_GRACE_MIN). */
+  warmingUp: boolean;
 }
 
 export interface RecordEvent {
@@ -116,14 +119,9 @@ interface TeamProfile {
  */
 const RECORD_WINDOW_DAYS = 90;
 
-/**
- * Poslije koliko sati se prestaje smatrati da neko „trenira sada".
- *
- * `finished_at` ostane prazan i kad neko zaboravi da pritisne „Trening gotov",
- * pa bi bez granice pisalo da trenira i sjutradan. Četiri sata su duža od
- * svakog stvarnog treninga, a kraća od pola dana.
- */
-const LIVE_MAX_HOURS = 4;
+// 4h prozor „trenira sada" (LIVE_WINDOW_H) sada živi u shared/warmup-grace.ts
+// — ista konstanta važi i za dashboard dugme i za reset sata pri „Otvori
+// ponovo", pa granice ne mogu da se raziđu.
 
 @Injectable({
   providedIn: 'root'
@@ -295,8 +293,11 @@ export class LeaderboardService {
    *
    * USLOV NIJE SAMO OTVORENA SESIJA. Red nastaje već pri otvaranju ekrana
    * treninga, pa bi inače pisalo da trenira i onaj ko je samo bacio pogled na
-   * aplikaciju. Zato se traži i **bar jedna upisana serija danas** — tek tada se
-   * zna da neko stvarno radi.
+   * aplikaciju. Zato se traži **bar jedna upisana serija danas** — ILI svjež
+   * start: prvih WARMUP_GRACE_MIN minuta od `started_at` sesija se računa i
+   * bez serija (`warmingUp`), jer ekran treninga bajat sat vraća na sada
+   * (restartSessionClock), pa svjež start znači da je neko stvarno došao —
+   * samo se još zagrijava.
    */
   async getLiveSessions(): Promise<LiveSession[]> {
     const today = this.todayIso();
@@ -333,17 +334,21 @@ export class LeaderboardService {
 
     for (const row of (sessions.data ?? []) as any[]) {
       const sets = setsByUser.get(row.user_id)?.size ?? 0;
-      if (sets === 0) continue;                       // samo otvorio ekran
 
       const started = new Date(row.started_at).getTime();
       const minutes = Math.max(0, Math.round((now - started) / 60000));
-      if (minutes > LIVE_MAX_HOURS * 60) continue;    // zaboravio da završi
+
+      // Bez serija: samo unutar prozora zagrijavanja (svjež start = stvaran
+      // dolazak). Van njega je to zavirivanje u raspored, ne trening.
+      if (sets === 0 && minutes >= WARMUP_GRACE_MIN) continue;
+      if (minutes > LIVE_WINDOW_H * 60) continue;     // zaboravio da završi
 
       const profile = profileById.get(row.user_id);
       if (!profile) continue;
 
       live.push({ userId: row.user_id, username: profile.username,
-                  avatarUrl: profile.avatarUrl, minutes, sets });
+                  avatarUrl: profile.avatarUrl, minutes, sets,
+                  warmingUp: sets === 0 });
     }
 
     return live.sort((a, b) => b.sets - a.sets);

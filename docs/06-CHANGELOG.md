@@ -3274,3 +3274,79 @@ broju ponavljanja.
   seriju — nepromijenjeno ponašanje, samo sada bez upisane nule.
 - `getBodyweightBests` je zaseban upit umjesto proširenja `getPersonalBests`,
   da postojeći prag rekorda ostane netaknut.
+
+---
+
+## [2026-07-31] Status treninga: pošten started_at, grace za zagrijavanje, živo osvježavanje
+**Tip:** popravka (regresija)
+
+**Problem:** `workout_sessions.started_at` nastaje `default now()` pri PRVOM
+otvaranju ekrana treninga za taj datum i nikad se ne ispravlja — jučerašnje
+listanje rasporeda ostavi pečat od juče (provjereno na produkcijskim podacima:
+sesija za petak sa started_at od četvrtka 17:03). Uz uslov „bar jedna serija"
+(commit ceea517) status „Trening u toku" se gasio baš na početku treninga, 4h
+prozor od lažnog starta gasio ga do kraja dana, tajmer je zbog toga brojao
+glupost, dashboard se nije osvježavao dok je otvoren, a „Trenira sada" je
+nestajalo i kad pukne učitavanje planova.
+
+**Rješenje:** Sat se resetuje kad trening STVARNO počne, a status dobija grace
+prozor od 30 minuta (`WARMUP_GRACE_MIN`, zajednička konstanta) — prisustvo se
+računa i bez serija prvih pola sata od poštenog starta (svlačionica +
+zagrijavanje); poslije toga bez ijedne serije status se sam gasi, jer
+zavirivanje nije trening. Bez migracija — postojeća šema.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/warmup-grace.ts` — NOVO: `WARMUP_GRACE_MIN = 30` sa
+  obrazloženjem; jedna istina za sva tri mjesta koja je koriste. Tu je preseljen
+  i 4h živi prozor (`LIVE_WINDOW_H = 4`, ranije lokalni `LIVE_MAX_HOURS` u
+  leaderboard servisu) — ista granica za „Trenira sada", dashboard dugme i
+  reset sata pri „Otvori ponovo"
+- `src/app/services/training.service.ts:422` — `restartSessionClock(sessionId)`:
+  `update workout_sessions set started_at = now()` (isti stil kao
+  `finishSession`)
+- `src/app/components/training/training.component.ts:276` — poziv poslije
+  `hydrate()` u ngOnInit; `:295` nova `restartClockIfStale()`: živa sesija
+  (ne viewOnly, ne završena) sa 0 upisanih serija i satom starijim od 30 min
+  → reset sata + lokalni `session.startedAt`; try/catch tiho, ne obara ekran;
+  `:1163` „Otvori ponovo" (`reopenTraining`): ako je start ispao iz 4h živog
+  prozora, sat se vraća na sada — ponovno otvoren trening opet živi na
+  dashboardu i u „Trenira sada" (sesija već ima serije, pa sets>0 prolazi);
+  start mlađi od 4h se NE dira — „zaboravio sam jednu seriju" odmah po
+  zatvaranju nastavlja od pravog početka, rezime ostaje istinit
+- `src/app/components/dashboard/dashboard.component.ts:12` — import konstante;
+  `:187` postojeći 60s `liveTimer` tik sada zove i `refreshDayStatus()`
+  (`loadLive()` se i ranije zvao odmah u ngOnInit, to je ostalo); `:301` nova
+  `refreshDayStatus()`: tiho osvježi started/finished/serije za DANAS bez
+  `loadDay()`-evog resetovanja trake, a promjenu natpisa protjera kroz
+  postojeći split-flap tok (outFace + faceKey — mehanizam nije diran); `:372`
+  komentar u `isRestSelected` (grace stiže kroz `todayInProgress`); `:483`
+  `todayInProgress` = nije završen ∧ ima start ∧ start < 4h ∧ (ima serija ∨
+  start < 30 min)
+- `src/app/services/leaderboard.service.ts:90` — `LiveSession.warmingUp`;
+  `:343` getLiveSessions: sesija bez serija ulazi ako je start mlađi od 30 min
+  (`warmingUp: true`); sa serijama nepromijenjeno (4h prozor); lokalni
+  `LIVE_MAX_HOURS` zamijenjen zajedničkim `LIVE_WINDOW_H`
+- `src/app/components/dashboard/dashboard.component.html:125` — sekcija
+  „Trenira sada" visi samo na `!loading`, ne više i na `errorMessage`; `:145`
+  red za `warmingUp` piše „zagrijava se" umjesto broja serija — dva `*ngIf`-a
+  da se pri prvoj seriji span rodi iznova i prelaz odsvira
+- `src/app/components/dashboard/dashboard.component.scss:1588` — `.live-sets`
+  dobio postojeću `live-in` ulaznu animaciju (prelaz „zagrijava se" → broj) i
+  `.warming` varijantu (italic, ista paleta); ugašeno uz
+  `prefers-reduced-motion`
+
+**Efekat:** Ulazak u teretanu odmah pali „Trening u toku" (i na rest day) i
+tajmer koji broji od stvarnog dolaska; jučerašnje/jutarnje zavirivanje više ne
+truje ni tajmer ni „Trenira sada"; ko otvori trening pa ništa ne upiše, nestaje
+sa oba mjesta poslije 30 min; dashboard prati promjene i dok stoji otvoren
+(60s); „Trenira sada" preživi grešku planova. „Otvori ponovo" na davno
+završenom treningu vraća živi status: dugme opet „Trening u toku" sa tajmerom,
+korisnik opet u „Trenira sada" — a `todayFinished` padne pri prvom sljedećem
+osvježavanju (60s tik `refreshDayStatus`, ili `loadDay` pri povratku na ekran;
+nema keša — `getSessionTimes` uvijek čita bazu).
+
+**Napomene:**
+- `exercice_logs` nema kolonu vremena, pa se „vrijeme posljednje serije" ne
+  može koristiti — zato sva logika ide preko poštenog `started_at`.
+- Reset sata namjerno gleda samo serije VIDLJIVE na ekranu (preko učitanih
+  vježbi sesije) — isti skup koji korisnik vidi.

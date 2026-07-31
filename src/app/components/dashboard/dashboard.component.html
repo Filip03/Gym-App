@@ -120,8 +120,9 @@
     <!-- Ko je BAŠ SAD u teretani.
          Na dnu, poslije planova — nije to zbog čega se ekran otvara, ali je
          prijatno vidjeti. Prikazuje se UVIJEK, i kad nema nikoga: prazno polje
-         govori da funkcija postoji, a nestanak bi izgledao kao kvar. -->
-    <div class="live" *ngIf="!loading && !errorMessage">
+         govori da funkcija postoji, a nestanak bi izgledao kao kvar. Namjerno
+         NE visi na errorMessage — greška planova ne smije odnijeti i ovo. -->
+    <div class="live" *ngIf="!loading">
         <div class="live-head">
             <span class="dot-live" [class.off]="live.length === 0"></span>
             <span class="live-title">Trenira sada</span>
@@ -139,7 +140,10 @@
                 <i class="material-icons" *ngIf="!l.avatarUrl">person</i>
             </div>
             <span class="live-name">{{ l.username }}</span>
-            <span class="live-sets num">{{ l.sets }} serija</span>
+            <!-- Dva *ngIf-a namjerno: kad padne prva serija, stari span umre a
+                 novi se RODI, pa ulazna animacija odsvira prelaz. -->
+            <span class="live-sets warming" *ngIf="l.warmingUp">zagrijava se</span>
+            <span class="live-sets num" *ngIf="!l.warmingUp">{{ l.sets }} serija</span>
             <span class="live-time num">{{ liveTime(l.minutes) }}</span>
         </div>
     </div>
