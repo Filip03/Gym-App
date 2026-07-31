@@ -3560,3 +3560,10 @@ sve gasi, tjeme tada preskače.
 **Zašto:** Markova ideja — donji meni kao „slider/polukrug sa moćnom
 animacijom"; prekidač omogućava testiranje u produkciji (LiveContainer) bez
 uticaja na ostale korisnike.
+
+**Dopuna istog dana — tečni jezik i u klasičnom režimu (Markova primjedba):**
+klasični futer je restauracijom ostao bez ijedne ulazne animacije, pa je dobio
+isti jezik kao kupola, u diskretnijoj mjeri (`footer.component.scss`): ikone
+pri ulasku izranjaju talasom (60ms korak po ikoni), novoaktivirana ikona se
+slegne uz squash & stretch pop, a iz nje se razlije kap mastila kroz pilulu
+aktivne rute. Sve ugašeno uz `prefers-reduced-motion`.

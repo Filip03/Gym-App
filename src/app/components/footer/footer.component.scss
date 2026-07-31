@@ -81,6 +81,67 @@
 // Odjava je destruktivna radnja — odvojena bojom pri dodiru.
 .footer button:hover { color: var(--ember); }
 
+// --- Tečni jezik i u klasičnom režimu --------------------------------------
+// Ikone ulaze talasom (kao na kupoli), a aktivacija dobija squash & stretch
+// pop + kap mastila iz same ikone. Klasični ostaje klasičan — samo živ.
+
+.footer a .material-icons,
+.footer button .material-icons {
+    animation: f-rise var(--d-slower) var(--ease-spring) backwards;
+}
+
+@for $i from 1 through 6 {
+    .footer > :nth-child(#{$i}) .material-icons {
+        animation-delay: #{($i - 1) * 60}ms;
+    }
+}
+
+@keyframes f-rise {
+    from { opacity: 0; transform: translateY(10px) scale(.72); }
+    to   { opacity: 1; transform: none; }
+}
+
+// Novoaktivirana ikona: slegne se uz prebačaj…
+.footer a.on .material-icons {
+    animation: f-pop var(--d-slower) var(--ease-spring);
+}
+
+@keyframes f-pop {
+    0%   { transform: scale(.82, 1.1); }
+    45%  { transform: scale(1.16, .9); }
+    75%  { transform: scale(.97, 1.03); }
+    100% { transform: scale(1, 1); }
+}
+
+// …a iz nje se razlije kap mastila kroz pilulu.
+.footer a.on::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: var(--volt-a20);
+    pointer-events: none;
+    animation: f-ink 520ms var(--ease-out) forwards;
+}
+
+@keyframes f-ink {
+    0%   { transform: scale(0);   opacity: .9; }
+    100% { transform: scale(5.2); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .footer a .material-icons,
+    .footer button .material-icons,
+    .footer a.on .material-icons,
+    .footer a.on::after {
+        animation: none;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // DOK-LUK — donja navigacija kao kupola sa kliznim tjemenom (PROTOTIP)
 //
