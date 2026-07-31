@@ -3571,3 +3571,8 @@ aktivne rute. Sve ugašeno uz `prefers-reduced-motion`.
 **Dopuna istog dana — visina klasičnog futera:** `--footer-h` 64 → 72px
 (`_tokens.scss:159`) — ikone su na telefonu sjedale prenisko uz ivicu pa ih je
 bilo teško pogoditi palcem. Kupola i dalje diže token na 96px kroz `nav-dome`.
+
+**Dopuna istog dana — vitkije zaglavlje:** `--header-h` 86 → 74px
+(`_tokens.scss`) i logo 62 → 50px (`header.component.scss`) — zaglavlje je na
+telefonu djelovalo masivno, najviše zbog loga. Potrošači tokena (blog „nazad",
+login/register, globalni offseti) poravnavaju se sami.

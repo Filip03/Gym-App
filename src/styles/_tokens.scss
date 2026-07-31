@@ -155,7 +155,10 @@
   --d-slower: 520ms;
 
   // --- Raspored -------------------------------------------------------------
-  --header-h: 86px;
+  // 86 -> 74: zaglavlje je na telefonu djelovalo masivno (Markova primjedba
+  // 31.07.2026) — najviše zbog velikog loga, koji je istovremeno smanjen
+  // 62 -> 50px u header.component.scss.
+  --header-h: 74px;
   // 64 → 72: na telefonu su ikone sjedale prenisko uz samu ivicu, pa ih je
   // bilo teško pogoditi palcem (Markova primjedba 31.07.2026). Isti token
   // poravnava modale i lebdeću dugmad, pa se i oni sami podignu.
