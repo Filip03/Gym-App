@@ -3647,3 +3647,7 @@ varijanta loga sada i na landing/login/register ekranima (ThemeService +
 `[src]` na sva četiri mjesta gdje logo postoji); `--footer-h` vraćen 72 → 64px
 — „prenisko" je zapravo bila isključena sigurna zona, pa je poslije
 `viewport-fit=cover` popravke 72px postalo previsoko.
+
+**Dopuna istog dana — kompaktniji futer uz živu sigurnu zonu:** ukupna traka
+(pojas ikona + ~34px gestova) bila je previsoka — `--footer-h` 64 → 52px
+(dugmad od 46px i dalje staju), kupola 96 → 86px.
