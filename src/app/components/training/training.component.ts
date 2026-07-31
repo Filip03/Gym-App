@@ -2,6 +2,7 @@ import { Component, ElementRef, HostListener, OnDestroy, DoCheck, OnInit, QueryL
 import { AuthService } from '../../services/auth.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
+import { GlitchService } from '../../services/glitch.service';
 import { OfflineQueueService } from '../../services/offline-queue.service';
 import { NavLockService } from '../../services/nav-lock.service';
 import { RestTimerService } from '../../services/rest-timer.service';
@@ -234,6 +235,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     private exerciceService: ExerciceService,
     private authService: AuthService,
     private audio: AudioService,
+    private glitch: GlitchService,
     public queue: OfflineQueueService,
     private navLock: NavLockService,
     private router: Router,
@@ -651,6 +653,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.celebrating = true;
     this.audio.play('record');
     progressHaptics('record');   // najjača vibracija — uz plamen (gdje uređaj umije)
+    // Zlatni glitch preko cijelog ekrana — udara u istom taktu sa plamenom.
+    this.glitch.trigger('gold');
     setTimeout(() => ex.celebrating = false, 1800);   // dužina snimka
   }
 
@@ -916,8 +920,14 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     const cmp = this.compare(ex.echo, setNumber, weight, reps, sides[0]);
     const buzzProgress = () => {
       if (ex.celebrating) return;   // rekord je već odsvirao jaču
-      if (cmp.weightDelta === 'up') progressHaptics('weight');
-      else if (cmp.repsDelta === 'up') progressHaptics('reps');
+      if (cmp.weightDelta === 'up') {
+        // Kilaža je porasla: vibracija + volt glitch preko ekrana + (zvuk kad
+        // snimak stigne) — jedan sinhron trenutak. Samo za kilažu, ne za
+        // ponavljanja: glitch je registar moći, ne svakodnevni šum.
+        progressHaptics('weight');
+        this.glitch.trigger('volt');
+        void this.audio.play('glitch');
+      } else if (cmp.repsDelta === 'up') progressHaptics('reps');
     };
 
     const accept = (id: string, pending: boolean, side: Side = sides[0]) => {

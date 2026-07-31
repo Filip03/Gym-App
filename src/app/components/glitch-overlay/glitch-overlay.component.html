@@ -1,0 +1,33 @@
+<!-- Jedan prolaz glitcha. `*ngFor` preko jednočlanog niza: promjena ključa
+     ponovo rodi cijeli sloj, pa animacije krenu ispočetka i usred prethodnog
+     prolaza. Čisto dekorativno — sakriveno od čitača ekrana. -->
+<div class="glitch-pass"
+     *ngFor="let k of burst"
+     [class.volt]="kind === 'volt'"
+     [class.gold]="kind === 'gold'"
+     aria-hidden="true">
+
+    <!-- Volt/zlatna vinjeta: ivice ekrana kratko planu bojom trenutka. -->
+    <span class="vignette"></span>
+
+    <!-- Pixel-stretch trake: razvučeni „redovi piksela" sa trzajem i skew-om. -->
+    <span class="stretch s1"></span>
+    <span class="stretch s2"></span>
+    <span class="stretch s3"></span>
+
+    <!-- Nagovještaj RGB splita: crvena i cijan nit, razmaknute par piksela. -->
+    <span class="rgb r"></span>
+    <span class="rgb c"></span>
+
+    <!-- Scanline treptaj preko cijelog ekrana. -->
+    <span class="scan"></span>
+
+    <!-- Samo uz rekord: holografski šimer + „datamosh" blokovi. -->
+    <ng-container *ngIf="kind === 'gold'">
+        <span class="shimmer"></span>
+        <span class="mosh m1"></span>
+        <span class="mosh m2"></span>
+        <span class="mosh m3"></span>
+    </ng-container>
+
+</div>

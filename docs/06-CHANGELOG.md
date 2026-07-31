@@ -3636,3 +3636,8 @@ gestove, zaglavlje ispod notcha. Uz to kupola: rub luka blaže pada na uskim
 ekranima (0.17→0.13 širine, kapa 60px) i krajnje ikone + tjeme su zaštićeni
 od isijecanja (clamp na visinu doka u `render()`), jer su na iPhone-u home i
 odjava virili van ekrana.
+
+**Dopuna istog dana — logo prati temu:** zaglavlje u svijetloj temi koristi
+novu varijantu loga (`assets/logo_light_mode.png`, Marko dodao) —
+`header.component.html` bira po `ThemeService.isLight`, promjena je trenutna
+pri prebacivanju teme.

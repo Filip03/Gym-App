@@ -1,0 +1,238 @@
+// ---------------------------------------------------------------------------
+// GLITCH OVERLAY — Cyberpunk 2077 registar za trenutke napretka.
+//
+// Dva prolaza: 'volt' (~520ms, veća kilaža) i 'gold' (~880ms, lični rekord,
+// tempiran da udari zajedno sa plamenom rekorda u training ekranu).
+//
+// PERFORMANSE (iPhone WKWebView, „buttery smooth"):
+//   - animira se ISKLJUČIVO transform + opacity (+ mix-blend-mode kao statično
+//     svojstvo sloja) — nijedan filter/backdrop-filter preko ekrana;
+//   - svi slojevi su STATIČNI gradijenti; pokret im daju transform i opacity;
+//   - `will-change` važi samo dok efekat traje: slojevi postoje u DOM-u samo
+//     za vrijeme prolaza (komponenta ih rodi i ukloni tajmerom).
+// ---------------------------------------------------------------------------
+
+:host { display: contents; }
+
+.glitch-pass {
+  position: fixed;
+  inset: 0;
+  // Iznad sadržaja, headera (50), futera (60) i toasta (100) — a ISPOD svih
+  // modala (detail/cmp 150, picker 160, date-picker 170, summary/lightbox 200,
+  // profile-preview 300): glitch ne smije šarati preko otvorenog modala.
+  z-index: 120;
+  pointer-events: none;
+  overflow: hidden;
+
+  // --- Registar boja jednog prolaza ----------------------------------------
+  // 'volt' čita tokene, pa sam prati temu (u svijetloj je volt tamnozelen).
+  --g-edge:  var(--volt-a40);   // ivica vinjete
+  --g-soft:  var(--volt-a20);   // meki rub traka / šimera
+  --g-mid:   var(--volt-a40);   // tijelo trake
+  --g-core:  var(--volt);       // svijetlo jezgro trake
+  --g-scanline: rgba(255, 255, 255, 0.055);
+
+  &.gold {
+    // Zlata nema u tokenima — lokalna paleta: topli #FFD75A/#F5C445 tonovi
+    // plus mliječni bljesak, po uzoru na holografske UI panele.
+    --g-edge:  rgba(245, 196, 69, 0.42);
+    --g-soft:  rgba(255, 215, 90, 0.20);
+    --g-mid:   rgba(255, 215, 90, 0.40);
+    --g-core:  #F5C445;
+    --g-flash: rgba(255, 243, 196, 0.55);
+  }
+}
+
+// Svijetla tema: volt tokeni se preslikaju sami, ali tamnozelena vinjeta na
+// mliječnoj podlozi brzo postane blato — priguši ivicu. Zlato dobija dublji
+// jantar (svijetli zlatni tonovi se na bijelom ne vide).
+:host-context([data-theme='light']) .glitch-pass {
+  --g-edge: var(--volt-a20);
+  --g-scanline: rgba(16, 25, 35, 0.07);
+
+  &.gold {
+    --g-edge:  rgba(166, 124, 0, 0.30);
+    --g-soft:  rgba(166, 124, 0, 0.13);
+    --g-mid:   rgba(166, 124, 0, 0.28);
+    --g-core:  #A67C00;
+    --g-flash: rgba(201, 138, 27, 0.35);
+  }
+
+  // Na svijetlom trake i blokovi ZATAMNJUJU presjek sa vinjetom umjesto da ga
+  // izbijele — mastilo, ne neon.
+  .stretch, .mosh { mix-blend-mode: multiply; }
+}
+
+// Svi slojevi: statični gradijenti, apsolutno položeni, animirani samo kroz
+// transform/opacity. `will-change` je bezbjedan — sloj živi samo tokom prolaza.
+.glitch-pass > span {
+  position: absolute;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+// --- 1. Vinjeta: ivice ekrana planu bojom trenutka, pa signal „prodiše" -----
+.vignette {
+  inset: 0;
+  background:
+    linear-gradient(90deg,  var(--g-edge), transparent 16%),
+    linear-gradient(270deg, var(--g-edge), transparent 16%),
+    linear-gradient(180deg, var(--g-soft), transparent 20%),
+    linear-gradient(0deg,   var(--g-edge), transparent 24%);
+  animation: g-vignette 520ms linear forwards;
+
+  .gold & { animation-duration: 880ms; }
+}
+
+@keyframes g-vignette {
+  0%   { opacity: 0; }
+  6%   { opacity: 1; }     // udar
+  16%  { opacity: 0.30; }  // signal zatreperi...
+  28%  { opacity: 0.90; }
+  46%  { opacity: 0.45; }
+  62%  { opacity: 0.70; }
+  100% { opacity: 0; }     // ...pa se uhvati i sve nestane
+}
+
+// --- 2. Pixel-stretch trake: razvučeni „redovi piksela" sa trzajem ----------
+.stretch {
+  left: -12%;
+  width: 124%;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--g-soft) 14%,
+    var(--g-mid)  46%,
+    var(--g-core) 49% 51%,   // svijetlo jezgro — izvor „razvučenog reda"
+    var(--g-mid)  54%,
+    var(--g-soft) 86%,
+    transparent);
+  mix-blend-mode: screen;
+  animation: g-band 460ms cubic-bezier(0.85, 0, 0.15, 1) forwards;
+}
+
+.s1 { top: 16%; height: 16px; }
+.s2 { top: 46%; height: 26px; animation-duration: 520ms; animation-delay: 40ms; }
+.s3 { top: 74%; height: 10px; animation-duration: 430ms; animation-delay: 90ms; }
+
+.gold {
+  .s1 { animation-duration: 640ms; }
+  .s2 { animation-duration: 720ms; animation-delay: 60ms; }
+  .s3 { animation-duration: 580ms; animation-delay: 130ms; }
+}
+
+// Munjevit horizontalni trzaj + blagi skew; scaleY „razvlači piksele".
+// Tijesni parovi ključeva (22→26%) prave oštar digitalni rez, ne klizanje.
+@keyframes g-band {
+  0%   { transform: translate3d(-7%, 0, 0)   skewX(-14deg) scaleY(0.3);  opacity: 0; }
+  8%   { transform: translate3d(-4%, 0, 0)   skewX(-10deg) scaleY(1.5);  opacity: 0.95; }
+  22%  { transform: translate3d(3.5%, 0, 0)  skewX(7deg)   scaleY(0.7);  opacity: 0.8; }
+  26%  { transform: translate3d(-2.5%, 0, 0) skewX(-5deg)  scaleY(1.8);  opacity: 0.95; }
+  44%  { transform: translate3d(2%, 0, 0)    skewX(4deg)   scaleY(0.5);  opacity: 0.55; }
+  60%  { transform: translate3d(-0.8%, 0, 0) skewX(-2deg)  scaleY(1.15); opacity: 0.6; }
+  78%  { transform: translate3d(0.4%, 0, 0)  skewX(1deg)   scaleY(0.9);  opacity: 0.3; }
+  100% { transform: translate3d(0, 0, 0)     skewX(0)      scaleY(1);    opacity: 0; }
+}
+
+// --- 3. Nagovještaj RGB splita: dvije niti, razmaknute par piksela ----------
+// Crvena i cijan su FIZIKA efekta (razdvojeni kanali), ne paleta aplikacije —
+// zato sirove vrijednosti, iste u obje teme i u oba registra.
+.rgb {
+  left: -4%;
+  width: 108%;
+  height: 3px;
+}
+
+.rgb.r {
+  top: calc(46% - 8px);
+  background: rgba(255, 64, 92, 0.55);
+  animation: g-rgb-r 300ms 30ms linear forwards;
+}
+
+.rgb.c {
+  top: calc(46% + 10px);
+  background: rgba(64, 224, 255, 0.55);
+  animation: g-rgb-c 300ms 60ms linear forwards;
+}
+
+@keyframes g-rgb-r {
+  0%   { transform: translate3d(-9px, 0, 0); opacity: 0; }
+  15%  { opacity: 0.9; }
+  40%  { transform: translate3d(6px, 0, 0);  opacity: 0.7; }
+  70%  { transform: translate3d(-3px, 0, 0); opacity: 0.45; }
+  100% { transform: translate3d(0, 0, 0);    opacity: 0; }   // kanali se poklope
+}
+
+@keyframes g-rgb-c {
+  0%   { transform: translate3d(9px, 0, 0);  opacity: 0; }
+  15%  { opacity: 0.9; }
+  40%  { transform: translate3d(-6px, 0, 0); opacity: 0.7; }
+  70%  { transform: translate3d(3px, 0, 0);  opacity: 0.45; }
+  100% { transform: translate3d(0, 0, 0);    opacity: 0; }
+}
+
+// --- 4. Scanline treptaj ----------------------------------------------------
+.scan {
+  inset: 0;
+  background: repeating-linear-gradient(0deg,
+    var(--g-scanline) 0 1px,
+    transparent 1px 3px);
+  animation: g-scan 380ms linear forwards;
+
+  .gold & { animation-duration: 520ms; }
+}
+
+@keyframes g-scan {
+  0%   { opacity: 0;    transform: translate3d(0, -2px, 0); }
+  12%  { opacity: 0.55; }
+  30%  { opacity: 0.10; }
+  46%  { opacity: 0.40; transform: translate3d(0, 1px, 0); }
+  100% { opacity: 0;    transform: translate3d(0, 0, 0); }
+}
+
+// --- 5. Holografski šimer (samo 'gold'): kos bljesak jednom pređe ekran -----
+.shimmer {
+  top: -20%;
+  bottom: -20%;
+  left: -100%;
+  width: 90%;
+  background: linear-gradient(105deg,
+    transparent 8%,
+    var(--g-soft) 34%,
+    var(--g-flash) 50%,
+    var(--g-soft) 66%,
+    transparent 92%);
+  mix-blend-mode: screen;
+  transform: skewX(-14deg);
+  animation: g-shimmer 700ms 100ms cubic-bezier(0.3, 0, 0.2, 1) forwards;
+}
+
+@keyframes g-shimmer {
+  0%   { transform: translate3d(0, 0, 0)    skewX(-14deg); opacity: 0; }
+  16%  { opacity: 1; }
+  80%  { opacity: 0.75; }
+  100% { transform: translate3d(240%, 0, 0) skewX(-14deg); opacity: 0; }
+}
+
+// --- 6. „Datamosh" blokovi (samo 'gold'): pravougaonici koji blicnu offset --
+.mosh {
+  background: linear-gradient(90deg, var(--g-mid) 0 55%, var(--g-flash) 55% 100%);
+  // steps() umjesto klizanja: blok SKAČE između položaja — digitalni kvar.
+  animation: g-mosh 340ms steps(2, jump-none) forwards;
+}
+
+.m1 { top: 22%; left: 12%;  width: 120px; height: 18px; animation-delay: 140ms; }
+.m2 { top: 58%; right: 8%;  width: 84px;  height: 26px; animation-delay: 260ms; }
+.m3 { top: 78%; left: 34%;  width: 150px; height: 12px; animation-delay: 380ms; }
+
+@keyframes g-mosh {
+  0%   { opacity: 0;    transform: translate3d(0, 0, 0); }
+  10%  { opacity: 0.85; transform: translate3d(-6px, 2px, 0); }
+  45%  { opacity: 0.85; transform: translate3d(9px, -3px, 0) scaleX(1.4); }
+  70%  { opacity: 0.5;  transform: translate3d(-3px, 0, 0); }
+  100% { opacity: 0;    transform: translate3d(0, 0, 0); }
+}
+
+// Pojas spasa uz komponentin matchMedia guard: smanjen pokret = nema bljeskova.
+@media (prefers-reduced-motion: reduce) {
+  .glitch-pass { display: none; }
+}

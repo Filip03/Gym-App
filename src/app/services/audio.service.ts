@@ -40,15 +40,19 @@ import { Injectable } from '@angular/core';
  * korisnik nakon uspješne registracije zauvijek ostane na ekranu.
  */
 
-export type SoundName = 'login' | 'register' | 'record' | 'avatar' | 'blogAdd';
+export type SoundName = 'login' | 'register' | 'record' | 'avatar' | 'blogAdd' | 'glitch';
 
 // Naziv fajla uz originalni "radni naslov", da se zna šta je šta.
+// PRAZAN naziv = slot postoji, ali snimak još nije nabavljen — svaki poziv se
+// tiho preskoči (bez mrežnog zahtjeva, bez 404 u konzoli). Kad snimak stigne,
+// samo se upiše naziv fajla.
 const CLIPS: Record<SoundName, string> = {
   login:    'ko-je.m4a',              // "ko je"
   register: 'imun-na-batine.m4a',     // "imun na batine"
   record:   'zmaj-u-mene-25cm.m4a',   // za oboren lični rekord
   avatar:   'obrijanica.m4a',         // klik na profilnu sliku
-  blogAdd:  'prskulja.m4a'            // klik na dodavanje fajla u blog
+  blogAdd:  'prskulja.m4a',           // klik na dodavanje fajla u blog
+  glitch:   ''                        // uz volt glitch (veća kilaža) — Marko tek bira snimak
 };
 
 // Prazan WAV (44 bajta zaglavlja, nula uzoraka). Služi samo da se <audio>
@@ -95,6 +99,7 @@ export class AudioService {
   async play(name: SoundName) {
     if (this.muted) return;
     if (!this.unlocked) return;   // bez dodira ionako ne bi zasviralo
+    if (!CLIPS[name]) return;     // slot bez snimka — tiho preskoči
 
     this.stop();
 
@@ -242,7 +247,7 @@ export class AudioService {
 
   private playElement(name: SoundName) {
     const el = this.el;
-    if (!el) return;
+    if (!el || !CLIPS[name]) return;
 
     el.src = `assets/${CLIPS[name]}`;
     el.volume = VOLUME;
@@ -254,7 +259,7 @@ export class AudioService {
   }
 
   private async prefetch(name: SoundName): Promise<void> {
-    if (this.raw.has(name)) return;
+    if (!CLIPS[name] || this.raw.has(name)) return;
     try {
       const res = await fetch(`assets/${CLIPS[name]}`);
       if (res.ok) this.raw.set(name, await res.arrayBuffer());

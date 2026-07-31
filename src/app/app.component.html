@@ -15,4 +15,8 @@
          ProfilePreviewService preko [appProfilePreview] zakačke na avatarima. -->
     <app-profile-preview [userId]="preview.userId" (closed)="preview.close()"></app-profile-preview>
 
+    <!-- Cyberpunk glitch preko cijelog ekrana za trenutke napretka (veća
+         kilaža / rekord) — okida ga GlitchService, npr. iz training ekrana. -->
+    <app-glitch-overlay></app-glitch-overlay>
+
 </div>

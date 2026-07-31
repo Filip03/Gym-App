@@ -23,6 +23,7 @@ import { ExercicePickerComponent } from './components/shared/exercice-picker/exe
 import { DatePickerComponent } from './components/shared/date-picker/date-picker.component';
 import { ProfilePreviewComponent } from './components/profile-preview/profile-preview.component';
 import { NewsComponent } from './components/news/news.component';
+import { GlitchOverlayComponent } from './components/glitch-overlay/glitch-overlay.component';
 
 @NgModule({
   declarations: [
@@ -39,7 +40,8 @@ import { NewsComponent } from './components/news/news.component';
     ExercicePickerComponent,
     DatePickerComponent,
     ProfilePreviewComponent,
-    NewsComponent
+    NewsComponent,
+    GlitchOverlayComponent
   ],
   imports: [
     BrowserModule,
