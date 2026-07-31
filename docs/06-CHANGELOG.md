@@ -3657,3 +3657,36 @@ pozadina klasičnog futera blijedi kroz zonu gestova umjesto da je farba —
 pojas ikona + sigurna zona ofarbani istom bojom činili su jednu ogromnu ploču
 na dnu telefona. Ikone i dalje sjede iznad zone gestova; na desktopu
 (safe-b = 0) gradijent se sam uruši u punu boju.
+
+**Dopuna istog dana — redizajn po Markovoj povratnoj informaciji:** prva
+verzija (vinjeta + poluprovidne trake + RGB niti + scanline) presuđena kao
+„očajna, konfuzna, nema dopamin" — zamijenjena drskim sci-fi efektom u TRI
+faze, i efekat sada NOSI PORUKU (`trigger(kind, message)`):
+
+1. **Trzaj samog UI-ja (0–240ms):** overlay lijepi klasu `glitch-jolt` na
+   `<html>` (skida je tajmerom, restart zamjenom klase preko reflow-a, čisti u
+   ngOnDestroy); globalni stil na dnu `_base.scss` pod njom trza CIJELI
+   `.shell` u tvrdim `steps(1)` koracima — translateX ±5–8px + na tren isječen
+   `clip-path` kadar (na ~50ms ostane samo srednji pojas slike). Sadržaj se
+   stvarno pomjeri.
+2. **Neprovidne trake (0–350ms):** 4 krupne pune trake (4–9vh; naizmjenično
+   `--volt-fill`/zlatna i `--deep`), tvrde ivice, skoče u `steps(2)` pa nestanu
+   na rez — pomjereni redovi piksela, vidljivo i drsko.
+3. **Oluja znakova + dekodiranje (120ms–kraj):** velika mono poruka
+   (`--font-data`, clamp 28–40px, volt/zlatna + glow) skremblovana JS
+   intervalom (45ms) iz skupa `#?!01<>/\_ΔΞ$%&` pa se slova slijeva nadesno
+   zaključavaju u konačan tekst; oko nje 10–14 malih znakova (Math.random
+   pozicije/kašnjenja) blicne pop-om kaskadno; poruka odstoji pa se raspadne u
+   3 tvrda koraka (`steps(1)` opacity/translate/skew). Interval i svi tajmeri
+   se čiste u ngOnDestroy i pri restartu.
+
+Trajanja: volt ~950ms (dekodiranje ~230ms, poruka stoji do 720ms), gold
+~1350ms (dekodiranje ~500ms, poruka stoji do 1120ms, zadržan holografski
+šimer 100–800ms; i dalje u taktu sa plamenom). Poruke iz
+`training.component.ts`: volt = razlika kilaže prema istoj seriji prošlog
+treninga preko `echoSetIn` („+2,5 kg" — pola kile zaokruženo, zapeta), gold =
+`prMetric` vrijednost i jedinica („NOVI REKORD · 32 kg", za čist BW
+„NOVI REKORD · 15 pon."). Performans pravila ista (transform/opacity +
+clip-path samo na shell trzaju; bez filtera); `prefers-reduced-motion` i dalje
+gasi sve, uključujući klasu na `<html>`. Stara mašinerija (vinjeta, stretch
+trake, RGB niti, scanline, datamosh) uklonjena.

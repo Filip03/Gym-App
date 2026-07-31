@@ -645,7 +645,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
 
     // Ne kilaža nego MJERA rekorda: kod čistog bodyweighta to su ponavljanja,
     // pa se plamen ponovi i kad rekord naraste sa 10 na 12 zgibova.
-    const best = this.prMetric(ex).value;
+    const metric = this.prMetric(ex);
+    const best = metric.value;
     if (ex.prShown !== null && best <= ex.prShown) return;
 
     ex.prShown = best;
@@ -653,8 +654,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.celebrating = true;
     this.audio.play('record');
     progressHaptics('record');   // najjača vibracija — uz plamen (gdje uređaj umije)
-    // Zlatni glitch preko cijelog ekrana — udara u istom taktu sa plamenom.
-    this.glitch.trigger('gold');
+    // Zlatni glitch preko cijelog ekrana, sa porukom u MJERI rekorda (kilaža,
+    // a kod čistog bodyweighta ponavljanja) — udara u istom taktu sa plamenom.
+    this.glitch.trigger('gold',
+      `NOVI REKORD · ${best} ${metric.unit === 'kg' ? 'kg' : 'pon.'}`);
     setTimeout(() => ex.celebrating = false, 1800);   // dužina snimka
   }
 
@@ -918,14 +921,20 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     // od prošlog puta srednju, više ponavljanja kratku. Poređenje se računa
     // unaprijed jer `accept` čisti formu.
     const cmp = this.compare(ex.echo, setNumber, weight, reps, sides[0]);
+    // Ista prošla serija po kojoj je cmp presudio — za poruku glitcha treba i
+    // SAMA razlika, ne samo smjer. Hvata se prije `accept`-a, jer on čisti formu.
+    const prevSet = this.echoSetIn(ex.echo, setNumber, sides[0]);
     const buzzProgress = () => {
       if (ex.celebrating) return;   // rekord je već odsvirao jaču
       if (cmp.weightDelta === 'up') {
-        // Kilaža je porasla: vibracija + volt glitch preko ekrana + (zvuk kad
-        // snimak stigne) — jedan sinhron trenutak. Samo za kilažu, ne za
-        // ponavljanja: glitch je registar moći, ne svakodnevni šum.
+        // Kilaža je porasla: vibracija + volt glitch preko ekrana sa porukom
+        // koliko je skočilo + (zvuk kad snimak stigne) — jedan sinhron
+        // trenutak. Samo za kilažu, ne za ponavljanja: glitch je registar
+        // moći, ne svakodnevni šum. Razlika na pola kile, zapeta po kućnom
+        // pravopisu („+2,5 kg").
+        const diff = Math.round((weight - (prevSet?.weight ?? 0)) * 2) / 2;
         progressHaptics('weight');
-        this.glitch.trigger('volt');
+        this.glitch.trigger('volt', `+${String(diff).replace('.', ',')} kg`);
         void this.audio.play('glitch');
       } else if (cmp.repsDelta === 'up') progressHaptics('reps');
     };

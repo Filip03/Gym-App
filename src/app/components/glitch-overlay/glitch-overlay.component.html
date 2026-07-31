@@ -1,33 +1,35 @@
 <!-- Jedan prolaz glitcha. `*ngFor` preko jednočlanog niza: promjena ključa
      ponovo rodi cijeli sloj, pa animacije krenu ispočetka i usred prethodnog
-     prolaza. Čisto dekorativno — sakriveno od čitača ekrana. -->
+     prolaza. Čisto dekorativno — sakriveno od čitača ekrana. Trzaj samog
+     UI-ja (faza 1) ne stanuje ovdje nego kao klasa na <html> + _base.scss. -->
 <div class="glitch-pass"
      *ngFor="let k of burst"
      [class.volt]="kind === 'volt'"
      [class.gold]="kind === 'gold'"
      aria-hidden="true">
 
-    <!-- Volt/zlatna vinjeta: ivice ekrana kratko planu bojom trenutka. -->
-    <span class="vignette"></span>
+    <!-- Faza 2: krupne NEPROVIDNE trake — pomjereni redovi piksela.
+         Naizmjenično boja trenutka / skoro crna, tvrde ivice, steps() skokovi. -->
+    <span class="band b1"></span>
+    <span class="band b2"></span>
+    <span class="band b3"></span>
+    <span class="band b4"></span>
 
-    <!-- Pixel-stretch trake: razvučeni „redovi piksela" sa trzajem i skew-om. -->
-    <span class="stretch s1"></span>
-    <span class="stretch s2"></span>
-    <span class="stretch s3"></span>
+    <!-- Samo uz rekord: holografski šimer jednom pređe preko ekrana. -->
+    <span class="shimmer" *ngIf="kind === 'gold'"></span>
 
-    <!-- Nagovještaj RGB splita: crvena i cijan nit, razmaknute par piksela. -->
-    <span class="rgb r"></span>
-    <span class="rgb c"></span>
+    <!-- Faza 3: oluja malih znakova — blicnu na nasumičnim mjestima, kaskadno. -->
+    <span class="spark"
+          *ngFor="let s of sparks"
+          [style.left.%]="s.x"
+          [style.top.%]="s.y"
+          [style.font-size.px]="s.size"
+          [style.animation-delay.ms]="s.delay">{{ s.ch }}</span>
 
-    <!-- Scanline treptaj preko cijelog ekrana. -->
-    <span class="scan"></span>
-
-    <!-- Samo uz rekord: holografski šimer + „datamosh" blokovi. -->
-    <ng-container *ngIf="kind === 'gold'">
-        <span class="shimmer"></span>
-        <span class="mosh m1"></span>
-        <span class="mosh m2"></span>
-        <span class="mosh m3"></span>
-    </ng-container>
+    <!-- Faza 3: velika poruka — skrembluje se pa dekodira slijeva nadesno,
+         odstoji, pa se raspadne u tvrdim koracima. Sadržaj vrti komponenta. -->
+    <div class="msg-box">
+        <span class="msg">{{ displayText }}</span>
+    </div>
 
 </div>
