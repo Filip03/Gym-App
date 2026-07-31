@@ -3567,3 +3567,7 @@ isti jezik kao kupola, u diskretnijoj mjeri (`footer.component.scss`): ikone
 pri ulasku izranjaju talasom (60ms korak po ikoni), novoaktivirana ikona se
 slegne uz squash & stretch pop, a iz nje se razlije kap mastila kroz pilulu
 aktivne rute. Sve ugašeno uz `prefers-reduced-motion`.
+
+**Dopuna istog dana — visina klasičnog futera:** `--footer-h` 64 → 72px
+(`_tokens.scss:159`) — ikone su na telefonu sjedale prenisko uz ivicu pa ih je
+bilo teško pogoditi palcem. Kupola i dalje diže token na 96px kroz `nav-dome`.
