@@ -1,89 +1,132 @@
 // ---------------------------------------------------------------------------
-// GLITCH OVERLAY — sci-fi registar za trenutke napretka (redizajn po Markovoj
-// povratnoj informaciji: drsko i čitljivo, „nešto da se DESI", ne suptilni šum).
+// GLITCH OVERLAY V3 — ASCII registar za trenutke napretka (po Markovom
+// oduševljenju morem znakova sa landinga: „takvom nečemu sam se nadao").
 //
 // Tri faze (faza 1 — trzaj cijelog .shell-a — živi u _base.scss pod klasom
 // `glitch-jolt` na <html>; ovdje su faze 2 i 3):
-//   2. NEPROVIDNE trake preko ekrana koje skoče u steps() koracima (0–350ms);
-//   3. oluja znakova + velika mono poruka koja se dekodira („+2 kg"), odstoji
-//      pa se raspadne u tvrdim koracima (120ms–kraj).
+//   2. ASCII TALAS: nalet polja znakova prohuja preko ekrana (JS upisuje dva
+//      `textContent`-a po kadru, ~30 fps van zone — tehnika landinga);
+//   3. velika mono poruka koja se dekodira („+2 kg"), odstoji pa se raspadne
+//      u tvrdim koracima (120ms–kraj).
 //
-// Trajanja: 'volt' ~950ms, 'gold' ~1350ms (tempiran uz plamen rekorda).
+// Trajanja: 'volt' ~950ms (talas 860ms), 'gold' ~1350ms (talas 1200ms, u
+// taktu sa plamenom rekorda).
 //
-// PERFORMANSE (iPhone WKWebView): animira se isključivo transform/opacity
-// (+ clip-path samo na shell trzaju u _base.scss); trake i znakovi su mali,
-// puni elementi — nijedan filter/backdrop-filter; `will-change` važi samo dok
-// efekat traje jer slojevi postoje u DOM-u samo tokom prolaza.
+// PERFORMANSE (iPhone WKWebView): talas je čist tekst — nijedan DOM čvor se
+// ne pravi po kadru, sjaj pada samo na grebene (~15% ćelija); ostalo je
+// transform/opacity (+ clip-path samo na shell trzaju u _base.scss); nijedan
+// filter/backdrop-filter. `will-change` samo na sloju poruke, koji postoji
+// isključivo tokom prolaza.
 // ---------------------------------------------------------------------------
 
 :host { display: contents; }
 
+// Zajedničko za polje i prolaz: preko cijelog ekrana, ništa ne blokira.
+// Iznad sadržaja, headera (50), futera (60) i toasta (100) — a ISPOD svih
+// modala (detail/cmp 150, picker 160, date-picker 170, summary/lightbox 200,
+// profile-preview 300): glitch ne smije šarati preko otvorenog modala.
+.glitch-field,
 .glitch-pass {
   position: fixed;
   inset: 0;
-  // Iznad sadržaja, headera (50), futera (60) i toasta (100) — a ISPOD svih
-  // modala (detail/cmp 150, picker 160, date-picker 170, summary/lightbox 200,
-  // profile-preview 300): glitch ne smije šarati preko otvorenog modala.
   z-index: 120;
   pointer-events: none;
   overflow: hidden;
+}
 
-  // --- Registar boja jednog prolaza ----------------------------------------
-  // 'volt' čita tokene: poruka i znakovi kroz --volt (u svijetloj temi sam
-  // pređe u tamnozelenu — čitljivost), pune trake kroz --volt-fill (neon u
-  // OBJE teme — energija je identitet) i --deep (skoro crna u obje teme).
-  --g-core:      var(--volt);        // poruka + znakovi
-  --g-glow:      var(--volt-a40);    // sjaj oko poruke
+// --- Faza 2: ASCII talas-polje ----------------------------------------------
+// Dva <pre> čvora koje JS prepisuje po kadru; kad efekat ne svira, prazna su
+// i ne koštaju ništa. U DOM-u je polje PRIJE .glitch-pass, pa poruka uvijek
+// sjedi preko talasa.
+.glitch-field {
+  user-select: none;
+  -webkit-user-select: none;
+
+  font-family: var(--font-data);
+  font-weight: 500;
+  font-size: 18px;      // JS prepisuje po širini ekrana
+  line-height: 21px;    // JS prepisuje
+  letter-spacing: 0;
+  white-space: pre;
+}
+
+.glyphs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  white-space: pre;
+}
+
+// Tamnija voda naleta: providan volt ton — sadržaj aplikacije se vidi kroz
+// talas, znakovi su samo prelivena boja preko njega.
+.deep {
+  color: color-mix(in srgb, var(--volt) 40%, transparent);
+}
+
+// Grebeni: neon i mek sjaj — sjaj pada samo na ~15% ćelija (ostalo su razmaci).
+.crest {
+  color: var(--volt);
+  text-shadow: 0 0 8px var(--volt-a40);
+}
+
+// Zlatni talas — zlata nema u tokenima, lokalni topli tonovi (isti kao poruka).
+.glitch-field.gold {
+  .deep  { color: rgba(245, 196, 69, 0.42); }
+  .crest { color: #FFD75A; text-shadow: 0 0 8px rgba(245, 196, 69, 0.45); }
+}
+
+// Lenjir za mjerenje stvarne širine znaka — ne smije uticati na raspored.
+.ruler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+
+// --- Registar boja poruke ----------------------------------------------------
+.glitch-pass {
+  // 'volt' čita tokene — u svijetloj temi sam pređe u tamnozelenu (čitljivost).
+  --g-core:      var(--volt);
+  --g-glow:      var(--volt-a40);
   --g-glow-soft: var(--volt-a20);
-  --g-fill:      var(--volt-fill);   // svijetla neprovidna traka
-  --g-dark:      var(--deep);        // tamna neprovidna traka
 
   &.gold {
-    // Zlata nema u tokenima — lokalna paleta: topli #FFD75A/#F5C445 tonovi.
     --g-core:      #F5C445;
     --g-glow:      rgba(245, 196, 69, 0.45);
     --g-glow-soft: rgba(245, 196, 69, 0.22);
-    --g-fill:      #FFD75A;
     --g-soft:      rgba(255, 215, 90, 0.20);
     --g-flash:     rgba(255, 243, 196, 0.55);
   }
 }
 
-// Svijetla tema: volt se preslika sam kroz tokene; zlato dobija dublji jantar
-// (svijetli zlatni tekst se na mliječnoj podlozi ne čita). Neprovidne trake
-// ostaju iste — pune boje rade u obje teme.
-:host-context([data-theme='light']) .glitch-pass.gold {
-  --g-core:      #A67C00;
-  --g-glow:      rgba(166, 124, 0, 0.35);
-  --g-glow-soft: rgba(166, 124, 0, 0.16);
-}
+// --- Svijetla tema -----------------------------------------------------------
+// Kao na landingu: na kosti bez neona i bez glowa (sjaj na svijetlom samo
+// zamuti znak) — volt se kroz tokene sam preslika u tamnozelenu, zlato dobija
+// duboki jantar.
+:host-context([data-theme='light']) {
 
-// --- Faza 2: krupne NEPROVIDNE trake — pomjereni redovi piksela -------------
-// Pune boje, tvrde ivice, bez blura; skaču u steps() pa nestanu na rez.
-.band {
-  position: absolute;
-  left: -6%;
-  width: 112%;
-  opacity: 0;
-  will-change: transform, opacity;
-  animation: g-band-cut 300ms steps(2, jump-none) forwards;
-}
+  .glitch-field {
+    .deep  { color: color-mix(in srgb, var(--volt) 34%, transparent); }
+    .crest { color: color-mix(in srgb, var(--volt) 70%, transparent); text-shadow: none; }
+  }
 
-.b1, .b3 { background: var(--g-fill); }
-.b2, .b4 { background: var(--g-dark); }
+  .glitch-field.gold {
+    .deep  { color: rgba(166, 124, 0, 0.30); }
+    .crest { color: #A67C00; text-shadow: none; }
+  }
 
-.b1 { top: 12%; height: 7vh; }
-.b2 { top: 34%; height: 4vh; animation-duration: 330ms; animation-delay: 40ms; }
-.b3 { top: 55%; height: 9vh; animation-duration: 280ms; animation-delay: 80ms; }
-.b4 { top: 78%; height: 5vh; animation-duration: 350ms; animation-delay: 120ms; }
+  .glitch-pass.gold {
+    --g-core:      #A67C00;
+    --g-glow:      rgba(166, 124, 0, 0.35);
+    --g-glow-soft: rgba(166, 124, 0, 0.16);
+  }
 
-@keyframes g-band-cut {
-  0%   { opacity: 0; transform: translate3d(-3%, 0, 0); }
-  10%  { opacity: 1; transform: translate3d(-3%, 0, 0); }
-  38%  { opacity: 1; transform: translate3d(2.2%, 0, 0); }
-  62%  { opacity: 1; transform: translate3d(-1.4%, 0, 0) scaleY(1.35); }
-  86%  { opacity: 1; transform: translate3d(0.8%, 0, 0) scaleY(0.8); }
-  100% { opacity: 0; transform: translate3d(0.8%, 0, 0) scaleY(0.8); }
+  .msg { text-shadow: none; }
 }
 
 // --- Holografski šimer (samo 'gold'): kos bljesak jednom pređe ekran --------
@@ -113,29 +156,7 @@
   100% { transform: translate3d(240%, 0, 0) skewX(-14deg); opacity: 0; }
 }
 
-// --- Faza 3a: oluja malih znakova -------------------------------------------
-// Pozicija, veličina i kašnjenje stižu inline iz komponente (Math.random) —
-// svaki znak blicne pop-om i nestane; kaskadu pravi raspon kašnjenja.
-.spark {
-  position: absolute;
-  font-family: var(--font-data);
-  font-weight: 700;
-  line-height: 1;
-  color: var(--g-core);
-  text-shadow: 0 0 8px var(--g-glow);
-  opacity: 0;
-  will-change: transform, opacity;
-  animation: g-spark 280ms cubic-bezier(0.2, 0, 0.2, 1) both;
-}
-
-@keyframes g-spark {
-  0%   { opacity: 0; transform: scale(0.3); }
-  30%  { opacity: 1; transform: scale(1.25); }
-  60%  { opacity: 0.9; transform: scale(0.95); }
-  100% { opacity: 0; transform: scale(0.7) translateY(-6px); }
-}
-
-// --- Faza 3b: velika poruka — dekodiranje u centru ekrana -------------------
+// --- Faza 3: velika poruka — dekodiranje u centru ekrana --------------------
 // Omotač drži centriranje (statični transform ne smije na animirani element —
 // animacija bi ga pregazila i poruka bi iskočila iz centra).
 .msg-box {
@@ -186,7 +207,9 @@
   100% { opacity: 0;    transform: translate3d(0, 6px, 0); }
 }
 
-// Pojas spasa uz komponentin matchMedia guard: smanjen pokret = ništa od ovoga.
+// Pojas spasa uz komponentin matchMedia guard: smanjen pokret = ništa od ovoga
+// (komponenta polje ionako nikad ne napuni, a prolaz se ne rodi).
 @media (prefers-reduced-motion: reduce) {
+  .glitch-field,
   .glitch-pass { display: none; }
 }

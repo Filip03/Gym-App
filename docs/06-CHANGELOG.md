@@ -3787,3 +3787,38 @@ splasha.
 ide uz volt glitch (veća kilaža), a pri rekordu se PREKO dugog `record` klipa
 pušta i kratki `new_PR.mp3` — novi `AudioService.playOver()` sloj kroz
 WebAudio (više izvora kroz isti gain, bez prekidanja glavnog kanala).
+
+**Dopuna istog dana — V3: ASCII talas umjesto traka (Markovo oduševljenje
+landingom):** poslije ASCII mora na splashu („takvom nečemu sam se nadao kod
+glitch efekata") neprovidne trake i mala oluja znakova iz v2 su izbačene, a na
+njihovo mjesto došao **ASCII TALAS** — nalet polja monospace znakova koji
+prohuja preko ekrana slijeva nadesno, kao da se more sa landinga na tren
+prelije preko aplikacije. Mijenjana SAMO glitch-overlay komponenta; trzaj
+shella (`glitch-jolt` u `_base.scss`), poruka sa dekodiranjem, okidači u
+trainingu i servis ostali isti.
+
+- **Tehnika iz landinga** (`glitch-overlay.component.ts`): dva <pre> čvora
+  (`deep` providan volt ton, `crest` grebeni + glow na ~15% ćelija),
+  `textContent` po kadru na ~30 fps, rAF petlja VAN Angular zone (nijedan
+  kadar ne pokreće CD), lenjir mjeri stvarnu širinu znaka, mreža i statično
+  zrno po ćeliji (Float32Array) se prave samo kad se broj ćelija promijeni.
+  Polje je stalno u DOM-u (prazno ne košta ništa) da ViewChild reference
+  postoje prije prvog kadra.
+- **Front i gustina:** front ide konstantnom brzinom (ulazi/izlazi van
+  ekrana), po redu krivuda kroz dva sinusa računata PO REDU; gustina ćelije =
+  1 na frontu, uski sprej ispred (3–4 kolone, linearno), iza fronta
+  eksponencijalno gašenje kroz unaprijed izračunatu WAKE tabelu (bez exp() u
+  petlji); ćelija se pali kad gustina nadmaši njeno zrno — prorjeđivanje je
+  doslovno vjerovatnoća. Treptaj daje pomak indeksa zrna po kadru, grebeni
+  povremeno blicnu znakom šuma (talas JE oluja — mali sparkovi iz v2 stopljeni
+  u njega). Redovi mimo fronta se pune isječcima gotovog praznog reda.
+- **Registri:** volt ~950ms (talas 860ms, rep 14 kolona), gold ~1350ms (talas
+  1200ms, gušći ×1.25, rep 20 kolona, zadržan šimer 100–800ms; u taktu sa
+  plamenom). Teme kao landing: svijetla bez glowa, volt kroz tokene
+  (tamnozelen), zlato duboki jantar #A67C00.
+- **Cijena kadra** (Node simulacija iste petlje, mreža telefona 36×42): volt
+  0,008ms, gold 0,010ms; laptop 76×50: 0,014ms — cilj <0,2ms premašen ~20×.
+- **Čišćenje:** rAF se sam gasi kad talas istekne (`stopWave` briše oba
+  <pre>), restart okidanja prekida prethodni rAF pa kreće novi sat; u
+  `ngOnDestroy` se gase rAF, interval skremblovanja, svi tajmeri i skida
+  `glitch-jolt` sa <html>.
