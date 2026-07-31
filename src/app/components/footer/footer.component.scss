@@ -14,9 +14,13 @@
     justify-content: space-around;
     align-items: center;
 
-    height: calc(var(--footer-h) + var(--safe-b));
-    padding: 0 var(--s-2) var(--safe-b);   // safe-b: da traka za gestove na
-                                           // iPhone-u ne prelazi preko ikona
+    // Ne rezerviše se CIJELA zona gestova — ikone smiju da joj priđu 12px
+    // (iOS-ove native trake rade isto): puna rezerva ih je držala previsoko
+    // iznad donje ivice, pa je futer djelovao odlijepljen od dna.
+    --footer-gap: max(calc(var(--safe-b) - 12px), 0px);
+
+    height: calc(var(--footer-h) + var(--footer-gap));
+    padding: 0 var(--s-2) var(--footer-gap);
 
     // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
     //
@@ -27,8 +31,8 @@
     // svejedno ostaju iznad zone gestova.
     background: linear-gradient(
         to bottom,
-        color-mix(in srgb, var(--void) 95%, transparent) calc(100% - var(--safe-b)),
-        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--safe-b) * 0.45),
+        color-mix(in srgb, var(--void) 95%, transparent) calc(100% - var(--footer-gap)),
+        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
         transparent 100%
     );
     border-top: 1px solid var(--line);
@@ -40,8 +44,8 @@
 :host-context([data-theme='light']) .footer {
     background: linear-gradient(
         to bottom,
-        var(--void) calc(100% - var(--safe-b)),
-        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--safe-b) * 0.45),
+        var(--void) calc(100% - var(--footer-gap)),
+        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
         transparent 100%
     );
 }
