@@ -156,7 +156,10 @@
 
   // --- Raspored -------------------------------------------------------------
   --header-h: 86px;
-  --footer-h: 64px;
+  // 64 → 72: na telefonu su ikone sjedale prenisko uz samu ivicu, pa ih je
+  // bilo teško pogoditi palcem (Markova primjedba 31.07.2026). Isti token
+  // poravnava modale i lebdeću dugmad, pa se i oni sami podignu.
+  --footer-h: 72px;
   // Aplikacija je prvenstveno za telefon. Na laptopu se lista drži uske kolone
   // (oko ne prati red od 1100px), a mreža kartica dobija više prostora.
   --page-max:  720px;
