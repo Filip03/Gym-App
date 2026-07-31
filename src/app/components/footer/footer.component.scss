@@ -15,7 +15,10 @@
     align-items: center;
 
     height: calc(var(--footer-h) + var(--footer-gap));
-    padding: 0 var(--s-2) var(--footer-gap);
+    // + 8px daha na dnu: ikone sjede par piksela više od same ivice (Markov
+    // fini štih 31.07.2026) — dovoljno da ne "leže" na dnu, premalo da traka
+    // djeluje podignuto.
+    padding: 0 var(--s-2) calc(var(--footer-gap) + 8px);
 
     // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
     //
