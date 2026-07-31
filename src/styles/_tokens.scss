@@ -159,10 +159,7 @@
   // 31.07.2026) — najviše zbog velikog loga, koji je istovremeno smanjen
   // 62 -> 50px u header.component.scss.
   --header-h: 74px;
-  // 64 → 52: otkako sigurna zona stvarno radi (viewport-fit=cover), ispod
-  // trake ide još ~34px prostora za gestove — pa sam pojas ikona mora biti
-  // kompaktniji da UKUPNA traka ne bude previsoka. Dugmad su 46px, staju.
-  --footer-h: 52px;
+  --footer-h: 64px;
   // Aplikacija je prvenstveno za telefon. Na laptopu se lista drži uske kolone
   // (oko ne prati red od 1100px), a mreža kartica dobija više prostora.
   --page-max:  720px;

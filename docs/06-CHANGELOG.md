@@ -3690,3 +3690,9 @@ treninga preko `echoSetIn` („+2,5 kg" — pola kile zaokruženo, zapeta), gold
 clip-path samo na shell trzaju; bez filtera); `prefers-reduced-motion` i dalje
 gasi sve, uključujući klasu na `<html>`. Stara mašinerija (vinjeta, stretch
 trake, RGB niti, scanline, datamosh) uklonjena.
+
+**Dopuna istog dana — safe-area podizač uklonjen (Markova presuda):**
+`viewport-fit=cover` vraćen iz index.html (iOS sam drži stranicu iznad trake
+za gestove — kao prije), `--footer-h` nazad na zatečenih 64px. Gradijent i
+`--footer-gap` u futeru ostaju u kodu ali miruju (safe-b = 0). Kupola ostaje
+na 86px sa zaštitom krajnjih ikona.
