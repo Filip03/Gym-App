@@ -40,7 +40,7 @@ import { Injectable } from '@angular/core';
  * korisnik nakon uspješne registracije zauvijek ostane na ekranu.
  */
 
-export type SoundName = 'login' | 'register' | 'record' | 'avatar' | 'blogAdd' | 'glitch';
+export type SoundName = 'login' | 'register' | 'record' | 'avatar' | 'blogAdd' | 'glitch' | 'pr';
 
 // Naziv fajla uz originalni "radni naslov", da se zna šta je šta.
 // PRAZAN naziv = slot postoji, ali snimak još nije nabavljen — svaki poziv se
@@ -52,7 +52,8 @@ const CLIPS: Record<SoundName, string> = {
   record:   'zmaj-u-mene-25cm.m4a',   // za oboren lični rekord
   avatar:   'obrijanica.m4a',         // klik na profilnu sliku
   blogAdd:  'prskulja.m4a',           // klik na dodavanje fajla u blog
-  glitch:   ''                        // uz volt glitch (veća kilaža) — Marko tek bira snimak
+  glitch:   'level_up_kg.mp3',        // uz volt glitch (veća kilaža od prošlog puta)
+  pr:       'new_PR.mp3'              // SLOJ preko `record` klipa pri rekordu — vidi playOver()
 };
 
 // Prazan WAV (44 bajta zaglavlja, nula uzoraka). Služi samo da se <audio>
@@ -145,6 +146,30 @@ export class AudioService {
 
     GESTURES.forEach(e => document.addEventListener(e, onGesture, { once: true, passive: true }));
     return () => { cancelled = true; cleanup(); };
+  }
+
+  /**
+   * Pusti PREKO zvuka koji već svira, bez prekidanja — sloj za složene
+   * trenutke: rekord pušta dugi `record` klip i kratki `pr` ISTOVREMENO
+   * (Markov zahtjev 31.07.2026). Ide samo kroz WebAudio (više izvora kroz
+   * isti gain); bez <audio> fallbacka — sloj je začin, glavni kanal je poruka,
+   * pa se pri padu tiho odustaje umjesto da se glavni klip prekine.
+   */
+  async playOver(name: SoundName) {
+    if (this.muted) return;
+    if (!this.unlocked) return;
+    if (!CLIPS[name]) return;
+
+    try {
+      const buffer = this.decoded.get(name) ?? await this.decode(name);
+      if (buffer && this.ctx && this.gain) {
+        if (this.ctx.state === 'suspended') void this.ctx.resume();
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(this.gain);
+        src.start();
+      }
+    } catch { /* sloj je ukras */ }
   }
 
   /** Prekid trenutnog zvuka — da klip ne pređe na sljedeći ekran. */

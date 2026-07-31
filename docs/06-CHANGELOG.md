@@ -3702,3 +3702,88 @@ preko cijelog ekrana je po izboru (`GlitchService.enabled`, localStorage
 `gymapp.glitchFx`, podrazumijevano uključen) — slabiji telefon ili mirniji
 ukus ga gasi u Profil → Podešavanja → Efekti. Gasi SAMO glitch: plamen
 rekorda, zvuk i vibracije ostaju uvijek (Markova specifikacija).
+
+## [2026-07-31] Splash redizajniran: ASCII talas-polje iz kojeg izranja identitet
+**Tip:** funkcija (vizuelni efekat)
+
+**Šta:** Landing je bio logo + natpis bez ijedne animacije. Sada je cijeli
+ekran ASCII more od monospace znakova koje se stvarno talasa, a identitet iz
+njega IZRANJA — kućnim tečnim jezikom, uz nagovještaj glitch registra
+(dekodiranje natpisa iz šuma). Splash je uz to skraćen sa 4s na 3,4s i može se
+preskočiti dodirom.
+
+**Kadar (vremenska osa je u konstantama na vrhu `landing.component.ts`, SCSS
+kašnjenja moraju je pratiti):**
+
+1. **0–900ms** — more se budi iz praznine: raste i amplituda i srednji nivo
+   gustine, pa ekran krene kao rijetka prašina znakova pa se ispuni talasima
+   (da raste samo amplituda, prvi kadar bi bio ravan zid od jednog znaka).
+   Istovremeno se kroz polje SKUPLJA udar ka centru (implozija koja jača kako
+   se sabija) i stiže tačno na ~700ms.
+2. **560ms** — logo izranja: `mark-surface` (istegnut po visini dok se diže →
+   prebačaj → slijeganje, squash & stretch) + `ink-bloom` kap `--volt-a40` iza
+   njega + prsten `ring-out` koji odlazi sa loga. U istom trenutku voda oko
+   identiteta se RAZMAKNE — gustina pada ka nuli u elipsi (viša nego šira, jer
+   ispod loga stoje natpis i mjerač), pa u moru ostane rupa u koju identitet
+   stane.
+3. **640ms** — drugi udar odlazi napolje kroz polje (parnjak prstena sa loga).
+4. **980–1540ms** — natpis „JEBA NE SMIJE DA STANE" se DEKODIRA iz šuma
+   slijeva nadesno (isti postupak kao `glitch-overlay`, skup znakova
+   `#?!01<>/\_$%&*+=~`, samo ASCII). Mono font je obavezan: da slova nisu
+   jednake širine, linija bi se trzala dok se zaključavaju.
+5. **1560–2880ms** — mjerač `ZAGRIJAVANJE [######--------]` se puni do samog
+   preusmjerenja.
+6. **2880ms** — izlaz: posljednji udar iz centra + amplituda nabuja 90%, kadar
+   se blago udalji i pretopi, identitet POTONE nazad (ink-retreat osjećaj).
+7. **3380ms** — `waitForSession()` pa `/dashboard` ili `/login` (tok zadržan).
+
+**Kako se crta i koliko košta:**
+
+- `src/app/components/landing/landing.component.html` — polje su **dva `<pre>`
+  čvora** i ništa više: `.deep` nosi mirnu vodu, `.crest` samo grebene u volt
+  boji. Svaka ćelija ide u tačno jedan sloj, drugi na tom mjestu dobija
+  razmak — znakovi se ne preklapaju, a `text-shadow` sjaj pada samo na ~7–9%
+  ćelija koje ga traže. Po kadru se upisuju dva `textContent`-a; nijedan DOM
+  čvor se ne pravi ni ne briše (nema canvasa, nema hiljadu `<span>`-ova).
+- `landing.component.ts:331` (`draw`) — visina talasa je zbir tri sinusa, ali
+  se sinusi računaju PO KOLONI i PO REDU, ne po ćeliji: dijagonalni član se
+  razlaže preko `sin(a+b) = sin a·cos b + cos a·sin b`, pa u unutrašnjoj petlji
+  ostanu samo sabiranja i množenja. Rastojanje ćelije od centra (za prsten
+  udara) i težina mirne vode računaju se JEDNOM pri mjerenju, u
+  `Float32Array`-ima.
+- `landing.component.ts:260` (`layout`) — mreža se izvodi iz širine ekrana
+  (~34 kolone, znak 10–20px), a stvarna širina znaka se IZMJERI skrivenim
+  lenjirom od 20 „M" umjesto da se vjeruje konstanti 0.6em — ako font zakasni
+  ili padne na sistemski, mreža bi inače bila kriva. Ista mjera se ponovi na
+  `resize` (150ms odgoda) i na `document.fonts.ready`.
+- Mjereno (Node, ista petlja): **~0,07ms po kadru** za 1100–1850 ćelija
+  (telefon 36×38, laptop 74×25). Petlja radi na ~30fps (`rAF` sa preskokom na
+  33ms), **van Angular zone** i piše direktno u `textContent` — nijedan kadar
+  ne pokreće provjeru promjena. U zonu se vraća samo preusmjerenje.
+- Sve ostalo je transform/opacity.
+
+**Preskok:** klik/dodir bilo gdje (`(click)="skip()"` na korijenu) ili bilo
+koji taster (`@HostListener('document:keydown')`) — pretapanje krene odmah kao
+potvrda i ide se pravo na login/dashboard; `leaving` zastavica čuva od dvostrukog
+preusmjerenja.
+
+**Obje teme:** boje idu kroz tokene pa se preslikaju same — mirna voda je
+`color-mix(--ice 15%)` (na kosti tanak grafitni reljef), grebeni `--volt`. U
+svijetloj temi (`:host-context([data-theme='light'])`) grebeni se spuštaju na
+66% tamnozelene i GASI im se sjaj — neon glow na svijetlom samo zamuti znak;
+sjenka loga sa 90% crne prelazi na `--ice` mix, jer je crna na kosti mrlja a
+ne dubina.
+
+**`prefers-reduced-motion`:** JS ne pokreće petlju nego nacrta JEDAN statičan
+kadar (`draw(1400)`), natpis je odmah dekodiran, mjerač pun; CSS gasi sve
+ulaze, kap, prsten i pretapanje. Tok i trajanje ostaju isti.
+
+**Čišćenje:** `stop()` u jednom mjestu gasi `requestAnimationFrame`, oba
+tajmera (izlaz i preusmjerenje), odgodu resize-a i sam `resize` osluškivač;
+zove se i iz `ngOnDestroy` i pri odlasku sa ekrana, pa ništa ne tiktače nakon
+splasha.
+
+**Dopuna istog dana — zvukovi efekata (Markovi fajlovi):** `level_up_kg.mp3`
+ide uz volt glitch (veća kilaža), a pri rekordu se PREKO dugog `record` klipa
+pušta i kratki `new_PR.mp3` — novi `AudioService.playOver()` sloj kroz
+WebAudio (više izvora kroz isti gain, bez prekidanja glavnog kanala).

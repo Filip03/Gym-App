@@ -653,6 +653,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.celebrateKey = Date.now();
     ex.celebrating = true;
     this.audio.play('record');
+    void this.audio.playOver('pr');   // kratki sloj PREKO dugog klipa — uz glitch
     progressHaptics('record');   // najjača vibracija — uz plamen (gdje uređaj umije)
     // Zlatni glitch preko cijelog ekrana, sa porukom u MJERI rekorda (kilaža,
     // a kod čistog bodyweighta ponavljanja) — udara u istom taktu sa plamenom.
