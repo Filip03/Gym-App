@@ -124,6 +124,7 @@ export class PushNotificationService {
         registration.showNotification(title, {
           body: payload.data?.['body'],
           icon: '/assets/icons/icon-192x192.png',
+          image: payload.data?.['image'],
           data: payload.data
         });
       });
