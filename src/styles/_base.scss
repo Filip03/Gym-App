@@ -591,32 +591,3 @@ html.theme-anim *::after {
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
 }
-
-// ---------------------------------------------------------------------------
-// GLITCH TRZAJ CIJELOG UI-ja — faza 1 cyberpunk efekta za trenutke napretka.
-//
-// GlitchOverlayComponent zalijepi klasu `glitch-jolt` na <html> na ~240ms
-// (skine je tajmerom; restart ide zamjenom klase preko reflow-a). Pod njom se
-// CIJELI .shell — header, sadržaj i futer zajedno — trza u TVRDIM koracima:
-// steps(1) drži svaki kadar pa reže na sljedeći, bez klizanja. Uz pomak ide i
-// isječen clip-path kadar (na tren ostane samo pojas slike, kao pokidan
-// signal). Sadržaj se STVARNO pomjeri — to je „sve se zaglitchovalo".
-//
-// Performanse: samo transform + clip-path, bez filtera; 240ms, jedan element.
-// ---------------------------------------------------------------------------
-:root.glitch-jolt .shell {
-  animation: shell-glitch 240ms steps(1, end) both;
-}
-
-@keyframes shell-glitch {
-  0%   { transform: translate3d(0, 0, 0);    clip-path: inset(0 0 0 0); }
-  20%  { transform: translate3d(-7px, 0, 0); clip-path: inset(4% 0 16% 0); }
-  45%  { transform: translate3d(8px, 0, 0);  clip-path: inset(36% 0 30% 0); }
-  70%  { transform: translate3d(-5px, 0, 0); clip-path: inset(9% 0 3% 0); }
-  100% { transform: translate3d(0, 0, 0);    clip-path: inset(0 0 0 0); }
-}
-
-// Komponenta klasu ni ne lijepi uz smanjen pokret — ovo je pojas spasa.
-@media (prefers-reduced-motion: reduce) {
-  :root.glitch-jolt .shell { animation: none; }
-}

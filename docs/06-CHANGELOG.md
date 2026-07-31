@@ -3822,3 +3822,10 @@ trainingu i servis ostali isti.
   <pre>), restart okidanja prekida prethodni rAF pa kreće novi sat; u
   `ngOnDestroy` se gase rAF, interval skremblovanja, svi tajmeri i skida
   `glitch-jolt` sa <html>.
+
+**Dopuna istog dana — v3.1, bez trzaja + tečnija poruka (Markova dorada):**
+trzaj cijelog UI-ja uklonjen u potpunosti (klasa, tajmer, stil u _base.scss —
+„shaky screen je malo previše"); talas nosi svu dramu. Poruka („+2 kg") sada
+u kućnom jeziku: izranja uz squash & stretch spring (320ms), iza nje se
+razlije kap mastila (`msg-box::before`), a odlazi rasplivom — razvuče se i
+potone u prozirnost (260ms) umjesto tvrdih rezova.

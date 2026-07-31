@@ -168,7 +168,30 @@
   padding: 0 var(--s-5);
 }
 
+// Kap mastila IZA poruke — kućni jezik: brojka ne „upada" u kadar nego se
+// razlije iz tačke, kao da ju je talas ostavio za sobom.
+.msg-box::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--g-glow-soft);
+  transform: scale(0);
+  opacity: 0;
+  animation: g-msg-ink 640ms 120ms var(--ease-out) forwards;
+}
+
+@keyframes g-msg-ink {
+  0%   { transform: scale(0);  opacity: 0.85; }
+  100% { transform: scale(26); opacity: 0; }
+}
+
 .msg {
+  position: relative;   // iznad kapi mastila
   font-family: var(--font-data);
   font-weight: 700;
   font-size: clamp(28px, 7vw, 40px);
@@ -180,31 +203,30 @@
   color: var(--g-core);
   text-shadow: 0 0 14px var(--g-glow), 0 0 42px var(--g-glow-soft);
   will-change: transform, opacity;
-  // Dvije animacije: upad (spring pop, backwards drži nevidljivim do 120ms) i
-  // raspad u TVRDIM koracima (steps drži svaki kadar pa reže na sljedeći).
-  // Između njih poruka mirno stoji (osnovna opacity: 1).
+  // Tečno, ne tvrdo (Markova dorada 31.07.2026): ulazak je squash & stretch —
+  // istegnuta po visini dok izranja, spring je slegne; izlazak je raspliv —
+  // blago se razvuče u širinu, potone u prozirnost. Između mirno stoji.
   animation:
-    g-msg-in  160ms 120ms var(--ease-spring) backwards,
-    g-msg-out 180ms 720ms steps(1, end) forwards;
+    g-msg-in  320ms 120ms var(--ease-spring) backwards,
+    g-msg-out 260ms 720ms var(--ease) forwards;
 
   .gold & {
     animation:
-      g-msg-in  180ms 120ms  var(--ease-spring) backwards,
-      g-msg-out 200ms 1120ms steps(1, end) forwards;
+      g-msg-in  340ms 120ms  var(--ease-spring) backwards,
+      g-msg-out 280ms 1120ms var(--ease) forwards;
   }
 }
 
 @keyframes g-msg-in {
-  0%   { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.9); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  0%   { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.88, 1.10); }
+  60%  { opacity: 1; transform: translate3d(0, -3px, 0) scale(1.04, 0.96); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1, 1); }
 }
 
-// Raspad: 2 tvrda koraka u stranu pa nestanak — kao signal koji pukne.
+// Raspliv: brojka se razvuče kao kap koja se upija i nestane naviše.
 @keyframes g-msg-out {
-  0%   { opacity: 1;    transform: translate3d(0, 0, 0); }
-  33%  { opacity: 0.65; transform: translate3d(7px, -2px, 0) skewX(6deg); }
-  66%  { opacity: 0.3;  transform: translate3d(-9px, 2px, 0) skewX(-8deg); }
-  100% { opacity: 0;    transform: translate3d(0, 6px, 0); }
+  0%   { opacity: 1; transform: translate3d(0, 0, 0) scale(1, 1); }
+  100% { opacity: 0; transform: translate3d(0, -10px, 0) scale(1.08, 0.9); }
 }
 
 // Pojas spasa uz komponentin matchMedia guard: smanjen pokret = ništa od ovoga
