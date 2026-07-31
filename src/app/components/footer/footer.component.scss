@@ -19,15 +19,31 @@
                                            // iPhone-u ne prelazi preko ikona
 
     // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
-    background: color-mix(in srgb, var(--void) 95%, transparent);
+    //
+    // Pozadina se ZAVRŠAVA ispod ikona i izblijedi kroz zonu gestova — inače
+    // pojas ikona + ~34px sigurne zone (+ u Safariju još i mrtvi prostor
+    // skrivene trake) ofarbani istom bojom čine jednu ogromnu ploču na dnu
+    // (Markov IMG_4577). Ovako oko vidi traku visoku koliko i ikone, a ikone
+    // svejedno ostaju iznad zone gestova.
+    background: linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--void) 95%, transparent) calc(100% - var(--safe-b)),
+        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--safe-b) * 0.45),
+        transparent 100%
+    );
     border-top: 1px solid var(--line);
 }
 
-// Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju) i
-// NIJANSU svjetlije od podloge — taman toliko da se traka odvoji od stranice.
-// Ista vrijednost i u header.component.scss — mijenjati u paru!
+// Svijetla tema: NEPROVIDNO u pojasu ikona (providnost je puštala kartice da
+// prosijavaju), pa isto blijeđenje kroz zonu gestova.
+// Ista boja i u header.component.scss — mijenjati u paru!
 :host-context([data-theme='light']) .footer {
-    background: var(--void);
+    background: linear-gradient(
+        to bottom,
+        var(--void) calc(100% - var(--safe-b)),
+        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--safe-b) * 0.45),
+        transparent 100%
+    );
 }
 
 .footer a,

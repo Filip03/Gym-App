@@ -3651,3 +3651,9 @@ varijanta loga sada i na landing/login/register ekranima (ThemeService +
 **Dopuna istog dana — kompaktniji futer uz živu sigurnu zonu:** ukupna traka
 (pojas ikona + ~34px gestova) bila je previsoka — `--footer-h` 64 → 52px
 (dugmad od 46px i dalje staju), kupola 96 → 86px.
+
+**Dopuna istog dana — traka se vizuelno završava ispod ikona (IMG_4577):**
+pozadina klasičnog futera blijedi kroz zonu gestova umjesto da je farba —
+pojas ikona + sigurna zona ofarbani istom bojom činili su jednu ogromnu ploču
+na dnu telefona. Ikone i dalje sjede iznad zone gestova; na desktopu
+(safe-b = 0) gradijent se sam uruši u punu boju.
