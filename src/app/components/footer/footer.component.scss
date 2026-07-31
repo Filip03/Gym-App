@@ -1,3 +1,8 @@
+// ---------------------------------------------------------------------------
+// KLASIČNI FUTER — zatečeni ravan red ikona, podrazumijevani režim.
+// Stilovi su NETAKNUTI original; kupola (dolje) živi pod svojim klasama.
+// ---------------------------------------------------------------------------
+
 .footer {
     // NIJE `position: fixed`. Okvir aplikacije je visine ekrana i futer je
     // njegovo posljednje dijete, pa stoji na dnu sam od sebe — bez veze sa
@@ -75,3 +80,305 @@
 
 // Odjava je destruktivna radnja — odvojena bojom pri dodiru.
 .footer button:hover { color: var(--ember); }
+
+// ---------------------------------------------------------------------------
+// DOK-LUK — donja navigacija kao kupola sa kliznim tjemenom (PROTOTIP)
+//
+// NIJE `position: fixed`. Okvir aplikacije je visine ekrana i futer je njegovo
+// posljednje dijete, pa stoji na dnu sam od sebe — bez veze sa trakom adrese na
+// telefonu. Vidi app.component.scss.
+//
+// Podjela posla:
+//   SCSS  — oblik kupole, boje, sve animacije stanja
+//   TS    — položaj svake ikone na luku (transform se upisuje inline)
+// Zato ovdje NEMA `transition` na `transform` ikona: one se crtaju svaki kadar,
+// a prelaz bi ih vukao unazad.
+// ---------------------------------------------------------------------------
+
+:host {
+    display: block;
+    flex: none;
+    position: relative;
+    z-index: 60;
+
+    // Klasični režim: futer je obično flex dijete i rezerviše svoju traku.
+    height: calc(var(--footer-h) + var(--safe-b));
+}
+
+// KUPOLA NE REZERVIŠE TRAKU. Host se skupi na nulu, a dok se apsolutno okači
+// na dno ljuske — pa sadržaj TEČE ISPOD luka i vidi se (i dodiruje) kroz
+// providne uglove pored kupole. Prostor za skrol do iznad tjemena vraća
+// `.content` padding u app.component.scss (vezan na istu `nav-dome` klasu).
+:host-context(.nav-dome) {
+    height: 0;
+    overflow: visible;
+}
+
+.dock {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--footer-h) + var(--safe-b));
+
+    // Sam dok je proziran PRAVOUGAONIK preko sadržaja — dodire smiju hvatati
+    // samo kupola i ikone (oblik luka reže i hit-test kroz border-radius);
+    // sve van luka propušta i pogled i prst na sadržaj ispod.
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+
+    // TOČAK: pri prevlačenju se cio dok „navije" oko tačke duboko ispod ekrana,
+    // kao težak točak koji se opire; opruga ga na puštanju vraća na nulu. Ugao
+    // upisuje TS u `--tilt`. Zasebno svojstvo `rotate` (a ne `transform`) da se
+    // ne tuče sa transformima djece.
+    transform-origin: 50% 460px;
+    rotate: var(--tilt, 0deg);
+}
+
+// --- kupola ----------------------------------------------------------------
+// Elipsa: vodoravna poluosa = pola širine elementa, uspravna = `--arc-rise`
+// (postavlja je TS prema širini ekrana). Kupola je šira od doka i viri ispod
+// njega, da je blago naginjanje točka ne odlijepi od ivica ekrana.
+
+.dock-surface {
+    position: absolute;
+    top: 0;
+    bottom: -24px;
+    left: -8%;
+    right: -8%;
+    overflow: hidden;          // mastilo se razlijeva SAMO kroz kupolu
+
+    // Kupola hvata dodire (roditelj ih propušta); border-radius reže hit-test,
+    // pa uglovi elementa VAN luka i dalje puštaju prst na sadržaj ispod.
+    pointer-events: auto;
+    touch-action: none;        // prst po kupoli prevlači tjeme, ne stranicu
+
+    border-radius: 50% 50% 0 0 / var(--arc-rise, 64px) var(--arc-rise, 64px) 0 0;
+
+    // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
+    background: color-mix(in srgb, var(--void) 95%, transparent);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -16px 38px -22px rgba(0, 0, 0, .8);
+
+    transform-origin: 50% 50%;
+    transition: transform var(--d-slower) var(--ease-spring);
+}
+
+// Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju).
+// Ista vrijednost i u header.component.scss — mijenjati u paru!
+:host-context([data-theme='light']) .dock-surface {
+    background: var(--void);
+}
+
+// Prevlačenje: kupola se razlije (squash & stretch)…
+.dock.pressing .dock-surface { transform: scale(1.012, .972); }
+
+// …a puštanje je slijeganje sa prebačajem.
+.dock.settling .dock-surface {
+    animation: dock-settle var(--d-slower) var(--ease-spring);
+}
+
+@keyframes dock-settle {
+    0%   { transform: scale(1.012, .972); }
+    40%  { transform: scale(.988, 1.038); }
+    72%  { transform: scale(1.006, .988); }
+    100% { transform: scale(1, 1); }
+}
+
+// Mastilo: kap kreće iz tjemena (`--bx`/`--by` postavlja TS) i razlije se kroz
+// kupolu pri promjeni rute.
+.dock-surface::after {
+    content: '';
+    position: absolute;
+    left: var(--bx, 50%);
+    top: var(--by, 36px);
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    background: var(--volt-a20);
+    transform: scale(0);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dock-surface.bloom::after { animation: ink-bloom 560ms var(--ease-out); }
+
+@keyframes ink-bloom {
+    0%   { transform: scale(0);  opacity: .9; }
+    100% { transform: scale(30); opacity: 0; }
+}
+
+// --- zarezi (skala klizača) ------------------------------------------------
+
+.dock-tick {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 4px;
+    height: 4px;
+    margin: -2px 0 0 -2px;
+    border-radius: 50%;
+    pointer-events: none;
+
+    background: color-mix(in srgb, var(--volt) calc(var(--hot, 0) * 100%), var(--steel));
+    opacity: calc(.34 + var(--hot, 0) * .66);
+    box-shadow: 0 0 calc(var(--hot, 0) * 12px) var(--volt-a40);
+}
+
+// --- tjeme (ležište ispod aktivne ikone) -----------------------------------
+
+.dock-crest {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 64px;
+    height: 64px;
+    margin: -32px 0 0 -32px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+
+    background: radial-gradient(circle at 50% 38%, var(--volt-a20), transparent 68%);
+    box-shadow: inset 0 0 0 1px var(--volt-a20),
+                0 -8px 26px -10px var(--volt-a40);
+
+    // Samo `opacity` — položaj tjemena je inline transform iz TS-a i keyframe
+    // ga ne smije pregaziti.
+    animation: crest-in var(--d-slower) var(--ease-out) 240ms backwards;
+}
+
+@keyframes crest-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.dock.pressing .dock-crest {
+    box-shadow: inset 0 0 0 1px var(--volt-a40),
+                0 -10px 32px -8px var(--volt-a40);
+}
+
+// --- ikone -----------------------------------------------------------------
+// Kutija je uvijek 56×56 (palac), a TS je pomjera i skalira. `left/top` + veliki
+// negativni margin znače da `translate(x, y)` postavlja CENTAR ikone.
+
+.dock-item {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 56px;
+    height: 56px;
+    margin: -28px 0 0 -28px;
+    z-index: 2;
+    pointer-events: auto;      // roditelj propušta dodire — ikone ih hvataju
+    touch-action: none;
+
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    text-decoration: none;
+    background: none;
+    border: none;
+    padding: 0;
+
+    // Boja prati blizinu tjemenu: prigušena daleko, akcentna pod tjemenom.
+    color: color-mix(in srgb, var(--volt) calc(var(--near, 0) * 100%), var(--dust));
+
+    // TS crta svaki kadar — prelaz bi zaostajao za prstom.
+    transition: none;
+}
+
+// Odjava je destruktivna radnja — pod tjemenom svijetli crveno, ne akcentno.
+.dock-item.quit {
+    color: color-mix(in srgb, var(--ember) calc(var(--near, 0) * 100%), var(--dust));
+}
+
+// Globalno pravilo `button:not(:disabled):active { transform: scale(.97) }` bi
+// se potuklo sa inline transformom, pa se ovdje gasi.
+.dock-item:not(:disabled):active { transform: none; }
+
+.dock-item .material-icons { font-size: 25px; }
+
+// Talas ulaska: ikone izranjaju odozdo, svaka 70 ms poslije prethodne (kašnjenje
+// vezuje šablon). Unutrašnji omotač nosi ulaznu animaciju da ne pregazi položaj
+// na luku, koji je inline transform iz TS-a.
+.dock-item .di {
+    display: grid;
+    place-items: center;
+    animation: di-in var(--d-slower) var(--ease-spring) backwards;
+}
+
+@keyframes di-in {
+    from { opacity: 0; transform: translateY(12px) scale(.72); }
+    to   { opacity: 1; transform: none; }
+}
+
+// Trenutno otvorena ruta: tačka na luku ispod ikone. Ostaje vidljiva i kad je
+// tjeme odvučeno drugdje — uvijek se zna GDJE si, a ne samo kuda ideš.
+.dock-item.on::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin-left: -2.5px;
+    border-radius: 50%;
+    background: var(--volt-fill);
+    box-shadow: 0 0 10px var(--volt-a40);
+    animation: dot-in var(--d-slow) var(--ease-spring) both;
+}
+
+@keyframes dot-in {
+    from { transform: scale(0); opacity: 0; }
+    to   { transform: scale(1); opacity: 1; }
+}
+
+// Odbijanje: tjeme ne sjeda na odjavu, pa ikona kratko trzne — poziv na tap.
+.dock-item.quit.refuse .di {
+    animation: quit-refuse 460ms var(--ease-spring);
+}
+
+@keyframes quit-refuse {
+    0%   { transform: translateX(0)    scale(1); }
+    25%  { transform: translateX(5px)  scale(1.1); }
+    55%  { transform: translateX(-4px) scale(.94); }
+    80%  { transform: translateX(2px)  scale(1.03); }
+    100% { transform: translateX(0)    scale(1); }
+}
+
+// --- miš -------------------------------------------------------------------
+
+@media (hover: hover) {
+    .dock-item .di { transition: transform var(--d-base) var(--ease-spring); }
+    .dock-item:hover .di { transform: translateY(-2px) scale(1.06); }
+}
+
+// Poslije hover pravila — pritisak mora da nadjača lebdenje.
+.dock-item:active .di { transform: scale(.88); }
+
+// --- laptop ----------------------------------------------------------------
+// Kupola se ne razvlači preko cijelog širokog ekrana — ostaje ostrvo u sredini.
+
+@media (min-width: 760px) {
+    .dock-surface {
+        left: calc(50% - 380px);
+        right: calc(50% - 380px);
+    }
+}
+
+// ---------------------------------------------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+    .dock-surface,
+    .dock-surface::after,
+    .dock-crest,
+    .dock-item,
+    .dock-item .di,
+    .dock-item.on::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}

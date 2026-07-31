@@ -1,4 +1,21 @@
-<nav class="footer">
+<!--
+  Donja navigacija ima DVA izgleda; bira se u Profil → Podešavanja → Meni, a
+  NavModeService ga isporučuje uživo (bez ponovnog učitavanja).
+
+  1) KLASIČNI (podrazumijevani) — zatečeni ravan red ikona, netaknut.
+  2) KUPOLA — dno je veliki luk koji izranja sa donje ivice ekrana. Ikone sjede
+     na rubu luka, a preko njih klizi TJEME: izdignuto ležište koje se prstom
+     prevlači kao klizač i uz oprugu sjeda na najbližu stavku.
+
+  Kupola je PROVIDNA van svog oblika: uglovi pored luka propuštaju i pogled i
+  dodir (`pointer-events`), pa sadržaj koji viri pored nje ostaje upotrebljiv.
+
+  Sve položaje na luku (x, y, uvećanje) računa komponenta u `render()` i upisuje
+  ih direktno u `style.transform` — CSS drži samo izgled i animacije.
+-->
+
+<!-- 1) KLASIČNI ------------------------------------------------------------ -->
+<nav class="footer" *ngIf="!dome">
     <a routerLink="/dashboard" routerLinkActive="on" aria-label="Planovi">
         <i class="material-icons">home</i>
     </a>
@@ -17,4 +34,40 @@
     <button type="button" (click)="signOut()" aria-label="Odjava">
         <i class="material-icons">logout</i>
     </button>
+</nav>
+
+<!-- 2) KUPOLA -------------------------------------------------------------- -->
+<nav class="dock" #dock *ngIf="dome" (pointerdown)="onDown($event)" aria-label="Glavna navigacija">
+
+    <div class="dock-surface"></div>
+
+    <span class="dock-tick" *ngFor="let t of tickSlots" aria-hidden="true"></span>
+
+    <span class="dock-crest" aria-hidden="true"></span>
+
+    <ng-container *ngFor="let it of items; let i = index">
+
+        <a *ngIf="it.route"
+           class="dock-item"
+           [routerLink]="it.route"
+           routerLinkActive="on"
+           [attr.aria-label]="it.label">
+            <span class="di" [style.animation-delay.ms]="i * 70">
+                <i class="material-icons">{{ it.icon }}</i>
+            </span>
+        </a>
+
+        <!-- Odjava je destruktivna: tjeme je ne pokreće prevlačenjem, samo tap. -->
+        <button *ngIf="!it.route"
+                type="button"
+                class="dock-item quit"
+                (click)="signOut()"
+                [attr.aria-label]="it.label">
+            <span class="di" [style.animation-delay.ms]="i * 70">
+                <i class="material-icons">{{ it.icon }}</i>
+            </span>
+        </button>
+
+    </ng-container>
+
 </nav>

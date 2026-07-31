@@ -167,6 +167,14 @@
   --safe-t: env(safe-area-inset-top, 0px);
 }
 
+// Donja navigacija u režimu „Kupola" (NavModeService lijepi klasu na <html>).
+// Luku treba više visine nego ravnom redu ikona, a `--footer-h` je ono što
+// modali i lebdeća dugmad koriste da se poravnaju sa vrhom futera. Klasični
+// režim ovu klasu nema, pa ostaje na zatečenih 64 px — piksel u piksel.
+:root.nav-dome {
+  --footer-h: 96px;
+}
+
 // Poštuj sistemsku postavku za smanjen pokret.
 // ---------------------------------------------------------------------------
 // SVIJETLA TEMA

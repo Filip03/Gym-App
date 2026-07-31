@@ -3522,3 +3522,41 @@ pokret (kućni „tečni" jezik), sve ugašeno uz `prefers-reduced-motion`.
   tada, samo brojevi na pilulama nisu uzastopni. Rijedak slučaj, ostavljen.
 - `session_exercices` i dalje ne čuva flagove — nije potrebno, jer serije nose
   istinu. Migracija nije rađena.
+
+---
+
+## [2026-07-31] Donja navigacija „Kupola" (opt-in prototip) + sklopiva Podešavanja u profilu
+**Tip:** funkcija (eksperiment iza prekidača)
+
+**Šta:** Donja navigacija dobila drugi izgled — „Kupola": luk koji izranja sa
+dna ekrana, ikone sjede na rubu luka, a preko njih se prstom prevlači
+izdignuto svijetleće TJEME koje uz oprugu sjeda na najbližu stavku i navigira
+(tap radi kao i uvijek; prevlačenje na odjavu se odbija — odjava traži tap).
+Pokret je kućni jezik: squash & stretch kupole pri prevlačenju, ink-bloom iz
+tjemena pri promjeni rute, ikone izranjaju talasom; `prefers-reduced-motion`
+sve gasi, tjeme tada preskače.
+
+- `src/app/services/nav-mode.service.ts` (novo) — izbor `classic`/`dome` po
+  uređaju (localStorage `gymapp.footerMode`), primjena uživo (BehaviorSubject),
+  klasa `nav-dome` na `<html>`. **Podrazumijevano je `classic`** — kupola je
+  opt-in dok se isprobava, niko ne vidi promjenu dok je sam ne upali.
+- `src/app/components/footer/*` — klasični futer NETAKNUT (stilovi vraćeni iz
+  HEAD-a nakon što ih je međukorak bio progutao); kupola pod svojim klasama:
+  geometrija luka i položaji ikona se računaju u TS-u (elipsa + Gausova
+  blizina tjemenu + magnetni klizaj), opruga za snap, ResizeObserver za sve
+  širine (na laptopu ostrvo u sredini).
+- Kupola NE rezerviše traku: host visine 0, dok lebdi preko sadržaja
+  (`footer.component.scss`), sadržaj teče ispod luka i vidi se i dodiruje
+  kroz providne uglove (`pointer-events` propušta sve van oblika luka);
+  prostor za skrol iznad tjemena vraća `app.component.scss`
+  (`.content.app-scroll` padding uz `nav-dome`); `--footer-h` raste na 96px
+  samo uz `nav-dome` (`_tokens.scss`) pa se modali i lebdeća dugmad sami
+  poravnaju, a klasični režim ostaje na 64px — piksel u piksel kao prije.
+- `src/app/components/profile/*` — sistemske kartice (Izgled, Notifikacije +
+  nova „Meni") preseljene u jednu SKLOPIVU sekciju „Podešavanja" (zatvorena
+  po defaultu, stanje u localStorage; tijelo se razliva, kartice izranjaju
+  talasom sa korakom po kartici) — profil više nije pretrpan prekidačima.
+
+**Zašto:** Markova ideja — donji meni kao „slider/polukrug sa moćnom
+animacijom"; prekidač omogućava testiranje u produkciji (LiveContainer) bez
+uticaja na ostale korisnike.

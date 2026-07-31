@@ -50,6 +50,13 @@
   padding-bottom: var(--s-8);
 }
 
+// Režim „Kupola": donja navigacija ne rezerviše traku nego LEBDI preko
+// sadržaja — pa dno skrola dobija prostor da posljednji red može da isklizne
+// iznad tjemena luka. Ista `nav-dome` klasa koju lijepi NavModeService.
+:host-context(.nav-dome) .content.app-scroll {
+  padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-8));
+}
+
 // Ekrani sa mrežom kartica (planovi, vježbe, ekipa) — na telefonu isto,
 // na laptopu širi da kartice ne budu stisnute u jednu kolonu.
 .content.wide { max-width: var(--page-wide); }
