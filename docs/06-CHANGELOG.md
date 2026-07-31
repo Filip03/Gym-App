@@ -3350,3 +3350,31 @@ nema keša — `getSessionTimes` uvijek čita bazu).
   može koristiti — zato sva logika ide preko poštenog `started_at`.
 - Reset sata namjerno gleda samo serije VIDLJIVE na ekranu (preko učitanih
   vježbi sesije) — isti skup koji korisnik vidi.
+
+---
+
+## [2026-07-31] Merge Filipovih data-only push poruka + paritet šeme (device_tokens)
+**Tip:** merge + dokumentacija
+
+Sa main-a povučena dva Filipova commita koja su notifikacije konačno dovela u
+red na telefonima, plus izvedena analiza njegovih izmjena van repoa:
+
+1. **Data-only FCM poruke** (`b023e2d`, `c52f9a6`): backend
+   (`NotificationServiceImpl.dataOf()`) šalje poruke BEZ `notification`
+   payload-a — samo `data`. Razlog: sa `notification` poljem browser sam
+   prikaže notifikaciju UZ ručni `showNotification()` iz aplikacije, pa
+   korisnik dobije istu poruku dvaput. `onMessage`
+   (`push-notification.service.ts:122`) i `onBackgroundMessage`
+   (`firebase-messaging-sw.js`) sada čitaju `payload.data`, uz novo `image`
+   polje (`assets/noti.jpeg`).
+2. **Nova tabela u cloud bazi: `device_tokens`** (id, user_id, token,
+   created_at, updated_at) — backend u nju upisuje FCM tokene
+   (`/api/notifications/register-token`). Nastala direktno u cloudu, bez
+   migracije u repou → dodana rekonstrukcija
+   `supabase/migrations/20260731000000_device_tokens.sql` radi pariteta
+   lokalne šeme (frontend tabelu ne dira). ⚠️ U produkciji je tabela čitljiva
+   publishable ključem — tuđi FCM tokeni izloženi; zabilježeno za Fazu 5
+   (sigurnost), nije popravljano.
+3. **`supabase/cloud/README.md`** — statusi migracija ažurirani po stvarnom
+   stanju clouda (REST provjere 31.07.): workout_sessions, bodyweight,
+   unilateral i news su primijenjene.
