@@ -14,11 +14,6 @@
     justify-content: space-around;
     align-items: center;
 
-    // Ne rezerviše se CIJELA zona gestova — ikone smiju da joj priđu 12px
-    // (iOS-ove native trake rade isto): puna rezerva ih je držala previsoko
-    // iznad donje ivice, pa je futer djelovao odlijepljen od dna.
-    --footer-gap: max(calc(var(--safe-b) - 12px), 0px);
-
     height: calc(var(--footer-h) + var(--footer-gap));
     padding: 0 var(--s-2) var(--footer-gap);
 
@@ -182,8 +177,14 @@
     position: relative;
     z-index: 60;
 
+    // Ne rezerviše se CIJELA zona gestova — ikone smiju da joj priđu 12px
+    // (iOS-ove native trake rade isto): puna rezerva ih je držala previsoko
+    // iznad donje ivice, pa je futer djelovao odlijepljen od dna. Istu
+    // vrijednost koriste i visina hosta i visina/padding/gradijent `.footer`-a.
+    --footer-gap: max(calc(var(--safe-b) - 12px), 0px);
+
     // Klasični režim: futer je obično flex dijete i rezerviše svoju traku.
-    height: calc(var(--footer-h) + var(--safe-b));
+    height: calc(var(--footer-h) + var(--footer-gap));
 }
 
 // KUPOLA NE REZERVIŠE TRAKU. Host se skupi na nulu, a dok se apsolutno okači
