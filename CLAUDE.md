@@ -117,6 +117,20 @@ Poštuj postojeći stil — cilj je da kolega prepozna svoj kod.
 - **Modali:** `*ngIf` na `.modal-overlay`, klik na overlay zatvara,
   `(click)="$event.stopPropagation()"` na `.modal-card`.
 - **Ikone:** Material Icons preko `<i class="material-icons">naziv</i>`.
+- **Polja za kucanje (OBAVEZNO):** `font-size` svakog `input`/`textarea`/`select`
+  ide kroz `max(<željena>, var(--t-field-min))` — polje ispod 16px na dodirnom
+  ekranu tjera iOS da zumira cijelu stranicu, a u nativnoj ljusci nema ni
+  odzumiranja. Globalno pravilo u `_base.scss` pokriva polja bez svoje veličine;
+  komponentna pravila MORAJU koristiti `max()` jer se učitavaju poslije globalnih.
+
+### Animacije — kućno pravilo (obavezno)
+
+Sve promjene stanja UI elemenata animiraju se „tečnim/mastilo" jezikom pokreta:
+squash & stretch + ink-bloom kap iz tačke interakcije + sadržaj koji izranja
+talasom. **Svako stanje i svaki prelaz mora imati pokret** — uključujući
+povratne i timeout prelaze; nijedan trenutni preskok. Sve se gasi uz
+`prefers-reduced-motion`. Detaljan recept, zamke i referentne implementacije:
+skill `tecne-animacije` (`.claude/skills/tecne-animacije/SKILL.md`).
 
 ### Dizajn sistem (de facto, nije formalizovan)
 

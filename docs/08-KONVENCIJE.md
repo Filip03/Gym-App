@@ -202,3 +202,40 @@ Ako ruta treba da sakrije logo ili footer, dodaj je u listu u
 4. Preimenovanje `exercice` → `exercise`
 5. Deploy na Vercel
 6. `npm audit fix --force`
+
+---
+
+## Animacije — jezik pokreta
+
+Sve promjene stanja UI elemenata koriste „tečni/mastilo" jezik: element se
+blago razlije (squash & stretch, `--ease-spring`), kap akcentne boje se
+razlije iz tačke interakcije i izblijedi (ink-bloom preko `::after`), a
+sadržaj izranja odozdo talasom (koraci kašnjenja po elementu/slovu).
+
+Pravila:
+- svako stanje i svaki prelaz ima pokret — i povratni i timeout prelazi;
+- `prefers-reduced-motion` gasi sve;
+- za izlazne prelaze komponenta drži kratko stanje (CSS ne svira animaciju na
+  uklanjanju klase).
+
+Referentne implementacije: tajmer-ostrvo (`training.component.scss`) i
+split-flap natpis dugmeta (`dashboard.component.scss`). Pun recept:
+`.claude/skills/tecne-animacije/SKILL.md`.
+
+---
+
+## Polja za kucanje — bez zumiranja (obavezno)
+
+Svako polje (`input`, `textarea`, `select`) veličinu fonta propušta kroz:
+
+```scss
+font-size: max(<željena>, var(--t-field-min));
+```
+
+Token (`_tokens.scss`) je `0px` na mišu i `16px` na dodirnom ekranu. Bez ovoga
+iOS zumira cijelu stranicu pri fokusu polja i ne vrati zum — u nativnoj ljusci
+se ne može ni ručno odzumirati. Komponentni stilovi se učitavaju POSLIJE
+globalnih, pa pravilo koje samo postavi `font-size` tiho probije zaštitu.
+
+Brza revizija: potražiti `font-size` u selektorima sa poljima bez
+`t-field-min` (rupa se već dvaput potkrala).

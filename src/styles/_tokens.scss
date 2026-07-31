@@ -26,6 +26,11 @@
   // "gori" pored bijelog teksta.
   --volt:        #C6FF3B;
   --volt-soft:   #9BD22E;   // hover / manje bitna stanja
+  // PUNJENJE (pozadina dugmadi, klizača, traka) — odvojen od teksta zato što
+  // u svijetloj temi tekst mora potamniti radi čitljivosti, a punjenja OSTAJU
+  // neonska: energija je identitet aplikacije u obje teme.
+  --volt-fill:      #C6FF3B;
+  --volt-fill-soft: #9BD22E;
   --volt-ink:    #080D02;   // tekst NA volt podlozi
   --volt-a10:    rgba(198, 255, 59, 0.10);
   --volt-a20:    rgba(198, 255, 59, 0.20);
@@ -43,6 +48,27 @@
   --gold:        #FFC94A;   // rekord, prvo mjesto
   --silver:      #C4D0DC;
   --bronze:      #D08B5B;
+
+  // --- Boje: duboka ostrva --------------------------------------------------
+  // Skoro crne površine velikih stanja (završen/u toku/istorija). NAMJERNO
+  // iste u OBJE teme: na svijetloj pozadini su upečatljiva tamna ostrva, a
+  // tekst na njima je STALNI neon (--on-deep) — nikad tamnozeleni iz svijetle
+  // teme, jer bi na skoro crnom bio mutan.
+  --deep:        #070B04;
+  --deep-high:   #0B1206;
+  --on-deep:     #C6FF3B;
+  --on-deep-a40: rgba(198, 255, 59, 0.40);
+
+  // hover neona (svjetliji stepen punjenja) — isti u obje teme
+  --volt-hi:     #D4FF5E;
+  // svijetli tekst na dubokim ostrvima — STALAN, ne prati temu
+  --on-deep-ice:  #E9F1F8;
+  --on-deep-mist: #8B9AAB;
+  // tekst na crvenoj podlozi (brisanje, „otprati")
+  --ember-ink:   #FFFFFF;
+  // zatamnjenje iza modala
+  --scrim:       rgba(3, 5, 7, 0.72);
+  --ember-a30:   rgba(255, 107, 92, 0.30);
 
   // --- Ivice ----------------------------------------------------------------
   --line:        rgba(233, 241, 248, 0.09);
@@ -142,6 +168,65 @@
 }
 
 // Poštuj sistemsku postavku za smanjen pokret.
+// ---------------------------------------------------------------------------
+// SVIJETLA TEMA
+//
+// Ista instrument-tabla, obrnuto osvjetljenje. Princip preslikavanja:
+//   - površine: hladno svijetla podloga, BIJELA kartica, upisne površine u
+//     plavosivom tonu — hijerarhija ostaje ista (void < carbon < carbon-high)
+//   - volt: neon #C6FF3B na bijelom NE radi (kontrast ~1.2:1) — u svijetloj
+//     temi volt postaje DUBOKA zelena čitljiva kao tekst (4.8:1 na bijelom),
+//     a `--volt-ink` se okrene u bijelo, pa velika dugmad postanu tamnozelena
+//     sa bijelim tekstom. Sve što koristi tokene preslika se samo.
+//   - „duboke" površine (--deep) ostaju posebne: u tamnoj su skoro crne, u
+//     svijetloj blijedozeleni tint — stanja done/live/history zadrže identitet.
+// ---------------------------------------------------------------------------
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  // površine — podloga je KOST/mliječna (topla siva), pa se bijele kartice
+  // prirodno odvajaju; header i futer nose istu boju kao podloga
+  --void:        #ECEBE4;
+  --carbon:      #FFFFFF;
+  --carbon-high: #E8E9E2;
+  --steel:       #C9CCC2;
+
+  // akcenat: tekst/ikone na ŽIVOJ zasićenoj zelenoj (ne muljavo maslinastoj) —
+  // čitljivo na bijelom, a i dalje udara; punjenja ostaju NEON (--volt-fill
+  // se ne preslikava), pa velika dugmad izgledaju isto kao u tamnoj temi.
+  --volt:        #3E9400;
+  --volt-soft:   #59A80C;
+  --volt-ink:    #0A1000;
+  --volt-a10:    rgba(62, 148, 0, 0.10);
+  --volt-a20:    rgba(62, 148, 0, 0.18);
+  --volt-a40:    rgba(62, 148, 0, 0.50);
+
+  // tekst
+  --ice:         #101923;
+  --mist:        #46596B;
+  --dust:        #7D8D9C;
+  --echo:        #C2CFDA;
+
+  // značenje
+  --ember:       #D63A2A;
+  --ember-a15:   rgba(214, 58, 42, 0.12);
+  --gold:        #A67C00;
+  --silver:      #6E7F8D;
+  --bronze:      #A05F2C;
+
+  // ivice
+  --line:        rgba(16, 25, 35, 0.10);
+  --line-strong: rgba(16, 25, 35, 0.20);
+
+  --scrim:       rgba(23, 32, 42, 0.45);
+  --ember-a30:   rgba(214, 58, 42, 0.30);
+
+  // sjenke: na svijetlom mekše — 60% crne bi djelovalo kao rupa u stranici
+  --lift-1: 0 1px 2px rgba(16, 25, 35, .10), inset 0 1px 0 rgba(255,255,255,.6);
+  --lift-2: 0 8px 24px -8px rgba(16, 25, 35, .16);
+  --lift-3: 0 24px 64px -16px rgba(16, 25, 35, .22);
+}
+
 @media (pointer: coarse) {
   :root { --t-field-min: 16px; }
 }

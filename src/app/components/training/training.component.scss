@@ -38,7 +38,6 @@ $branch-indent: 16px;
     align-items: stretch;
     gap: var(--s-2);
   }
-  .rest-timer-group { justify-content: flex-start; }
   .header-actions   { justify-content: flex-start; }
   .header-actions .reorder-btn { flex: 1; justify-content: center; min-height: 38px; }
 }
@@ -56,6 +55,11 @@ $branch-indent: 16px;
   color: var(--mist);
   border: 1px dashed var(--line-strong);
   border-radius: var(--r-full);
+}
+
+@keyframes live-pulse-t {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
 }
 
 // --- Rest day --------------------------------------------------------------
@@ -182,7 +186,7 @@ $branch-indent: 16px;
 .save-log-btn {
   min-height: 46px;
   padding: 0 var(--s-4);
-  background: var(--volt);
+  background: var(--volt-fill);
   border-radius: var(--r-sm);
   color: var(--volt-ink);
   font-weight: 700;
@@ -325,7 +329,7 @@ $branch-indent: 16px;
 // Ovo je signal po SERIJI. Lični rekord je odvojen i stoji uz naziv vježbe.
 .set.up   { border-color: var(--volt-a40); }
 .set.up   .set-v { color: var(--volt); }
-.set.down { border-color: rgba(255,107,92,.28); }
+.set.down { border-color: var(--ember-a30); }
 .set.down .set-v { color: var(--ember); }
 
 .arrow { font-size: 14px; }
@@ -704,8 +708,10 @@ $branch-indent: 16px;
 
   padding: 2px var(--s-2);
   border-radius: var(--r-full);
-  background: linear-gradient(135deg, rgba(255,201,74,.20), rgba(255,138,0,.12));
-  border: 1px solid rgba(255,201,74,.45);
+  background: linear-gradient(135deg,
+              color-mix(in srgb, var(--gold) 20%, transparent),
+              color-mix(in srgb, var(--bronze) 12%, transparent));
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
   color: var(--gold);
   white-space: nowrap;
 }
@@ -748,11 +754,11 @@ $branch-indent: 16px;
 
 @keyframes pr-reveal {
   0%   { transform: scale(.4); opacity: 0;
-         box-shadow: 0 0 0 0 rgba(255,201,74,.7); }
+         box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 70%, transparent); }
   35%  { transform: scale(1.18); opacity: 1; }
   55%  { transform: scale(1); }
   100% { transform: scale(1); opacity: 1;
-         box-shadow: 0 0 22px -6px rgba(255,201,74,.55); }
+         box-shadow: 0 0 22px -6px color-mix(in srgb, var(--gold) 55%, transparent); }
 }
 
 // Bez pokreta: oznaka se samo pojavi, snimak se ne pušta.
@@ -770,7 +776,6 @@ $branch-indent: 16px;
   flex-shrink: 0;
 }
 
-.rest-timer-group,
 .header-actions {
   display: flex;
   align-items: center;
@@ -799,29 +804,227 @@ $branch-indent: 16px;
 .reorder-btn:hover { color: var(--ice); border-color: var(--line-strong); }
 
 .reorder-btn.on {
-  background: var(--volt);
+  background: var(--volt-fill);
   border-color: var(--volt);
   color: var(--volt-ink);
 }
 
-.rest-timer-minutes {
-  width: 40px;
-  min-height: 32px;
-  padding: 0 var(--s-1);
+// --- Tajmer-ostrvo ---------------------------------------------------------
+//
+// Jedna pilula, tri stanja, tečni prelazi (uzor: dynamic island):
+//   ugašeno  — samo precrtana ikona, tijelo skupljeno na nula širine
+//   upaljeno — tijelo se razvuče (max-width + opacity), pokaže minute
+//   teče     — tijelo nosi odbrojavanje; na isteku volt + puls
+
+.timer-island {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
   background: var(--carbon-high);
   border: 1px solid var(--line);
   border-radius: var(--r-full);
-  color: var(--mist);
-  font-size: var(--t-2xs);
-  font-weight: 600;
-  text-align: center;
+  overflow: hidden;
+  transition: border-color var(--d-base) var(--ease),
+              background-color var(--d-base) var(--ease);
 }
 
-.rest-timer-unit {
-  margin-left: calc(var(--s-2) * -1);
+// „Živa" pilula: pri paljenju se blago RAZLIJE — stisne po visini dok se
+// isteže, pa se vrati — kao kap koja se širi (squash & stretch).
+.timer-island.on {
+  animation: island-splash 520ms var(--ease-spring);
+  transform-origin: left center;
+}
+
+@keyframes island-splash {
+  0%   { transform: scale(1, 1); }
+  38%  { transform: scale(1.05, .9); }
+  70%  { transform: scale(.985, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+
+// Mastilo: kap volt boje krene iz ikone i razlije se kroz pilulu, pa izblijedi.
+.timer-island::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+.timer-island.on::after {
+  animation: ink-bloom 560ms var(--ease-out);
+}
+
+@keyframes ink-bloom {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(24); opacity: 0; }
+}
+
+// Gašenje: ista tečnost unazad — pilula se stisne pa slegne, a mastilo se
+// POVUČE nazad u ikonu (kap se skuplja umjesto da se širi).
+.timer-island.closing {
+  animation: island-sip 460ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.closing::after {
+  animation: ink-retreat 420ms var(--ease);
+}
+
+@keyframes island-sip {
+  0%   { transform: scale(1, 1); }
+  35%  { transform: scale(.96, 1.06); }
+  70%  { transform: scale(1.015, .97); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes ink-retreat {
+  0%   { transform: translate(-50%, -50%) scale(18); opacity: 0; }
+  45%  { opacity: .35; }
+  100% { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+}
+
+// Prelaz minuta → odbrojavanje (prva serija upisana): ISTI jezik — razliv i
+// kap — pa zamjena sadržaja ne djeluje kao treptaj nego kao promjena stanja.
+.timer-island.running {
+  animation: island-splash 520ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.running::after {
+  animation: ink-bloom 560ms var(--ease-out);
+}
+
+.timer-island .ti-toggle {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 32px;
+  color: var(--dust);
+  transition: color var(--d-base) var(--ease);
+}
+
+.timer-island.on .ti-toggle { color: var(--volt); }
+.timer-island .ti-toggle .material-icons { font-size: 18px; }
+
+// Tijelo: razvlačenje preko max-width — jedini način da se animira širina
+// sadržaja koji se ne zna unaprijed; opruga daje onaj „tečni" osjećaj.
+.ti-body {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  // min-width: 0 je OBAVEZAN: flex stavka inače ima min-width:auto, pa
+  // sadržaj pobijedi max-width i tijelo se nikad ne skupi.
+  min-width: 0;
+  max-width: 0;
+  opacity: 0;
+  white-space: nowrap;
+  transition: max-width 380ms var(--ease-spring),
+              opacity var(--d-base) var(--ease),
+              padding var(--d-base) var(--ease);
+}
+
+.timer-island.on .ti-body {
+  max-width: 130px;
+  opacity: 1;
+  padding-right: var(--s-3);
+}
+
+// Sadržaj izranja odozdo, „min" kasni korak iza broja — talas kao na dugmetu.
+.timer-island.on .ti-min { animation: ch-rise 260ms var(--ease-spring) 120ms both; }
+.timer-island.on .ti-unit { animation: ch-rise 260ms var(--ease-spring) 190ms both; }
+
+@keyframes ch-rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ti-min {
+  width: 38px;
+  min-height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--line-strong);
+  border-radius: 0;
+  color: var(--ice);
+  // Kroz max() OBAVEZNO — polje ispod 16px na dodirnom ekranu iOS zumira
+  // cijelu stranicu, a u nativnoj ljusci nema ni načina da se odzumira.
+  font-size: max(var(--t-sm), var(--t-field-min));
+  text-align: center;
+}
+.ti-min:focus { outline: none; border-bottom-color: var(--volt); }
+
+.ti-unit {
   font-size: var(--t-2xs);
-  color: var(--mist);
+  color: var(--dust);
   text-transform: uppercase;
+}
+
+.ti-count {
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ice);
+  animation: ti-count-in 240ms var(--ease-spring) both;
+}
+
+.timer-island.running { border-color: var(--line-strong); }
+.timer-island.done    { border-color: var(--volt-a40); }
+
+// „Pauza gotova": natpis IZRONI (ne preklopi se preko brojeva) pa pulsira.
+.timer-island.done .ti-count {
+  color: var(--volt);
+  animation: ch-rise 260ms var(--ease-spring),
+             live-pulse-t 1.2s ease-in-out 300ms 3;
+}
+
+// Trenutak isteka: jači razliv + volt kap — događaj, ne promjena teksta.
+// ALIAS keyframes (isti sadržaj, drugo ime): element u .running već nosi
+// island-splash/ink-bloom, a CSS ponovo pokreće animaciju SAMO kad se ime
+// promijeni — sa istim imenom istek ne bi odsvirao ništa.
+.timer-island.flash-done {
+  animation: island-splash-done 520ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.flash-done::after {
+  background: var(--volt-a40);
+  animation: ink-bloom-done 560ms var(--ease-out);
+}
+
+@keyframes island-splash-done {
+  0%   { transform: scale(1, 1); }
+  38%  { transform: scale(1.05, .9); }
+  70%  { transform: scale(.985, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes ink-bloom-done {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(24); opacity: 0; }
+}
+
+// Povratak na minute (natpis se sam sklonio): tečno skupljanje unazad,
+// a minute i „min" ionako ponovo izranjaju (ch-rise na novim elementima).
+.timer-island.return {
+  animation: island-sip 460ms var(--ease-spring);
+  transform-origin: left center;
+}
+.timer-island.return::after {
+  animation: ink-retreat 420ms var(--ease);
+}
+
+@keyframes ti-count-in {
+  from { opacity: 0; transform: translateY(0.4em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ti-body, .ti-count, .timer-island.on, .timer-island.closing,
+  .timer-island.running, .timer-island.flash-done, .timer-island.return,
+  .timer-island.done .ti-count,
+  .timer-island.on .ti-min, .timer-island.on .ti-unit { transition: none; animation: none; }
+  .timer-island::after { display: none; }
 }
 
 .reorder-hint {
@@ -942,7 +1145,7 @@ $branch-indent: 16px;
 }
 
 .exercice-row.moved .pos {
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
 }
 
@@ -965,7 +1168,7 @@ $branch-indent: 16px;
   min-height: 54px;
   margin-top: var(--s-6);
 
-  background: var(--volt);
+  background: var(--volt-fill);
   color: var(--volt-ink);
   border-radius: var(--r-md);
 
@@ -975,7 +1178,7 @@ $branch-indent: 16px;
 }
 
 .finish-btn:not(:disabled):hover {
-  background: #D4FF5E;
+  background: var(--volt-hi);
   box-shadow: 0 0 26px -6px var(--volt-a40);
 }
 
@@ -989,6 +1192,9 @@ $branch-indent: 16px;
 
 .finish-btn .material-icons { font-size: 20px; }
 
+// Traka je duboko ostrvo (ista u obje teme), pa su joj i SVE boje sadržaja
+// stalne (--on-deep*): tokeni koji prate temu bi u svijetloj dali taman tekst
+// na skoro crnom.
 .finished-bar {
   display: flex;
   align-items: center;
@@ -998,10 +1204,11 @@ $branch-indent: 16px;
 
   // Puna tamna podloga, ne prelaz u ništa. Ranije je bila providna pa je
   // izgledala nedovršeno i gubila se na pozadinskoj fotografiji.
-  background: #0A1005;
-  border: 1px solid var(--volt);
+  // „Duboko ostrvo" — namjerno ista skoro crna u obje teme (--deep).
+  background: var(--deep);
+  border: 1px solid var(--on-deep);
   border-radius: var(--r-md);
-  box-shadow: inset 0 0 40px -18px var(--volt), var(--lift-2);
+  box-shadow: inset 0 0 40px -18px var(--on-deep), var(--lift-2);
 
   animation: finished-in var(--d-slower) var(--ease-spring) both;
 }
@@ -1011,20 +1218,20 @@ $branch-indent: 16px;
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.finished-bar .material-icons { font-size: 22px; color: var(--volt); }
+.finished-bar .material-icons { font-size: 22px; color: var(--on-deep); }
 
 .fb-text {
   flex: 1;
   font-family: var(--font-display);
   font-weight: 700;
-  color: var(--ice);
+  color: var(--on-deep-ice);
 }
 
 .fb-text small {
   font-family: var(--font-data);
   font-size: var(--t-xs);
   font-weight: 400;
-  color: var(--mist);
+  color: var(--on-deep-mist);
 }
 
 // Namjerno tiho — završetak nije brava, ali ni radnja koju treba isticati.
@@ -1034,7 +1241,7 @@ $branch-indent: 16px;
   padding: 0 var(--s-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
-  color: var(--mist);
+  color: var(--on-deep-mist);
   font-size: var(--t-xs);
 }
 
@@ -1101,7 +1308,7 @@ $branch-indent: 16px;
 .sum-icon .material-icons { font-size: 34px; }
 
 // Boja prati ishod treninga, ne uvijek zeleno — inače pohvala ništa ne znači.
-[data-tone="record"]   .sum-icon { background: rgba(255,201,74,.14); color: var(--gold); }
+[data-tone="record"]   .sum-icon { background: color-mix(in srgb, var(--gold) 14%, transparent); color: var(--gold); }
 [data-tone="progress"] .sum-icon { background: var(--volt-a10);      color: var(--volt); }
 [data-tone="steady"]   .sum-icon { background: var(--volt-a10);      color: var(--volt-soft); }
 [data-tone="down"]     .sum-icon { background: var(--ember-a15);     color: var(--ember); }
@@ -1145,8 +1352,8 @@ $branch-indent: 16px;
   align-items: center;
   gap: var(--s-2);
   padding: var(--s-2) var(--s-3);
-  background: rgba(255, 201, 74, .08);
-  border: 1px solid rgba(255, 201, 74, .3);
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
   border-radius: var(--r-sm);
   text-align: left;
 }
@@ -1188,7 +1395,7 @@ $branch-indent: 16px;
 
 [data-outcome="up"]   { border-color: var(--volt-a40); }
 [data-outcome="up"]   .material-icons { color: var(--volt); }
-[data-outcome="down"] { border-color: rgba(255,107,92,.28); }
+[data-outcome="down"] { border-color: var(--ember-a30); }
 [data-outcome="down"] .material-icons { color: var(--ember); }
 [data-outcome="same"] .material-icons { color: var(--dust); }
 
@@ -1267,7 +1474,7 @@ $branch-indent: 16px;
 }
 
 .note-cancel { background: transparent; border: 1px solid var(--line-strong); color: var(--ice); }
-.note-save { background: var(--volt); color: var(--volt-ink); }
+.note-save { background: var(--volt-fill); color: var(--volt-ink); }
 
 // Upisana bilješka. Klik je otvara za izmjenu — bez dodatnog dugmeta.
 .note-shown {

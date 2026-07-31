@@ -11,18 +11,35 @@
       <span class="plan-name">{{ session.planName }}</span>
       <span class="view-date num" *ngIf="viewOnly">{{ todayDate | date:'dd.MM.yyyy.' }}</span>
     </div>
-    <div class="header-right" *ngIf="viewOnly">
-      <div class="rest-timer-group">
-        <button type="button" class="reorder-btn" [class.on]="restTimer.enabled"
-                *ngIf="!reordering" (click)="restTimer.toggle()"
+    <!-- Alatke zaglavlja postoje samo u ŽIVOM treningu — u pregledu istorije
+         nema ni dodavanja ni tajmera. (Pri Filipovom merge-u uslov se obrnuo,
+         pa su dugmad nestala baš tamo gdje trebaju: na današnjem treningu.) -->
+    <div class="header-right" *ngIf="!viewOnly">
+      <!-- Tajmer-ostrvo: jedna pilula za sve. Ugašeno = samo precrtana ikona;
+           paljenjem se tečno RAZVUČE i pokaže minute; dok pauza teče, tijelo
+           nosi živo odbrojavanje; na isteku „pauza gotova" u volt boji. -->
+      <div class="timer-island" *ngIf="!reordering"
+           [class.on]="restTimer.enabled"
+           [class.closing]="tiClosing"
+           [class.running]="!!restTimer.remainingLabel"
+           [class.done]="restTimer.expired"
+           [class.flash-done]="tiFlashDone"
+           [class.return]="tiReturn">
+        <button type="button" class="ti-toggle" (click)="toggleTimer()"
                 [title]="restTimer.enabled ? 'Tajmer pauze uključen — isključi' : 'Tajmer pauze isključen — uključi'">
           <i class="material-icons">{{ restTimer.enabled ? 'timer' : 'timer_off' }}</i>
         </button>
-        <input type="number" class="rest-timer-minutes" *ngIf="!reordering && restTimer.enabled"
-               min="1" max="30" step="1"
-               [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
-               title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
-        <span class="rest-timer-unit" *ngIf="!reordering && restTimer.enabled">min</span>
+        <span class="ti-body">
+          <ng-container *ngIf="!restTimer.remainingLabel">
+            <input class="ti-min num" appNumField="integer" keyboard="text"
+                   [ngModel]="restTimer.minutes" (ngModelChange)="restTimer.setMinutes($event)"
+                   title="Trajanje pauze (minuta)" aria-label="Trajanje pauze u minutima">
+            <span class="ti-unit">min</span>
+          </ng-container>
+          <span class="ti-count num" *ngIf="restTimer.remainingLabel">
+            {{ restTimer.expired ? 'pauza gotova' : restTimer.remainingLabel }}
+          </span>
+        </span>
       </div>
 
       <div class="header-actions">

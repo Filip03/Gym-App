@@ -2803,3 +2803,348 @@ token` u backend logu, bez greške. Tri bagova nađena i popravljena usput:
 **Napomene:** Backend trenutno radi samo lokalno (`localhost:8080`) — deploy
 je zasebna, namjerno odložena odluka (vidi ADR-0002, Posljedice). Rad je na
 grani `feature/fcm-push-notifications`, ne na `main`.
+
+---
+
+## [2026-07-30] Spajanje main (FCM notifikacije i tajmer pauze) — popravke i prekidač u profilu
+**Tip:** infrastruktura + popravka
+**Ref:** Filipov ADR-0002 (FCM push preko Spring Boot servisa)
+
+**Problem:** Sa `origin/main` je stiglo Filipovo veliko parče: FCM push
+notifikacije preko novog Spring Boot servisa (sada deployovanog na Renderu) i
+tajmer pauze između serija. Spajanje je, međutim, donijelo i četiri stvari koje
+su morale da se poprave prije nego što se na tome dalje gradi — od kojih je
+jedna obarala trening u cjelini. Uz to, notifikacije nisu imale nijedno mjesto
+u aplikaciji sa kojeg bi ih korisnik mogao ugasiti.
+
+**Šta je donio main (Filipovo, zadržano kako jeste):**
+
+- Push notifikacije preko FCM-a: `push-notification.service.ts` i
+  `firebase-messaging-sw.js` registrovan na SVOM scope-u (odvojeno od
+  `ngsw-worker.js`, da se dva service workera ne otimaju o `/`). Token se
+  registruje poslije prijave, a odjavljuje prije `signOut()`-a — dok Supabase
+  sesija još važi za `Authorization` zaglavlje. Novi paket `firebase` u
+  `package.json`.
+- Tajmer pauze između serija (`rest-timer.service.ts`): odbrojavanje se zakazuje
+  na BACKENDU kao prava push poruka, ne lokalnim `setTimeout`-om — lokalni
+  tajmer umre čim se telefon zaključa ili aplikacija zatvori, a push stiže i
+  tada. Restartuje se poslije SVAKOG upisa serije, pa je uvijek aktivan tačno
+  jedan. UI (prekidač i izbor trajanja) stoji u zaglavlju treninga.
+- `ADR-0002-fcm-push-preko-spring-boot.md` — obrazloženje zašto zaseban Spring
+  Boot servis umjesto Supabase Edge funkcije.
+
+**Rješenje — nađeni i popravljeni problemi:**
+
+1. **Zaglavlje treninga je bilo obrnuto.** Pri Filipovom rješavanju konflikata
+   uslov na `.header-right` je postao `*ngIf="viewOnly"` umjesto `!viewOnly` —
+   dakle dugmad Dodaj / Bilješka / Preuredi i cijela grupa tajmera postojali su
+   SAMO u pregledu istorije, a nestali sa živog treninga. Posljedica nije
+   kozmetička: na custom planu se trening bez dugmeta „Dodaj" ne može ni
+   započeti. Vraćeno na `!viewOnly` i provjereno u pregledaču — današnji trening
+   ima dugmad i grupu tajmera, pregled istorije nula.
+2. **`env.ts` sa main-a je opet gađao cloud, i nije se ni kompajlirao.** Nova
+   verzija je izgubila liniju `const host` koju šablonski string koristi, pa je
+   build pucao na `TS2304: Cannot find name 'host'`. Vraćen lokalni Supabase i
+   `host` linija; Filipov blok sa `firebase` konfiguracijom i `apiBaseUrl`
+   zadržan netaknut.
+3. **Odjava je tiho preskakala brisanje tokena.** `unregisterFromPush()` je
+   radio samo u SESIJI u kojoj je registracija urađena — poslije osvježavanja
+   stranice su `messaging` i `registration` bili `null`, pa je metoda izlazila
+   na prvom `if`-u iako token u pregledaču i dalje postoji. Rezultat: push bi
+   stizao i poslije odjave. Sada se registracija prvo obnovi kroz
+   `navigator.serviceWorker.getRegistration(FCM_SW_SCOPE)`, pa se tek onda
+   odlučuje ima li šta da se briše.
+4. **Token se registrovao samo pri ručnoj prijavi.** Postojana sesija — svako
+   osvježavanje stranice, svaki nov dan bez odjave — nikad nije prošla kroz
+   `registerForPush()`, pa uređaj ostaje bez notifikacija do sljedeće ručne
+   prijave. Dodat `ensureRegistered()`, koji se zove pri svakom pokretanju
+   aplikacije iz `app.component.ts`: tih je i ne otvara nikakav prompt, jer radi
+   samo ako je dozvola već `granted` i prekidač u aplikaciji uključen.
+
+**Novo — prekidač za notifikacije u profilu:** u profil je dodata sekcija
+„Notifikacije" sa prekidačem u aplikaciji (`gymapp.pushEnabled` u
+`localStorage`) i tekstom stanja dozvole pregledača ispod njega. Suština je u
+tome što se dozvola pregledača, kad je korisnik jednom ODBIJE, više ne može
+tražiti iz koda — sajt tu nema drugi potez osim da kaže gdje se pali ručno, i
+tekst ispod prekidača upravo to i radi. Pet stanja: uključeno / isključeno u
+aplikaciji / blokirano u pregledaču (sa uputstvom) / pregledač će pitati /
+nepodržano. `registerForPush()` sada poštuje prekidač, pa gašenje u aplikaciji
+znači i brisanje tokena sa backend-a. Provjereno u pregledaču: sekcija se
+prikazuje, prekidač mijenja i stanje i tekst, a uključivanje pri dozvoli
+`default` otvara pravi prompt pregledača.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/training/training.component.html` — `*ngIf="!viewOnly"` na
+  `.header-right` (uz komentar zašto, da se pri sljedećem spajanju ne obrne
+  opet); `.scss` i `.ts` treninga sa main-a (UI tajmera)
+- `src/environments/env.ts` — vraćen `const host` i lokalni Supabase, zadržan
+  Filipov `firebase` / `apiBaseUrl` blok; `env.prod.ts` sa main-a
+- `src/app/services/push-notification.service.ts` — `enabled`, `permission`,
+  `setEnabled()`, `ensureRegistered()`; obnova registracije u
+  `unregisterFromPush()`; provjera prekidača u `registerForPush()`
+- `src/app/services/rest-timer.service.ts` — Filipov, nije diran
+- `src/app/app.component.ts` — `ensureRegistered()` pri pokretanju
+- `src/app/components/profile/profile.component.ts` — `togglePush()`,
+  `pushStatus`, `pushBusy`
+- `src/app/components/profile/profile.component.html` — sekcija „Notifikacije"
+- `src/app/components/profile/profile.component.scss` — stil prekidača i sekcije
+- `src/firebase-messaging-sw.js`, `angular.json` (SW u `assets`),
+  `src/app/components/login/login.component.ts`,
+  `src/app/components/footer/footer.component.ts` — sa main-a
+- `package.json` / `package-lock.json` — zavisnost `firebase`
+- `docs/05-decisions/ADR-0002-fcm-push-preko-spring-boot.md`,
+  `docs/05-decisions/README.md`, `docs/04-ROADMAP.md` — sa main-a
+
+**Efekat:** Živi trening je opet upotrebljiv — dugmad i tajmer su tamo gdje im
+je mjesto, a pregled istorije ostaje čist. Lokalni build prolazi i aplikacija
+opet gleda u lokalni Supabase. Notifikacije se sada drže korisnikovog izbora u
+oba smjera: registruju se same pri svakom pokretanju kad su uključene, a gašenje
+u profilu ili odjava stvarno brišu token sa backend-a — i poslije osvježavanja
+stranice.
+
+**Napomene:**
+
+- **Gdje push uopšte radi.** Chrome, Edge i Firefox na računaru i Androidu — da.
+  iOS Safari — samo kao instalirana PWA (Add to Home Screen, iOS 16.4 naviše);
+  u običnom tabu ne. U našoj nativnoj Capacitor ljusci (grana `native-app`) web
+  push NE radi uopšte, jer `WKWebView` nema Web Push — tamo bi trebale prave
+  APNs notifikacije, a to traži plaćeni Apple nalog. Zapisano kao poznato
+  ograničenje, ne kao bag.
+- **Render na besplatnom tieru spava.** Prvi zahtjev poslije pauze čeka hladan
+  start od pedesetak sekundi, pa tajmer za PRVU seriju u treningu može stići
+  kasno ili se izgubiti. Svjesno prihvaćeno za sada — evidentirano da se zna
+  odakle dolazi, ako se pojavi kao „tajmer ne radi".
+- **Spring Boot backend je arhitektonska promjena.** `CLAUDE.md` i dalje tvrdi
+  „nema backend servera" — Filipov ADR-0002 novo stanje dokumentuje, ali
+  `CLAUDE.md` treba ažurirati u zasebnom prolazu, da ne bude dvije istine.
+- **Sudar brojeva ADR-ova.** Filipov ADR nosi broj 0002, isto kao naš ADR o
+  nativnoj ljusci na grani `native-app`. Pri spajanju te dvije grane jedan mora
+  da se prenumeriše — naš ide na 0003, jer je Filipov već na main-u.
+- **Ne pomjerati sistemski sat radi testiranja tajmera.** Pomjeren sat lomi
+  Supabase JWT (aplikacija tada masovno „buguje" na mjestima koja nemaju veze sa
+  notifikacijama) i ume da ostavi sesije sa budućim datumom u cloud bazi.
+
+**Dopuna istog dana — rest day otvara trening:** dugme na današnji rest day
+više NIJE ugašeno — do ekrana treninga se dolazi samo kroz njega, a na rest day
+se uvijek može vanredno trenirati („Dodaj" na ekranu treninga). Natpis ostaje
+„Rest day", stil utišan ali živ (`.start-btn.rest`), sa opisom u title.
+Raniji dani bez upisa i budući dani ostaju ugašeni. Uz to: Enter na prijavi
+vodi korisničko ime → lozinka → slanje (isto kroz cijelu registraciju), a
+prekidač notifikacija se prikazuje vizuelno isključen kad Notification API ne
+postoji (HTTP van localhost-a) — ranije je izgledao zaglavljen na uključeno.
+
+---
+
+## [2026-07-30] Vibracija uz plamen ličnog rekorda
+**Tip:** funkcionalnost
+
+**Problem:** Rekord se slavi animacijom i zvukom, a telefon ćuti — na spravi se
+često ni ne gleda u ekran u tom trenutku.
+
+**Rješenje:** `prHaptics()` u `src/app/shared/haptics.ts`, pozvana na istom
+mjestu gdje kreću plamen i zvuk (`refreshPr`). Tri svijeta, jedan poziv:
+nativna ljuska preko `window.Capacitor` globala (pravi haptički motor, radi i
+na iPhoneu — bez uvoza @capacitor paketa u web kod), Android Chrome preko
+`navigator.vibrate` (obrazac prati animaciju: udar-pauza-udar-pauza-duži udar),
+iOS Safari tiho preskoči (nema nijedan API — vibracija tamo stiže tek kroz
+ljusku). Provjereno špijunom na `vibrate`: slavlje okida obrazac
+`[90,70,90,70,160]`.
+
+**Dodirnuti fajlovi:**
+- `src/app/shared/haptics.ts` — novo
+- `src/app/components/training/training.component.ts` — poziv u `refreshPr`
+
+**Napomene:** Custom zvuk za push notifikaciju tajmera NIJE moguć na webu —
+zvuk sistemske notifikacije bira operativni sistem, sajt tu nema pristup ni uz
+kakvu migraciju. Custom zvuk je izvodljiv u nativnoj ljusci (lokalne
+notifikacije nose svoj zvučni fajl) — zabilježeno za native-app granu; izbor
+zvuka bi tada bio podešavanje po uređaju (localStorage), bez migracije.
+
+---
+
+## [2026-07-30] Tajmer pauze: živo odbrojavanje na ekranu; probna notifikacija u profilu
+**Tip:** funkcionalnost
+
+**Problem:** Tajmer je postojao samo kao obećanje — upišeš seriju i ne vidiš
+ništa: ni da odbrojavanje teče, ni koliko je ostalo, ni da li će notifikacija
+uopšte stići. A prekidač u profilu kaže šta dozvola TVRDI, ne i da li
+notifikacije stvarno iskaču.
+
+**Rješenje:**
+1. LOKALNO odbrojavanje u `RestTimerService` (`deadline` u memoriji, kreće
+   odmah pri upisu serije — i kad je backend nedostupan). U zaglavlju treninga
+   se ispisuje „1:47" pa na isteku „pauza gotova" (volt, tri pulsa, skloni se
+   sam). Push notifikacija ostaje za zaključan telefon; ovo pokriva „gledam u
+   aplikaciju". Sekundni otkucaj u komponenti postoji samo da tjera ciklus
+   provjere promjena.
+2. Dugme „Probaj" u profilu (vidljivo kad su notifikacije uključene i dozvola
+   data): ispali PRAVU notifikaciju kroz service worker — isti put kao
+   tajmerske — pa se pristup dokazuje, ne pretpostavlja.
+3. Poruka za nepodržano okruženje sada objašnjava i zašto: „treba HTTPS — na
+   pravoj adresi aplikacije rade" (dev preko http://IP sa telefona).
+
+**Dodirnuti fajlovi:**
+- `src/app/services/rest-timer.service.ts` — deadline, `remainingLabel`, `expired`
+- `src/app/components/training/training.component.html/.ts/.scss` — prikaz + otkucaj
+- `src/app/services/push-notification.service.ts` — `testNotification()`
+- `src/app/components/profile/*` — dugme „Probaj", jasniji status
+
+**Efekat:** Provjereno u pregledaču: odbrojavanje 0:59 → 0:57, na isteku
+„pauza gotova" sa pulsom; probna notifikacija stvarno iskočila (granted).
+
+**Dopuna istog dana — tajmer-ostrvo:** rasuti elementi tajmera (dugme, polje,
+„min", odbrojavanje) spojeni u JEDNU pilulu u stilu aplikacije. Ugašeno = samo
+precrtana ikona; paljenjem se tijelo tečno razvuče (max-width + opružni prelaz
+— uzor dynamic island) i pokaže minute; dok pauza teče, tijelo nosi živo
+odbrojavanje umjesto minuta; na isteku „pauza gotova" u volt boji sa pulsom.
+Zamka za ubuduće: tijelo je flex stavka pa je `min-width: 0` OBAVEZAN — inače
+`min-width: auto` pobijedi `max-width: 0` i pilula se nikad ne skupi.
+
+**Dopuna — „mastilo" na tajmer-ostrvu:** paljenje sada ima tri sloja pokreta u
+istom taktu: pilula se blago RAZLIJE (squash & stretch — stisne po visini dok
+se isteže, pa se slegne), kap volt boje krene iz ikone i razlije se kroz
+pilulu pa izblijedi (ink-bloom preko ::after), a broj i „min" izranjaju odozdo
+sa razmakom od jednog koraka (isti talas kao na velikom dugmetu). Sve ugašeno
+uz prefers-reduced-motion.
+
+**Dopuna — tečnost i pri gašenju i pri startu odbrojavanja:** gašenje ostrva
+sada ima obrnutu kap (mastilo se POVUČE nazad u ikonu — `ink-retreat`) i
+obrnuti stisak (`island-sip`); CSS ne umije animaciju na uklanjanju klase, pa
+kratko stanje `tiClosing` vodi komponenta. Prelaz iz minuta u živo odbrojavanje
+(prva upisana serija) dobio isti razliv i kap na `.running` klasi — ranije se
+sadržaj samo preklopio u novu funkciju, kao treptaj. Jezik pokreta
+(squash & stretch + ink-bloom + talas sadržaja) usvojen kao kućno pravilo za
+promjene stanja — referentne implementacije: tajmer-ostrvo i split-flap natpis
+na velikom dugmetu.
+
+**Dopuna — kompletan lanac faza tajmera animiran + pravilo trajno zapisano:**
+`watchTimerPhase` u komponenti prati faze (mirovanje → odbrojavanje → „pauza
+gotova" → povratak na minute) i svaki prelaz dobija svoj pokret: istek = jači
+razliv + volt kap (alias keyframes `island-splash-done`/`ink-bloom-done` — CSS
+ponovo pokreće animaciju SAMO kad se ime promijeni, pa isti keyframes sa
+`.running` klase ne bi odsvirao ništa; zapisano kao zamka), natpis izranja pa
+pulsira; povratak = skupljanje + kap unazad, minute ponovo izranjaju. Jezik
+pokreta ozvaničen kao kućno pravilo: sekcija u `CLAUDE.md` (obavezna), skill
+`.claude/skills/tecne-animacije/SKILL.md` (pun recept i zamke) i sekcija u
+`docs/08-KONVENCIJE.md` — dakle prisutno u svakoj sesiji i za svakog
+saradnika, ne samo u memoriji alata.
+
+---
+
+## [2026-07-31] Svijetla tema za cijelu aplikaciju
+**Tip:** funkcionalnost
+
+**Problem:** Aplikacija je znala samo jedno osvjetljenje — mrak. Ko voli
+svijetli interfejs (ili ga jednostavno bolje vidi na dnevnom svjetlu u
+teretani) nije imao izbor. Uz to, ispod površine je stajala prepreka: iako je
+dizajn sistem odavno na tokenima, kroz `src/` su ostale i zakucane boje —
+naslijeđeni `greenyellow`, `white`, sirove `rgba(...)` vrijednosti — koje ne bi
+poslušale nikakvu promjenu teme.
+
+**Rješenje:**
+
+1. **Tema je jedan atribut.** Pošto sve boje već žive u `_tokens.scss`, tema je
+   svedena na `data-theme` na `<html>`: blok `:root[data-theme='light']` nosi
+   kompletnu svijetlu paletu i `color-scheme: light`, pa se svaki ekran
+   preslika sam. Novi `ThemeService` pamti izbor u `localStorage`
+   (`gymapp.theme`), a isti atribut se postavlja i u `main.ts` PRIJE bootstrapa
+   — bez toga bi svijetli korisnik na svakom otvaranju vidio bljesak tamne teme
+   dok se Angular podiže. Prekidač „Izgled" je u profilu, klizač sa
+   suncem/mjesecom.
+2. **Promjena teme se PRETAPA, ne puca.** Po kućnom pravilu o pokretu: klasa
+   `theme-anim` stoji na `<html>` oko 420ms i za to vrijeme pali globalni
+   prelaz boja (`_base.scss`), pa se aplikacija prelije iz teme u temu. Poslije
+   se klasa skine i sve je po starom.
+3. **Paleta — podloga kost, kartice bijele.** Svijetla podloga je mliječna
+   (`#ECEBE4`), a kartice čisto bijele: kontrast dolazi iz podloge, ne iz
+   sjenki. Header i futer su u svijetloj temi NEPROVIDNI i iste boje kao
+   podloga — providnost je puštala kartice da prosijavaju kroz njih, pa se
+   futer u listanju razlikovao od headera.
+4. **Energija ostaje neon.** Neon na bijelom je nečitljiv kao tekst (oko
+   1.2:1), ali kao punjenje je identitet aplikacije. Zato je token razdvojen:
+   `--volt-fill`/`--volt-fill-soft` (pozadine dugmadi, klizača, traka) ostaju
+   neonski u OBJE teme, dok `--volt` u svijetloj postaje živa zasićena zelena
+   `#3E9400` za tekst, ikone i ivice.
+5. **„Duboka ostrva" ne prate temu.** `--deep`/`--deep-high` su skoro crni u
+   obje teme, sa stalnim neonom (`--on-deep`) i stalnim svijetlim tekstom
+   (`--on-deep-ice`/`--on-deep-mist`) — traka završenog treninga tako u
+   svijetloj temi postaje upečatljivo tamno ostrvo umjesto da izblijedi.
+6. **Novi tokeni:** `--volt-hi` (hover neona), `--scrim` (zatamnjenje iza
+   modala, svjetlije u svijetloj temi), `--ember-a30`, `--ember-ink`, i meke
+   sjenke `--lift-1/2/3` za svijetlu temu — 60% crne bi na svijetlom djelovalo
+   kao rupa u stranici.
+7. **Pozadinska fotografija ostaje ista slika**, samo pod svijetlim velom
+   (93–97%) — tokenizovano kroz `color-mix` sa `--void`, bez novog asseta.
+8. **Okvir pregledača.** `theme-color` meta i `manifest.webmanifest` prebačeni
+   sa stare Angular plave (`#1976d2`) na vrijednost `--void`; meta se pri svakoj
+   promjeni teme prepisuje iz `ThemeService`, pa statusna traka ne ostane u
+   jednoj temi dok se sadržaj prelije u drugu.
+
+**Veliko čišćenje:** popisano je i zamijenjeno 147 zakucanih boja kroz cio
+`src/` — samo u `dashboard.component.scss` bilo ih je 93 (naslijeđeni
+`greenyellow`, `white`, sirove `rgba`). Sve je prešlo na tokene ili
+`color-mix` izvedenice; jednokratne stvari idu kroz
+`:host-context([data-theme='light'])` override. Poseban slučaj je SVG grafikon
+progresa u profilu: atribut `stop-color` ne prima `var()`, pa su prelazi
+prešli na CSS klase (`.area-stop.me` / `.area-stop.compare`), dok prozirnost
+ostaje na `stop-opacity`. Pregled slika u blogu NAMJERNO ostaje mrak u obje
+teme — fotografije se gledaju na crnom — pa tamo stoje sirove vrijednosti sa
+komentarom zašto.
+
+**Dotjerivanja po živom pregledu:**
+- **Stanja velikog dugmeta na dashboardu** u svijetloj temi su FROSTED GLASS:
+  `backdrop-filter: blur(16px) saturate(1.35)`, poluprovidno bijelo staklo sa
+  zelenim tintom po stanju i mekom sjenkom. Probani su i tamna ostrva i obični
+  prozirni tintovi — staklo daje dubinu bez utiska da je komad tamne teme
+  presađen na svijetlu stranicu. Tamna tema zadržava ostrva sa neonom.
+- **Prekidači u profilu** su prerađeni: pruga se puni neonom, palac se okreće u
+  tamno slovo sa neonskom ikonom (čist kontrast u obje teme, umjesto neona na
+  neonu), palac leti oprugom, a kap mastila puca na SVAKI klik — kratku klasu
+  `pulse` vodi komponenta, jer CSS ne odsvira animaciju pri skidanju stanja.
+- **Tekst i ikone na svijetlom:** `--ice #101923`, `--mist #46596B`, uz `--dust`
+  i `--echo` kao svijetle duhove.
+
+**Dodirnuti fajlovi:**
+- `src/app/services/theme.service.ts` — NOV: izbor teme, pamćenje, pretapanje,
+  osvježavanje `theme-color` mete
+- `src/styles/_tokens.scss` — blok svijetle teme, `--volt-fill`, `--volt-hi`,
+  `--deep`/`--on-deep`, `--scrim`, `--ember-a30`/`--ember-ink`, `--lift-*`
+- `src/styles/_base.scss` — pretapanje teme, svijetli veo preko pozadinske
+  fotografije, tokenizovana dugmad/modali/greške
+- `src/main.ts` — atribut teme prije bootstrapa
+- `src/index.html`, `src/manifest.webmanifest` — `theme_color` i
+  `background_color` na `--void`
+- `src/app/components/profile/*` — prekidač „Izgled", klase za SVG prelaze,
+  prerađeni klizači
+- `src/app/components/dashboard/*` — staklena stanja velikog dugmeta i najveći
+  dio čišćenja boja
+- `src/app/components/training|blog|leaderboard|login|register|landing|exercices|news|profile-preview|header|footer|shared/date-picker` —
+  zamjena zakucanih boja tokenima i override-i za svijetlu temu
+
+**Efekat:** Prošeteno kroz obje teme, ekran po ekran: dashboard sa svim
+stanjima dugmeta, trening sa tajmerom i trakom završenog treninga, rang lista
+sa sedmicom i rekordima, profil sa kalendarom i grafikonom, blog, vježbe. U
+svijetloj temi nema ostataka tamne (nema tamnih ostrva koja „vise", nema
+nečitljivog neon teksta), a tamna tema je poslije čišćenja bez regresija —
+provjereno i piksel-poređenjem boja headera i futera.
+
+**Napomene:**
+- `color-mix()` se sada koristi znatno šire (Safari 16.2+ / Chrome 111+). Nije
+  nov zahtjev — funkcija je već bila u kodu, prag podrške je nepromijenjen.
+- `THEME_COLOR` u `ThemeService` je ručni duplikat vrijednosti `--void`, jer
+  `<meta>` ne može čitati CSS varijablu. U kodu stoji komentar da se drži u
+  sinhronu sa tokenima.
+- `backdrop-filter` na staklenim stanjima je samo za svijetlu temu i samo na
+  jednom malom dugmetu; header ga i dalje izbjegava iz razloga performansi
+  (zamućenje preko velike površine je ranije kočilo otvaranje menija).
+
+**Dopuna — kap preko cijelog ekrana i ulazi na blogu:**
+1. Promjena teme je sada KAP MASTILA preko cijelog ekrana: iz same tačke
+   dodira na prekidaču krug u boji NOVE teme se razlije preko stranice
+   (Web Animations, poluprečnik do najdaljeg ugla), tema procuri ispod njega
+   dok je kap najveća, pa kap izblijedi. Uz `prefers-reduced-motion` (ili bez
+   tačke dodira) ostaje samo globalno pretapanje. Sigurnosni tajmer čisti kap
+   i ako `onfinish` izostane.
+2. Blog dobio ulazne animacije u kućnom jeziku: objave izranjaju odozdo
+   talasom (kašnjenje po grupi i objavi), naslovi grupa korak ranije, a i sama
+   ploča ulazi — pa i prazan blog diše kao ostatak aplikacije.

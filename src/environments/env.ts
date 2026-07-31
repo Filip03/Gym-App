@@ -6,10 +6,14 @@
 // Ključ lokalnog stacka je fiksni demo ključ — isti na svakoj mašini, nije
 // tajna. Produkcijski podaci su u env.prod.ts, koji Angular automatski podmeće
 // pri produkcijskom buildu (fileReplacements u angular.json).
+// Adresa lokalnog Supabasea prati hostname stranice: sa telefona na istoj
+// mreži "127.0.0.1" bi značilo sam telefon, pa nijedan zahtjev ne bi prošao.
+const host = typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
+
 export const environment = {
   production: false,
-  supabaseUrl: 'https://nsiwfwjpzyzfzxejewar.supabase.co',
-  supabaseKey: 'sb_publishable_CbJq3HcEN3pE7Gr_hWSkCw_jeooBZ0m',
+  supabaseUrl: `http://${host}:54321`,
+  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
 
   // Javni bucket na Cloudflare R2 (blog slike/video). Nije tajna — isto kao
   // Supabase Storage public URL, samo drugi provajder. Ključevi za PISANJE su

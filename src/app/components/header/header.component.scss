@@ -16,6 +16,12 @@
   // zamućenje preko velike površine. Mjereno: otvaranje menija vježbe je zbog
   // toga kasnilo oko sekunde i preskakalo animaciju.
   background: color-mix(in srgb, var(--void) 94%, transparent);
+
+  // Svijetla tema: neprovidno i nijansu svjetlije od podloge — u paru sa
+  // futerom (ista vrijednost u footer.component.scss, mijenjati zajedno).
+  :host-context([data-theme='light']) & {
+    background: var(--void);
+  }
   border-bottom: 1px solid var(--line);
 }
 

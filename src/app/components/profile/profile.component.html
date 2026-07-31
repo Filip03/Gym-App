@@ -68,6 +68,47 @@
 
       <p *ngIf="uploadError" class="error">{{ uploadError }}</p>
 
+      <!-- Izgled: tamna/svijetla tema — živa promjena, pamti se po uređaju -->
+      <div class="push-section">
+        <div class="push-row">
+          <div class="push-text">
+            <span class="push-title">Izgled</span>
+            <span class="push-status">{{ theme.isLight ? 'Svijetla tema' : 'Tamna tema' }}</span>
+          </div>
+          <button type="button" class="push-toggle theme-toggle" [class.on]="theme.isLight"
+                  [class.pulse]="switchPulse === 'theme'"
+                  (click)="toggleTheme()"
+                  [attr.aria-label]="theme.isLight ? 'Prebaci na tamnu temu' : 'Prebaci na svijetlu temu'">
+            <span class="pt-thumb"><i class="material-icons">{{ theme.isLight ? 'light_mode' : 'dark_mode' }}</i></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Notifikacije: prekidač u aplikaciji + stanje dozvole pregledača -->
+      <div class="push-section">
+        <div class="push-row">
+          <div class="push-text">
+            <span class="push-title">Notifikacije</span>
+            <span class="push-status">{{ pushStatus }}</span>
+          </div>
+          <!-- Kad API ne postoji (HTTP van localhost-a), prekidač je ugašen i
+               VIZUELNO isključen — inače izgleda „zaglavljen na uključeno". -->
+          <button type="button" class="push-test"
+                  *ngIf="push.enabled && push.permission === 'granted'"
+                  (click)="testPush()">
+            {{ pushTestSent ? 'Poslata ✓' : 'Probaj' }}
+          </button>
+          <button type="button" class="push-toggle"
+                  [class.on]="push.enabled && push.permission !== 'unsupported'"
+                  [class.pulse]="switchPulse === 'push'"
+                  [disabled]="pushBusy || push.permission === 'unsupported'"
+                  (click)="togglePush()"
+                  [attr.aria-label]="push.enabled ? 'Isključi notifikacije' : 'Uključi notifikacije'">
+            <span class="pt-thumb"></span>
+          </button>
+        </div>
+      </div>
+
       <!-- Kalendar treninga -->
       <div class="cal-section">
         <div class="cal-head">
@@ -232,12 +273,12 @@
             >
               <defs>
                 <linearGradient id="progressAreaGradientMe" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#C6FF3B" stop-opacity="0.28" />
-                  <stop offset="100%" stop-color="#C6FF3B" stop-opacity="0" />
+                  <stop offset="0%" class="area-stop me" stop-opacity="0.28" />
+                  <stop offset="100%" class="area-stop me" stop-opacity="0" />
                 </linearGradient>
                 <linearGradient id="progressAreaGradientCompare" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#FFC94A" stop-opacity="0.20" />
-                  <stop offset="100%" stop-color="#FFC94A" stop-opacity="0" />
+                  <stop offset="0%" class="area-stop compare" stop-opacity="0.20" />
+                  <stop offset="100%" class="area-stop compare" stop-opacity="0" />
                 </linearGradient>
               </defs>
 
@@ -387,8 +428,8 @@
            class="progress-chart">
         <defs>
           <linearGradient id="weightAreaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#C6FF3B" stop-opacity="0.30" />
-            <stop offset="100%" stop-color="#C6FF3B" stop-opacity="0" />
+            <stop offset="0%" class="area-stop me" stop-opacity="0.30" />
+            <stop offset="100%" class="area-stop me" stop-opacity="0" />
           </linearGradient>
         </defs>
 

@@ -7,6 +7,7 @@ import { environment } from '../../environments/env';
 // Odvojen scope od Angularovog service workera (ngsw-worker.js drži "/") —
 // vidi napomenu u firebase-messaging-sw.js.
 const FCM_SW_SCOPE = '/firebase-cloud-messaging-push-scope';
+const PUSH_PREF_KEY = 'gymapp.pushEnabled';
 
 @Injectable({ providedIn: 'root' })
 export class PushNotificationService {
@@ -14,7 +15,71 @@ export class PushNotificationService {
   private messaging: Messaging | null = null;
   private registration: ServiceWorkerRegistration | null = null;
 
+  /**
+   * Korisnikov izbor U APLIKACIJI, nezavisan od dozvole pregledača. Bez ovoga
+   * ne postoji način da se notifikacije isključe (dozvola se u pregledaču ne
+   * može programski povući), niti mjesto koje kaže zašto ih nema.
+   */
+  enabled = localStorage.getItem(PUSH_PREF_KEY) !== 'off';
+
   constructor(private supabase: SupabaseService) {}
+
+  /**
+   * Probna notifikacija — jedini pravi DOKAZ da pristup postoji: status u
+   * profilu kaže šta dozvola tvrdi, a ovo pokaže da notifikacija stvarno
+   * iskoči. Ide kroz service worker kad postoji (isti put kao prave), inače
+   * direktno kroz Notification.
+   */
+  async testNotification(): Promise<boolean> {
+    if (this.permission !== 'granted') return false;
+    const opts = {
+      body: 'Notifikacije rade — ovako će stizati tajmer pauze.',
+      icon: '/assets/icons/icon-192x192.png'
+    };
+    try {
+      const reg = this.registration
+        ?? await navigator.serviceWorker?.getRegistration(FCM_SW_SCOPE)
+        ?? await navigator.serviceWorker?.getRegistration();
+      if (reg) { await reg.showNotification('GymApp', opts); return true; }
+      new Notification('GymApp', opts);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Stanje dozvole pregledača: 'granted' | 'denied' | 'default' | 'unsupported'. */
+  get permission(): string {
+    return 'Notification' in window ? Notification.permission : 'unsupported';
+  }
+
+  /**
+   * Uključivanje/isključivanje iz profila. Vraća stanje dozvole poslije
+   * pokušaja — profil po njemu ispisuje šta se stvarno desilo (npr. dozvola
+   * ODBIJENA u pregledaču se odavde ne može ponovo tražiti).
+   */
+  async setEnabled(on: boolean): Promise<string> {
+    this.enabled = on;
+    localStorage.setItem(PUSH_PREF_KEY, on ? 'on' : 'off');
+
+    if (on) {
+      await this.registerForPush();
+    } else {
+      await this.unregisterFromPush();
+    }
+    return this.permission;
+  }
+
+  /**
+   * Poziva se pri svakom pokretanju aplikacije (prijavljen korisnik): ako je
+   * dozvola već data a prekidač uključen, tiho obnovi registraciju — bez ovoga
+   * se token registruje SAMO pri prijavi, pa nov uređaj ili očišćen pregledač
+   * ostaju bez notifikacija do sljedećeg ručnog logina.
+   */
+  async ensureRegistered(): Promise<void> {
+    if (!this.enabled || this.permission !== 'granted') return;
+    await this.registerForPush();
+  }
 
   // Poziva se poslije uspješnog logina. Namjerno ne baca grešku — ako korisnik
   // odbije dozvolu ili browser ne podržava push, prijava i dalje mora proći.
@@ -27,6 +92,7 @@ export class PushNotificationService {
   private async doRegisterForPush(): Promise<void> {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      if (!this.enabled) return;   // korisnik ih je ugasio u aplikaciji
 
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') return;
@@ -71,6 +137,15 @@ export class PushNotificationService {
 
   private async doUnregisterFromPush(): Promise<void> {
     try {
+      // Poslije osvježavanja stranice servis nema stanje u memoriji, a token i
+      // registracija u pregledaču POSTOJE — bez ove obnove bi odjava (i gašenje
+      // iz profila) tiho preskočila brisanje tokena, pa bi push stizao i dalje.
+      if (!this.registration) {
+        this.registration = await navigator.serviceWorker.getRegistration(FCM_SW_SCOPE) ?? null;
+      }
+      if (!this.messaging && this.registration) {
+        this.messaging = getMessaging(this.app);
+      }
       if (!this.messaging || !this.registration) return;
 
       // Bez eksplicitne serviceWorkerRegistration, getToken() bi pao na
