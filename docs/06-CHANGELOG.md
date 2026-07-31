@@ -3576,3 +3576,63 @@ bilo teško pogoditi palcem. Kupola i dalje diže token na 96px kroz `nav-dome`.
 (`_tokens.scss`) i logo 62 → 50px (`header.component.scss`) — zaglavlje je na
 telefonu djelovalo masivno, najviše zbog loga. Potrošači tokena (blog „nazad",
 login/register, globalni offseti) poravnavaju se sami.
+
+---
+
+## [2026-07-31] Cyberpunk „glitch" preko ekrana za trenutke napretka (volt/gold)
+**Tip:** funkcija (vizuelni efekat)
+
+**Šta:** Trenuci moći dobili drugi registar pokreta — kratki „glitch" preko
+cijelog ekrana u stilu Cyberpunk 2077 efekata: volt vinjeta po ivicama,
+pixel-stretch trake sa trzajem i skew-om, nagovještaj RGB splita (crvena +
+cijan nit), scanline treptaj; uz rekord još i dijagonalni holografski šimer i
+„datamosh" blokovi. Tečni/mastilo jezik ostaje za svakodnevne prelaze — glitch
+svira SAMO uz napredak.
+
+- `src/app/services/glitch.service.ts` (novo) — `trigger('volt' | 'gold')`,
+  Subject sa rastućim ključem; novi ključ ponovo rodi slojeve overlaya
+  (`*ngFor="let k of burst"` trik iz skill-a tecne-animacije), pa se animacija
+  restartuje i usred prethodnog prolaza.
+- `src/app/components/glitch-overlay/*` (novo) — `<app-glitch-overlay>`:
+  fixed, inset 0, `pointer-events: none`, z-index 120 (iznad sadržaja, headera
+  50, futera 60 i toasta 100; ISPOD svih modala 150–300). Registrovan u
+  `app.module.ts`, ubačen na dno `app.component.html` (uz profile-preview).
+  - **'volt'** (~520ms, veća kilaža): vinjeta 520ms + 3 trake 430–520ms
+    (kaskada 0/40/90ms) + RGB niti 300ms + scanline 380ms — udar, treptaj,
+    signal se uhvati i sve nestane.
+  - **'gold'** (~880ms, rekord): ista mašinerija u zlatnoj paleti (lokalni
+    #FFD75A/#F5C445 tonovi — zlata nema u tokenima) + šimer 700ms + 3 datamosh
+    bloka na `steps(2)`; tempiran da udari u istom taktu sa plamenom rekorda.
+- Performanse (iPhone WKWebView): animira se isključivo transform/opacity,
+  slojevi su statični gradijenti, nema filter/backdrop-filter; `will-change`
+  važi samo dok slojevi postoje (rađaju se po okidanju, tajmer ih ukloni,
+  čisti se u ngOnDestroy). `prefers-reduced-motion` — overlay se uopšte ne
+  rađa (matchMedia guard u komponenti + `display: none` u CSS-u).
+- Obje teme: 'volt' čita tokene pa se sam preslika (u svijetloj je volt
+  tamnozelen; vinjeta prigušena kroz `:host-context([data-theme='light'])`,
+  trake/blokovi prelaze na `multiply` — mastilo umjesto neona); 'gold' u
+  svijetloj dobija dublji jantar (#A67C00 tonovi).
+- `src/app/components/training/training.component.ts` — okidači: u
+  `buzzProgress` (unutar `saveLog`) uz `progressHaptics('weight')` ide
+  `glitch.trigger('volt')` + `audio.play('glitch')` — SAMO za granu veće
+  kilaže, ne za ponavljanja; u `refreshPr` uz `progressHaptics('record')` ide
+  `glitch.trigger('gold')` — vibracija + glitch + zvuk = jedan sinhron trenutak.
+- `src/app/services/audio.service.ts` — novi slot `'glitch'` po postojećem
+  obrascu, ali sa PRAZNIM nazivom fajla: snimak još nije nabavljen, pa se svaki
+  poziv tiho preskoči (guard `!CLIPS[name]` u `play`/`prefetch`/`playElement` —
+  bez mrežnog zahtjeva i bez 404 u konzoli). Kad Marko izabere snimak, samo se
+  upiše naziv fajla u `CLIPS`.
+
+**Zašto:** Markova želja — da napredak u kilaži i rekord „udare" kao special
+effect iz Cyberpunka 2077, sinhrono sa vibracijom i zvukom, a da ostatak
+aplikacije zadrži tečni jezik pokreta.
+
+**Dopuna istog dana — sigurna zona iPhone-a je bila isključena:**
+`src/index.html` viewport meta nije imao `viewport-fit=cover`, pa je iPhone
+držao `env(safe-area-inset-*)` na nuli — futer (i klasični i kupola) lijepio
+se za samu donju ivicu ispod trake za gestove, ma koliko se visina štimala.
+Sada `--safe-b`/`--safe-t` stvarno rade: futer sam odskoči iznad trake za
+gestove, zaglavlje ispod notcha. Uz to kupola: rub luka blaže pada na uskim
+ekranima (0.17→0.13 širine, kapa 60px) i krajnje ikone + tjeme su zaštićeni
+od isijecanja (clamp na visinu doka u `render()`), jer su na iPhone-u home i
+odjava virili van ekrana.

@@ -224,9 +224,11 @@ export class FooterComponent implements OnDestroy {
     // od ivica ekrana — zato se poluosa čita sa NJE, a ne sa doka.
     this.half = Math.max(surf.offsetWidth / 2, 1);
 
-    // `rise` se bira tako da luk na IVICI EKRANA padne za željenih ~60 px;
+    // `rise` se bira tako da luk na IVICI EKRANA padne za željenu mjeru;
     // ograničava ga visina kupole (border-radius se inače sam skalira).
-    const visible = Math.min(Math.max(w * 0.17, 44), 78);
+    // 0.17/78 → 0.13/60: na uskom iPhone-u je rub luka padao toliko da su
+    // krajnje ikone (home, odjava) izlazile van ekrana (Markova prijava).
+    const visible = Math.min(Math.max(w * 0.13, 40), 60);
     const tEdge = Math.min((w / 2) / this.half, 1);
     const drop = Math.max(1 - Math.sqrt(1 - tEdge * tEdge), 0.08);
     this.rise = Math.min(visible / drop, Math.max(surf.offsetHeight - 8, 24));
@@ -243,11 +245,16 @@ export class FooterComponent implements OnDestroy {
     if (!this.dock || !this.crest) return;
     const pos = this.pos;
 
-    // tjeme
+    // tjeme — ista zaštita od isijecanja kao za ikone (ležište je 64px kutija)
     const cx = this.xAt(pos);
-    const cy = this.crestY + this.dip(cx);
+    const cy = Math.min(this.crestY + this.dip(cx),
+                        this.dock.clientHeight - 35);
     this.crest.style.transform =
       `translate3d(${cx.toFixed(2)}px, ${(cy - 3).toFixed(2)}px, 0)`;
+
+    // Ikona (kutija 56px, centrirana) ne smije proviriti ispod doka — na uskom
+    // ekranu rub luka padne duboko, pa se krajnje ikone bez ovoga isijecaju.
+    const maxY = this.dock.clientHeight - 34;
 
     // ikone
     for (let i = 0; i < this.itemEls.length; i++) {
@@ -256,7 +263,7 @@ export class FooterComponent implements OnDestroy {
       const near = Math.exp(-(u * u) / 0.62);          // 1 u tjemenu, pada u stranu
       const pull = 0.30 * u * Math.exp(-(u * u) / 2);  // magnet: klizi ka tjemenu
       const x = this.xAt(i - pull);
-      const y = this.crestY + this.dip(x) - 15 * near; // izdizanje iz luka
+      const y = Math.min(this.crestY + this.dip(x) - 15 * near, maxY);
       const s = 0.84 + 0.40 * near;
 
       el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${s.toFixed(3)})`;

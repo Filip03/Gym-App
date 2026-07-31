@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <title>GymApp</title>
   <base href="/">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- viewport-fit=cover: bez njega iPhone drži env(safe-area-inset-*) na
+       NULI, pa se futer lijepio za donju ivicu ispod trake za gestove, a sav
+       safe-area kod u stilovima je bio mrtvo slovo. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="GymApp">
