@@ -18,7 +18,13 @@ export class PushNotificationService {
 
   // Poziva se poslije uspješnog logina. Namjerno ne baca grešku — ako korisnik
   // odbije dozvolu ili browser ne podržava push, prijava i dalje mora proći.
+  // Vremenski ograničeno — na nekim iOS PWA instalacijama getToken()/aktivacija
+  // service workera zna da visi zauvijek umjesto da baci grešku.
   async registerForPush(): Promise<void> {
+    await PushNotificationService.withTimeout(this.doRegisterForPush(), 10000);
+  }
+
+  private async doRegisterForPush(): Promise<void> {
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
 
@@ -57,7 +63,13 @@ export class PushNotificationService {
   }
 
   // Poziva se PRIJE signOut-a (dok Supabase sesija još važi za Authorization header).
+  // Vremenski ograničeno — signOut() čeka ovo, pa ne smije da zaglavi logout
+  // ako getToken() na nekim uređajima (primijećeno na iOS-u) nikad ne razriješi.
   async unregisterFromPush(): Promise<void> {
+    await PushNotificationService.withTimeout(this.doUnregisterFromPush(), 5000);
+  }
+
+  private async doUnregisterFromPush(): Promise<void> {
     try {
       if (!this.messaging || !this.registration) return;
 
@@ -105,5 +117,15 @@ export class PushNotificationService {
       },
       body: JSON.stringify({ token })
     });
+  }
+
+  // Garantuje da se poziv razriješi najkasnije za `ms`, bez obzira šta se
+  // dešava unutra — koristi se jer neki koraci (getToken, SW aktivacija) znaju
+  // da vise zauvijek na pojedinim uređajima umjesto da bace grešku.
+  private static withTimeout(promise: Promise<void>, ms: number): Promise<void> {
+    return Promise.race([
+      promise,
+      new Promise<void>(resolve => setTimeout(resolve, ms))
+    ]);
   }
 }
