@@ -3641,3 +3641,9 @@ odjava virili van ekrana.
 novu varijantu loga (`assets/logo_light_mode.png`, Marko dodao) —
 `header.component.html` bira po `ThemeService.isLight`, promjena je trenutna
 pri prebacivanju teme.
+
+**Dopuna istog dana — logo prati temu SVUDA + futer vraćen na 64px:** svijetla
+varijanta loga sada i na landing/login/register ekranima (ThemeService +
+`[src]` na sva četiri mjesta gdje logo postoji); `--footer-h` vraćen 72 → 64px
+— „prenisko" je zapravo bila isključena sigurna zona, pa je poslije
+`viewport-fit=cover` popravke 72px postalo previsoko.
