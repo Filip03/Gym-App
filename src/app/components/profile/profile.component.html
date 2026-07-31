@@ -122,8 +122,27 @@
             </div>
           </div>
 
-          <!-- Meni: izgled donje navigacije — klasični red ili kupola (prototip) -->
+          <!-- Efekti upisa: glitch spektakl pri napretku/rekordu — po izboru.
+               Plamen rekorda, zvuk i vibracije ne zavise od ovoga. -->
           <div class="push-section" style="--i: 2">
+            <div class="push-row">
+              <div class="push-text">
+                <span class="push-title">Efekti</span>
+                <span class="push-status">{{ glitch.enabled
+                  ? 'Glitch bljesak pri napretku i rekordu'
+                  : 'Isključeni — plamen rekorda ostaje' }}</span>
+              </div>
+              <button type="button" class="push-toggle" [class.on]="glitch.enabled"
+                      [class.pulse]="switchPulse === 'fx'"
+                      (click)="toggleGlitchFx()"
+                      [attr.aria-label]="glitch.enabled ? 'Isključi efekte upisa' : 'Uključi efekte upisa'">
+                <span class="pt-thumb"></span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Meni: izgled donje navigacije — klasični red ili kupola (prototip) -->
+          <div class="push-section" style="--i: 3">
             <div class="push-row">
               <div class="push-text">
                 <span class="push-title">Meni</span>

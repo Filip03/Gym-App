@@ -3696,3 +3696,9 @@ trake, RGB niti, scanline, datamosh) uklonjena.
 za gestove — kao prije), `--footer-h` nazad na zatečenih 64px. Gradijent i
 `--footer-gap` u futeru ostaju u kodu ali miruju (safe-b = 0). Kupola ostaje
 na 86px sa zaštitom krajnjih ikona.
+
+**Dopuna istog dana — prekidač „Efekti" u Podešavanjima:** glitch spektakl
+preko cijelog ekrana je po izboru (`GlitchService.enabled`, localStorage
+`gymapp.glitchFx`, podrazumijevano uključen) — slabiji telefon ili mirniji
+ukus ga gasi u Profil → Podešavanja → Efekti. Gasi SAMO glitch: plamen
+rekorda, zvuk i vibracije ostaju uvijek (Markova specifikacija).

@@ -12,6 +12,7 @@ import { formatIsoDate } from '../shared/date-picker/date-picker.component';
 import { PushNotificationService } from '../../services/push-notification.service';
 import { ThemeService } from '../../services/theme.service';
 import { NavModeService } from '../../services/nav-mode.service';
+import { GlitchService } from '../../services/glitch.service';
 
 /** Jedno polje u kalendaru treninga. */
 interface CalCell {
@@ -233,7 +234,8 @@ export class ProfileComponent implements OnInit {
     private route: ActivatedRoute,
     public push: PushNotificationService,
     public theme: ThemeService,
-    public navMode: NavModeService
+    public navMode: NavModeService,
+    public glitch: GlitchService
   ) {}
 
   // --- Podešavanja (sklopiva sekcija) --------------------------------------
@@ -253,6 +255,11 @@ export class ProfileComponent implements OnInit {
     this.navMode.toggle();
   }
 
+  toggleGlitchFx() {
+    this.pulse('fx');
+    this.glitch.setEnabled(!this.glitch.enabled);
+  }
+
   // --- Notifikacije --------------------------------------------------------
   //
   // Prekidač u aplikaciji + stanje dozvole pregledača. Kad je dozvola jednom
@@ -260,10 +267,10 @@ export class ProfileComponent implements OnInit {
   // korisniku gdje da je upali ručno. Zato tekst ispod prekidača.
   pushBusy = false;
   /** Koji je klizač upravo pritisnut — kap mastila puca na svaki klik. */
-  switchPulse: 'theme' | 'push' | 'nav' | null = null;
+  switchPulse: 'theme' | 'push' | 'nav' | 'fx' | null = null;
   private pulseTimer: any = null;
 
-  private pulse(which: 'theme' | 'push' | 'nav') {
+  private pulse(which: 'theme' | 'push' | 'nav' | 'fx') {
     this.switchPulse = which;
     clearTimeout(this.pulseTimer);
     this.pulseTimer = setTimeout(() => this.switchPulse = null, 500);

@@ -27,6 +27,8 @@ export interface GlitchEvent {
   key: number;
 }
 
+const FX_KEY = 'gymapp.glitchFx';
+
 @Injectable({ providedIn: 'root' })
 export class GlitchService {
 
@@ -36,8 +38,21 @@ export class GlitchService {
   /** Overlay se pretplati jednom i svira svaki najavljeni prolaz. */
   readonly bursts$ = this.bursts.asObservable();
 
+  /**
+   * Korisnikov izbor u Profil → Podešavanja. Spektakl preko cijelog ekrana se
+   * ne forsira svakome, a slabiji telefon ima pravo da ga ugasi. Gasi SAMO
+   * glitch — plamen rekorda, zvuk i vibracije nisu ovim obuhvaćeni.
+   */
+  enabled = localStorage.getItem(FX_KEY) !== 'off';
+
+  setEnabled(on: boolean): void {
+    this.enabled = on;
+    localStorage.setItem(FX_KEY, on ? 'on' : 'off');
+  }
+
   /** Jedan prolaz efekta. 'volt' = napredak u kilaži, 'gold' = lični rekord. */
   trigger(kind: GlitchKind, message: string): void {
+    if (!this.enabled) return;
     this.bursts.next({ kind, message, key: ++this.seq });
   }
 }
