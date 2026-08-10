@@ -186,8 +186,6 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
   private shakeTimer: any = null;
 
   // --- Pregled vježbe (isti popup kao na tabu Vježbe) ------------------------
-  previewEx: Exercice | null = null;
-  previewGroups: string[] = [];
   /** Katalog grupa, dovučen lijeno pri prvom pregledu i keširan. */
   private groupsCatalog: MuscleGroupWithExercices[] | null = null;
 
@@ -271,8 +269,8 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     private leaderboardService: LeaderboardService,
     private newsService: NewsService,
     private drafts: DraftService,
-    private router: Router
-  ) {}
+    private router: Router,
+    private exDetail: ExerciceDetailService) {}
 
   async ngOnInit() {
     const user = this.authService.getCurrentUser();
@@ -1159,7 +1157,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     this.adaptingFromPlanId = null;
     this.lastDraftJson = '';
     this.closeExercicePicker();
-    this.closeExPreview();
+    this.exDetail.close();
     clearTimeout(this.shakeTimer);
     this.shakeName = this.shakeType = this.shakeDesc = this.saveNudge = false;
   }
@@ -1608,7 +1606,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
    */
   async openExPreview(day: DayEntry, sel: SelectedExercice) {
     const full = day.availableExercices.find(e => e.id === sel.exerciceId);
-    this.previewEx = full ?? {
+    const ex = full ?? {
       id: sel.exerciceId,
       name: sel.name,
       picture: sel.picture ?? null,
@@ -1616,7 +1614,9 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
       is_bodyweight: false,
       is_unilateral: false
     };
-    this.previewGroups = [];
+    // GLOBALNI sloj u ljusci (ExerciceDetailService) — u toku stranice bi
+    // potonuo pod futer (stacking doktrina, KONVENCIJE).
+    this.exDetail.open(ex, []);
 
     const wanted = sel.exerciceId;
     try {
@@ -1624,19 +1624,14 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
         this.groupsCatalog = await this.exerciceService.getExercicesGroupedByMuscleGroup();
       }
       // Ako je korisnik u međuvremenu otvorio drugu vježbu, ne diraj njene grupe.
-      if (this.previewEx && this.previewEx.id === wanted) {
-        this.previewGroups = this.groupsCatalog
+      if (this.exDetail.exercice && (this.exDetail.exercice as any).id === wanted) {
+        this.exDetail.groups = this.groupsCatalog
           .filter(g => g.exercices.some(e => e.id === wanted))
           .map(g => g.name);
       }
     } catch {
       // Grupe su ukras — pregled radi i bez njih.
     }
-  }
-
-  closeExPreview() {
-    this.previewEx = null;
-    this.previewGroups = [];
   }
 
   async onSubmitPlan() {

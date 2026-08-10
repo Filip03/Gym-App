@@ -109,6 +109,4 @@
   </div>
 </div>
 
-<!-- Detaljan prikaz vježbe — zajednička komponenta, koristi je i editor plana -->
-<app-exercice-detail *ngIf="detail" [exercice]="detail" [groups]="detailGroups"
-                     (dismiss)="closeDetail()"></app-exercice-detail>
+<!-- Detalj vježbe se otvara kroz globalni sloj u ljusci (ExerciceDetailService). -->

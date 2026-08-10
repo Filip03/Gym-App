@@ -16,8 +16,6 @@ export class ExercicesComponent implements OnInit {
 
   // Detaljan prikaz jedne vježbe. Kartice u mreži su nužno tijesne — slika je
   // mala a opis se odsijeca na tri reda — pa se puni sadržaj vidi tek ovdje.
-  detail: Exercice | null = null;
-  detailGroups: string[] = [];
 
   showCreateModal = false;
   creating = false;
@@ -31,7 +29,8 @@ export class ExercicesComponent implements OnInit {
   newIsUnilateral = false;
   selectedMuscleGroupIds: string[] = [];
 
-  constructor(private exerciceService: ExerciceService) {}
+  constructor(private exerciceService: ExerciceService,
+    private exDetail: ExerciceDetailService) {}
 
   async ngOnInit() {
     await this.loadExercices();
@@ -79,17 +78,13 @@ export class ExercicesComponent implements OnInit {
   }
 
   openDetail(ex: Exercice) {
-    this.detail = ex;
     // Vježba može pripadati većem broju grupa; skupljaju se iz već učitanih
-    // grupa umjesto novog upita.
-    this.detailGroups = this.groups
+    // grupa umjesto novog upita. Pregled otvara GLOBALNI sloj u ljusci
+    // (ExerciceDetailService) — u toku stranice bi potonuo pod futer.
+    const groups = this.groups
       .filter(g => g.exercices.some(e => e.id === ex.id))
       .map(g => g.name);
-  }
-
-  closeDetail() {
-    this.detail = null;
-    this.detailGroups = [];
+    this.exDetail.open(ex, groups);
   }
 
   openCreateModal() {

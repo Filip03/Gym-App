@@ -627,10 +627,7 @@
 </div>
 
 <!-- Pregled vježbe — ISTA komponenta kao na tabu Vježbe -->
-<app-exercice-detail *ngIf="previewEx"
-                     [exercice]="previewEx"
-                     [groups]="previewGroups"
-                     (dismiss)="closeExPreview()"></app-exercice-detail>
+<!-- Pregled vježbe ide kroz globalni sloj u ljusci (ExerciceDetailService). -->
 
 
 <div class="modal-overlay" *ngIf="showNewsPopup && latestNews" (click)="closeNewsPopup()">

@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router'
 import { filter } from 'rxjs'
+import { ExerciceDetailService } from './components/shared/exercice-detail/exercice-detail.service';
 import { ProfilePreviewService } from './shared/profile-preview.directive';
 import { PushNotificationService } from './services/push-notification.service';
 import { AuthService } from './services/auth.service';
@@ -26,6 +27,7 @@ export class AppComponent{
   constructor(
     private router: Router,
     public preview: ProfilePreviewService,
+    public exDetail: ExerciceDetailService,
     push: PushNotificationService,
     private auth: AuthService,
     private lastRoute: LastRouteService

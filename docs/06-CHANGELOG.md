@@ -4089,3 +4089,12 @@ odmah ispod.
 **Dopuna istog dana — čist BW u jednom redu (Markova dorada):** čip pri
 čistom BW USKAČE u red ponavljanja — `[BW][−][Ponavljanja][+]` — umjesto
 zasebnog reda sa natpisom; natpis uklonjen (`io-fields.bw-plain` nowrap).
+
+**Dopuna istog dana — stacking doktrina + detalj vježbe u ljusci + futer dah:**
+1. Detalj vježbe (tab Vježbe je crtao kupolu PREKO kartice — predak sa
+   stacking contextom guta z-index sloja u toku stranice) preseljen u LJUSKU
+   kao globalni sloj sa `ExerciceDetailService` (obrazac ProfilePreview);
+   koriste ga i Vježbe i plan builder. Doktrina preklopnih slojeva upisana u
+   docs/08-KONVENCIJE.md — strukturno, da se klasa buga više ne vraća.
+2. Futerski „8px dah" ograničen na dodirne ekrane (`pointer: coarse`) — na
+   mišu je dizao red ikona vidljivo („na webu je meni podignut više").

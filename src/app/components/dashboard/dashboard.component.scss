@@ -2545,7 +2545,7 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
     border-width: 0;
   }
   to {
-    max-height: 160px;
+    max-height: 210px;
     margin-top: -6px;
     padding-top: calc(var(--s-2) + 6px);
     padding-bottom: var(--s-2);
@@ -2555,7 +2555,7 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
 
 @keyframes isl-collapse {
   from {
-    max-height: 160px;
+    max-height: 210px;
     margin-top: -6px;
     padding-top: calc(var(--s-2) + 6px);
     padding-bottom: var(--s-2);
@@ -2589,15 +2589,18 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
 .p2-island .p2-target:nth-of-type(2) { animation: pane-rise 300ms var(--ease-spring) 260ms both; }
 
 .p2-target {
+  // VERTIKALNO: natpis iznad, kontrole ispod. U uskoj koloni mreže na
+  // telefonu red „natpis + − vrijednost +" ne staje pa se + odsijecao van
+  // kartice (Markov bug_3) — ovako sve staje i u najužu kolonu.
   display: flex;
-  align-items: center;
-  gap: var(--s-2);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
   min-width: 0;
 }
 
 .p2-t-label {
   flex: none;
-  width: 74px;
   font-family: var(--font-data);
   font-size: 10px;
   font-weight: 600;
