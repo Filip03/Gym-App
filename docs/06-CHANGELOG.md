@@ -4438,3 +4438,15 @@ slanja instrukcija Filipu):** pri promjeni se red razlije (squash & stretch
 kao tajmer-ostrvo), kap mastila krene iz tačke dodira (overflow: hidden je
 drži u redu), a katanac i kvačica se rode talasom (privKey rebirth). Restart
 razliva klasom kroz komponentu; reduced-motion sve gasi.
+
+**Dopuna — globalni mehanizam za „cut off" klasu + blog nije ulazna strana:**
+
+1. **`appPortal` direktiva** (`shared/portal.directive.ts`): svaki plutajući
+   sloj se premješta na `<body>` — van dometa overflow sječenja, iOS
+   skrol-zamke i tuđih stacking contexta. Pravilo u 08-KONVENCIJE: svaki
+   novi sloj ide kroz portal; postojeći koji rade se ne diraju, prevode se
+   pri prvoj reprodukciji.
+2. **Blog i news više NISU na bijeloj listi vraćanja rute** (Markova
+   odluka): to su ekrani razgledanja — aplikacija poslije njih kreće od
+   dashboarda. Lista se provjerava i pri ČITANJU zapisa, pa ni ranije
+   upisan /blog ne vraća tamo nijednom.

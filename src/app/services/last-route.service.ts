@@ -21,10 +21,13 @@ const KEY_PREFIX = 'gymapp.lastRoute.';
 /**
  * Bijela lista — samo ekrani na koje ima smisla vratiti korisnika.
  * Nikad `/` (splash), `/login` ni `/register`.
+ *
+ * Ni `/blog` i `/news` (Markova odluka): to su ekrani razgledanja, ne rada —
+ * aplikacija poslije njih kreće od dashboarda, ne „zaglavi" na blogu.
  */
 const REMEMBERED_ROUTES = [
   '/dashboard', '/exercices', '/leaderboard', '/profiles',
-  '/blog', '/news', '/training',
+  '/training',
 ];
 
 /** Opšta svježina zapisa: poslije ovoga povratak na staru rutu više ne pomaže. */
@@ -72,6 +75,14 @@ export class LastRouteService {
 
     const now = Date.now();
     const path = rec.url.split(/[?#]/)[0];
+
+    // Bijela lista važi i pri ČITANJU — zapis upisan prije sužavanja liste
+    // (npr. /blog) ne smije vratiti korisnika tamo ni jednom jedinom.
+    const allowed = REMEMBERED_ROUTES.some(r => path === r || path.startsWith(r + '/'));
+    if (!allowed) {
+      this.forget(userId);
+      return null;
+    }
     const liveTraining = path === '/training' && !rec.url.includes('?');
 
     const fresh = liveTraining

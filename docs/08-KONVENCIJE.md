@@ -254,3 +254,21 @@ Svaki sloj koji se crta PREKO stranice (modal, pregled, lightbox) mora ili:
 Zašto: z-index važi samo unutar stacking contexta. Sloj u toku stranice je
 talac svojih predaka; sloj u ljusci je uvijek iznad traka. Kad preklopni sloj
 „proviri ispod futera" — selidba u ljusku je rješenje, ne veći z-index.
+
+## Plutajući slojevi: `appPortal` (obavezno za svaki novi)
+
+Cijela klasa „cut off" bugova (isječena lista, zarobljen pregled, sloj ispod
+menija) dolazi iz istog korijena: plutajući element živi u toku stranice, pa
+ga neki predak siječe (`overflow`), zarobi (iOS: `fixed` u skrol-kontejneru
+radi kao `absolute`) ili nadjača (stacking context).
+
+**Pravilo:** svaki NOVI plutajući sloj dobija `appPortal`
+(`shared/portal.directive.ts` — fizički premješta element na `<body>`),
+`position: fixed`, koordinate iz `getBoundingClientRect()` okidača, i
+zatvaranje na listanje/dodir vani. Postojeći slojevi koji rade se ne diraju;
+pri PRVOJ sljedećoj reprodukciji starog sloja — prevesti ga na portal, ne
+krpiti mjesto.
+
+Referentne izvedbe: pregled slike na blogu (ručni premještaj na body),
+paleta reakcija (fixed + sidro), globalni slojevi u ljusci
+(ExerciceDetailService / ProfilePreviewService).
