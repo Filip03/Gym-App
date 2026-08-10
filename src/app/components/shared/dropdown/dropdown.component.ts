@@ -127,8 +127,8 @@ export class DropdownComponent implements OnChanges, OnDestroy {
     this.chosenInk = null;
 
     const rect = (this.host.nativeElement as HTMLElement).getBoundingClientRect();
-    const below = window.innerHeight - rect.bottom - 84;   // dah za sticky traku
-    const above = rect.top - 84;
+    const below = window.innerHeight - rect.bottom - 128;  // dah za sticky traku
+    const above = rect.top - 96;
     this.up = below < 220 && above > below;
     this.panelMax = Math.max(160, Math.min(280, (this.up ? above : below) - 12));
 

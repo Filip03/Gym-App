@@ -15,9 +15,12 @@ $branch-indent: 16px;
 
   // Mjere OSTRVA ZA UNOS na jednom mjestu — glavni upis, izmjena serije i
   // dropset moraju biti isti do piksela, inače se tri forme razidu.
-  --io-h:    52px;      // visina polja za kucanje
-  --io-btn:  44px;      // dodirna meta stepera ±
-  --io-num:  1.25rem;   // 20px — krupne cifre u polju
+  //
+  // Mjere su namjerno DISKRETNE: ostrvo je proširena stara forma, ne novi
+  // ekran (Markova prijava na prvu verziju — 52px/20px je djelovalo džinovski).
+  --io-h:    46px;       // visina polja za kucanje i dugmadi
+  --io-btn:  40px;       // širina stepera ±; visinu mu daje --io-h (40×46)
+  --io-num:  1.125rem;   // 18px — krupnije od osnovnih 15px, ali mirno
   // Krajnja visina do koje ostrvo raste. `max-height` je jedini način da se
   // animira PROSTOR sadržaja nepoznate visine; vrijednost je namjerno veća od
   // najvišeg ostrva (uska kolona, sve u koloni ≈ 320px).
@@ -687,13 +690,13 @@ $branch-indent: 16px;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
+  gap: var(--s-2);
   padding: var(--s-3);
 
   background: var(--carbon);
   border: 1px solid var(--volt-a40);
   border-radius: var(--r-md);
-  box-shadow: var(--lift-2);
+  box-shadow: var(--lift-1);
 
   // Prostor koji ostrvo zauzima ide do ove granice; sve iznad bi se odsjeklo,
   // pa je namjerno postavljena visoko (vidi --io-max).
@@ -803,9 +806,10 @@ $branch-indent: 16px;
 
 // --- Polja -----------------------------------------------------------------
 //
-// Kilaža i ponavljanja stoje jedno pored drugog dok ima mjesta; u uskoj koloni
-// jedne ruke se PRELOME jedno ispod drugog umjesto da se stisnu — krupnoća
-// unosa je ovdje važnija od jednog reda.
+// Jedan slot = [−] [polje] [+]. Kilaža i ponavljanja stoje jedno pored drugog
+// dok ima mjesta, a na telefonu se PRELOME jedno ispod drugog — na 390px za
+// dva slota sa steperima nema mjesta (svaki bi dobio 147px, a sam par dugmadi
+// i razmaci pojedu 96px).
 .io-fields {
   display: flex;
   flex-wrap: wrap;
@@ -814,10 +818,12 @@ $branch-indent: 16px;
   min-width: 0;
 }
 
-// `flex-basis` od 110px je prag prelamanja; `min-width: 0` dozvoljava da polje
-// samo na svom redu bude i uže od toga (kolona jedne ruke na telefonu).
+// `flex-basis` je PRAG PRELAMANJA (ne stvarna širina): dva slota od 190px ne
+// stanu u ostrvo izmjene (~256px), pa svaki dobije svoj red; u širokom ostrvu
+// stanu jedan pored drugog. `min-width: 0` dozvoljava da slot sam na redu bude
+// i uži od praga.
 .io-slot {
-  flex: 1 1 110px;
+  flex: 1 1 190px;
   min-width: 0;
   display: flex;
   flex-wrap: wrap;
@@ -825,25 +831,26 @@ $branch-indent: 16px;
   gap: var(--s-2);
 }
 
+// Osnova 60px, ne `auto`: prazan `<input>` ima sopstvenu prirodnu širinu od
+// ~20 znakova, pa bi sa `auto` slot mislio da mu treba ~280px i izbacio dugme
+// „+" u novi red. Sa malom osnovom polje jednostavno popuni ostatak reda.
 .io .field {
   position: relative;
-  flex: 1 1 auto;
+  flex: 1 1 60px;
   min-width: 0;
   margin: 0;
 }
 
-// Jedinica („kg", „pon.") stoji IZNAD broja, ne pored njega: pored bi na uskoj
-// koloni pojela pola prostora za cifre, a broj mora ostati krupan.
+// Jedinica ostaje DESNO u polju, tačno gdje je i bila prije ostrva — forma
+// mora ostati prepoznatljiva kao ista forma, samo krupnija.
 .io .field .unit {
   position: absolute;
-  left: 50%;
-  right: auto;
-  top: 6px;
-  transform: translateX(-50%);
+  right: var(--s-3);
+  left: auto;
+  top: 50%;
+  transform: translateY(-50%);
   font-family: var(--font-data);
-  font-size: 10px;
-  letter-spacing: var(--ls-wide);
-  text-transform: uppercase;
+  font-size: var(--t-2xs);
   color: var(--dust);
   pointer-events: none;
 }
@@ -851,8 +858,8 @@ $branch-indent: 16px;
 .io .field input {
   width: 100%;
   min-height: var(--io-h);
-  // Gornji razmak je mjesto oznake („KG"), pa broj ostaje ispod nje na sredini.
-  padding: var(--s-5) var(--s-2) 0;
+  // Simetrično, da broj stoji na sredini polja a jedinica desno u svom kutku.
+  padding: 0 var(--s-8);
   background: var(--carbon-high);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
@@ -860,7 +867,7 @@ $branch-indent: 16px;
   font-family: var(--font-data);
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  // Krupne cifre — ali OBAVEZNO kroz max(): polje ispod 16px na dodirnom
+  // Krupnije cifre — ali OBAVEZNO kroz max(): polje ispod 16px na dodirnom
   // ekranu tjera iOS da zumira cijelu stranicu, i ne vrati zum nazad.
   font-size: max(var(--io-num), var(--t-field-min));
   text-align: center;
@@ -892,41 +899,51 @@ $branch-indent: 16px;
 // --- Steperi ± -------------------------------------------------------------
 //
 // Kilaža ide po 2,5 kg (najmanji par tanjira), ponavljanja po 1; držanje
-// ponavlja korak. Dugmad idu ISPOD polja preko cijele njegove širine: pored
-// polja bi u koloni jedne ruke ostalo ~50px za cifre.
-.io-step {
-  flex: 1 0 100%;
-  display: flex;
-  gap: var(--s-2);
-  max-height: 64px;
-  transition: max-height var(--d-slow) var(--ease),
-              opacity var(--d-base) var(--ease);
-}
-
+// ponavlja korak. Dugmad stoje UZ polje (lijevo/desno), ne kao zaseban pun
+// red — tanka ivica bez pune podloge, da pomažu a ne da viču.
 .io-btn {
-  flex: 1 1 0;
-  min-width: var(--io-btn);
-  min-height: var(--io-btn);
+  flex: none;
+  width: var(--io-btn);
+  min-height: var(--io-h);
   display: grid;
   place-items: center;
 
-  background: var(--carbon-high);
+  background: transparent;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  color: var(--ice);
+  color: var(--mist);
   // Bez ovoga dugi pritisak na telefonu izabere tekst i otvori lupu.
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   touch-action: manipulation;
 }
-.io-btn .material-icons { font-size: 20px; }
+.io-btn .material-icons { font-size: 18px; }
 .io-btn:hover { border-color: var(--volt-a40); color: var(--volt); }
 .io-btn:active {
   background: var(--volt-a10);
   border-color: var(--volt-a40);
   color: var(--volt);
 }
+
+// U koloni jedne ruke (~120px) [−][polje][+] ne staje u jedan red: polje ide
+// gore preko cijele kolone (`order: -1`), dugmad u red ispod — kompaktnija
+// (38px), ali i dalje pola kolone široka, što je više nego dovoljno za palac.
+.side-half .io-slot > .field { flex: 1 0 100%; order: -1; }
+.side-half .io-btn { flex: 1 1 0; width: auto; min-height: 38px; }
+.side-half .io .field input { padding: 0 var(--s-5) 0 var(--s-3); }
+.side-half .io .field .unit { right: var(--s-1); }
+
+// Dugmad ostrva u koloni: niža i uža, da „Otkaži" i korpa stanu u isti red
+// ispod „Sačuvaj" umjesto da svako uzme svoj.
+.side-half .io-save,
+.side-half .io-cancel { min-height: 40px; padding: 0 var(--s-2); }
+.side-half .io-del { width: 40px; min-height: 40px; }
+
+// Grana ka ostrvu dropseta je u koloni upola uža — tih 8px je razlika između
+// stepera od 35px i stepera od 39px, a grana se i dalje jasno vidi.
+.side-half .set-group .dropset-form { margin-left: 8px; max-width: calc(100% - 8px); }
+.side-half .set-group .dropset-form::before { left: -8px; width: 8px; }
 
 // --- Dugmad ostrva ---------------------------------------------------------
 
@@ -981,7 +998,7 @@ $branch-indent: 16px;
 
 @media (prefers-reduced-motion: reduce) {
   .io, .io.morph, .io.closing, .io.morph.closing,
-  .io > *, .io .field.pop input, .io-step { animation: none; transition: none; }
+  .io > *, .io .field.pop input { animation: none; transition: none; }
   .io::after { display: none; }
 }
 
@@ -1001,10 +1018,13 @@ $branch-indent: 16px;
 // od sebe, kroz flex — kontinuirano i bez skoka.
 .log-fields { min-width: 0; }
 
-// U glavnoj formi polja dijele red na pola i NIKAD se ne prelamaju — red je
-// pune širine kartice. Zato osnova 0 (kao kod slota kilaže): sa osnovom od
-// 110px kao u ostrvima izmjene, kilaža bi ispala vidno uža od ponavljanja.
-.log-fields > .io-slot { flex: 1 1 0; min-width: 0; }
+// Prag prelamanja glavne forme: 300px po slotu. Na telefonu (ostrvo ~302px
+// unutra) dva takva slota ne stanu u red, pa kilaža i ponavljanja idu jedno
+// ispod drugog — svako preko cijele širine, sa čipom i steperima u SVOM redu.
+// Na širokom ekranu (≥ ~660px unutar ostrva) stoje jedno pored drugog, kao i
+// do sada. Prag je namjerno u px, ne u %: kad se slot kilaže skupi na čip,
+// prag ostaje 300px pa ponavljanja NE skoče gore u isti red.
+.log-fields > .io-slot { flex: 1 1 300px; min-width: 0; }
 
 .field { position: relative; margin: 0; }
 
@@ -1018,16 +1038,15 @@ $branch-indent: 16px;
 // pogađanja krajnje širine kao kod `max-width`), a čip ostaje vidljiv jer
 // `min-width` slota ne pada ispod njegove širine.
 
-// Slot kilaže je i sam ostrvska ćelija (`.io-slot`): čip i polje dijele prvi
-// red, steper se prelama u drugi. `flex: 1 1 0` ostaje jer se BAŠ preko
-// `flex-grow` animira skupljanje na čip.
+// Slot kilaže je i sam ostrvska ćelija: [BW] [−] [polje] [+] u jednom redu.
+// Skupljanje na čip ide kroz BROJEVE (`flex-grow`, `flex-basis`, `max-width`),
+// pa se sve interpolira glatko i bez pogađanja krajnje širine.
 .weight-slot {
   position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
-  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -1040,21 +1059,34 @@ $branch-indent: 16px;
   // Čip ne smije da se stisne ispod svoje širine kad slot prestane da raste.
   min-width: 46px;
   transition: flex-grow 460ms var(--ease-spring),
+              flex-basis 460ms var(--ease-spring),
               gap var(--d-slow) var(--ease);
 }
 
 .weight-slot.bw > .field {
-  transition: opacity var(--d-base) var(--ease);
+  transition: opacity var(--d-base) var(--ease),
+              flex-grow 460ms var(--ease-spring);
 }
 
-.weight-slot.bw.plain { flex-grow: 0; gap: 0; }
-.weight-slot.bw.plain > .field { opacity: 0; pointer-events: none; }
+.weight-slot.bw > .io-btn {
+  transition: max-width 460ms var(--ease-spring),
+              opacity var(--d-base) var(--ease),
+              border-width var(--d-slow) var(--ease);
+  max-width: var(--io-btn);
+}
 
-// „Čist BW": kilaže nema, pa nema šta ni steper da mijenja. Ne uklanja se iz
-// DOM-a nego se skuplja — i po visini, da red sa ponavljanjima ne skoči.
-.weight-slot.bw.plain .io-step {
-  max-height: 0;
+// „Čist BW": kilaže nema, pa se skuplja SVE osim čipa — i sam slot (da na
+// širokom ekranu ponavljanja preuzmu oslobođeni prostor, kao i do sada), i
+// polje, i steperi. Ništa se ne uklanja iz DOM-a, pa prelaz ima pokret u oba
+// smjera.
+.weight-slot.bw.plain { flex: 0 1 46px; gap: 0; }
+.weight-slot.bw.plain > .field { flex-grow: 0; opacity: 0; pointer-events: none; }
+.weight-slot.bw.plain > .io-btn {
+  max-width: 0;
+  min-width: 0;
+  width: 0;
   opacity: 0;
+  border-width: 0;
   pointer-events: none;
 }
 
@@ -1099,9 +1131,7 @@ $branch-indent: 16px;
   content: '';
   position: absolute;
   left: 23px;
-  // Sredina PRVOG reda (čip + polje) — ispod njega je steper, pa bi 50% palo
-  // u prazno između dva reda.
-  top: calc(var(--io-h) / 2);
+  top: 50%;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -1125,15 +1155,15 @@ $branch-indent: 16px;
 .weight-slot.sip::after { animation: ink-retreat 420ms var(--ease); }
 
 // Sadržaj izranja talasom — polje kilaže dolazi odozdo, korak iza kapi, a
-// steper korak iza polja.
+// steperi korak iza polja.
 .weight-slot.bloom > .field { animation: ch-rise 260ms var(--ease-spring) 120ms both; }
-.weight-slot.bloom .io-step { animation: ch-rise 260ms var(--ease-spring) 190ms both; }
+.weight-slot.bloom > .io-btn { animation: ch-rise 260ms var(--ease-spring) 190ms both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .weight-slot.bw, .weight-slot.bw > .field, .bw-chip,
+  .weight-slot.bw, .weight-slot.bw > .field, .weight-slot.bw > .io-btn, .bw-chip,
   .weight-slot.bloom, .weight-slot.sip,
   .weight-slot.bloom > .field,
-  .weight-slot.bloom .io-step { transition: none; animation: none; }
+  .weight-slot.bloom > .io-btn { transition: none; animation: none; }
   .weight-slot::after { display: none; }
 }
 

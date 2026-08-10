@@ -311,48 +311,44 @@
 
             <div class="io-fields">
               <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                        (pointerdown)="stepHold($event, set, 'editWeight', -1, set.weight)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
                 <label class="field" [class.pop]="popping(set, 'editWeight')">
                   <!-- Prazno polje znači tjelesnu težinu, pa i duh u polju to
                        kaže umjesto da traži kilažu. Gleda se i sam red
                        (bwField), pa serija odrađena bez tega ostaje „BW" i
                        kad se flag ugasi. -->
                   <input appNumField keyboard="text" [(ngModel)]="set.editWeight"
-                         [placeholder]="bwField(ex, set.weight) ? 'BW' : '–'"
+                         [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
                          (keydown.enter)="editReps.focus()" />
                   <span class="unit">kg</span>
                 </label>
-                <div class="io-step">
-                  <button type="button" class="io-btn" aria-label="Smanji kilažu"
-                          (pointerdown)="stepHold($event, set, 'editWeight', -1, set.weight)"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">remove</i>
-                  </button>
-                  <button type="button" class="io-btn" aria-label="Povećaj kilažu"
-                          (pointerdown)="stepHold($event, set, 'editWeight', 1, set.weight)"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">add</i>
-                  </button>
-                </div>
+                <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                        (pointerdown)="stepHold($event, set, 'editWeight', 1, set.weight)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
               </div>
 
               <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'editReps', -1, set.reps)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
                 <label class="field" [class.pop]="popping(set, 'editReps')">
                   <input #editReps keyboard="text" appNumField="integer" [(ngModel)]="set.editReps"
-                         placeholder="–" (keydown.enter)="saveEditSet(ex, set)" />
+                         placeholder="pon." (keydown.enter)="saveEditSet(ex, set)" />
                   <span class="unit">pon.</span>
                 </label>
-                <div class="io-step">
-                  <button type="button" class="io-btn" aria-label="Manje ponavljanja"
-                          (pointerdown)="stepHold($event, set, 'editReps', -1, set.reps)"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">remove</i>
-                  </button>
-                  <button type="button" class="io-btn" aria-label="Više ponavljanja"
-                          (pointerdown)="stepHold($event, set, 'editReps', 1, set.reps)"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">add</i>
-                  </button>
-                </div>
+                <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'editReps', 1, set.reps)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
               </div>
             </div>
 
@@ -393,44 +389,40 @@
 
               <div class="io-fields">
                 <div class="io-slot">
+                  <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                          (pointerdown)="stepHold($event, d, 'editWeight', -1, d.weight)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">remove</i>
+                  </button>
                   <label class="field" [class.pop]="popping(d, 'editWeight')">
                     <input appNumField keyboard="text" [(ngModel)]="d.editWeight"
-                           [placeholder]="bwField(ex, d.weight) ? 'BW' : '–'"
+                           [placeholder]="bwField(ex, d.weight) ? 'BW' : 'kg'"
                            (keydown.enter)="dropEditReps.focus()" />
                     <span class="unit">kg</span>
                   </label>
-                  <div class="io-step">
-                    <button type="button" class="io-btn" aria-label="Smanji kilažu"
-                            (pointerdown)="stepHold($event, d, 'editWeight', -1, d.weight)"
-                            (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                      <i class="material-icons">remove</i>
-                    </button>
-                    <button type="button" class="io-btn" aria-label="Povećaj kilažu"
-                            (pointerdown)="stepHold($event, d, 'editWeight', 1, d.weight)"
-                            (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                      <i class="material-icons">add</i>
-                    </button>
-                  </div>
+                  <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                          (pointerdown)="stepHold($event, d, 'editWeight', 1, d.weight)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">add</i>
+                  </button>
                 </div>
 
                 <div class="io-slot">
+                  <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                          (pointerdown)="stepHold($event, d, 'editReps', -1, d.reps)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">remove</i>
+                  </button>
                   <label class="field" [class.pop]="popping(d, 'editReps')">
                     <input #dropEditReps appNumField="integer" keyboard="text" [(ngModel)]="d.editReps"
-                           placeholder="–" (keydown.enter)="saveEditDropset(ex, d)" />
+                           placeholder="pon." (keydown.enter)="saveEditDropset(ex, d)" />
                     <span class="unit">pon.</span>
                   </label>
-                  <div class="io-step">
-                    <button type="button" class="io-btn" aria-label="Manje ponavljanja"
-                            (pointerdown)="stepHold($event, d, 'editReps', -1, d.reps)"
-                            (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                      <i class="material-icons">remove</i>
-                    </button>
-                    <button type="button" class="io-btn" aria-label="Više ponavljanja"
-                            (pointerdown)="stepHold($event, d, 'editReps', 1, d.reps)"
-                            (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                      <i class="material-icons">add</i>
-                    </button>
-                  </div>
+                  <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                          (pointerdown)="stepHold($event, d, 'editReps', 1, d.reps)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">add</i>
+                  </button>
                 </div>
               </div>
 
@@ -466,44 +458,40 @@
 
             <div class="io-fields">
               <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                        (pointerdown)="stepHold($event, set, 'dropsetWeightInput', -1, dropBase(ex, set, 'weight'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
                 <label class="field" [class.pop]="popping(set, 'dropsetWeightInput')">
                   <input appNumField keyboard="text" [(ngModel)]="set.dropsetWeightInput"
-                         [placeholder]="bwField(ex, set.weight) ? 'BW' : '–'"
+                         [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
                          (keydown.enter)="dropReps.focus()" />
                   <span class="unit">kg</span>
                 </label>
-                <div class="io-step">
-                  <button type="button" class="io-btn" aria-label="Smanji kilažu"
-                          (pointerdown)="stepHold($event, set, 'dropsetWeightInput', -1, dropBase(ex, set, 'weight'))"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">remove</i>
-                  </button>
-                  <button type="button" class="io-btn" aria-label="Povećaj kilažu"
-                          (pointerdown)="stepHold($event, set, 'dropsetWeightInput', 1, dropBase(ex, set, 'weight'))"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">add</i>
-                  </button>
-                </div>
+                <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                        (pointerdown)="stepHold($event, set, 'dropsetWeightInput', 1, dropBase(ex, set, 'weight'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
               </div>
 
               <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'dropsetRepsInput', -1, dropBase(ex, set, 'reps'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
                 <label class="field" [class.pop]="popping(set, 'dropsetRepsInput')">
                   <input #dropReps keyboard="text" appNumField="integer" [(ngModel)]="set.dropsetRepsInput"
-                         placeholder="–" (keydown.enter)="saveDropset(ex, set)" />
+                         placeholder="pon." (keydown.enter)="saveDropset(ex, set)" />
                   <span class="unit">pon.</span>
                 </label>
-                <div class="io-step">
-                  <button type="button" class="io-btn" aria-label="Manje ponavljanja"
-                          (pointerdown)="stepHold($event, set, 'dropsetRepsInput', -1, dropBase(ex, set, 'reps'))"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">remove</i>
-                  </button>
-                  <button type="button" class="io-btn" aria-label="Više ponavljanja"
-                          (pointerdown)="stepHold($event, set, 'dropsetRepsInput', 1, dropBase(ex, set, 'reps'))"
-                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                    <i class="material-icons">add</i>
-                  </button>
-                </div>
+                <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'dropsetRepsInput', 1, dropBase(ex, set, 'reps'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
               </div>
             </div>
 
@@ -587,8 +575,10 @@
                 title="Upisuje obje ruke — ako se desna razlikovala, dodirni njenu seriju i ispravi">L+D</span>
         </div>
 
-        <!-- Kilaža i ponavljanja dijele isti red: kad se kilaža skupi u čip
-             „BW", ponavljanja tečno preuzmu oslobođeni prostor. -->
+        <!-- Kilaža i ponavljanja su JEDNA flex ćelija: na širokom ekranu dijele
+             red pa, kad se kilaža skupi u čip „BW", ponavljanja tečno preuzmu
+             oslobođeni prostor; na telefonu (gdje za dva polja sa steperima
+             nema mjesta) svako ima svoj red, a čip i steperi ostaju uz kilažu. -->
         <div class="log-fields io-fields">
 
           <!-- Bodyweight vježba: čip prebacuje između „čistog BW" (u bazu ide
@@ -606,6 +596,14 @@
                                : 'Dodaj teg uz tjelesnu težinu'"
                     (click)="toggleBodyweightWeight(ex)">BW</button>
 
+            <!-- U stanju „čist BW" steperi kilaže nemaju šta da mijenjaju —
+                 skupljaju se zajedno sa poljem, u istom pokretu kao i ono. -->
+            <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                    (pointerdown)="stepHold($event, ex, 'weightInput', -1, stepBase(ex, 'weight'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">remove</i>
+            </button>
+
             <label class="field" [class.pop]="popping(ex, 'weightInput')">
               <input appNumField keyboard="text" [(ngModel)]="ex.weightInput"
                      [disabled]="ex.isBodyweight && !ex.showWeightInput"
@@ -614,41 +612,30 @@
               <span class="unit">kg</span>
             </label>
 
-            <!-- U stanju „čist BW" steper kilaže nema šta da mijenja — skuplja
-                 se zajedno sa poljem (i po visini, da red ne skoči). -->
-            <div class="io-step">
-              <button type="button" class="io-btn" aria-label="Smanji kilažu"
-                      (pointerdown)="stepHold($event, ex, 'weightInput', -1, stepBase(ex, 'weight'))"
-                      (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                <i class="material-icons">remove</i>
-              </button>
-              <button type="button" class="io-btn" aria-label="Povećaj kilažu"
-                      (pointerdown)="stepHold($event, ex, 'weightInput', 1, stepBase(ex, 'weight'))"
-                      (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                <i class="material-icons">add</i>
-              </button>
-            </div>
+            <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                    (pointerdown)="stepHold($event, ex, 'weightInput', 1, stepBase(ex, 'weight'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">add</i>
+            </button>
           </div>
 
           <div class="io-slot">
+            <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                    (pointerdown)="stepHold($event, ex, 'repsInput', -1, stepBase(ex, 'reps'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">remove</i>
+            </button>
             <label class="field" [class.pop]="popping(ex, 'repsInput')">
               <input #logReps keyboard="text" appNumField="integer" [(ngModel)]="ex.repsInput"
                      [placeholder]="echoPlaceholder(ex, 'reps')"
                      (keydown.enter)="saveLog(ex)" />
               <span class="unit">pon.</span>
             </label>
-            <div class="io-step">
-              <button type="button" class="io-btn" aria-label="Manje ponavljanja"
-                      (pointerdown)="stepHold($event, ex, 'repsInput', -1, stepBase(ex, 'reps'))"
-                      (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                <i class="material-icons">remove</i>
-              </button>
-              <button type="button" class="io-btn" aria-label="Više ponavljanja"
-                      (pointerdown)="stepHold($event, ex, 'repsInput', 1, stepBase(ex, 'reps'))"
-                      (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
-                <i class="material-icons">add</i>
-              </button>
-            </div>
+            <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                    (pointerdown)="stepHold($event, ex, 'repsInput', 1, stepBase(ex, 'reps'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">add</i>
+            </button>
           </div>
         </div>
 

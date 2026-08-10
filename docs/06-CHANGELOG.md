@@ -4064,3 +4064,17 @@ providnost panela i probijanje sadržaja kroz listu riješeni trostruko:
 (svijetla: mliječno bijelo; @supports fallback puna boja); (3) panel se
 otvara NAGORE kad ispod okidača nema mjesta (dno modala/sticky traka bi ga
 sjekli), max-visina po raspoloživom prostoru.
+
+**Dopuna istog dana — ostrvo za unos v2 (Markove tri regresije) + dropdown fino:**
+1. Vraćeni echo placeholderi („Kilaža"/„kg"/„pon." i brojevi-duhovi) — crtica
+   ih je bila zamijenila pa je forma djelovala prazna; prefil ojačan: kad
+   prošli trening nema tu seriju, prijedlog je posljednja današnja serija
+   (`suggestFor`) — isti izvor za BW čip i stepere.
+2. BW čip opet vidljiv i prepoznatljiv (jedinica vraćena u polje, steperi
+   inline pa čip više ne davi među kutijama); skupljanje u čist BW glatko.
+3. Diskretnije: polja 46px (bilo 52), cifre 18px (bilo 20), steperi inline
+   [−][polje][+] 40×46 prozirni; Sačuvaj 46px; izračunat raspored za 390px i
+   L/D kolone (polje preko cijele kolone, dugmad ispod).
+4. Dropdown: veći dah od sticky trake pri mjerenju smjera (128px) i manje
+   providno staklo (86%/84%) — ugniježdeni backdrop blur unutar modala ne
+   muti pouzdano pa sama podloga mora nositi čitljivost.

@@ -865,19 +865,13 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     return done >= prev.length ? [] : prev.slice(done);
   }
 
-  /**
-   * Tekst u polju prije nego što korisnik išta ukuca.
-   *
-   * Kad prijedloga nema, stoji samo crtica: šta se u polje kuca kaže oznaka
-   * iznad njega („KG", „PON."), a puna riječ bi u krupnom polju ostrva izašla
-   * iz okvira.
-   */
+  /** Tekst u polju prije nego što korisnik išta ukuca. */
   echoPlaceholder(ex: TodayExercice, field: 'reps' | 'weight'): string {
     const prev = this.echoFor(ex, this.nextSetNumber(ex));
-    if (!prev) return '–';
+    if (!prev) return field === 'reps' ? 'Ponavljanja' : 'Kilaža';
     if (field === 'reps') return `${prev.reps}`;
     // Prošli put bez tega — nula kao duh bi zvučala kao prijedlog da se upiše 0.
-    return prev.weight > 0 ? `${prev.weight}` : '–';
+    return prev.weight > 0 ? `${prev.weight}` : 'Kilaža';
   }
 
   /** Koliko je serija plan predvidio, a koliko ih je odrađeno. */
@@ -950,14 +944,24 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   /**
-   * Polazna vrijednost stepera kad je polje PRAZNO: prijedlog iz „duha"
-   * prošlog treninga. Prvi dodir tada samo prihvati prijedlog (u teretani se
-   * najčešće ponavlja isto), a tek sljedeći pomjera za korak.
+   * Prijedlog za sljedeću seriju: ista serija prošlog treninga („duh"), a ako
+   * nje nema — posljednja današnja. Isti izvor koristi i prefil forme i steper,
+   * pa se prijedlog ne razilazi između njih.
+   */
+  private suggestFor(ex: TodayExercice): { reps: number; weight: number } | null {
+    return this.echoFor(ex, this.nextSetNumber(ex))
+        ?? (ex.loggedSets.length ? ex.loggedSets[ex.loggedSets.length - 1] : null);
+  }
+
+  /**
+   * Polazna vrijednost stepera kad je polje PRAZNO. Prvi dodir tada samo
+   * prihvati prijedlog (u teretani se najčešće ponavlja isto), a tek sljedeći
+   * pomjera za korak. Kod popunjenog polja steper kreće od upisane vrijednosti.
    */
   stepBase(ex: TodayExercice, field: 'weight' | 'reps'): number {
-    const prev = this.echoFor(ex, this.nextSetNumber(ex));
-    if (!prev) return 0;
-    return field === 'weight' ? prev.weight : prev.reps;
+    const s = this.suggestFor(ex);
+    if (!s) return 0;
+    return field === 'weight' ? s.weight : s.reps;
   }
 
   /** Isto za dropset: duh dropseta ako postoji, inače sama working serija. */
@@ -1043,15 +1047,20 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
 
     // Predloži prošli rezultat kao polaznu vrijednost — u teretani se najčešće
     // ponavlja isto ili se dodaje mali korak.
-    const prev = this.echoFor(ex, this.nextSetNumber(ex));
+    //
+    // Prvo ISTA serija prošlog treninga (duh). Ako duha za nju nema — a nema ga
+    // uvijek kad se danas radi više serija nego prošli put — uzima se
+    // POSLJEDNJA DANAŠNJA serija. Bez toga su polja od treće serije nadalje
+    // ostajala prazna, pa se svaki put kucalo ispočetka.
+    const suggest = this.suggestFor(ex);
 
-    // Bodyweight vježba se otvara u stanju „čist BW" — osim ako je prošli put
-    // stvarno bilo tega, tada se polje otvara sa tom kilažom. Ranije je prefil
+    // Bodyweight vježba se otvara u stanju „čist BW" — osim ako je prijedlog
+    // stvarno nosio teg, tada se polje otvara sa tom kilažom. Ranije je prefil
     // upisivao i nulu, pa se morala brisati rukom prije svake serije.
-    const withWeight = !ex.isBodyweight || (prev?.weight ?? 0) > 0;
+    const withWeight = !ex.isBodyweight || (suggest?.weight ?? 0) > 0;
 
-    ex.repsInput = prev?.reps ?? null;
-    ex.weightInput = withWeight ? prev?.weight ?? null : null;
+    ex.repsInput = suggest?.reps ?? null;
+    ex.weightInput = withWeight ? suggest?.weight ?? null : null;
     ex.showWeightInput = withWeight;
   }
 
@@ -1088,8 +1097,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.showWeightInput = opening;
 
     if (opening) {
-      const prev = this.echoFor(ex, this.nextSetNumber(ex));
-      ex.weightInput = (prev?.weight ?? 0) > 0 ? prev!.weight : null;
+      // Isti prijedlog kao pri otvaranju forme: duh te serije, pa posljednja
+      // današnja — da čip „BW + teg" ne otvori prazno polje kad duha nema.
+      const w = this.suggestFor(ex)?.weight ?? 0;
+      ex.weightInput = w > 0 ? w : null;
     } else {
       ex.weightInput = null;
     }
