@@ -76,15 +76,55 @@
             <i class="material-icons">play_arrow</i>
           </span>
         </button>
+
+        <!-- Balončići reakcija — nakupljaju se u uglu objave. -->
+        <div class="rx post-rx" (click)="$event.stopPropagation()">
+          <ng-container *ngTemplateOutlet="rxTpl; context: { $implicit: item }"></ng-container>
+        </div>
       </article>
     </div>
 
   </ng-container>
 </section>
 
+<!-- Reakcije: JEDAN šablon za karticu i pregled — emoji + glave reaktora +
+     broj; [+] otvara paletu; dodir na balončić dodaje/skida moju (toggle). -->
+<ng-template #rxTpl let-item>
+  <button type="button" class="rx-b"
+          *ngFor="let b of bubblesOf(item); trackBy: trackBubble"
+          [class.on]="b.mine"
+          (click)="toggleReaction(item, b.kind, $event)"
+          [attr.aria-label]="'Reakcija ' + b.kind + ' — ' + b.count">
+    <span class="rx-e">{{ b.kind }}</span>
+    <span class="rx-faces" *ngIf="b.avatars.length">
+      <img *ngFor="let a of b.avatars" [src]="a" alt="">
+    </span>
+    <span class="rx-n num" *ngIf="b.count > b.avatars.length">
+      <!-- Broj se rađa iznova pri promjeni, pa promjena „popne" talasom. -->
+      <ng-container *ngFor="let c of [b.count]">
+        <span class="rx-n-in">{{ c }}</span>
+      </ng-container>
+    </span>
+  </button>
+
+  <span class="rx-addwrap">
+    <button type="button" class="rx-add" [class.open]="paletteFor === item.id"
+            (click)="togglePalette(item, $event)" aria-label="Dodaj reakciju">
+      <i class="material-icons">add_reaction</i>
+    </button>
+    <span class="rx-pal" *ngIf="paletteFor === item.id"
+          [class.closing]="paletteClosing" (click)="$event.stopPropagation()">
+      <button type="button" class="rx-p"
+              *ngFor="let k of reactionKinds; let i = index"
+              [style.animation-delay.ms]="paletteClosing ? 0 : 40 + i * 35"
+              (click)="toggleReaction(item, k, $event)">{{ k }}</button>
+    </span>
+  </span>
+</ng-template>
+
 <!-- Pregled -->
 <div class="lb" *ngIf="selectedItem as item" (click)="closeLightbox()"
-     (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
+     (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd()">
 
   <header class="lb-bar" (click)="$event.stopPropagation()">
     <div class="lb-who">
@@ -102,15 +142,43 @@
     <i class="material-icons">chevron_left</i>
   </button>
 
-  <div class="lb-stage" (click)="$event.stopPropagation()">
-    <video *ngIf="item.type === 'video'" [src]="item.url" controls autoplay playsinline></video>
-    <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name">
+  <!-- Traka od TRI panela: prethodna · tekuća · sljedeća. Prst je vuče uživo
+       (transform direktno iz koda, van change detectiona), na puštanju se sa
+       oprugom prelije na cilj — indeks se mijenja tek kad klizanje završi. -->
+  <div class="lb-viewport" (click)="$event.stopPropagation()">
+  <div class="lb-strip" #lbStrip
+       (transitionend)="onStripTransitionEnd($event)">
+
+    <div class="lb-pane">
+      <ng-container *ngIf="prevItem as p">
+        <video *ngIf="p.type === 'video'" [src]="p.url" muted playsinline preload="metadata"></video>
+        <img *ngIf="p.type === 'image'" [src]="p.url" alt="">
+      </ng-container>
+    </div>
+
+    <div class="lb-pane">
+      <video *ngIf="item.type === 'video'" [src]="item.url" controls autoplay playsinline></video>
+      <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name">
+    </div>
+
+    <div class="lb-pane">
+      <ng-container *ngIf="nextItem as n">
+        <video *ngIf="n.type === 'video'" [src]="n.url" muted playsinline preload="metadata"></video>
+        <img *ngIf="n.type === 'image'" [src]="n.url" alt="">
+      </ng-container>
+    </div>
+  </div>
   </div>
 
   <button type="button" class="lb-nav next" *ngIf="selectedIndex < total - 1"
           (click)="$event.stopPropagation(); next()" aria-label="Sljedeća">
     <i class="material-icons">chevron_right</i>
   </button>
+
+  <!-- Reakcije i u pregledu — isti balončići, pri dnu. -->
+  <div class="rx lb-rx" (click)="$event.stopPropagation()">
+    <ng-container *ngTemplateOutlet="rxTpl; context: { $implicit: item }"></ng-container>
+  </div>
 
   <span class="lb-hint">
     {{ total > 1 ? 'Prevuci lijevo/desno · povuci dolje za izlaz' : 'Povuci dolje za izlaz' }}

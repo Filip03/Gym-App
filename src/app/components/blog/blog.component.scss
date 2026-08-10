@@ -144,12 +144,18 @@
 // čita mirno, a slika se vidi cijela.
 
 .post {
+  position: relative;   // sidro za balončiće reakcija u uglu
   margin-bottom: var(--s-4);
   overflow: hidden;
 
   background: var(--carbon-high);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
+
+  // Duga lista velikih medija: ono van ekrana se ne crta — listanje bez
+  // štucanja (Markova prijava). Rezervisana visina drži skrol traku mirnom.
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 
   animation: post-in 460ms var(--ease-spring) backwards;
 }
@@ -318,10 +324,15 @@
   // Sav sadržaj pregleda je na tokenima koji se okreću sa temom — ime
   // (--ice), datum (--mist), brojač (--dust), dugmad (--carbon-high). Da je
   // podloga stalno skoro crna, u svijetloj temi bi tekst na njoj nestao.
-  // Isti izbor je već napravljen na `.post-media img`, gdje okvir oko slike
-  // takođe koristi --void.
-  background: rgba(3, 5, 7, .94);
+  // `--lb-fade` (piše je kod tokom povlačenja nadolje) tamu postepeno skida,
+  // pa se vidi kuda pokret vodi.
+  background: rgba(3, 5, 7, calc(.94 * var(--lb-fade, 1)));
   animation: lb-in var(--d-base) var(--ease-out) both;
+
+  // SVI gestovi u pregledu su naši (klizanje trake, povlačenje nadolje) —
+  // pregledač ne smije usput da skroluje ni da zumira.
+  touch-action: none;
+  overflow: hidden;
 }
 
 .lb-bar {
@@ -390,22 +401,39 @@
 // Kad je i polje grid, njegov red je `auto` pa ga slika opet razvuče — ista
 // zamka jedan nivo niže. Kod običnog bloka `height: 100%` na slici se računa
 // prema određenoj visini bloka, pa `object-fit: contain` konačno ima okvir.
-.lb-stage {
+// Okvir za klizanje: siječe bočne panele — bez njega bi susjedna slika
+// virila u žljebovima strelica dok traka miruje.
+.lb-viewport {
   grid-column: 2;
-  display: block;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
+}
+
+// Traka od tri panela (prethodna · tekuća · sljedeća), široka tri polja.
+// Prst je vuče uživo (transform piše kod, bez CD-a), a `snap` uključi oprugu
+// za prelijevanje na cilj ili povratak. -33.3333% = tekuća u sredini.
+.lb-strip {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  transform: translateX(-33.3333%);
+  will-change: transform;
+}
+.lb-strip.snap { transition: transform 340ms var(--ease-spring); }
+
+// Sve zamke visine naslijeđene od starog `.lb-stage` (vidi komentare iznad):
+// običan blok, određena visina, `object-fit: contain` u punom okviru.
+.lb-pane {
+  flex: 0 0 33.3333%;
+  min-width: 0;
+  display: block;
+  height: 100%;
   padding: var(--s-10) var(--s-2);
 }
 
-// `width/height: 100%` + `object-fit: contain`, ne `max-*`.
-//
-// Okvir slike je time tačno veličine polja, a sama fotografija se uklapa u
-// njega sa crnim rubovima gdje treba. Nikakva veličina originala ne može da
-// prelije ekran — a `max-height` u procentima traži da roditelj ima određenu
-// visinu, što se pokazalo kao stalan izvor grešaka.
-.lb-stage img,
-.lb-stage video {
+.lb-pane img,
+.lb-pane video {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -431,12 +459,12 @@
 // Na telefonu se lista prevlačenjem; strelice bi pojele pola širine slike.
 @media (max-width: 560px) {
   .lb-nav { display: none; }
-  .lb-stage { grid-column: 1 / -1; }
+  .lb-viewport { grid-column: 1 / -1; }
 
   // Slika se malo smanji da oko nje ostane pozadina — dodir na nju zatvara
   // pregled. Bez toga slika pokrije skoro sve, a dodir po njoj ne radi ništa
   // (namjerno, da se ne zatvara pri pokušaju zumiranja).
-  .lb-stage { padding: var(--s-10) var(--s-4); }
+  .lb-pane { padding: var(--s-10) var(--s-4); }
 }
 
 .lb-hint {
@@ -479,6 +507,177 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+// --- Reakcije — balončići koji se nakupljaju u uglu objave ------------------
+//
+// Kućni jezik: balončić PUKNE pri rađanju (squash & stretch), paleta se
+// razlije iz [+] dugmeta, emoji izranjaju talasom, broj se „popne" pri
+// promjeni. Mat staklo preko fotografije da se čita na svakoj podlozi.
+
+.rx {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.post-rx {
+  position: absolute;
+  left: var(--s-3);
+  bottom: var(--s-3);
+  z-index: 2;
+  // Prostor između balončića propušta dodir na sliku (otvaranje pregleda).
+  pointer-events: none;
+}
+.post-rx > * { pointer-events: auto; }
+
+.rx-b {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 3px 9px;
+  border-radius: 999px;
+
+  background: color-mix(in srgb, var(--carbon) 82%, transparent);
+  backdrop-filter: blur(10px) saturate(1.15);
+  -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  border: 1px solid var(--line-strong);
+  color: var(--ice);
+  cursor: pointer;
+
+  animation: rx-pop 420ms var(--ease-spring) both;
+  transition: border-color var(--d-fast) var(--ease),
+              background-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease);
+}
+.rx-b:active { transform: scale(.93); }
+
+// Moja reakcija — volt rub, da se odmah vidi šta sam ja dao.
+.rx-b.on {
+  border-color: var(--volt-a40);
+  background: color-mix(in srgb, var(--volt-a10) 60%, var(--carbon));
+}
+
+.rx-e { font-size: 15px; line-height: 1; }
+
+.rx-faces { display: inline-flex; }
+.rx-faces img {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--carbon);
+  margin-left: -5px;
+}
+.rx-faces img:first-child { margin-left: 0; }
+
+.rx-n {
+  font-size: var(--t-xs);
+  color: var(--mist);
+  overflow: hidden;
+}
+.rx-n-in {
+  display: inline-block;
+  animation: rx-rise 260ms var(--ease-spring) both;
+}
+
+.rx-addwrap { position: relative; display: inline-flex; }
+
+.rx-add {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+
+  background: color-mix(in srgb, var(--carbon) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--line-strong);
+  color: var(--mist);
+  cursor: pointer;
+  transition: color var(--d-fast) var(--ease),
+              border-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease);
+}
+.rx-add .material-icons { font-size: 16px; }
+.rx-add:active { transform: scale(.93); }
+.rx-add.open { color: var(--volt); border-color: var(--volt-a40); }
+
+// Paleta se razlije IZ dugmeta (transform-origin dolje-lijevo), emoji ulaze
+// talasom; zatvaranje je isto to unazad (closing drži komponenta).
+.rx-pal {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 999px;
+
+  background: color-mix(in srgb, var(--carbon) 90%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--lift-3);
+
+  transform-origin: 14px calc(100% + 8px);
+  animation: rx-pal-in 320ms var(--ease-spring) both;
+}
+.rx-pal.closing { animation: rx-pal-out 240ms var(--ease) both; }
+
+.rx-p {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  animation: rx-rise 260ms var(--ease-spring) both;
+  transition: background-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease);
+}
+.rx-p:hover { background: var(--volt-a10); }
+.rx-p:active { transform: scale(1.15); }
+.rx-pal.closing .rx-p { animation: none; }
+
+// U pregledu: balončići pri dnu, iznad nagovještaja.
+.lb-rx {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--safe-b) + 44px);
+  z-index: 3;
+  justify-content: center;
+}
+
+@keyframes rx-pop {
+  0%   { opacity: 0; transform: scale(.35); }
+  55%  { opacity: 1; transform: scale(1.09, .9); }
+  80%  {             transform: scale(.97, 1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rx-rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rx-pal-in {
+  0%   { opacity: 0; transform: scale(.3, .5); }
+  60%  { opacity: 1; transform: scale(1.04, .94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rx-pal-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(.45, .6); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .post, .group > h3, .group > .group-head { animation: none; }
+  .rx-b, .rx-n-in, .rx-pal, .rx-p, .lb-strip.snap { animation: none; transition: none; }
 }

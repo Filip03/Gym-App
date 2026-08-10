@@ -4305,3 +4305,40 @@ iOS backdrop-blur na opacity ne reaguje postepeno nego PUKNE odjednom.
 **Efekat:** oba pregleda ulaze mekim zamućenjem + izranjanjem kartice, izlaze
 istim pokretom unazad; meni je sve vrijeme vidljiv i upotrebljiv ispod
 plutajuće kartice.
+
+---
+
+## 2026-08-10 — Blog: reakcije-balončići + listanje koje prati prst
+
+**Šta:** Markove ideje za blog: reakcije „kao balončići u uglu koji se
+nakupljaju... sa slikama profilnih" i glatko listanje u pregledu (staro je
+skakalo na prag, bez praćenja prsta). Friends/close-friends krugovi svjesno
+PRESKOČENI — Markova riječ: poenta grupe je da svi vide sve, reakcije su
+pravi alat.
+
+**1. Reakcije** (`20260810010000_blog_reactions.sql`, `blog.service.ts`,
+`blog.component.*`): tabela `blog_reactions` (media × profil × vrsta,
+unique — ponovni dodir iste vrste je skidanje). Paleta: 💪 🔥 🐐 😂 ❤️.
+U uglu objave (i pri dnu pregleda) balončići: emoji + do 3 profilne glave +
+broj; moja reakcija nosi volt rub; [+] otvara paletu koja se razlije iz
+dugmeta (emoji talasom), balončić PUKNE pri rađanju, broj se „popne" pri
+promjeni. Optimistički upis sa vraćanjem na grešku. Jedan ng-template — dva
+mjesta (kartica + lightbox).
+
+**2. Pregled prati prst** (`blog.component.ts/html/scss`): traka od TRI
+panela (prethodna · tekuća · sljedeća) klizi UŽIVO pod prstom — touchmove se
+kači van Angular zone i piše transform direktno (60fps bez change
+detectiona); na puštanju opruga prelije na cilj ili vrati (indeks se mijenja
+tek na kraju klizanja, `transitionend`). Na krajevima traka pruža otpor.
+Povlačenje nadolje: slika tone za prstom uz tamnjenje pozadine
+(`--lb-fade`), flick zatvara. `touch-action: none` na pregledu — pregledač
+se ne miješa.
+
+**3. Listanje feeda bez štucanja:** `content-visibility: auto` +
+`contain-intrinsic-size` na `.post` — objave van ekrana se ne crtaju.
+
+**Provjereno uživo (lokal):** paleta → 🔥 → balončić sa glavom i volt rubom;
+red u bazi; brisanje objave kaskadno nosi reakcije. Test objave obrisane.
+
+**⚠️ Prije sljedećeg deploya na cloud Supabase moraju DVIJE migracije:**
+`20260810000000_plan_visibility.sql` i `20260810010000_blog_reactions.sql`.

@@ -1,7 +1,7 @@
-import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { AudioService } from '../../services/audio.service';
-import { BlogService, BlogMediaItem } from '../../services/blog.service';
+import { BlogService, BlogMediaItem, BlogReaction } from '../../services/blog.service';
 import { compressImage } from '../../shared/image-compress';
 import { compressVideo } from '../../shared/video-compress';
 import { ProfileService } from '../../services/profile.service';
@@ -18,13 +18,27 @@ const MONTHS = [
   'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
 ];
 
+/** Paleta reakcija — emoji je i vrijednost u bazi (blog_reactions.kind). */
+const REACTION_KINDS = ['💪', '🔥', '🐐', '😂', '❤️'];
+
+/** Jedan balončić na objavi: vrsta + koliko + čije glave + da li i moja. */
+interface ReactionBubble {
+  kind: string;
+  count: number;
+  mine: boolean;
+  /** Profilne slike reaktora, najviše tri — Markova želja: „sa slikama profilnih". */
+  avatars: string[];
+}
+
 @Component({
   selector: 'app-blog',
   templateUrl: './blog.component.html',
   styleUrls: ['./blog.component.scss']
 })
-export class BlogComponent implements OnInit {
+export class BlogComponent implements OnInit, OnDestroy {
   @ViewChild('fileInput') fileInputRef!: ElementRef<HTMLInputElement>;
+  /** Traka od tri panela u pregledu — prst je vuče uživo (bez CD po kadru). */
+  @ViewChild('lbStrip') lbStripRef?: ElementRef<HTMLElement>;
 
   loading = true;
   errorMessage = '';
@@ -55,11 +69,20 @@ export class BlogComponent implements OnInit {
     private authService: AuthService,
     private audio: AudioService,
     private blogService: BlogService,
-    private profileService: ProfileService
+    private profileService: ProfileService,
+    private zone: NgZone
   ) {}
 
   get selectedItem(): BlogMediaItem | null {
     return this.selectedIndex >= 0 ? this.flat[this.selectedIndex] ?? null : null;
+  }
+
+  /** Susjedi u pregledu — bočni paneli trake, da prevlačenje ima šta da dovuče. */
+  get prevItem(): BlogMediaItem | null {
+    return this.selectedIndex > 0 ? this.flat[this.selectedIndex - 1] ?? null : null;
+  }
+  get nextItem(): BlogMediaItem | null {
+    return this.selectedIndex >= 0 ? this.flat[this.selectedIndex + 1] ?? null : null;
   }
 
   get total(): number { return this.flat.length; }
@@ -94,7 +117,14 @@ export class BlogComponent implements OnInit {
     this.errorMessage = '';
 
     try {
-      this.mediaItems = await this.blogService.listMedia();
+      // Reakcije stižu uporedo; ako padnu, galerija živi i bez njih.
+      const [media] = await Promise.all([
+        this.blogService.listMedia(),
+        this.blogService.listReactions()
+          .then(rows => this.indexReactions(rows))
+          .catch(() => {})
+      ]);
+      this.mediaItems = media;
       this.buildGroups();
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju sadržaja.';
@@ -170,6 +200,110 @@ export class BlogComponent implements OnInit {
   /** `Math` u predlošku — za ograničavanje kašnjenja animacije. */
   readonly Math = Math;
 
+  // --- Reakcije ---------------------------------------------------------------
+  //
+  // Balončići u uglu objave koji se NAKUPLJAJU: emoji + glave reaktora +
+  // broj. Dodir na [+] otvori paletu; dodir na balončić dodaje/skida MOJU
+  // reakciju te vrste (toggle). Optimistički: prikaz se mijenja odmah, upis
+  // ide u pozadini, a na grešku se vrati.
+
+  readonly reactionKinds = REACTION_KINDS;
+  /** Sve reakcije po objavi (media id → redovi). */
+  private reactionsByMedia = new Map<string, BlogReaction[]>();
+  /** Objava čija je paleta otvorena (media id) + kratko izlazno stanje. */
+  paletteFor: string | null = null;
+  paletteClosing = false;
+  private paletteTimer: any = null;
+  /** Ključ ponovnog rađanja broja u balončiću — promjena „popne" (talas). */
+  bubbleKey = 0;
+
+  private indexReactions(rows: BlogReaction[]) {
+    const map = new Map<string, BlogReaction[]>();
+    for (const r of rows) {
+      const list = map.get(r.mediaId) ?? [];
+      list.push(r);
+      map.set(r.mediaId, list);
+    }
+    this.reactionsByMedia = map;
+  }
+
+  /** Balončići jedne objave — po vrsti, najbrojniji prvi, stabilno za trackBy. */
+  bubblesOf(item: BlogMediaItem): ReactionBubble[] {
+    const rows = this.reactionsByMedia.get(item.id) ?? [];
+    if (rows.length === 0) return [];
+
+    const byKind = new Map<string, BlogReaction[]>();
+    for (const r of rows) {
+      const list = byKind.get(r.kind) ?? [];
+      list.push(r);
+      byKind.set(r.kind, list);
+    }
+
+    return [...byKind.entries()]
+      .map(([kind, list]) => ({
+        kind,
+        count: list.length,
+        mine: list.some(r => r.profileId === this.currentUserId),
+        avatars: list
+          .map(r => this.avatars.get(r.profileId) ?? null)
+          .filter((a): a is string => !!a)
+          .slice(0, 3)
+      }))
+      .sort((a, b) => b.count - a.count || a.kind.localeCompare(b.kind));
+  }
+
+  trackBubble = (_: number, b: ReactionBubble) => b.kind;
+
+  togglePalette(item: BlogMediaItem, event: Event) {
+    event.stopPropagation();
+    if (this.paletteFor === item.id) { this.closePalette(); return; }
+    clearTimeout(this.paletteTimer);
+    this.paletteClosing = false;
+    this.paletteFor = item.id;
+  }
+
+  closePalette() {
+    if (!this.paletteFor || this.paletteClosing) return;
+    this.paletteClosing = true;
+    clearTimeout(this.paletteTimer);
+    this.paletteTimer = setTimeout(() => {
+      this.paletteFor = null;
+      this.paletteClosing = false;
+    }, 260);
+  }
+
+  /** Dodir bilo gdje van palete je zatvara — kao svaki popup. */
+  @HostListener('document:click')
+  onDocClick() { this.closePalette(); }
+
+  async toggleReaction(item: BlogMediaItem, kind: string, event: Event) {
+    event.stopPropagation();
+    if (!this.currentUserId) return;
+    this.closePalette();
+
+    const rows = this.reactionsByMedia.get(item.id) ?? [];
+    const mineIdx = rows.findIndex(r => r.profileId === this.currentUserId && r.kind === kind);
+
+    // Odmah na ekran, pa tek onda mreža — reakcija mora da PUKNE pod prstom.
+    if (mineIdx >= 0) rows.splice(mineIdx, 1);
+    else rows.push({ mediaId: item.id, profileId: this.currentUserId, kind });
+    this.reactionsByMedia.set(item.id, rows);
+    this.bubbleKey++;
+
+    try {
+      await this.blogService.toggleReaction(item.id, this.currentUserId, kind);
+    } catch {
+      // Vrati kako je bilo — bolje pošten korak nazad nego lažni balončić.
+      if (mineIdx >= 0) rows.push({ mediaId: item.id, profileId: this.currentUserId, kind });
+      else {
+        const i = rows.findIndex(r => r.profileId === this.currentUserId && r.kind === kind);
+        if (i >= 0) rows.splice(i, 1);
+      }
+      this.reactionsByMedia.set(item.id, rows);
+      this.bubbleKey++;
+    }
+  }
+
   triggerUpload() {
     this.audio.play('blogAdd');
     if (this.uploading || this.compressing) return;
@@ -189,40 +323,152 @@ export class BlogComponent implements OnInit {
     if (event.key === 'ArrowLeft')  this.prev();
   }
 
-  // Prevlačenje kroz objave na telefonu — isti prag i uslov kao u špilu dana.
+  // --- Prevlačenje u pregledu — slika PRATI prst -----------------------------
+  //
+  // Ranije: prag na touchend pa trenutni skok na susjednu sliku — „uopšte
+  // nije smooth" (Markova prijava). Sada traka od tri panela (prethodna,
+  // tekuća, sljedeća) klizi pod prstom uživo, a na puštanju se sa oprugom
+  // prelije na cilj ili vrati. Nadolje: slika tone za prstom uz tamnjenje,
+  // pa flick zatvori pregled.
+  //
+  // IZVEDBA BEZ CD-a PO KADRU: touchmove se kači ručno VAN Angular zone i
+  // piše transform direktno u stil — 60fps bez change detectiona; Angular se
+  // budi tek na kraju (promjena indeksa/zatvaranje).
+
   private touchX = 0;
   private touchY = 0;
+  /** Osovina poteza se ZAKLJUČA na prvih ~10px — poslije nema preskakanja. */
+  private dragAxis: 'h' | 'v' | null = null;
+  private lastDx = 0;
+  private lastDy = 0;
+  /** Šta uraditi kad tranzicija trake završi: pomak indeksa ili zatvaranje. */
+  private pendingStep = 0;
+  private pendingClose = false;
+  private moveHandler: ((e: TouchEvent) => void) | null = null;
 
-  onTouchStart(event: TouchEvent) {
-    if (event.touches.length !== 1) return;
-    this.touchX = event.touches[0].clientX;
-    this.touchY = event.touches[0].clientY;
+  private get strip(): HTMLElement | null {
+    return this.lbStripRef?.nativeElement ?? null;
   }
 
-  onTouchEnd(event: TouchEvent) {
-    const t = event.changedTouches[0];
-    if (!t) return;
+  onTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1 || this.pendingStep || this.pendingClose) return;
+    this.touchX = event.touches[0].clientX;
+    this.touchY = event.touches[0].clientY;
+    this.dragAxis = null;
+    this.lastDx = this.lastDy = 0;
+
+    this.strip?.classList.remove('snap');
+
+    this.moveHandler = (e: TouchEvent) => this.onStripMove(e);
+    this.zone.runOutsideAngular(() =>
+      document.addEventListener('touchmove', this.moveHandler!, { passive: false }));
+  }
+
+  private onStripMove(event: TouchEvent) {
+    const t = event.touches[0];
+    const strip = this.strip;
+    if (!t || !strip) return;
 
     const dx = t.clientX - this.touchX;
     const dy = t.clientY - this.touchY;
 
-    // Povlačenje NADOLJE zatvara — uobičajen pokret za pregled slike na
-    // telefonu, i jedini izlaz koji ne traži pogađanje malog dugmeta u uglu.
-    if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+    if (!this.dragAxis) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      this.dragAxis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'h' : 'v';
+    }
+
+    event.preventDefault();
+
+    if (this.dragAxis === 'h') {
+      // Na krajevima traka pruža otpor — dovuče se malo pa hoće nazad.
+      const atEdge = (dx > 0 && this.selectedIndex === 0)
+        || (dx < 0 && this.selectedIndex === this.total - 1);
+      this.lastDx = atEdge ? dx * 0.35 : dx;
+      strip.style.transform = `translateX(calc(-33.3333% + ${this.lastDx.toFixed(1)}px))`;
+    } else {
+      this.lastDy = Math.max(0, dy);
+      strip.style.transform =
+        `translateX(-33.3333%) translateY(${this.lastDy.toFixed(1)}px)`;
+      // Pozadina blijedi što je slika niže — vidi se kuda vodi pokret.
+      strip.parentElement?.style.setProperty(
+        '--lb-fade', Math.max(0.25, 1 - this.lastDy / 420).toFixed(3));
+    }
+  }
+
+  onTouchEnd() {
+    if (this.moveHandler) {
+      document.removeEventListener('touchmove', this.moveHandler);
+      this.moveHandler = null;
+    }
+
+    const strip = this.strip;
+    if (!strip || !this.dragAxis) { this.dragAxis = null; return; }
+
+    strip.classList.add('snap');
+
+    if (this.dragAxis === 'h') {
+      if (this.lastDx < -70 && this.selectedIndex < this.total - 1) {
+        this.pendingStep = 1;
+        strip.style.transform = 'translateX(-66.6667%)';
+      } else if (this.lastDx > 70 && this.selectedIndex > 0) {
+        this.pendingStep = -1;
+        strip.style.transform = 'translateX(0%)';
+      } else {
+        strip.style.transform = 'translateX(-33.3333%)';
+      }
+    } else {
+      if (this.lastDy > 110) {
+        this.pendingClose = true;
+        strip.style.transform = 'translateX(-33.3333%) translateY(70vh)';
+        strip.parentElement?.style.setProperty('--lb-fade', '0');
+      } else {
+        strip.style.transform = 'translateX(-33.3333%)';
+        strip.parentElement?.style.setProperty('--lb-fade', '1');
+      }
+    }
+
+    this.dragAxis = null;
+    this.lastDx = this.lastDy = 0;
+  }
+
+  /** Kraj klizanja trake — tek SADA se mijenja indeks, pa nema duplog skoka. */
+  onStripTransitionEnd(event: TransitionEvent) {
+    if (event.target !== this.strip || event.propertyName !== 'transform') return;
+
+    if (this.pendingClose) {
+      this.pendingClose = false;
       this.closeLightbox();
       return;
     }
 
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if (dx < 0) this.next(); else this.prev();
+    if (this.pendingStep) {
+      this.selectedIndex += this.pendingStep;
+      this.pendingStep = 0;
+      const strip = this.strip;
+      if (strip) {
+        // Paneli su se preslagali oko novog indeksa — traka se bez animacije
+        // vrati u sredinu, oko ne vidi ništa (isti piksel).
+        strip.classList.remove('snap');
+        strip.style.transform = 'translateX(-33.3333%)';
+      }
+    }
   }
 
   openLightbox(item: BlogMediaItem) {
     this.selectedIndex = this.indexOf(item);
+    this.pendingStep = 0;
+    this.pendingClose = false;
   }
 
   closeLightbox() {
     this.selectedIndex = -1;
+    this.pendingStep = 0;
+    this.pendingClose = false;
+  }
+
+  ngOnDestroy() {
+    if (this.moveHandler) document.removeEventListener('touchmove', this.moveHandler);
+    clearTimeout(this.paletteTimer);
   }
 
   async onFileSelected(event: Event) {
