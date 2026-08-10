@@ -2194,6 +2194,18 @@ $branch-indent: 16px;
 .dp-state { display: grid; place-items: center; }
 .dp-check { font-size: 18px; color: var(--volt); }
 
+// „Zatvori" ODVOJENO od liste dana: na telefonu (pun panel) pada na dno u
+// zonu palca (margin-top: auto), na desktopu (dijalog) drži čist razmak;
+// tanka linija ga čita kao zasebnu zonu, ne kao osmi red liste.
+.day-picker-card .modal-actions {
+  margin-top: auto;
+  padding-top: var(--s-5);
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 640px) {
+  .day-picker-card .modal-actions { margin-top: var(--s-6); }
+}
+
 // Dan odmora je legitiman izbor, ali vizuelno tiši.
 .dp-day.rest { opacity: .75; }
 

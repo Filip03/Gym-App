@@ -4259,3 +4259,7 @@ poravnat birač dana (Markove prijave uživo):**
    NavigationEnd — idempotentno).
 3. **Birač dana kao grid** — naziv | tip | broj vježbi | kvačica, kolone
    poravnate kroz sve redove (raniji flex je desni dio slagao „random").
+
+**Dopuna — „Zatvori" odvojeno od liste dana:** u biraču dana je dugme sjedalo
+uz posljednji red kao osmi dan. Sada: razmak + tanka linija iznad (zasebna
+zona); na telefonu (pun panel) pada na dno u zonu palca (margin-top: auto).
