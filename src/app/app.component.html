@@ -1,7 +1,7 @@
 <!-- `float-open`: otvorena je PLUTAJUĆA kartica (pregled vježbe). Futer se
      tada izdiže IZNAD njenog scrima — inače ravna ivica scrima siječe luk
      kupole i prsten koji vire iznad vrha futera (Markov menu_bug, repriza). -->
-<div class="shell" [class.float-open]="!!exDetail.exercice">
+<div class="shell" [class.float-open]="!!exDetail.exercice || !!preview.userId">
 
     <app-header *ngIf="showLayout"></app-header>
 
@@ -19,6 +19,7 @@
     <app-exercice-detail *ngIf="exDetail.exercice"
                          [exercice]="exDetail.exercice"
                          [groups]="exDetail.groups"
+                         [closing]="exDetail.closing"
                          (dismiss)="exDetail.close()"></app-exercice-detail>
 
     <!-- Brzi pregled profila — JEDAN modal za cijelu aplikaciju; otvara ga

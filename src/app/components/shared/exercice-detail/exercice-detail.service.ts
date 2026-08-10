@@ -16,14 +16,28 @@ export class ExerciceDetailService {
 
   exercice: ExerciceDetailData | null = null;
   groups: string[] = [];
+  /**
+   * Izlazna animacija u toku: element ostaje u DOM-u dok zavjesa i kartica
+   * odsviraju odlazak (CSS ne svira animaciju na uklanjanju — kućno pravilo).
+   */
+  closing = false;
+  private closeTimer: any = null;
 
   open(exercice: ExerciceDetailData, groups: string[] = []) {
+    clearTimeout(this.closeTimer);
+    this.closing = false;
     this.exercice = exercice;
     this.groups = groups;
   }
 
   close() {
-    this.exercice = null;
-    this.groups = [];
+    if (!this.exercice || this.closing) return;
+    this.closing = true;
+    clearTimeout(this.closeTimer);
+    this.closeTimer = setTimeout(() => {
+      this.exercice = null;
+      this.groups = [];
+      this.closing = false;
+    }, 300);
   }
 }

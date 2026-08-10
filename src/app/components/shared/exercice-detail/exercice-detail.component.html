@@ -1,5 +1,6 @@
-<!-- `float-overlay`: kartica pluta, pa scrim NE ide do dna — meni ostaje vidljiv. -->
-<div class="modal-overlay detail-overlay float-overlay" (click)="dismiss.emit()">
+<!-- `float-overlay`: kartica pluta, zavjesa do dna, meni izranja iznad nje. -->
+<div class="modal-overlay detail-overlay float-overlay" [class.closing]="closing"
+     (click)="dismiss.emit()">
   <div class="detail-card" *ngIf="exercice" (click)="$event.stopPropagation()">
 
     <button type="button" class="detail-close" (click)="dismiss.emit()" aria-label="Zatvori">

@@ -4277,3 +4277,31 @@ oštar, svijetao sadržaj ispod ravne linije šava. Sada `float-overlay` scrim
 ide DO SAMOG DNA na svim širinama (jednolika zavjesa i iza menija), kartica
 se drži iznad menija paddingom, a futer (`float-open`, z 160) izranja IZNAD
 zavjese — kupola cijela, bez šava, meni klikabilan.
+
+---
+
+## 2026-08-10 — Plutajući slojevi: pravi ulaz i izlaz; pregled profila kao kartica
+
+**Šta:** Dvije Markove prijave: pregled vježbe se palio „on/off" bez ulazne
+animacije, a pregled profila je treptao — pun panel naglo proguta ekran i
+meni pa TEK ONDA odsvira ulaz elementa.
+
+**Uzrok on/off utiska:** globalni `overlay-in` animira samo providnost, a
+iOS backdrop-blur na opacity ne reaguje postepeno nego PUKNE odjednom.
+
+**Kako:**
+1. **Pregled vježbe** (`exercice-detail.*`): ulaz sada animira i samo
+   zamućenje (blur 0→8px, `detail-veil-in`), a IZLAZ postoji (kućno pravilo):
+   servis drži `closing` 300ms — zavjesa se razbistri, kartica se sipne — pa
+   tek onda skida element iz DOM-a.
+2. **Pregled profila** (`profile-preview.*`): više NIJE pun panel nego
+   PLUTAJUĆA kartica na svim širinama (`float-overlay` — zavjesa do dna, meni
+   izranja iznad nje), sa istom ulazno/izlaznom koreografijom. Specifičnost
+   `.modal-overlay.pv-overlay .preview-card` pobjeđuje mobilni pun-panel i
+   nav-dome padding.
+3. **Futer u float-open stanju** podignut na z 340 (iznad pregleda profila
+   300, koji je iznad blog lightboxa 200).
+
+**Efekat:** oba pregleda ulaze mekim zamućenjem + izranjanjem kartice, izlaze
+istim pokretom unazad; meni je sve vrijeme vidljiv i upotrebljiv ispod
+plutajuće kartice.
