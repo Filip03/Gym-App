@@ -95,27 +95,42 @@ export class BlogService {
   }
 
   /**
-   * Dodaj/skini reakciju — pokušaj upisa, a unique sudar znači da već postoji
-   * pa se briše (toggle). Vraća šta se stvarno desilo, da komponenta može
-   * uskladiti optimistički prikaz.
+   * Postavi/skini SVOJU reakciju — jedna po osobi po objavi (unique u bazi):
+   * ista vrsta = skidanje, druga vrsta = zamjena, ničega = dodavanje.
    */
-  async toggleReaction(mediaId: string, profileId: string, kind: string): Promise<'added' | 'removed'> {
-    const { error } = await this.supabase.client
+  async setReaction(mediaId: string, profileId: string, kind: string): Promise<'added' | 'removed' | 'replaced'> {
+    const { data: existing, error } = await this.supabase.client
       .from('blog_reactions')
-      .insert({ media_id: mediaId, profile_id: profileId, kind });
-
-    if (!error) return 'added';
-    if (error.code !== '23505') throw error;
-
-    const { error: delError } = await this.supabase.client
-      .from('blog_reactions')
-      .delete()
+      .select('id, kind')
       .eq('media_id', mediaId)
       .eq('profile_id', profileId)
-      .eq('kind', kind);
+      .maybeSingle();
 
-    if (delError) throw delError;
-    return 'removed';
+    if (error) throw error;
+
+    if (!existing) {
+      const { error: insError } = await this.supabase.client
+        .from('blog_reactions')
+        .insert({ media_id: mediaId, profile_id: profileId, kind });
+      if (insError) throw insError;
+      return 'added';
+    }
+
+    if (existing.kind === kind) {
+      const { error: delError } = await this.supabase.client
+        .from('blog_reactions')
+        .delete()
+        .eq('id', existing.id);
+      if (delError) throw delError;
+      return 'removed';
+    }
+
+    const { error: updError } = await this.supabase.client
+      .from('blog_reactions')
+      .update({ kind })
+      .eq('id', existing.id);
+    if (updError) throw updError;
+    return 'replaced';
   }
 
   async uploadMedia(file: File, userId: string): Promise<void> {

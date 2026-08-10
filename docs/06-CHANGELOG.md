@@ -4368,3 +4368,26 @@ red u bazi; brisanje objave kaskadno nosi reakcije. Test objave obrisane.
    samo na cloud projektu — lokalno nema `supabase/functions/.env`. Dodat
    `.env.example` šablon; otprema radi na produkciji, lokalno tek kad se
    ključevi upišu (fajl je u .gitignore, repo je javan).
+
+**Dopuna — reakcije v3 (Markove tri):**
+
+1. **Jedna reakcija po osobi** (`20260810020000_blog_reactions_one_per_user.sql`):
+   unique prešao sa (media, profil, vrsta) na (media, profil) uz dedupe
+   (ostaje najnovija). Front: nova vrsta ZAMJENJUJE staru, ista je skida
+   (`setReaction`: added/removed/replaced).
+2. **Naš emoji meni umjesto tastature:** OS emoji tastatura se ne može
+   programski otvoriti ni na jednoj platformi — dugme sada širi paletu u
+   NAŠ grid (40 kuriranih emojia, isti svuda, bez iskakanja tastature).
+   Paleta dobila omotač (`rx-pal-wrap`, translateY(-100%) za smjer nagore)
+   pa i grid raste u pravom smjeru; scale animacija ostala na piluli.
+3. **Organska fizika balončića** (`shared/bubble-physics.directive.ts`,
+   `appBubbles`): balončići su tijela u maloj simulaciji — opruga ka domu u
+   grozdu (ručno štimovani slotovi), parovi se odbijaju pri sudaru i blago
+   privlače na daljini („nevidljive strune"), svako tijelo leluja svojim
+   sinusom, pokazivač ih nježno razmiče. rAF VAN Angular zone, transform
+   direktno — nula CD po kadru; MutationObserver usklađuje tijela sa *ngFor.
+   `prefers-reduced-motion`: direktiva se ne pali, ostaje mirni red.
+
+**Dopuna — pregled slika do dna:** `.lb` je stajao iznad futera pa je ispod
+ostajala pruga sirovog sadržaja sa kupolom preko (Markov screenshot 23.43) —
+sada bottom: 0 na svim širinama (imerzivan prikaz preko svega).

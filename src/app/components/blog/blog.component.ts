@@ -21,6 +21,19 @@ const MONTHS = [
 /** Paleta reakcija — emoji je i vrijednost u bazi (blog_reactions.kind). */
 const REACTION_KINDS = ['💪', '🔥', '🐐', '😂', '❤️'];
 
+/**
+ * Prošireni meni — NAŠ emoji birač. OS emoji tastatura se ne može pouzdano
+ * otvoriti programski ni na jednoj platformi, pa dugme-tastatura otvara ovaj
+ * grid: isti svuda, bez iskakanja tastature (Markov zahtjev).
+ */
+const EXTRA_EMOJIS = [
+  '🦾', '👏', '🙌', '👊', '🤝', '🫡', '💯', '⚡',
+  '🏋️', '🤸', '🏃', '🧗', '🚴', '🥊', '🏆', '🥇',
+  '📈', '🚀', '💥', '🌋', '🧠', '🦍', '🦁', '🐺',
+  '🥩', '🍗', '🥚', '🍌', '🥤', '🧊', '😤', '🥵',
+  '🤯', '😎', '🤡', '💀', '👀', '😮‍💨', '🙏', '♾️'
+];
+
 /** Jedan balončić na objavi: vrsta + koliko + čije glave + da li i moja. */
 interface ReactionBubble {
   kind: string;
@@ -223,9 +236,9 @@ export class BlogComponent implements OnInit, OnDestroy {
   paletteY = 0;
   /** Paleta otvorena NAGORE ili NADOLJE — zavisi od mjesta na ekranu. */
   paletteUp = true;
-  /** Polje za custom emoji unutar palete. */
-  customOpen = false;
-  customEmoji = '';
+  /** Prošireni emoji meni (naš grid) otvoren unutar palete. */
+  gridOpen = false;
+  readonly extraEmojis = EXTRA_EMOJIS;
   private paletteTimer: any = null;
 
   /**
@@ -278,17 +291,16 @@ export class BlogComponent implements OnInit, OnDestroy {
     if (this.paletteItem?.id === item.id && !this.paletteClosing) { this.closePalette(); return; }
 
     const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
-    const PAL_H = 50;   // visina pilule — uračunata u sidro kad ide nagore
 
     clearTimeout(this.paletteTimer);
     this.paletteClosing = false;
-    this.customOpen = false;
-    this.customEmoji = '';
-    // Ne smije van desne ivice (custom polje je proširi do ~310px).
-    this.paletteX = Math.max(8, Math.min(r.left, window.innerWidth - 318));
+    this.gridOpen = false;
+    // Ne smije van desne ivice (paleta je široka do ~300px).
+    this.paletteX = Math.max(8, Math.min(r.left, window.innerWidth - 308));
     // Pri vrhu ekrana nema mjesta iznad — paleta se otvara ispod dugmeta.
-    this.paletteUp = r.top > 170;
-    this.paletteY = this.paletteUp ? r.top - 10 - PAL_H : r.bottom + 10;
+    // Nagore raste kroz omotač (translateY(-100%)), pa i grid ima kuda.
+    this.paletteUp = r.top > 260;
+    this.paletteY = this.paletteUp ? r.top - 10 : r.bottom + 10;
     this.paletteItem = item;
   }
 
@@ -299,7 +311,7 @@ export class BlogComponent implements OnInit, OnDestroy {
     this.paletteTimer = setTimeout(() => {
       this.paletteItem = null;
       this.paletteClosing = false;
-      this.customOpen = false;
+      this.gridOpen = false;
     }, 260);
   }
 
@@ -311,36 +323,21 @@ export class BlogComponent implements OnInit, OnDestroy {
   onDocScroll() { if (this.paletteItem && !this.paletteClosing) this.closePalette(); }
 
   /**
-   * Custom emoji: bilo koji znak van ASCII opsega (telefon nudi emoji
-   * tastaturu). Uzima se prva „grafema" — 💪🏿 i slične sekvence ostaju cijele.
+   * JEDNA reakcija po osobi (Markova odluka): ista vrsta = skidanje, druga
+   * vrsta = zamjena stare, ničega = dodavanje. Optimistički — na grešku se
+   * vrati snimak od prije.
    */
-  submitCustomEmoji(event: Event) {
-    event.stopPropagation();
-    const raw = this.customEmoji.trim();
-    if (!raw || /^[\x00-\x7F]+$/.test(raw)) { this.customEmoji = ''; return; }
-
-    let first = raw;
-    try {
-      const seg = new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' });
-      first = seg.segment(raw)[Symbol.iterator]().next().value?.segment ?? raw;
-    } catch {
-      first = [...raw].slice(0, 2).join('');
-    }
-
-    if (this.paletteItem) void this.toggleReaction(this.paletteItem, first, event);
-    this.customEmoji = '';
-  }
-
   async toggleReaction(item: BlogMediaItem, kind: string, event: Event) {
     event.stopPropagation();
     if (!this.currentUserId) return;
 
     const rows = this.reactionsByMedia.get(item.id) ?? [];
-    const mineIdx = rows.findIndex(r => r.profileId === this.currentUserId && r.kind === kind);
+    const before = rows.map(r => ({ ...r }));
+    const mine = rows.findIndex(r => r.profileId === this.currentUserId);
+    const hadSame = mine >= 0 && rows[mine].kind === kind;
 
-    // Odmah na ekran, pa tek onda mreža — reakcija mora da PUKNE pod prstom.
-    if (mineIdx >= 0) rows.splice(mineIdx, 1);
-    else {
+    if (mine >= 0) rows.splice(mine, 1);
+    if (!hadSame) {
       rows.push({ mediaId: item.id, profileId: this.currentUserId, kind });
       this.fireBurst(event, kind);
     }
@@ -348,15 +345,10 @@ export class BlogComponent implements OnInit, OnDestroy {
     this.closePalette();
 
     try {
-      await this.blogService.toggleReaction(item.id, this.currentUserId, kind);
+      await this.blogService.setReaction(item.id, this.currentUserId, kind);
     } catch {
       // Vrati kako je bilo — bolje pošten korak nazad nego lažni balončić.
-      if (mineIdx >= 0) rows.push({ mediaId: item.id, profileId: this.currentUserId, kind });
-      else {
-        const i = rows.findIndex(r => r.profileId === this.currentUserId && r.kind === kind);
-        if (i >= 0) rows.splice(i, 1);
-      }
-      this.reactionsByMedia.set(item.id, rows);
+      this.reactionsByMedia.set(item.id, before);
     }
   }
 
