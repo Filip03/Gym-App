@@ -95,6 +95,45 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
   /** Privatan plan: drugima nevidljiv u listi, ne može se zapratiti. */
   newPlanIsPrivate = false;
 
+  // Prekidač privatnosti govori kućnim jezikom (tečno/mastilo): red se
+  // razlije (squash & stretch), kap krene iz tačke dodira, ikone se rode
+  // talasom. `privKey` iznova rađa kap i ikone; `privPop` drži razliv.
+  privInk: { x: number; y: number } | null = null;
+  privKey = 0;
+  privPop = false;
+  private privTimer: any = null;
+  private privPopTimer: any = null;
+
+  togglePlanPrivacy(event: MouseEvent) {
+    this.newPlanIsPrivate = !this.newPlanIsPrivate;
+
+    // Kap iz tačke dodira; na tastaturi (detail === 0) iz sredine reda.
+    if (event.detail > 0) {
+      const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      if (r.width > 0) {
+        this.privInk = {
+          x: ((event.clientX - r.left) / r.width) * 100,
+          y: ((event.clientY - r.top) / r.height) * 100
+        };
+      }
+    } else {
+      this.privInk = { x: 8, y: 50 };
+    }
+
+    this.privKey++;
+
+    // Razliv se restartuje skidanjem pa vraćanjem klase u sljedećem taktu.
+    this.privPop = false;
+    clearTimeout(this.privPopTimer);
+    this.privPopTimer = setTimeout(() => this.privPop = true);
+
+    clearTimeout(this.privTimer);
+    this.privTimer = setTimeout(() => {
+      this.privPop = false;
+      this.privInk = null;
+    }, 640);
+  }
+
   weekDays: DayEntry[] = [];
   filteredDayTypes: DayType[] = [];
 
@@ -844,6 +883,8 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     clearTimeout(this.draftCloseTimer);
     clearTimeout(this.savedNoteTimer);
     clearTimeout(this.savedNoteCloseTimer);
+    clearTimeout(this.privTimer);
+    clearTimeout(this.privPopTimer);
     clearTimeout(this.shakeTimer);
     for (const id of Object.keys(this.islandTimers)) clearTimeout(this.islandTimers[id]);
   }

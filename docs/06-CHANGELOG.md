@@ -4432,3 +4432,9 @@ sada bottom: 0 na svim širinama (imerzivan prikaz preko svega).
 7. Lokalna simulacija: posteri (logo artwork) izbačeni iz lokalne blog_media
    kopije — pravili su zbrku pri testiranju; cloud netaknut. Privremeni dev
    pečat verzije (M1/M2) dodat pa uklonjen na Markov zahtjev.
+
+**Dopuna — prekidač „Privatan plan" u kućnom jeziku (Markov zahtjev prije
+slanja instrukcija Filipu):** pri promjeni se red razlije (squash & stretch
+kao tajmer-ostrvo), kap mastila krene iz tačke dodira (overflow: hidden je
+drži u redu), a katanac i kvačica se rode talasom (privKey rebirth). Restart
+razliva klasom kroz komponentu; reduced-motion sve gasi.

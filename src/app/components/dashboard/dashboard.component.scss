@@ -292,8 +292,12 @@
 }
 
 // Prekidač „Privatan plan" — isti obrazac kao „Osobine" kod nove vježbe
-// (exercices.component.scss), da se izbor čita istim jezikom kroz aplikaciju.
+// (exercices.component.scss), ali u punom kućnom jeziku pokreta: pri
+// promjeni se red RAZLIJE (squash & stretch kao tajmer-ostrvo), kap mastila
+// krene iz tačke dodira, a ikone (katanac i kvačica) se rode talasom.
 .opt-row {
+  position: relative;
+  overflow: hidden;          // kap se razliva SAMO kroz red
   width: 100%;
   display: flex;
   align-items: center;
@@ -307,6 +311,46 @@
   text-align: left;
   cursor: pointer;
   transition: border-color var(--d-fast) var(--ease);
+}
+
+// Razliv reda — klasu drži komponenta (restart skidanjem pa vraćanjem).
+.opt-row.pop { animation: opt-splash 520ms var(--ease-spring); }
+
+// Kap iz tačke dodira — ista izvedba kao dropdown/tajmer-ostrvo.
+.opt-ink {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  transform: translate(-50%, -50%) scale(0);
+  pointer-events: none;
+  animation: opt-ink-bloom 560ms var(--ease-out) both;
+}
+
+// Ikone rođene iznova (privKey) izranjaju talasom, kvačica korak kasnije.
+.opt-icon-in  { animation: opt-rise 340ms var(--ease-spring) both; }
+.opt-state-in { animation: opt-rise 340ms var(--ease-spring) 80ms both; }
+
+@keyframes opt-splash {
+  0%   { transform: scale(1, 1); }
+  30%  { transform: scale(1.015, .93); }
+  62%  { transform: scale(.995, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+
+@keyframes opt-ink-bloom {
+  0%   { opacity: .9; transform: translate(-50%, -50%) scale(0); }
+  100% { opacity: 0;  transform: translate(-50%, -50%) scale(26); }
+}
+
+@keyframes opt-rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opt-row.pop, .opt-ink, .opt-icon-in, .opt-state-in { animation: none; }
 }
 .opt-row .material-icons { font-size: 20px; flex: none; }
 .opt-row .opt-text {

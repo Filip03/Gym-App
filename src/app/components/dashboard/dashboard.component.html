@@ -215,13 +215,21 @@
                           (valueChange)="onPlanTypeSelected($event)"></app-dropdown>
           </div>
 
-          <!-- Isti obrazac kao „Osobine" kod nove vježbe — poznat jezik. -->
+          <!-- Isti obrazac kao „Osobine" kod nove vježbe, u kućnom jeziku
+               pokreta: razliv reda + kap iz dodira + ikone rođene talasom. -->
           <button type="button" class="opt-row" [class.on]="newPlanIsPrivate"
-                  (click)="newPlanIsPrivate = !newPlanIsPrivate">
-            <i class="material-icons">{{ newPlanIsPrivate ? 'lock' : 'lock_open' }}</i>
+                  [class.pop]="privPop" (click)="togglePlanPrivacy($event)">
+            <ng-container *ngFor="let k of [privKey]">
+              <i class="material-icons opt-icon-in">{{ newPlanIsPrivate ? 'lock' : 'lock_open' }}</i>
+            </ng-container>
             <span class="opt-text">Privatan plan
               <small>drugi ga ne vide u listi niti ga mogu zapratiti</small></span>
-            <i class="material-icons opt-state">{{ newPlanIsPrivate ? 'check_circle' : 'radio_button_unchecked' }}</i>
+            <ng-container *ngFor="let k of [privKey]">
+              <i class="material-icons opt-state opt-state-in">
+                {{ newPlanIsPrivate ? 'check_circle' : 'radio_button_unchecked' }}</i>
+            </ng-container>
+            <span class="opt-ink" *ngIf="privInk"
+                  [style.left.%]="privInk.x" [style.top.%]="privInk.y"></span>
           </button>
         </div>
 
