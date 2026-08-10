@@ -47,6 +47,11 @@ export class AppComponent{
         this.exDetail.close();
         this.preview.close();
 
+        // Osigurač: navigacija NIKAD ne smije zateći sakriven header/meni
+        // (imerzivni pregled ih skloni; ma šta se desilo pregledu, rute ih
+        // vraćaju).
+        document.documentElement.classList.remove('immersive');
+
         const hiddenRoutes = [
           '/',
         ];

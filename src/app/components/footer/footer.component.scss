@@ -189,11 +189,29 @@
     z-index: 340;
 }
 
+// NE `100%`: host kupole je visine 0 (luk je apsolutno dijete koje visi iz
+// njega), pa je procenat pomjerao futer za mizernih 24px — meni je na
+// telefonu ostajao preko snimka. Fiksna distanca nosi i kupolu (92) i
+// klasični futer (64), plus sjenka/safe zona.
+:host-context(html.immersive) {
+    transform: translateY(calc(var(--footer-h) + var(--safe-b) + 48px));
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+}
+
 :host {
     display: block;
     flex: none;
     position: relative;
     z-index: 60;
+
+    // Imerzivni pregled (blog lightbox stavi `immersive` na <html>): cio
+    // futer (i klasični i kupola) klizne DOLJE van ekrana — ne prelazi više
+    // preko snimka i reakcija (Markova prijava). Nazad istom oprugom.
+    transition: transform 420ms var(--ease-spring);
 
     // Ne rezerviše se CIJELA zona gestova — ikone smiju da joj priđu 12px
     // (iOS-ove native trake rade isto): puna rezerva ih je držala previsoko

@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { AudioService } from '../../services/audio.service';
 import { BlogService, BlogMediaItem, BlogReaction } from '../../services/blog.service';
@@ -21,26 +21,20 @@ const MONTHS = [
 /** Paleta reakcija — emoji je i vrijednost u bazi (blog_reactions.kind). */
 const REACTION_KINDS = ['💪', '🔥', '🐐', '😂', '❤️'];
 
-/**
- * Prošireni meni — NAŠ emoji birač. OS emoji tastatura se ne može pouzdano
- * otvoriti programski ni na jednoj platformi, pa dugme-tastatura otvara ovaj
- * grid: isti svuda, bez iskakanja tastature (Markov zahtjev).
- */
-const EXTRA_EMOJIS = [
-  '🦾', '👏', '🙌', '👊', '🤝', '🫡', '💯', '⚡',
-  '🏋️', '🤸', '🏃', '🧗', '🚴', '🥊', '🏆', '🥇',
-  '📈', '🚀', '💥', '🌋', '🧠', '🦍', '🦁', '🐺',
-  '🥩', '🍗', '🥚', '🍌', '🥤', '🧊', '😤', '🥵',
-  '🤯', '😎', '🤡', '💀', '👀', '😮‍💨', '🙏', '♾️'
-];
 
-/** Jedan balončić na objavi: vrsta + koliko + čije glave + da li i moja. */
+/**
+ * Jedan balon = JEDNA OSOBA (Markova ispravka: grupisanje po vrsti je
+ * sakrivalo ljude) — krug sa njenim emojiem i njenom profilnom slikom:
+ * vidi se i KO i ŠTA na prvi pogled.
+ */
 interface ReactionBubble {
   kind: string;
-  count: number;
+  profileId: string;
+  username: string;
+  avatar: string | null;
   mine: boolean;
-  /** Profilne slike reaktora, najviše tri — Markova želja: „sa slikama profilnih". */
-  avatars: string[];
+  /** Lična veličina balona (±15%) — determinističko iz id-ja. */
+  scale: number;
 }
 
 @Component({
@@ -48,10 +42,51 @@ interface ReactionBubble {
   templateUrl: './blog.component.html',
   styleUrls: ['./blog.component.scss']
 })
-export class BlogComponent implements OnInit, OnDestroy {
+export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('fileInput') fileInputRef!: ElementRef<HTMLInputElement>;
   /** Traka od tri panela u pregledu — prst je vuče uživo (bez CD po kadru). */
   @ViewChild('lbStrip') lbStripRef?: ElementRef<HTMLElement>;
+  /** Korijen pregleda — pri otvaranju se premješta na <body> (vidi šablon). */
+  @ViewChild('lbRoot') lbRootRef?: ElementRef<HTMLElement>;
+  /** Tekući video u pregledu — NAŠE kontrole (nativne su gutale gestove). */
+  @ViewChild('lbVideo') lbVideoRef?: ElementRef<HTMLVideoElement>;
+
+  // --- Naše video kontrole ----------------------------------------------------
+  //
+  // Nativni `controls` overlay je na iOS-u KRAO dodire — listanje preko
+  // snimka nije radilo, hvatalo se samo za ivicu ekrana (Markova prijava).
+  // Zato: štit preko videa nosi gestove, dodir = play/pauza, tanka traka
+  // napretka + zvuk su naši.
+  videoPaused = false;
+  videoMuted = false;
+  videoProgress = 0;
+
+  toggleVideo(event: Event) {
+    event.stopPropagation();
+    const v = this.lbVideoRef?.nativeElement;
+    if (!v) return;
+    if (v.paused) void v.play().catch(() => this.videoPaused = true);
+    else v.pause();
+  }
+
+  toggleVideoMute(event: Event) {
+    event.stopPropagation();
+    this.videoMuted = !this.videoMuted;
+  }
+
+  onVideoTime(v: HTMLVideoElement) {
+    this.videoProgress = v.duration ? (v.currentTime / v.duration) * 100 : 0;
+  }
+
+  /** Poslije listanja na drugi snimak: novi src ne pokreće autoplay sam. */
+  private kickVideo() {
+    this.videoPaused = false;
+    this.videoProgress = 0;
+    setTimeout(() => {
+      const v = this.lbVideoRef?.nativeElement;
+      if (v) void v.play().catch(() => this.videoPaused = true);
+    });
+  }
 
   loading = true;
   errorMessage = '';
@@ -236,9 +271,14 @@ export class BlogComponent implements OnInit, OnDestroy {
   paletteY = 0;
   /** Paleta otvorena NAGORE ili NADOLJE — zavisi od mjesta na ekranu. */
   paletteUp = true;
-  /** Prošireni emoji meni (naš grid) otvoren unutar palete. */
-  gridOpen = false;
-  readonly extraEmojis = EXTRA_EMOJIS;
+  /**
+   * Polje za BILO KOJI emoji (Markova želja: sistemska tastatura, ne
+   * predefinisan spisak) — fokusira se čim se rodi, emoji se primijeni čim
+   * je otkucan (bez potvrde). Web ne može sam otvoriti emoji raspored —
+   * korisnik ga bira na svojoj tastaturi.
+   */
+  customOpen = false;
+  customEmoji = '';
   private paletteTimer: any = null;
 
   /**
@@ -259,32 +299,67 @@ export class BlogComponent implements OnInit, OnDestroy {
     this.reactionsByMedia = map;
   }
 
-  /** Balončići jedne objave — po vrsti, najbrojniji prvi, stabilno za trackBy. */
+  /**
+   * Baloni jedne objave — jedan po OSOBI, NAJNOVIJE ČETIRI (Markov limit:
+   * više od 4 pretrpa fotografiju); ostatak stane u „+N" balon.
+   */
   bubblesOf(item: BlogMediaItem): ReactionBubble[] {
     const rows = this.reactionsByMedia.get(item.id) ?? [];
-    if (rows.length === 0) return [];
-
-    const byKind = new Map<string, BlogReaction[]>();
-    for (const r of rows) {
-      const list = byKind.get(r.kind) ?? [];
-      list.push(r);
-      byKind.set(r.kind, list);
-    }
-
-    return [...byKind.entries()]
-      .map(([kind, list]) => ({
-        kind,
-        count: list.length,
-        mine: list.some(r => r.profileId === this.currentUserId),
-        avatars: list
-          .map(r => this.avatars.get(r.profileId) ?? null)
-          .filter((a): a is string => !!a)
-          .slice(0, 3)
-      }))
-      .sort((a, b) => b.count - a.count || a.kind.localeCompare(b.kind));
+    return rows.slice(-4).map(r => ({
+      kind: r.kind,
+      profileId: r.profileId,
+      username: this.usernames.get(r.profileId) ?? '—',
+      avatar: this.avatars.get(r.profileId) ?? null,
+      mine: r.profileId === this.currentUserId,
+      scale: this.bubbleScale(r.profileId)
+    }));
   }
 
-  trackBubble = (_: number, b: ReactionBubble) => b.kind;
+  hiddenCount(item: BlogMediaItem): number {
+    return Math.max(0, (this.reactionsByMedia.get(item.id) ?? []).length - 4);
+  }
+
+  /** Dodir na „+N": etiketa sa svima koji nisu stali u jato. */
+  onOverflowTap(item: BlogMediaItem, event: Event) {
+    event.stopPropagation();
+    const rows = this.reactionsByMedia.get(item.id) ?? [];
+    const hidden = rows.slice(0, -4)
+      .map(r => `${this.usernames.get(r.profileId) ?? '—'} ${r.kind}`)
+      .join(' · ');
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.peek = { x: r.left + r.width / 2, y: r.top - 8, text: hidden };
+    clearTimeout(this.peekTimer);
+    this.peekTimer = setTimeout(() => this.peek = null, 2200);
+  }
+
+  /**
+   * Veličina balona po osobi, ±15% (Markova želja: dinamično a pregledno) —
+   * determinističko iz id-ja, pa je isti čovjek uvijek iste veličine.
+   */
+  private bubbleScale(profileId: string): number {
+    let h = 0;
+    for (let i = 0; i < profileId.length; i++) h = (h * 31 + profileId.charCodeAt(i)) >>> 0;
+    return 0.85 + (h % 31) / 100;
+  }
+
+  trackBubble = (_: number, b: ReactionBubble) => b.profileId;
+
+  /**
+   * Dodir na TUĐI balon: kratka etiketa „ko · šta" uz balon (na desktopu i
+   * title radi). Dodir na SVOJ balon skida reakciju (vidi onBubbleTap).
+   */
+  peek: { x: number; y: number; text: string } | null = null;
+  private peekTimer: any = null;
+
+  onBubbleTap(item: BlogMediaItem, b: ReactionBubble, event: Event) {
+    event.stopPropagation();
+    if (b.mine) { void this.toggleReaction(item, b.kind, event); return; }
+
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.peek = { x: r.left + r.width / 2, y: r.top - 8, text: `${b.username} · ${b.kind}` };
+    clearTimeout(this.peekTimer);
+    this.peekTimer = setTimeout(() => this.peek = null, 1400);
+  }
 
   togglePalette(item: BlogMediaItem, event: Event) {
     event.stopPropagation();
@@ -294,7 +369,8 @@ export class BlogComponent implements OnInit, OnDestroy {
 
     clearTimeout(this.paletteTimer);
     this.paletteClosing = false;
-    this.gridOpen = false;
+    this.customOpen = false;
+    this.customEmoji = '';
     // Ne smije van desne ivice (paleta je široka do ~300px).
     this.paletteX = Math.max(8, Math.min(r.left, window.innerWidth - 308));
     // Pri vrhu ekrana nema mjesta iznad — paleta se otvara ispod dugmeta.
@@ -311,7 +387,7 @@ export class BlogComponent implements OnInit, OnDestroy {
     this.paletteTimer = setTimeout(() => {
       this.paletteItem = null;
       this.paletteClosing = false;
-      this.gridOpen = false;
+      this.customOpen = false;
     }, 260);
   }
 
@@ -321,6 +397,32 @@ export class BlogComponent implements OnInit, OnDestroy {
   @HostListener('window:wheel')
   @HostListener('window:touchmove')
   onDocScroll() { if (this.paletteItem && !this.paletteClosing) this.closePalette(); }
+
+  /** Fokus na polje čim ga *ngIf rodi — da tastatura iskoči iz istog dodira. */
+  @ViewChild('rxInput') set rxInput(el: ElementRef<HTMLInputElement> | undefined) {
+    el?.nativeElement.focus({ preventScroll: true });
+  }
+
+  /**
+   * Emoji se primjenjuje ČIM je otkucan: uzima se prva grafema (💪🏿 i slične
+   * sekvence ostaju cijele), čisto ASCII kucanje se ignoriše.
+   */
+  onCustomEmoji(value: string, event: Event) {
+    this.customEmoji = value;
+    const raw = value.trim();
+    if (!raw || /^[\x00-\x7F]+$/.test(raw)) return;
+
+    let first = raw;
+    try {
+      const seg = new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' });
+      first = seg.segment(raw)[Symbol.iterator]().next().value?.segment ?? raw;
+    } catch {
+      first = [...raw].slice(0, 2).join('');
+    }
+
+    if (this.paletteItem) void this.toggleReaction(this.paletteItem, first, event);
+    this.customEmoji = '';
+  }
 
   /**
    * JEDNA reakcija po osobi (Markova odluka): ista vrsta = skidanje, druga
@@ -468,7 +570,8 @@ export class BlogComponent implements OnInit, OnDestroy {
       strip.style.transform =
         `translateX(-33.3333%) translateY(${this.lastDy.toFixed(1)}px)`;
       // Pozadina blijedi što je slika niže — vidi se kuda vodi pokret.
-      strip.parentElement?.style.setProperty(
+      // Varijablu čita .lb (pozadina), ne okvir za klizanje!
+      (strip.closest('.lb') as HTMLElement | null)?.style.setProperty(
         '--lb-fade', Math.max(0.25, 1 - this.lastDy / 420).toFixed(3));
     }
   }
@@ -498,10 +601,10 @@ export class BlogComponent implements OnInit, OnDestroy {
       if (this.lastDy > 110) {
         this.pendingClose = true;
         strip.style.transform = 'translateX(-33.3333%) translateY(70vh)';
-        strip.parentElement?.style.setProperty('--lb-fade', '0');
+        (strip.closest('.lb') as HTMLElement | null)?.style.setProperty('--lb-fade', '0');
       } else {
         strip.style.transform = 'translateX(-33.3333%)';
-        strip.parentElement?.style.setProperty('--lb-fade', '1');
+        (strip.closest('.lb') as HTMLElement | null)?.style.setProperty('--lb-fade', '1');
       }
     }
 
@@ -522,6 +625,7 @@ export class BlogComponent implements OnInit, OnDestroy {
     if (this.pendingStep) {
       this.selectedIndex += this.pendingStep;
       this.pendingStep = 0;
+      this.kickVideo();
       const strip = this.strip;
       if (strip) {
         // Paneli su se preslagali oko novog indeksa — traka se bez animacije
@@ -536,18 +640,40 @@ export class BlogComponent implements OnInit, OnDestroy {
     this.selectedIndex = this.indexOf(item);
     this.pendingStep = 0;
     this.pendingClose = false;
+    this.videoPaused = false;
+    this.videoMuted = false;
+    this.videoProgress = 0;
+    // Imerzivno: header i kupola kliznu VAN ekrana (CSS u njihovim
+    // komponentama sluša ovu klasu) — sav ekran pripada snimku/slici.
+    document.documentElement.classList.add('immersive');
   }
 
   closeLightbox() {
     this.selectedIndex = -1;
     this.pendingStep = 0;
     this.pendingClose = false;
+    document.documentElement.classList.remove('immersive');
+  }
+
+  /**
+   * Premještanje pregleda na <body>: `position: fixed` unutar skrol-kontejnera
+   * se na iOS-u ponaša kao `absolute` (WebKit mana) — pregled je na telefonu
+   * bio zarobljen ispod headera. Angular bindingi rade i na premještenom
+   * čvoru, a *ngIf ga uredno skida ma gdje bio.
+   */
+  ngAfterViewChecked() {
+    const el = this.lbRootRef?.nativeElement;
+    if (el && el.parentElement !== document.body) document.body.appendChild(el);
   }
 
   ngOnDestroy() {
     if (this.moveHandler) document.removeEventListener('touchmove', this.moveHandler);
     clearTimeout(this.paletteTimer);
     clearTimeout(this.burstTimer);
+    clearTimeout(this.peekTimer);
+    // Napuštanje ekrana dok je pregled otvoren ne smije ostaviti aplikaciju
+    // bez headera i menija.
+    document.documentElement.classList.remove('immersive');
   }
 
   async onFileSelected(event: Event) {

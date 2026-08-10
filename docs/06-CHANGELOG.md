@@ -4391,3 +4391,44 @@ red u bazi; brisanje objave kaskadno nosi reakcije. Test objave obrisane.
 **Dopuna — pregled slika do dna:** `.lb` je stajao iznad futera pa je ispod
 ostajala pruga sirovog sadržaja sa kupolom preko (Markov screenshot 23.43) —
 sada bottom: 0 na svim širinama (imerzivan prikaz preko svega).
+
+---
+
+## 2026-08-11 — Blog paket final: baloni-osobe, imerzivni pregled, naše video kontrole
+
+**Šta (iterirano uživo sa Markom kroz noć):**
+
+1. **Balon = OSOBA** (ne vrsta): profilna puni krug, emoji je bedž u uglu —
+   vidi se KO i ŠTA. Maks 4 najnovija + „+N" balon (dodir = spisak ostalih);
+   lične veličine ±15% (deterministički iz id-ja). Dodir na svoj balon skida
+   reakciju, na tuđi pokaže etiketu „ko · šta".
+2. **Fizika oslobođena:** ulazna rx-pop animacija (fill both, transform) je
+   GAZILA transform iz simulacije — svi baloni na istoj tački („vidimo samo
+   jedno"). U bp-on režimu ulaz glumi sama fizika, CSS zadržava samo
+   treperenje providnosti. Slotovi ručno rašireni; jače lelujanje.
+3. **Imerzivni pregled:** otvaranje slike/snimka klizne header GORE i futer
+   DOLJE (html.immersive; navigacija ga čisti — osigurač u ljusci), pregled
+   preko CIJELOG ekrana. Dva iOS zahvata: futer se pomjera FIKSNOM distancom
+   (host kupole je visine 0 pa je translateY(100%) pomjerao 24px — meni je
+   na telefonu ostajao preko snimka) i **pregled se premješta na <body>**
+   (`fixed` unutar skrol-kontejnera se na iOS-u ponaša kao `absolute` —
+   pregled je bio zarobljen ispod headera).
+4. **Naše video kontrole:** nativni `controls` overlay na iOS-u krade dodire
+   (listanje preko snimka nije radilo). Izbačen; providni štit nosi gestove,
+   dodir = play/pauza (stakleno dugme), tanka volt traka napretka + zvuk.
+   `webkit-playsinline` na svim videima (stari webview-i tjeraju native
+   fullscreen). Klik na podlogu opet zatvara (okvir je gutao klik);
+   `--lb-fade` ciljao pogrešan element poslije uvođenja okvira — popravljeno.
+5. **Bilo koji emoji sa SISTEMSKE tastature** umjesto predefinisanog grida:
+   tastatura-dugme otvori prazno polje (bez placeholder emojia — zbunjivao),
+   fokus odmah, emoji se primijeni čim je otkucan (prva grafema, ASCII se
+   ignoriše). Web ne može sam otvoriti emoji raspored — korisnik ga bira.
+6. **Popravljena moja regresija:** imerzivna izmjena je presjekla `.header`
+   SCSS blok — header bez strukture, logo u punoj veličini preko svega
+   („cijela aplikacija je logo"); Sass je orphan-deklaracije progutao bez
+   greške pa je build prolazio. Pouka: poslije replace-izmjena SCSS-a čitati
+   fajl, ne vjerovati samo EXIT kodu. Pregledu profila usput vraćena veza za
+   izlaznu animaciju ([closing] binding je falio u ljusci).
+7. Lokalna simulacija: posteri (logo artwork) izbačeni iz lokalne blog_media
+   kopije — pravili su zbrku pri testiranju; cloud netaknut. Privremeni dev
+   pečat verzije (M1/M2) dodat pa uklonjen na Markov zahtjev.

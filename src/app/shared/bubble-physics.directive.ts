@@ -39,8 +39,8 @@ interface Body {
  * balončića se vrti u krug — grupa ima šest ljudi, dovoljno je.
  */
 const SLOTS: [number, number][] = [
-  [46, 22], [100, 36], [52, 66], [112, 82],
-  [158, 34], [166, 92], [206, 58], [78, 104]
+  [50, 26], [108, 44], [56, 82], [124, 96],
+  [170, 40], [180, 108], [218, 66], [86, 128]
 ];
 
 @Directive({
@@ -145,28 +145,28 @@ export class BubblePhysicsDirective implements AfterViewInit, OnDestroy {
     for (const b of bodies) {
       let fx = 0, fy = 0;
 
-      // Opruga ka domu u grozdu — drži jato na okupu bez krutog reda.
-      fx += (b.hx - b.x) * 14;
-      fy += (b.hy - b.y) * 14;
+      // LABAVA opruga ka domu — baloni primjetno plutaju oko slota, ne stoje.
+      fx += (b.hx - b.x) * 9;
+      fy += (b.hy - b.y) * 9;
 
-      // Disanje: svako tijelo leluja svojim ritmom.
-      fx += Math.sin(t / 1000 * b.freq + b.phase) * 16;
-      fy += Math.cos(t / 1000 * b.freq * 0.8 + b.phase * 1.3) * 12;
+      // Disanje: svako tijelo leluja svojim ritmom, vidljivo golim okom.
+      fx += Math.sin(t / 1000 * b.freq + b.phase) * 30;
+      fy += Math.cos(t / 1000 * b.freq * 0.8 + b.phase * 1.3) * 24;
 
-      // Pokazivač nježno razmiče jato.
+      // Pokazivač razmiče jato — pređeš prstom i baloni se sklone pa vrate.
       if (this.pointer.on) {
         const dx = b.x - this.pointer.x;
         const dy = b.y - this.pointer.y;
         const d = Math.hypot(dx, dy);
-        if (d < 90 && d > 0.01) {
-          const push = (1 - d / 90) * 620;
+        if (d < 100 && d > 0.01) {
+          const push = (1 - d / 100) * 780;
           fx += (dx / d) * push;
           fy += (dy / d) * push;
         }
       }
 
-      b.vx = (b.vx + fx * dt) * 0.90;
-      b.vy = (b.vy + fy * dt) * 0.90;
+      b.vx = (b.vx + fx * dt) * 0.92;
+      b.vy = (b.vy + fy * dt) * 0.92;
     }
 
     // Nevidljive strune: parovi se odbijaju kad se sudare, blago privlače
