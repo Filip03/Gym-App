@@ -4270,3 +4270,10 @@ prsten vire iznad nje — pa ih je scrim sjekao po pravoj liniji. Dok je
 plutajuća kartica otvorena, ljuska stavi `float-open` na `.shell`, a futer se
 izdigne iznad scrima (z 160 > 150): kupola cijela, meni klikabilan. Puni
 paneli (bottom:0) i dalje prekrivaju futer kao do sada.
+
+**Dopuna — zavjesa do dna, kupola iznad nje (Markov screenshot 22.55):**
+prethodni pokušaj je scrim zaustavljao iznad futera, pa je pored kupole virio
+oštar, svijetao sadržaj ispod ravne linije šava. Sada `float-overlay` scrim
+ide DO SAMOG DNA na svim širinama (jednolika zavjesa i iza menija), kartica
+se drži iznad menija paddingom, a futer (`float-open`, z 160) izranja IZNAD
+zavjese — kupola cijela, bez šava, meni klikabilan.
