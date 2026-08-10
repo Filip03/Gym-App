@@ -4263,3 +4263,10 @@ poravnat birač dana (Markove prijave uživo):**
 **Dopuna — „Zatvori" odvojeno od liste dana:** u biraču dana je dugme sjedalo
 uz posljednji red kao osmi dan. Sada: razmak + tanka linija iznad (zasebna
 zona); na telefonu (pun panel) pada na dno u zonu palca (margin-top: auto).
+
+**Dopuna — futer IZNAD scrima plutajuće kartice (menu_bug repriza):** scrim
+pregleda vježbe se završava na ravnoj liniji vrha futera, a luk kupole i
+prsten vire iznad nje — pa ih je scrim sjekao po pravoj liniji. Dok je
+plutajuća kartica otvorena, ljuska stavi `float-open` na `.shell`, a futer se
+izdigne iznad scrima (z 160 > 150): kupola cijela, meni klikabilan. Puni
+paneli (bottom:0) i dalje prekrivaju futer kao do sada.

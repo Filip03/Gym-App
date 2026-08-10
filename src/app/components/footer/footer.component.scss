@@ -179,6 +179,14 @@
 // a prelaz bi ih vukao unazad.
 // ---------------------------------------------------------------------------
 
+// Dok je otvorena PLUTAJUĆA kartica (float-open na ljusci): cio futer iznad
+// njenog scrima (z 150) — luk i prsten vire iznad ravne gornje ivice futera,
+// pa bi ih scrim inače sjekao po pravoj liniji (Markov menu_bug, repriza).
+// Puni paneli (z 100+bottom:0) i dalje prekrivaju futer — njih se ne tiče.
+:host-context(.float-open) {
+    z-index: 160;
+}
+
 :host {
     display: block;
     flex: none;
