@@ -1,5 +1,5 @@
 import {
-  Component, ElementRef, EventEmitter, HostListener, Input,
+  Component, ElementRef, EventEmitter, HostBinding, HostListener, Input,
   OnChanges, OnDestroy, Output, SimpleChanges
 } from '@angular/core';
 
@@ -46,6 +46,16 @@ export class DropdownComponent implements OnChanges, OnDestroy {
   @Output() valueChange = new EventEmitter<string | null>();
 
   open = false;
+
+  /**
+   * Dok je lista otvorena, CIO host se izdiže iznad susjeda. Bez ovoga panel
+   * (z-index unutar hosta) gubi od kasnijih elemenata u DOM-u koji animacijom
+   * dobiju svoj stacking context — pa je „Dodaj prvu vježbu" hvatao dodire
+   * preko otvorene liste (Markova prijava).
+   */
+  @HostBinding('class.open') get hostOpen() { return this.open; }
+  @HostBinding('style.zIndex') get hostZ() { return this.open ? 60 : null; }
+  @HostBinding('style.position') get hostPos() { return this.open ? 'relative' : null; }
   /** Kratko stanje za IZLAZNU animaciju panela. */
   closing = false;
   activeIndex = -1;
