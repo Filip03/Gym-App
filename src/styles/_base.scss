@@ -476,12 +476,21 @@ button:not(:disabled):active { transform: scale(0.97); }
   animation: overlay-in var(--d-base) var(--ease-out) both;
 }
 
-// KUPOLA: donja navigacija nije pravougaona traka nego luk koji lebdi preko
-// sadržaja — overlay zato ide do SAME ivice ekrana (inače pored luka ostanu
-// neprekrivene „rupe" sa strana), a padding drži karticu iznad tjemena.
+// KUPOLA: donja navigacija je luk koji lebdi preko sadržaja, pa se panel NE
+// završava iznad njega (ostajala je siva pravougaona traka scrima sa lukom u
+// sredini — Markov app_bug.jpg). Panel ide do SAME ivice ekrana i prekrije i
+// kupolu (ona je pod scrimom ionako neaktivna dok je modal otvoren), a
+// unutrašnji padding drži sadržaj u zoni palca, iznad dna.
 :root.nav-dome .modal-overlay {
   bottom: 0;
-  padding-bottom: calc(var(--footer-h) + var(--safe-b));
+}
+
+:root.nav-dome .modal-card {
+  padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-6));
+}
+
+@media (min-width: 640px) {
+  :root.nav-dome .modal-card { padding-bottom: var(--s-6); }
 }
 
 .modal-card {

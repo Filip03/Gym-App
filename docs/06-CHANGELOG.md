@@ -3953,3 +3953,10 @@ a dizajn se pravio da trake ne postoje. Sada: na telefonu kartica PUNI cio
 međuprostor između traka (height 100%, bez radijusa, bez sopstvenih ivica —
 trake je omeđuju); ≥640px ostaje centrirani zaobljeni dijalog. Važi za sve
 kućne modale (birač vježbi, planovi, rezime, težina, pregled profila...).
+
+**Dopuna istog dana — bez sive trake ispod panela (Markov app_bug.jpg):**
+u kupola režimu panel se završavao iznad zone kupole pa je ispod ostajala
+siva pravougaona traka scrima sa lukom u sredini. Sada panel (i blog
+lightbox) ide do SAME ivice ekrana i prekrije i kupolu — ona je pod scrimom
+ionako neaktivna dok je modal otvoren — a unutrašnji padding kartice drži
+sadržaj u zoni palca.
