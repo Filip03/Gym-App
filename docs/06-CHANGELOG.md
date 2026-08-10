@@ -4197,3 +4197,47 @@ specularni odsjaj klizi po staklu prateći tjeme (`--sheen-x` iz render(),
 radial blik odozgo; jači u svijetloj temi) + svjetlosni rub po vrhu luka
 (inset sjaj). Maska luka sijece odsjaj u oblik stakla; reduced-motion ga
 umiri u centar.
+
+---
+
+## 2026-08-10 — Plan po mjeri pojedinca (ADR-0004) + gašenje dvoklik-zuma
+
+**Šta:** Tri funkcionalnosti iz testa sa korisnicom van grupe (uvid: „život
+prekida plan" — menstruacija, bolest, pauza) + popravka dodira.
+
+**1. Biranje dana za danas** (`training.service.ts` `changeSessionDay`,
+`training.component.*`): dok trening nije počeo (nijedna serija), u zaglavlju
+stoji čip „Promijeni dan" (na rest-day ekranu i dugme „Radi dan iz plana") →
+birač svih 7 dana (naziv, tip, broj vježbi, oznake „danas po planu" i
+trenutnog dana) → sesija se presloži iz izabranog dana. Plan NETAKNUT — mijenja
+se samo današnja sesija (`workout_day_id`, `day_type_name`,
+`session_exercices`); `day_label` ostaje stvarni dan (istorija: KAD vs ŠTA).
+Brana u servisu: postoji li ijedan log, promjena se odbija. Model
+`WorkoutSession` dobio `workoutDayId` (za kvačicu u biraču). Čip nestaje
+kolapsom svog prostora (`gone` — max-width/padding→0), birač ima talas ulaska
+po danima i sip izlaz.
+
+**2. „Prilagodi sebi" zatvara krug** (`dashboard.component.ts` onSubmitPlan):
+Filipova kopija tuđeg plana (2a67171) ostajala je mrtva — praćeni plan ima
+prioritet u rezoluciji, a kopija se nije aktivirala. Sada: otprati original →
+aktiviraj kopiju → prolazna potvrda (`saved-note`, koreografija draft trake).
+
+**3. Privatni planovi** (`20260810000000_plan_visibility.sql`,
+`is_private boolean not null default false`): prekidač „Privatan plan" u
+builderu (opt-row obrazac kao kod vježbe), oznaka „Privatan" u pregledu.
+`getOtherPlans` filtrira privatne; postojeći pratioci OSTAJU (privatnost skida
+plan iz izloga, ne izbacuje ljude). Default javno — ništa se nikom ne mijenja.
+
+**Uz to — dashboard traka „danas na redu"** sada čita SESIJU kad postoji
+(keš `peekTodaySession` pa mreža), tek onda plan — poslije promjene dana ili
+izmjene vježbi traka više ne laže; usput jedan upit manje (getSessionTimes +
+getSessionByDate → samo sesija).
+
+**Uz to — dvoklik-zum ugašen** (`_base.scss`): `* { touch-action:
+manipulation }` — brzi uzastopni dodiri (steperi, serije) više ne zumiraju
+stranicu; skrol i pinch ostaju. U LiveContainer ljusci se zum nije mogao ni
+vratiti (Markova prijava). Univerzalni selektor je najniže specifičnosti —
+posebna pravila (kupola `none`, špil `pan-y`) i dalje pobjeđuju.
+
+**Zašto ne pomjeranje ciklusa:** odbačeno u ADR-0004 — dani nose imena dana u
+sedmici, offset bi pravio zbrku, a biranje dana pokriva stvarnu potrebu.

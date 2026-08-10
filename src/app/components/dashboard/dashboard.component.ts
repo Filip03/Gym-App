@@ -51,6 +51,8 @@ interface PlanDraft {
   name: string;
   description: string;
   planTypeId: string;
+  /** Opciono radi starih nacrta upisanih prije uvođenja privatnosti. */
+  isPrivate?: boolean;
   editingPlanId: string | null;
   adaptingFromPlanId: string | null;
   currentDayIndex: number;
@@ -90,6 +92,8 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
   newPlanName = '';
   newPlanDescription = '';
   newPlanTypeId = '';
+  /** Privatan plan: drugima nevidljiv u listi, ne može se zapratiti. */
+  newPlanIsPrivate = false;
 
   weekDays: DayEntry[] = [];
   filteredDayTypes: DayType[] = [];
@@ -131,6 +135,16 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
   /** Vježbe nacrta se dovlače iz kataloga — traka to pokaže umjesto da zamrzne. */
   draftRestoring = false;
   private draftCloseTimer: any = null;
+
+  /**
+   * Prolazna potvrda poslije radnje čiji efekat NIJE očigledan iz same liste —
+   * npr. „Prilagodi sebi" u pozadini otprati original i aktivira kopiju, a to
+   * korisnik niotkud ne bi saznao. Ista koreografija kao draft traka.
+   */
+  savedNote = '';
+  savedNoteClosing = false;
+  private savedNoteTimer: any = null;
+  private savedNoteCloseTimer: any = null;
 
   /**
    * Visina okvira karusela prati AKTIVNI dan.
@@ -370,6 +384,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
       name: this.newPlanName,
       description: this.newPlanDescription,
       planTypeId: this.newPlanTypeId,
+      isPrivate: this.newPlanIsPrivate,
       editingPlanId: this.editingPlanId,
       adaptingFromPlanId: this.adaptingFromPlanId,
       currentDayIndex: this.currentDayIndex,
@@ -444,6 +459,25 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     return name ? `„${name}"` : '';
   }
 
+  /** Pokaže prolaznu potvrdu; sama se sipne poslije par sekundi. */
+  private showSavedNote(text: string) {
+    clearTimeout(this.savedNoteTimer);
+    clearTimeout(this.savedNoteCloseTimer);
+    this.savedNote = text;
+    this.savedNoteClosing = false;
+    this.savedNoteTimer = setTimeout(() => this.dismissSavedNote(), 5200);
+  }
+
+  dismissSavedNote() {
+    if (!this.savedNote || this.savedNoteClosing) return;
+    this.savedNoteClosing = true;
+    clearTimeout(this.savedNoteCloseTimer);
+    this.savedNoteCloseTimer = setTimeout(() => {
+      this.savedNote = '';
+      this.savedNoteClosing = false;
+    }, 480);
+  }
+
   /** Vraća SVE — i režim izmjene/prilagođavanja i dan na kojem se stalo. */
   async resumeDraft() {
     const draft = this.pendingDraft;
@@ -455,6 +489,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
       this.newPlanName = draft.name;
       this.newPlanDescription = draft.description;
       this.newPlanTypeId = draft.planTypeId;
+      this.newPlanIsPrivate = draft.isPrivate ?? false;
       this.editingPlanId = draft.editingPlanId;
       this.adaptingFromPlanId = draft.adaptingFromPlanId;
       this.createError = '';
@@ -558,11 +593,20 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     // i ubuduće — raniji dani se čitaju iz snimka sesije, koji se ne kešira.
     // Sat, serije i status dugmeta i dalje čekaju svjež odgovor.
     if (!this.isPast) {
-      const cachedPlan = this.trainingService.peekPlanForUser(this.currentUserId);
-      if (cachedPlan) {
-        const cachedDay = (cachedPlan.workout_days ?? []).find((d2: any) => d2.name === this.todayName);
-        this.todayType = cachedDay?.day_type?.name ?? null;
-        this.todayCount = (cachedDay?.day_exercice ?? []).length;
+      // Keširana DANAŠNJA sesija ima prednost nad planom: korisnik je mogao
+      // izabrati drugi dan (changeSessionDay) ili izmijeniti vježbe — sesija
+      // je istina o danu. Za budući datum peek sam odbije (poklapa se datum).
+      const cachedSession = this.trainingService.peekTodaySession(this.currentUserId, this.selectedDate);
+      if (cachedSession) {
+        this.todayType = cachedSession.dayTypeName;
+        this.todayCount = cachedSession.exercices.length;
+      } else {
+        const cachedPlan = this.trainingService.peekPlanForUser(this.currentUserId);
+        if (cachedPlan) {
+          const cachedDay = (cachedPlan.workout_days ?? []).find((d2: any) => d2.name === this.todayName);
+          this.todayType = cachedDay?.day_type?.name ?? null;
+          this.todayCount = (cachedDay?.day_exercice ?? []).length;
+        }
       }
     }
 
@@ -581,30 +625,34 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
         return;
       }
 
-      const plan = await this.trainingService.getPlanForUser(this.currentUserId);
+      // Današnja SESIJA, ako postoji, ima prednost nad planom: korisnik je
+      // mogao izabrati drugi dan (changeSessionDay), dodati ili zamijeniti
+      // vježbe — traka prati sesiju, ne kalendar.
+      const session = this.isToday
+        ? await this.trainingService.getSessionByDate(this.currentUserId, this.selectedDate)
+        : null;
       if (token !== this.dayLoadToken) return;
-      const day = (plan?.workout_days ?? []).find((d2: any) => d2.name === this.todayName);
-      this.todayType = day?.day_type?.name ?? null;
-      this.todayCount = (day?.day_exercice ?? []).length;
 
-      if (this.isToday) {
-        const times = await this.trainingService.getSessionTimes(this.currentUserId, this.selectedDate);
-        if (token !== this.dayLoadToken) return;
-        this.todayFinished = !!times.finishedAt;
-        this.todayStartedAt = times.startedAt;
+      if (session) {
+        this.todayType = session.dayTypeName;
+        this.todayCount = session.exercices.length;
+        this.todayFinished = !!session.finishedAt;
+        this.todayStartedAt = session.startedAt;
 
         // I za danas: „u toku" tek od PRVE upisane serije. Sesija nastaje čim
         // se ekran treninga otvori, pa bi inače i bacanje pogleda na raspored
         // prikazalo trening u toku — isto pravilo kao „ko trenira sada".
-        if (times.startedAt && !times.finishedAt) {
-          const session = await this.trainingService.getSessionByDate(this.currentUserId, this.selectedDate);
+        if (session.startedAt && !session.finishedAt) {
+          const logs = await this.trainingService.getSessionLogs(session.id);
           if (token !== this.dayLoadToken) return;
-          if (session) {
-            const logs = await this.trainingService.getSessionLogs(session.id);
-            if (token !== this.dayLoadToken) return;
-            this.dayHasTraining = logs.length > 0;
-          }
+          this.dayHasTraining = logs.length > 0;
         }
+      } else {
+        const plan = await this.trainingService.getPlanForUser(this.currentUserId);
+        if (token !== this.dayLoadToken) return;
+        const day = (plan?.workout_days ?? []).find((d2: any) => d2.name === this.todayName);
+        this.todayType = day?.day_type?.name ?? null;
+        this.todayCount = (day?.day_exercice ?? []).length;
       }
     } catch {
       // Traka je informativna — ako se dan ne može učitati, ostaje samo naziv.
@@ -794,6 +842,8 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     if (this.elapsedTimer) clearInterval(this.elapsedTimer);
     clearTimeout(this.outFaceTimer);
     clearTimeout(this.draftCloseTimer);
+    clearTimeout(this.savedNoteTimer);
+    clearTimeout(this.savedNoteCloseTimer);
     clearTimeout(this.shakeTimer);
     for (const id of Object.keys(this.islandTimers)) clearTimeout(this.islandTimers[id]);
   }
@@ -986,6 +1036,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
 
   openCreateModal() {
     this.showCreateModal = true;
+    this.newPlanIsPrivate = false;
     this.initWeekDays();
     this.filteredDayTypes = [];
     this.currentDayIndex = 0;
@@ -1181,6 +1232,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     this.newPlanName = '';
     this.newPlanDescription = '';
     this.newPlanTypeId = '';
+    this.newPlanIsPrivate = false;
     this.createError = '';
     this.weekDays = [];
     this.filteredDayTypes = [];
@@ -1202,6 +1254,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     this.newPlanName = this.viewedPlan.name ?? '';
     this.newPlanDescription = this.viewedPlan.description ?? '';
     this.newPlanTypeId = this.viewedPlan.plan_type_id ?? '';
+    this.newPlanIsPrivate = this.viewedPlan.is_private ?? false;
     this.createError = '';
 
     // Samo filteredDayTypes ovdje — weekDays još nije sastavljen (populateWeekDaysFor
@@ -1229,6 +1282,8 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     this.newPlanName = '';
     this.newPlanDescription = '';
     this.newPlanTypeId = this.viewedPlan.plan_type_id ?? '';
+    // Kopija kreće javna kao i svaki nov plan — privatnost je svjestan izbor.
+    this.newPlanIsPrivate = false;
     this.createError = '';
 
     this.computeFilteredDayTypes();
@@ -1704,20 +1759,33 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
           {
             name: this.newPlanName,
             description: this.newPlanDescription,
-            plan_type_id: this.newPlanTypeId
+            plan_type_id: this.newPlanTypeId,
+            is_private: this.newPlanIsPrivate
           },
           daysPayload
         );
       } else {
-        await this.dashboardService.createFullPlan(
+        const created = await this.dashboardService.createFullPlan(
           {
             name: this.newPlanName,
             description: this.newPlanDescription,
             plan_type_id: this.newPlanTypeId,
-            created_by: user.id
+            created_by: user.id,
+            is_private: this.newPlanIsPrivate
           },
           daysPayload
         );
+
+        // „Prilagodi sebi" mora zatvoriti krug. Praćeni plan ima apsolutni
+        // prioritet pri razrješavanju (resolvePlanForUser), pa bi kopija bez
+        // ovoga ostala mrtvo slovo — trening bi i dalje vukao original.
+        // Zato: otprati original (bezopasno i ako ga nije pratio) pa
+        // aktiviraj kopiju, da rezolucija padne baš na nju.
+        if (this.adaptingFromPlanId) {
+          await this.dashboardService.unfollowPlan(this.adaptingFromPlanId, user.id);
+          await this.dashboardService.activatePlan(created.id, user.id);
+          this.showSavedNote('Plan je sada tvoj i aktivan — treninzi idu po njemu.');
+        }
       }
 
       this.myPlans = await this.dashboardService.getMyPlans(user.id);

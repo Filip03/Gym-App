@@ -56,6 +56,7 @@ Popunjava se triggerom iz `auth.users.raw_user_meta_data` nakon registracije
 | `description` | text NULL | |
 | `plan_type_id` | uuid FK → plan_type NULL | |
 | `active` | boolean | ⚠️ **postoji u bazi, ne postoji u TS modelu** |
+| `is_private` | boolean not null default false | privatan plan: drugima nevidljiv u izlogu, ne može se zapratiti; postojeći pratioci ostaju (migracija `20260810000000_plan_visibility.sql`, ADR-0004) |
 
 ### `plan_members`
 Ko prati čiji plan.

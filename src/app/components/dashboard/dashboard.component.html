@@ -88,6 +88,14 @@
       </button>
     </div>
 
+    <!-- Prolazna potvrda radnje čiji efekat nije vidljiv iz liste (npr.
+         „Prilagodi sebi" otprati original i aktivira kopiju u pozadini). -->
+    <div class="saved-note" *ngIf="savedNote && !loading"
+         [class.closing]="savedNoteClosing" (click)="dismissSavedNote()">
+      <i class="material-icons">task_alt</i>
+      <span class="sn-text">{{ savedNote }}</span>
+    </div>
+
     <div class="sections" *ngIf="!loading && !errorMessage">
 
         <section class="my-plans">
@@ -206,6 +214,15 @@
                           placeholder="Izaberi tip plana"
                           (valueChange)="onPlanTypeSelected($event)"></app-dropdown>
           </div>
+
+          <!-- Isti obrazac kao „Osobine" kod nove vježbe — poznat jezik. -->
+          <button type="button" class="opt-row" [class.on]="newPlanIsPrivate"
+                  (click)="newPlanIsPrivate = !newPlanIsPrivate">
+            <i class="material-icons">{{ newPlanIsPrivate ? 'lock' : 'lock_open' }}</i>
+            <span class="opt-text">Privatan plan
+              <small>drugi ga ne vide u listi niti ga mogu zapratiti</small></span>
+            <i class="material-icons opt-state">{{ newPlanIsPrivate ? 'check_circle' : 'radio_button_unchecked' }}</i>
+          </button>
         </div>
 
         <hr class="divider" />
@@ -388,7 +405,13 @@
 
       <div class="plan-info-section">
         <div class="group">
-          <h2>{{ viewedPlan.name }}</h2>
+          <h2>
+            {{ viewedPlan.name }}
+            <!-- Vidi je samo vlasnik — tuđi privatni planovi ne stižu dovde. -->
+            <span class="private-chip" *ngIf="viewedPlan.is_private">
+              <i class="material-icons">lock</i>Privatan
+            </span>
+          </h2>
           <div class="plan-actions">
             <button type="button" class="edit-plan-btn" *ngIf="isOwnPlan" (click)="openEditModal()">Izmijeni</button>
             <button

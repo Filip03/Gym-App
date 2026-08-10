@@ -7,6 +7,13 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+// Brzi uzastopni dodiri (unos serija, steperi, dodavanje) ne smiju postati
+// dvoklik-zum — `manipulation` zadržava skrol i pinch-zum, gasi samo dvoklik.
+// U LiveContainer ljusci je ovo kritično: tamo se zum ne može ni vratiti.
+// `touch-action` se NE nasljeđuje, zato univerzalni selektor; najniže je
+// specifičnosti, pa posebna pravila (kupola `none`, špil `pan-y`) pobjeđuju.
+* { touch-action: manipulation; }
+
 html, body, app-root {
   margin: 0;
   padding: 0;

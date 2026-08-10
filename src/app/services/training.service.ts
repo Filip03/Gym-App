@@ -39,6 +39,8 @@ export interface WorkoutSession {
   date: string;
   planId: string | null;
   planName: string | null;
+  /** Dan plana iz kojeg je sesija presložena — za kvačicu u biraču dana. */
+  workoutDayId: string | null;
   dayLabel: string | null;
   dayTypeName: string | null;
   startedAt: string | null;
@@ -271,6 +273,80 @@ export class TrainingService {
   }
 
   /**
+   * Presloži DANAŠNJU, još neodrađenu sesiju iz DRUGOG dana plana.
+   *
+   * Život prekida plan (bolest, menstruacija, pauza) i propušteni dan ne
+   * smije biti izgubljen — korisnik danas bira KOJI dan plana radi. Radi se
+   * na sesiji, ne na planu: plan je zajednički i niko drugi ne osjeti ništa.
+   * `day_label` OSTAJE stvarni dan u sedmici (istorija kaže KAD), a tip i
+   * vježbe dolaze iz izabranog dana (ŠTA).
+   *
+   * `day = null` znači dan odmora: sesija ostaje, vježbe se isprazne.
+   *
+   * Dozvoljeno SAMO dok nema nijedne upisane serije — poslije prve serije
+   * trening je počeo i preslaganje bi mu izmaklo tlo (komponenta to čuva u
+   * UI-ju, ovdje je brana za svaki slučaj).
+   */
+  async changeSessionDay(
+    userId: string,
+    session: WorkoutSession,
+    plan: any,
+    day: any | null
+  ): Promise<WorkoutSession | null> {
+    const { data: anyLog, error: logError } = await this.supabase.client
+      .from('exercice_logs')
+      .select('id')
+      .eq('session_id', session.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (logError) throw logError;
+    if (anyLog) throw new Error('Trening je već počeo — dan se više ne mijenja.');
+
+    const { error: updateError } = await this.supabase.client
+      .from('workout_sessions')
+      .update({
+        plan_id: plan.id,
+        workout_day_id: day?.id ?? null,
+        day_type_name: day?.day_type?.name ?? null
+      })
+      .eq('id', session.id);
+
+    if (updateError) throw updateError;
+
+    // Stare vježbe odlaze u komadu (uključujući ručno dodane i zamjene —
+    // preslaganje je svjestan novi početak dana), pa se upisuju nove.
+    const { error: wipeError } = await this.supabase.client
+      .from('session_exercices')
+      .delete()
+      .eq('session_id', session.id);
+
+    if (wipeError) throw wipeError;
+
+    const dayExercices = [...(day?.day_exercice ?? [])]
+      .sort((a: any, b: any) => (a.order_num ?? 0) - (b.order_num ?? 0));
+
+    if (dayExercices.length > 0) {
+      const rows = dayExercices.map((dayEx: any, i: number) => ({
+        session_id: session.id,
+        exercice_id: dayEx.exercice_id,
+        order_num: i + 1,
+        target_sets: dayEx.target_sets,
+        target_reps: dayEx.target_reps
+      }));
+
+      const { error: exError } = await this.supabase.client
+        .from('session_exercices')
+        .insert(rows);
+
+      if (exError) throw exError;
+    }
+
+    // findSession danas i sam osvježi keš sesije — prvi kadar ostaje istinit.
+    return this.findSession(userId, session.date);
+  }
+
+  /**
    * Sesija za DATI datum, bez pravljenja — za istoriju treninga.
    *
    * Istorija se namjerno čita iz sesije, ne iz plana: sesija je SNIMAK dana
@@ -296,7 +372,7 @@ export class TrainingService {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
       .select(`
-        id, date, plan_id, day_label, day_type_name, started_at, finished_at, note,
+        id, date, plan_id, workout_day_id, day_label, day_type_name, started_at, finished_at, note,
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
@@ -319,6 +395,7 @@ export class TrainingService {
       date: row.date,
       planId: row.plan_id,
       planName: row.workout_plan?.name ?? null,
+      workoutDayId: row.workout_day_id ?? null,
       dayLabel: row.day_label,
       dayTypeName: row.day_type_name,
       startedAt: row.started_at,

@@ -1644,6 +1644,49 @@ $branch-indent: 16px;
   color: var(--dust);
 }
 
+// --- Čip „Promijeni dan" -----------------------------------------------------
+//
+// Stoji uz naziv dana dok trening još nije počeo. Nestaje kroz `gone`, koji
+// skuplja i njegov ZAUZETI PROSTOR (max-width/padding/margin) — susjedi u
+// redu teku za njim umjesto da skoče (kućno pravilo o prostoru).
+.day-swap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 200px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 3px 10px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--mist);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    max-width   360ms var(--ease),
+    padding     360ms var(--ease),
+    border-width 360ms var(--ease),
+    margin      360ms var(--ease),
+    opacity     240ms var(--ease),
+    border-color var(--d-fast) var(--ease),
+    color        var(--d-fast) var(--ease);
+}
+.day-swap .material-icons { font-size: 15px; flex: none; }
+.day-swap:not(:disabled):hover { border-color: var(--volt-a40); color: var(--ice); }
+.day-swap:not(:disabled):active { transform: scale(.97); }
+
+.day-swap.gone {
+  max-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
 // --- Animacija preređivanja ------------------------------------------------
 //
 // Zamjena je ranije bila trenutna, pa se nije moglo pratiti šta se pomjerilo.
@@ -2058,4 +2101,140 @@ $branch-indent: 16px;
   border-style: dashed;
   border-color: var(--gold);
   opacity: .85;
+}
+
+// --- Birač dana za danas -----------------------------------------------------
+//
+// Sesija se presloži iz izabranog dana plana — plan netaknut. Ulaz nosi
+// globalni modal (sheet-in/dialog-in); dani izranjaju talasom jedan za drugim
+// (animation-delay iz šablona). Izlaz drži `dp-closing` u komponenti, jer CSS
+// ne svira animaciju na uklanjanju iz DOM-a.
+
+.day-picker-card {
+  // Na telefonu je panel visok cio međuprostor — sadržaj ne treba da se
+  // razvuče po njemu nego da stoji uz vrh kao lista.
+  display: flex;
+  flex-direction: column;
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: var(--t-xl);
+    letter-spacing: var(--ls-tight);
+  }
+}
+
+.dp-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+}
+
+.dp-day {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 52px;
+  padding: var(--s-2) var(--s-3);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--mist);
+  text-align: left;
+  cursor: pointer;
+  animation: dp-rise 340ms var(--ease-spring) both;
+  transition: border-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease),
+              opacity var(--d-fast) var(--ease);
+}
+.dp-day:not(:disabled):active { transform: scale(.98); }
+.dp-day:not(:disabled):hover { border-color: var(--line-strong); }
+
+.dp-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dp-name {
+  font-weight: 700;
+  color: var(--ice);
+  font-size: var(--t-sm);
+}
+
+.dp-tag {
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.dp-meta {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.dp-type {
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--volt);
+}
+.dp-type.dp-rest { color: var(--dust); text-transform: none; letter-spacing: 0; }
+
+.dp-count {
+  font-size: var(--t-xs);
+  color: var(--dust);
+}
+
+.dp-check { flex: none; font-size: 18px; color: var(--volt); }
+
+// Dan odmora je legitiman izbor, ali vizuelno tiši.
+.dp-day.rest { opacity: .75; }
+
+// Trenutni dan sesije — obrub akcentom, kao `.opt-row.on`.
+.dp-day.on { border-color: var(--volt-a40); }
+
+// Preslaganje u toku: ikona sync se vrti na izabranom danu, ostali utihnu.
+.dp-day:disabled { opacity: .55; cursor: default; }
+.dp-day.busy { opacity: 1; border-color: var(--volt-a40); }
+.dp-spin {
+  flex: none;
+  font-size: 18px;
+  color: var(--volt);
+  animation: dp-spin 900ms linear infinite;
+}
+
+// Izlaz: scrim izblijedi, kartica se sipne nadolje — obrnuto od ulaska.
+.day-picker-overlay.dp-closing {
+  animation: dp-overlay-out 300ms var(--ease) both;
+  pointer-events: none;
+}
+.day-picker-overlay.dp-closing .day-picker-card {
+  animation: dp-card-out 300ms var(--ease) both;
+}
+
+@keyframes dp-rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes dp-spin { to { transform: rotate(360deg); } }
+@keyframes dp-overlay-out { to { opacity: 0; } }
+@keyframes dp-card-out {
+  0%  { opacity: 1; transform: translateY(0)   scale(1, 1); }
+  35% {              transform: translateY(2px) scale(1.01, .96); }
+  to  { opacity: 0; transform: translateY(14px) scale(.99, .97); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dp-day, .dp-spin,
+  .day-picker-overlay.dp-closing,
+  .day-picker-overlay.dp-closing .day-picker-card { animation: none; }
+  .day-swap { transition: none; }
 }

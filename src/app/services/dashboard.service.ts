@@ -88,6 +88,9 @@ export class DashboardService {
         profiles:created_by ( username, profile_pic_url )
       `)
       .neq('created_by', userId)
+      // Privatni planovi ne idu u izlog. Ko takav plan VEĆ prati, ne dolazi
+      // ovuda — njegov se razrješava direktno preko plan_members → getFullPlan.
+      .eq('is_private', false)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -224,7 +227,7 @@ export class DashboardService {
 
 // Kreira ceo plan sa danima i vježbama u jednom pozivu
 async createFullPlan(
-  plan: { name: string; description: string; plan_type_id: string; created_by: string },
+  plan: { name: string; description: string; plan_type_id: string; created_by: string; is_private?: boolean },
   days: {
     dayNumber: number;
     dayName: string;
@@ -239,7 +242,8 @@ async createFullPlan(
       name: plan.name,
       description: plan.description,
       plan_type_id: plan.plan_type_id,
-      created_by: plan.created_by
+      created_by: plan.created_by,
+      is_private: plan.is_private ?? false
     })
     .select()
     .single();
@@ -281,7 +285,7 @@ async createFullPlan(
  */
 async updateFullPlan(
   planId: string,
-  plan: { name: string; description: string; plan_type_id: string },
+  plan: { name: string; description: string; plan_type_id: string; is_private?: boolean },
   days: {
     dayNumber: number;
     dayName: string;
@@ -294,7 +298,8 @@ async updateFullPlan(
     .update({
       name: plan.name,
       description: plan.description,
-      plan_type_id: plan.plan_type_id
+      plan_type_id: plan.plan_type_id,
+      is_private: plan.is_private ?? false
     })
     .eq('id', planId);
 
