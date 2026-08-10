@@ -285,6 +285,20 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     this.currentUserId = user.id;
     this.draftKey = `plan.${user.id}`;
 
+    // PRVI KADAR IZ KEŠA, bez ijednog odlaska na server: planovi i šifarnici
+    // se nacrtaju odmah ako ih keš ima (spinner se i ne pojavi), a ISTA četiri
+    // upita ispod se svejedno pošalju i tiho zamijene prikaz — bez pražnjenja
+    // pa punjenja. „Ko trenira sada" i sat sesije se NE keširaju: žive stvari
+    // uvijek čekaju mrežu.
+    const cachedMy = this.dashboardService.peekMyPlans(user.id);
+    const cachedOther = this.dashboardService.peekOtherPlans(user.id);
+    if (cachedMy) this.myPlans = cachedMy;
+    if (cachedOther) this.otherPlans = cachedOther;
+    this.planTypes = this.dashboardService.peekPlanTypes() ?? this.planTypes;
+    this.dayTypes = this.dashboardService.peekDayTypes() ?? this.dayTypes;
+    // Vidljivi dio ekrana su liste planova — čim su tu, spinner nema šta da radi.
+    if (cachedMy && cachedOther) this.loading = false;
+
     void this.loadLive();
     void this.checkForNews();
     // Trening traje, pa broj minuta mora da raste sam. Interval se čisti u
@@ -307,7 +321,10 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
         this.dashboardService.getDayTypes()
       ]);
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju podataka.';
+      // Keširane liste već drže ekran — greška tihog osvježenja ne viče.
+      if (this.loading) {
+        this.errorMessage = err.message ?? 'Greška pri učitavanju podataka.';
+      }
     } finally {
       this.loading = false;
     }
@@ -535,6 +552,19 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     this.todayStartedAt = null;
     this.dayHasTraining = false;
     this.daySessionExists = false;
+
+    // PRVI KADAR TRAKE IZ KEŠA: naziv i tip dana iz keširanog aktivnog plana,
+    // sinhrono, pa traka ne stoji prazna dok plan putuje mrežom. Samo za danas
+    // i ubuduće — raniji dani se čitaju iz snimka sesije, koji se ne kešira.
+    // Sat, serije i status dugmeta i dalje čekaju svjež odgovor.
+    if (!this.isPast) {
+      const cachedPlan = this.trainingService.peekPlanForUser(this.currentUserId);
+      if (cachedPlan) {
+        const cachedDay = (cachedPlan.workout_days ?? []).find((d2: any) => d2.name === this.todayName);
+        this.todayType = cachedDay?.day_type?.name ?? null;
+        this.todayCount = (cachedDay?.day_exercice ?? []).length;
+      }
+    }
 
     try {
       if (this.isPast) {

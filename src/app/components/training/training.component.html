@@ -122,7 +122,9 @@
     <button type="button" class="btn-ghost" (click)="openAdd()">Ipak treniram</button>
   </div>
 
-  <div class="exercice-list" *ngIf="!isRestDay">
+  <!-- `hydrating`: prvi kadar iz keša — struktura dana stoji odmah, prigušena
+       i neaktivna dok logovi ne stignu mrežom (bez izmišljenih brojeva). -->
+  <div class="exercice-list" [class.hydrating]="hydrating" *ngIf="!isRestDay">
     <!-- `hush`: dok je ostrvo za unos otvoreno, ostatak kartice (pilule serija,
          duhovi, bedževi) se blago priguši — pažnja ide na unos, a puna jačina
          se vrati čim se ostrvo skupi. -->

@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
 import { AuthService } from '../../services/auth.service'
+import { CacheService } from '../../services/cache.service';
 import { PushNotificationService } from '../../services/push-notification.service';
 import { NavModeService } from '../../services/nav-mode.service';
 import { LastRouteService } from '../../services/last-route.service';
@@ -124,7 +125,8 @@ export class FooterComponent implements OnDestroy {
     private pushNotifications: PushNotificationService,
     private zone: NgZone,
     private nav: NavModeService,
-    private lastRoute: LastRouteService
+    private lastRoute: LastRouteService,
+    private cache: CacheService
   ){
     this.reduced = typeof window !== 'undefined'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -629,6 +631,11 @@ export class FooterComponent implements OnDestroy {
     // prijava (možda tuđa, isti telefon) ne osvane na tuđem ekranu.
     const user = this.service.getCurrentUser();
     if (user) this.lastRoute.forget(user.id);
+
+    // Isti razlog za keš: SVI lični zapisi (planovi, sesija, profil, kalendar)
+    // odlaze sa odjavom — sljedeća prijava može biti tuđa. Globalni katalog i
+    // šifarnici ostaju: isti su svima. Red čekanja i nacrti se NE diraju.
+    if (user) this.cache.clearUser(user.id);
 
     // Prije signOut-a — dok Supabase sesija još važi za Authorization header.
     await this.pushNotifications.unregisterFromPush();

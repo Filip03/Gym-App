@@ -325,6 +325,32 @@ export class ProfileComponent implements OnInit {
 
     this.email = user.email ?? '';
 
+    // PRVI KADAR IZ KEŠA, bez ijednog odlaska na server: profil, kalendar i
+    // katalog se nacrtaju odmah ako ih keš ima, a ISTI pozivi ispod se
+    // svejedno pošalju i tiho dopune prikaz (stale-while-revalidate).
+    const cachedProfile = this.profileService.peekProfile(user.id);
+    if (cachedProfile) {
+      this.profile = cachedProfile;
+      this.updateAvatarUrl();
+      this.loading = false;
+    }
+
+    const cachedCalendar = this.profileService.peekTrainingCalendar(user.id);
+    if (cachedCalendar) {
+      this.calDays = cachedCalendar;
+      this.weekStreak = this.computeWeekStreak();
+      this.computeRangeStats();
+      this.buildMonth();
+      this.calLoading = false;
+    }
+
+    const cachedGroups = this.exerciceService.peekGroups();
+    if (cachedGroups) {
+      this.exerciceGroups = cachedGroups.filter(g => g.exercices.length > 0);
+      this.pickerGroups = toPickerGroups(this.exerciceGroups);
+      this.loadingExerciceGroups = false;
+    }
+
     void this.loadCalendar(user.id);   // ne čeka profil, puni se paralelno
 
     try {
@@ -332,7 +358,10 @@ export class ProfileComponent implements OnInit {
       this.updateAvatarUrl();
       void this.loadWeightHistory();
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju profila.';
+      // Keširan profil već drži ekran — greška tihog osvježenja ne viče.
+      if (!this.profile) {
+        this.errorMessage = err.message ?? 'Greška pri učitavanju profila.';
+      }
     } finally {
       this.loading = false;
     }
@@ -342,7 +371,9 @@ export class ProfileComponent implements OnInit {
       this.exerciceGroups = groups.filter(g => g.exercices.length > 0);
       this.pickerGroups = toPickerGroups(this.exerciceGroups);
     } catch (err: any) {
-      this.progressError = err.message ?? 'Greška pri učitavanju vježbi.';
+      if (this.pickerGroups.length === 0) {
+        this.progressError = err.message ?? 'Greška pri učitavanju vježbi.';
+      }
     } finally {
       this.loadingExerciceGroups = false;
     }
@@ -553,7 +584,9 @@ export class ProfileComponent implements OnInit {
       this.buildMonth();
     } catch {
       // Kalendar je dodatak; greška ovdje ne smije oboriti ostatak profila.
-      this.calDays = [];
+      // Ako keširani već stoji na ekranu, ne prazni se — zastario je manja
+      // šteta od praznog.
+      if (this.calLoading) this.calDays = [];
     } finally {
       this.calLoading = false;
     }

@@ -4098,3 +4098,76 @@ zasebnog reda sa natpisom; natpis uklonjen (`io-fields.bw-plain` nowrap).
    docs/08-KONVENCIJE.md — strukturno, da se klasa buga više ne vraća.
 2. Futerski „8px dah" ograničen na dodirne ekrane (`pointer: coarse`) — na
    mišu je dizao red ikona vidljivo („na webu je meni podignut više").
+
+---
+
+## [2026-08-10] Stale-while-revalidate keš sloj u localStorage — prvi piksel bez mreže
+**Tip:** funkcionalnost / performanse
+**Ref:** ADR-0003
+
+**Problem:** Svaki ulazak na tab je počinjao spinnerom i čekanjem na Supabase —
+na mobilnoj vezi u teretani 10–20 sekundi (Markove prijave). A čeka se na
+podatke koji se praktično ne mijenjaju između dva ulaska: katalog vježbi,
+šifarnici, planovi, struktura današnjeg treninga, kalendar, sedmica ekipe.
+
+**Rješenje:** Novi `CacheService` — SWR keš u `localStorage` sa ključevima
+`gymapp.cache.v1.<domen>.<userId|global>`. Komponenta na vrhu `ngOnInit`
+SINHRONO `peek`-ne keš i odmah crta (spinner se i ne pojavi), pa SVEJEDNO zove
+postojeću servisnu metodu; servis po uspjehu radi `put` i prikaz se tiho
+dopuni — bez pražnjenja pa punjenja. Verzija šeme je u ključu (konstruktor
+briše starije), lični podaci nose `userId` (telefon dijele dva korisnika),
+puna memorija i neispravan JSON se tiho tolerišu (obrazac iz
+`offline-queue.service.ts`). NIKAD se ne keširaju: `getSessionLogs` (izvor
+istine), `getLiveSessions`, `getSessionTimes`, `getPersonalBests`/
+`getBodyweightBests` (prag rekorda). Zašto ne `ngsw` dataGroups: ADR-0003
+(kontrola invalidacije + sinhroni prvi render).
+
+**Dodirnuti fajlovi:**
+- `src/app/services/cache.service.ts` — NOVO: `peek`/`put`/`clear(prefix)`/
+  `clearUser`; TTL konstante; čišćenje starih verzija šeme
+- `src/app/services/exercice.service.ts:34,93,139` — peek/put kataloga (24h,
+  globalno); `addExercice` obara katalog
+- `src/app/services/dashboard.service.ts:33–53,79,94,164,186` — peek/put za
+  myPlans/otherPlans (1h, po korisniku) i plan_type/day_type (7 dana,
+  globalno); `:154,252,337` create/update/deleteFullPlan obaraju liste planova
+  + razriješeni aktivni plan; `:461–517` follow/unfollow/activate/deactivate
+  obaraju aktivni plan
+- `src/app/services/training.service.ts:145,156` — peek/put razriješenog
+  aktivnog plana (`training.activePlan.<uid>`); `:290,349` — peek/put strukture
+  DANAS-sesije (`training.session.<uid>`, samo današnja, peek odbija tuđi
+  datum); `:382–606` — sve izmjene sesije obaraju strukturu (zamjena,
+  dodavanje, uklanjanje, redoslijed, ciljevi, bilješka, kraj/ponovno
+  otvaranje), a L·D/BW flagovi i katalog
+- `src/app/services/leaderboard.service.ts:168,172,316,455,499` — peek/put za
+  sedmicu (30 min), rekorde (1h) i profile ekipe (6h; memorijski keš proširen:
+  localStorage sjeme + tiho osvježenje u pozadini)
+- `src/app/services/profile.service.ts:41,45,57,73,235,267` — peek/put profila
+  (6h) i kalendara (1h); nova slika obara profil
+- `src/app/components/dashboard/dashboard.component.ts:288–299` — prvi kadar
+  lista i šifarnika iz keša; `:556–566` — traka dana iz keširanog plana
+- `src/app/components/exercices/exercices.component.ts:60–99` — katalog iz
+  keša, spinner samo kad nema ničega
+- `src/app/components/leaderboard/leaderboard.component.ts:115–129` — sedmica/
+  rekordi/katalog iz keša; greške tihog osvježenja ne viču preko sadržaja
+- `src/app/components/profile/profile.component.ts:328–353` — profil/kalendar/
+  katalog iz keša
+- `src/app/components/training/training.component.ts:172,323–334,481,489` —
+  skeleton iz keširane strukture (`hydrating`: prigušene karte, bez brojeva,
+  dok logovi ne stignu); `:2026,2081` — birač pri dodavanju/zamjeni prvo iz
+  keširanog kataloga
+- `src/app/components/training/training.component.html:127` +
+  `training.component.scss:106–130` — `hydrating` prigušenje, tečan povratak
+  (tokeni `--d-slow`, reduced-motion ga sam gasi)
+- `src/app/components/footer/footer.component.ts:638` — odjava briše SVE lične
+  zapise keša (`clearUser`); globalni katalog ostaje
+- `docs/05-decisions/ADR-0003-kes-sloj-localstorage.md` + red u registru
+
+**Efekat:** Povratak na svaki tab crta odmah iz keša — planovi, katalog,
+profil, kalendar, sedmica, rekordi i struktura treninga stoje na ekranu bez
+ijednog round-tripa, a mreža ih u pozadini tiho dopuni. Živi podaci (serije,
+„trenira sada", sat, rekordi-pragovi) i dalje uvijek čekaju mrežu.
+
+**Napomene:** Prvi ulazak poslije prijave i dalje ide preko mreže (keš je
+prazan). Ko dodaje novu mutaciju planova/sesije/kataloga, mora pogoditi
+invalidaciju — spisak tačaka u ADR-0003. Ključevi reda čekanja
+(`gymapp.queue.*`) i nacrta (`gymapp.draft.*`) nijesu dirani.

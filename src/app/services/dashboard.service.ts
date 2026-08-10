@@ -1,13 +1,57 @@
 import { Injectable } from '@angular/core';
 import { WorkoutPlan, Exercice, DayTypeMuscleGroup, PlanType, DayType } from '../models/models'
 import { SupabaseService } from './supabase_service'
+import { CacheService, TTL_1H, TTL_7D } from './cache.service'
+
+// Ključevi keša (vidi CacheService). Šifarnici su globalni — isti za sve;
+// liste planova su LIČNE (šta je „moje" zavisi od toga ko gleda), pa userId
+// mora u ključ: telefon dijele dva korisnika.
+const CACHE_PLAN_TYPES = 'dashboard.planTypes.global';
+const CACHE_DAY_TYPES = 'dashboard.dayTypes.global';
+const cacheMyPlans = (userId: string) => `dashboard.myPlans.${userId}`;
+const cacheOtherPlans = (userId: string) => `dashboard.otherPlans.${userId}`;
+
+/**
+ * Domen keša RAZRIJEŠENOG aktivnog plana (puni ga `TrainingService.
+ * getPlanForUser`). Izvezen odavde jer ga i ovaj servis mora obarati:
+ * izmjena/brisanje plana mijenja i ono što se za korisnika razriješi.
+ */
+export const CACHE_ACTIVE_PLAN = 'training.activePlan';
+export const cacheActivePlan = (userId: string) => `${CACHE_ACTIVE_PLAN}.${userId}`;
 
 @Injectable({
   providedIn: 'root'
 })
 export class DashboardService {
 
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService, private cache: CacheService) {}
+
+  // --- Keš za prvi kadar dashboarda ------------------------------------------
+  // Sinhroni `peek`-ovi: komponenta crta odmah iz njih, pa ISTE metode ispod
+  // svejedno odu na server i tiho zamijene prikaz (stale-while-revalidate).
+
+  peekMyPlans(userId: string): any[] | null {
+    return this.cache.peek<any[]>(cacheMyPlans(userId), TTL_1H);
+  }
+
+  peekOtherPlans(userId: string): any[] | null {
+    return this.cache.peek<any[]>(cacheOtherPlans(userId), TTL_1H);
+  }
+
+  peekPlanTypes(): PlanType[] | null {
+    return this.cache.peek<PlanType[]>(CACHE_PLAN_TYPES, TTL_7D);
+  }
+
+  peekDayTypes(): DayType[] | null {
+    return this.cache.peek<DayType[]>(CACHE_DAY_TYPES, TTL_7D);
+  }
+
+  /** Sve što je izvedeno iz planova — pri svakoj izmjeni/brisanju plana. */
+  private invalidatePlans(): void {
+    this.cache.clear('dashboard.myPlans');
+    this.cache.clear('dashboard.otherPlans');
+    this.cache.clear(CACHE_ACTIVE_PLAN);
+  }
 
   // Svi planovi - i tvoji i od drugih korisnika
   async getAllPlans(): Promise<WorkoutPlan[]> {
@@ -32,6 +76,7 @@ export class DashboardService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+    this.cache.put(cacheMyPlans(userId), data);
     return data;
   }
 
@@ -46,6 +91,7 @@ export class DashboardService {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+    this.cache.put(cacheOtherPlans(userId), data);
     return data;
   }
 
@@ -103,6 +149,9 @@ export class DashboardService {
       .eq('id', planId);
 
     if (error) throw error;
+
+    // Keširane liste i razriješeni aktivni plan više ne odgovaraju bazi.
+    this.invalidatePlans();
   }
 
   async getPlanTypes(): Promise<PlanType[]> {
@@ -112,6 +161,7 @@ export class DashboardService {
       .order('name', { ascending: true });
 
     if (error) throw error;
+    this.cache.put(CACHE_PLAN_TYPES, data);
     return data as PlanType[];
   }
 
@@ -133,6 +183,7 @@ export class DashboardService {
       .order('name', { ascending: true });
 
     if (error) throw error;
+    this.cache.put(CACHE_DAY_TYPES, data);
     return data as DayType[];
   }
 
@@ -196,6 +247,9 @@ async createFullPlan(
   if (planError) throw planError;
 
   await this.insertDays(newPlan.id, days);
+
+  // Nov plan mijenja liste, a možda i razriješeni aktivni plan (prvi svoj).
+  this.invalidatePlans();
 
   return newPlan as WorkoutPlan;
 }
@@ -278,6 +332,9 @@ async updateFullPlan(
 
     if (deleteDaysError) throw deleteDaysError;
   }
+
+  // Izmijenjen raspored: keširani plan bi na prvom kadru pokazivao stare dane.
+  this.invalidatePlans();
 }
 
 /**
@@ -399,6 +456,9 @@ async followPlan(planId: string, userId: string): Promise<void> {
     .insert({ plan_id: planId, profile_id: userId });
 
   if (error) throw error;
+
+  // Praćeni plan ima prioritet pri razrješavanju — keširani „aktivni" je pao.
+  this.cache.clear(cacheActivePlan(userId));
 }
 
 async unfollowPlan(planId: string, userId: string): Promise<void> {
@@ -409,6 +469,8 @@ async unfollowPlan(planId: string, userId: string): Promise<void> {
     .eq('profile_id', userId);
 
   if (error) throw error;
+
+  this.cache.clear(cacheActivePlan(userId));
 }
 
 // Plan_id koji korisnik trenutno prati (max jedan zbog unique constraint-a na profile_id)
@@ -438,6 +500,9 @@ async activatePlan(planId: string, userId: string): Promise<void> {
     .eq('id', planId);
 
   if (activateError) throw activateError;
+
+  // Drugi plan je sada aktivan — razriješeni keš tog korisnika ne važi.
+  this.cache.clear(cacheActivePlan(userId));
 }
 
 async deactivatePlan(planId: string): Promise<void> {
@@ -447,6 +512,9 @@ async deactivatePlan(planId: string): Promise<void> {
     .eq('id', planId);
 
   if (error) throw error;
+
+  // Ovdje se ne zna čiji je plan — obara se cio domen (bezbjedno preširoko).
+  this.cache.clear(CACHE_ACTIVE_PLAN);
 }
 
 async getFullPlan(planId: string) {

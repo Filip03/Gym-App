@@ -57,7 +57,15 @@ export class ExercicesComponent implements OnInit {
   }
 
   private async loadExercices() {
-    this.loading = true;
+    // PRVI KADAR IZ KEŠA, bez ijednog odlaska na server: keširani katalog se
+    // nacrta odmah (spinner se i ne pojavi), a svjež se svejedno dovuče ispod
+    // i TIHO zamijeni prikaz — bez pražnjenja pa punjenja.
+    const cached = this.exerciceService.peekGroups();
+    if (cached) this.applyGroups(cached);
+
+    // Spinner samo kad nema ni keša ni već prikazanog sadržaja (npr. odmah
+    // poslije dodavanja vježbe keš je oboren, ali stari prikaz još stoji).
+    this.loading = this.groups.length === 0;
     this.errorMessage = '';
 
     try {
@@ -67,15 +75,23 @@ export class ExercicesComponent implements OnInit {
       // modal „nova vježba" se izvodi iz istog rezultata; redoslijed je isti
       // (grupe stižu poređane po nazivu), a `uncategorized` je izmišljena grupa
       // iz servisa, ne red u bazi, pa se ne nudi za označavanje.
-      this.groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
-      this.muscleGroups = this.groups
-        .filter(g => g.id !== 'uncategorized')
-        .map(g => ({ id: g.id, name: g.name }));
+      this.applyGroups(await this.exerciceService.getExercicesGroupedByMuscleGroup());
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju vježbi.';
+      // Ako keš već drži ekran, greška tihog osvježenja ne viče preko sadržaja.
+      if (this.groups.length === 0) {
+        this.errorMessage = err.message ?? 'Greška pri učitavanju vježbi.';
+      }
     } finally {
       this.loading = false;
     }
+  }
+
+  /** Isti raspored i za keširan i za svjež katalog — jedno mjesto istine. */
+  private applyGroups(groups: MuscleGroupWithExercices[]) {
+    this.groups = groups;
+    this.muscleGroups = groups
+      .filter(g => g.id !== 'uncategorized')
+      .map(g => ({ id: g.id, name: g.name }));
   }
 
   openDetail(ex: Exercice) {

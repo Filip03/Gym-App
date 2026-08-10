@@ -108,10 +108,23 @@ $branch-indent: 16px;
   background: var(--carbon);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  transition: border-color var(--d-base) var(--ease);
+  transition: border-color var(--d-base) var(--ease),
+              opacity var(--d-slow) var(--ease),
+              filter var(--d-slow) var(--ease);
 }
 
 .exercice-row:focus-within { border-color: var(--line-strong); }
+
+// PRVI KADAR IZ KEŠA (vidi `hydrating` u komponenti): struktura dana stoji
+// odmah, ali su karte prigušene i neaktivne dok logovi ne stignu mrežom —
+// vidi se ŠTA je na redu, bez ijednog izmišljenog broja. Kad pravi podaci
+// preuzmu, prigušenje se TEČNO povuče (tranzicija na redu iznad) — bez
+// treptaja; uz smanjen pokret prelaz je trenutan kao i sve ostalo.
+.exercice-list.hydrating .exercice-row {
+  opacity: 0.55;
+  filter: saturate(0.6);
+  pointer-events: none;
+}
 
 .exercice-main {
   display: flex;

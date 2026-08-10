@@ -1,8 +1,16 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
+import { CacheService, TTL_30MIN, TTL_1H, TTL_6H } from './cache.service';
 import { ExerciceService, MuscleGroupWithExercices } from './exercice.service';
 import { ProfileService } from './profile.service';
 import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../shared/warmup-grace';
+
+// Ključevi keša (vidi CacheService). Sve tri sekcije su TIMSKE — isti podatak
+// za svakoga ko gleda — pa su ključevi globalni. „Ko trenira sada"
+// (`getLiveSessions`) se NAMJERNO ne kešira: jučerašnje „trenira sada" je laž.
+const CACHE_PROFILES = 'leaderboard.profiles.global';
+const CACHE_WEEK = 'leaderboard.week.global';
+const CACHE_RECORDS = 'leaderboard.records.global';
 
 /**
  * Podaci za ekran „Ekipa" (ranije „Leaderboard").
@@ -149,9 +157,21 @@ export class LeaderboardService {
 
   constructor(
     private supabase: SupabaseService,
+    private cache: CacheService,
     private exerciceService: ExerciceService,
     private profileService: ProfileService
   ) {}
+
+  // --- Keš za prvi kadar ekrana „Ekipa" --------------------------------------
+  // Sinhroni peek-ovi; prave metode se svejedno zovu poslije i tiho dopune.
+
+  peekTeamWeek(): WeekMember[] | null {
+    return this.cache.peek<WeekMember[]>(CACHE_WEEK, TTL_30MIN);
+  }
+
+  peekRecords(): RecordEvent[] | null {
+    return this.cache.peek<RecordEvent[]>(CACHE_RECORDS, TTL_1H);
+  }
 
   async getExerciceGroups(): Promise<MuscleGroupWithExercices[]> {
     return this.exerciceService.getExercicesGroupedByMuscleGroup();
@@ -277,7 +297,7 @@ export class LeaderboardService {
 
     const today = this.todayIso();
 
-    return profiles.map(p => {
+    const members = profiles.map(p => {
       const dates = datesByUser.get(p.id) ?? new Set<string>();
       const days = week.map(d => dates.has(d));
 
@@ -292,6 +312,9 @@ export class LeaderboardService {
         lastLabel: this.agoLabel(last)
       };
     }).sort((a, b) => b.count - a.count || a.username.localeCompare(b.username));
+
+    this.cache.put(CACHE_WEEK, members);
+    return members;
   }
 
   // ---------------------------------------------------------------------------
@@ -427,7 +450,10 @@ export class LeaderboardService {
     // Najnoviji prvi. Koliko ih se prikazuje odlučuje komponenta — cijeli spisak
     // je ionako mali, pa se prekidač „svi / moji" i „učitaj još" rješavaju bez
     // ijednog novog upita.
-    return events.reverse();
+    events.reverse();
+
+    this.cache.put(CACHE_RECORDS, events);
+    return events;
   }
 
   // ---------------------------------------------------------------------------
@@ -435,10 +461,23 @@ export class LeaderboardService {
 
   private allProfiles(): Promise<TeamProfile[]> {
     if (!this.profilesCache) {
-      this.profilesCache = this.fetchProfiles().catch(err => {
-        this.profilesCache = null;   // neuspjeh se ne kešira
-        throw err;
-      });
+      // Memorijski keš proširen na localStorage: spisak članova se godinama ne
+      // mijenja (zatvorena ekipa), pa keširani odmah razriješi sve tri sekcije
+      // — a svjež se svejedno dovuče u pozadini i tiho zamijeni, da nova
+      // profilna slika ne kasni šest sati.
+      const cached = this.cache.peek<TeamProfile[]>(CACHE_PROFILES, TTL_6H);
+
+      if (cached) {
+        this.profilesCache = Promise.resolve(cached);
+        void this.fetchProfiles()
+          .then(fresh => { this.profilesCache = Promise.resolve(fresh); })
+          .catch(() => { /* keširani i dalje služe; sljedeći ekran pokuša opet */ });
+      } else {
+        this.profilesCache = this.fetchProfiles().catch(err => {
+          this.profilesCache = null;   // neuspjeh se ne kešira
+          throw err;
+        });
+      }
     }
     return this.profilesCache;
   }
@@ -451,11 +490,14 @@ export class LeaderboardService {
 
     if (error) throw error;
 
-    return ((data ?? []) as any[]).map(p => ({
+    const profiles = ((data ?? []) as any[]).map(p => ({
       id: p.id as string,
       username: (p.username ?? 'Nepoznat') as string,
       avatarUrl: p.profile_pic_url ? this.profileService.getPublicUrl(p.profile_pic_url) : null
     }));
+
+    this.cache.put(CACHE_PROFILES, profiles);
+    return profiles;
   }
 
   // Svi upiti ispod čitaju upise cijele ekipe i imaju `TEAM_ROW_LIMIT` kao

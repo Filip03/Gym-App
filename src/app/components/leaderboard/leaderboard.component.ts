@@ -112,6 +112,22 @@ export class LeaderboardComponent implements OnInit {
     const js = new Date().getDay();
     this.todayIndex = js === 0 ? 6 : js - 1;
 
+    // PRVI KADAR IZ KEŠA, bez ijednog odlaska na server: sedmica, rekordi i
+    // katalog se nacrtaju odmah ako ih keš ima, pa se ISTI upiti svejedno
+    // pošalju i tiho dopune prikaz (stale-while-revalidate). „Ko trenira sada"
+    // se ne kešira — nje ovdje ni nema, živi na dashboardu.
+    const cachedWeek = this.leaderboardService.peekTeamWeek();
+    if (cachedWeek) { this.week = cachedWeek; this.weekLoading = false; }
+
+    const cachedRecords = this.leaderboardService.peekRecords();
+    if (cachedRecords) { this.records = cachedRecords; this.recordsLoading = false; }
+
+    const cachedGroups = this.exerciceService.peekGroups();
+    if (cachedGroups) {
+      this.pickerGroups = toPickerGroups(cachedGroups.filter(g => g.exercices.length > 0));
+      this.loadingExercices = false;
+    }
+
     // Nezavisni upiti — ne čekaju jedan drugog, pa se sekcije pojavljuju
     // čim koja bude spremna.
     void this.loadWeek();
@@ -122,7 +138,10 @@ export class LeaderboardComponent implements OnInit {
       const groups = await this.leaderboardService.getExerciceGroups();
       this.pickerGroups = toPickerGroups(groups.filter(g => g.exercices.length > 0));
     } catch (err: any) {
-      this.errorMessage = humanError(err, 'Greška pri učitavanju vježbi.');
+      // Keširan katalog već drži birač — greška tihog osvježenja ne viče.
+      if (this.pickerGroups.length === 0) {
+        this.errorMessage = humanError(err, 'Greška pri učitavanju vježbi.');
+      }
     } finally {
       this.loadingExercices = false;
     }
@@ -142,7 +161,10 @@ export class LeaderboardComponent implements OnInit {
     try {
       this.week = await this.leaderboardService.getTeamWeek();
     } catch (err: any) {
-      this.errorMessage = humanError(err, 'Greška pri učitavanju sedmice.');
+      // Keširana sedmica već stoji na ekranu — tiho osvježenje ne viče.
+      if (this.week.length === 0) {
+        this.errorMessage = humanError(err, 'Greška pri učitavanju sedmice.');
+      }
     } finally {
       this.weekLoading = false;
     }
@@ -152,7 +174,9 @@ export class LeaderboardComponent implements OnInit {
     try {
       this.records = await this.leaderboardService.getRecords();
     } catch (err: any) {
-      this.errorMessage = humanError(err, 'Greška pri učitavanju rekorda.');
+      if (this.records.length === 0) {
+        this.errorMessage = humanError(err, 'Greška pri učitavanju rekorda.');
+      }
     } finally {
       this.recordsLoading = false;
     }

@@ -163,6 +163,13 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   readonly SIDES: Side[] = ['L', 'D'];
 
   session: WorkoutSession | null = null;
+  /**
+   * PRVI KADAR IZ KEŠA: struktura dana (vježbe, redoslijed, ciljevi) je na
+   * ekranu, ali logovi/duhovi/rekordi još putuju mrežom. Karte su prigušene i
+   * neaktivne — vidi se ŠTA je na redu, ali NIJEDAN izmišljeni broj. Logovi se
+   * NIKAD ne keširaju: upisane serije su izvor istine.
+   */
+  hydrating = false;
   todayDate = '';
   /**
    * Pregled RANIJEG dana (?date=YYYY-MM-DD): sve na ekranu je samo za čitanje.
@@ -312,6 +319,19 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     // istorije se NE kači: osvježavanje bi napravilo sesiju za gledani datum.
     if (!this.viewOnly) {
       this.queue.onFlushed = () => { void this.reloadAfterSync(); };
+
+      // PRVI KADAR IZ KEŠA, bez ijednog odlaska na server: keširana struktura
+      // današnje sesije se nacrta odmah (prigušena, bez brojeva — vidi
+      // `hydrating`), a pravi tok ispod svejedno dovuče sesiju i logove pa
+      // tiho preuzme. Istorija (?date=...) ide isključivo preko mreže.
+      const cached = this.trainingService.peekTodaySession(user.id, this.todayDate);
+      if (cached) {
+        this.session = cached;
+        this.exercices = this.skeletonFrom(cached);
+        this.isRestDay = cached.exercices.length === 0;
+        this.hydrating = true;
+        this.loading = false;
+      }
     }
 
     try {
@@ -456,6 +476,39 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
         menuOpen: false
       };
     });
+
+    // Stigli su pravi logovi — skeleton iz keša (ako ga je bilo) je zamijenjen.
+    this.hydrating = false;
+  }
+
+  /**
+   * Ekran iz KEŠIRANE strukture, prije mreže: iste vježbe i ciljevi, ali bez
+   * ijednog upisa, duha ili rekorda — te brojeve smije donijeti samo mreža.
+   * Karte su za to vrijeme prigušene i neaktivne (vidi `hydrating` u šablonu).
+   */
+  private skeletonFrom(session: WorkoutSession): TodayExercice[] {
+    return session.exercices.map(se => ({
+      ...se,
+      echo: null,
+      dayHasSides: false,
+      dayHasBodyweight: false,
+      echoHasSides: false,
+      layoutFlow: false,
+      previousBest: null,
+      previousBestReps: null,
+      isPr: false,
+      prShown: null,
+      celebrating: false,
+      celebrateKey: 0,
+      loggedSets: [],
+      showLogForm: false,
+      repsInput: null,
+      weightInput: null,
+      showWeightInput: !se.isBodyweight,
+      bwFlip: null,
+      saving: false,
+      menuOpen: false
+    }));
   }
 
   // -------------------------------------------------------------------------
@@ -1968,6 +2021,16 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     this.pickerSuggestedLabel = 'Za današnji dan';
     this.openPicker();
 
+    // Keširani katalog puni birač ODMAH — bez čekanja mreže. Uži izbor
+    // („za današnji dan") i svjež katalog stignu ispod i tiho dopune.
+    const cachedGroups = this.exerciceService.peekGroups();
+    if (cachedGroups) {
+      this.pickerGroups = toPickerGroups(
+        cachedGroups, new Set(this.exercices.map(e => e.exerciceId))
+      );
+      this.swapLoading = false;
+    }
+
     try {
       const already = new Set(this.exercices.map(e => e.exerciceId));
 
@@ -2013,6 +2076,17 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     this.swapMode = mode;
     this.pickerSuggestedLabel = 'Slične vježbe';
     this.openPicker();
+
+    // Isto kao kod dodavanja: keširani katalog odmah, „slične" stignu ispod.
+    const cachedCatalog = this.exerciceService.peekGroups();
+    if (cachedCatalog) {
+      const cachedAlready = new Set(
+        this.exercices.filter(e => e.id !== ex.id).map(e => e.exerciceId)
+      );
+      cachedAlready.add(ex.exerciceId);
+      this.pickerGroups = toPickerGroups(cachedCatalog, cachedAlready);
+      this.swapLoading = false;
+    }
 
     try {
       // Zamjena je ranije nudila SAMO vježbe iz iste mišićne grupe, kao ravnu
