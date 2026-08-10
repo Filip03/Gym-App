@@ -4178,3 +4178,10 @@ preseljeno U `.dock-surface` (overflow + luk radius ga sijeku oblikom stakla
 — sjaj sada živi u kupoli), a krajnje ikone su blago uvučene ka unutra
 (edge 0.115/36–58 → 0.155/50–70). Bez smanjivanja ikona — mete za palac
 netaknute.
+
+**Dopuna — WebKit kliping (Markova ponovljena prijava, s pravom):** Safari na
+iPhone-u NE sijече kompozitnu djecu (translate3d sloj) kroz overflow+radius —
+prsten je na telefonu i dalje isplivavao iako je na desktop Chrome-u bio
+odsječen. `-webkit-mask-image: -webkit-radial-gradient(white, black)` +
+`isolation: isolate` na `.dock-surface` tjeraju WebKit da kliping primijeni.
+Pouka: vizuelna verifikacija na desktopu NIJE dokaz za iOS.
