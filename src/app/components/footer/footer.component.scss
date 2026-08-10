@@ -31,10 +31,11 @@
     // skrivene trake) ofarbani istom bojom čine jednu ogromnu ploču na dnu
     // (Markov IMG_4577). Ovako oko vidi traku visoku koliko i ikone, a ikone
     // svejedno ostaju iznad zone gestova.
+    // POVRŠINA (--carbon), ne podloga (--void) — vidi komentar u .dock-surface.
     background: linear-gradient(
         to bottom,
-        color-mix(in srgb, var(--void) 95%, transparent) calc(100% - var(--footer-gap)),
-        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
+        color-mix(in srgb, var(--carbon) 95%, transparent) calc(100% - var(--footer-gap)),
+        color-mix(in srgb, var(--carbon) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
         transparent 100%
     );
     border-top: 1px solid var(--line);
@@ -42,12 +43,12 @@
 
 // Svijetla tema: NEPROVIDNO u pojasu ikona (providnost je puštala kartice da
 // prosijavaju), pa isto blijeđenje kroz zonu gestova.
-// Ista boja i u header.component.scss — mijenjati u paru!
+// U trojci sa kupolom i header.component.scss — mijenjati zajedno!
 :host-context([data-theme='light']) .footer {
     background: linear-gradient(
         to bottom,
-        var(--void) calc(100% - var(--footer-gap)),
-        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
+        var(--carbon) calc(100% - var(--footer-gap)),
+        color-mix(in srgb, var(--carbon) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
         transparent 100%
     );
 }
@@ -254,7 +255,11 @@
     isolation: isolate;
 
     // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
-    background: color-mix(in srgb, var(--void) 95%, transparent);
+    // POVRŠINA (--carbon), ne podloga (--void): traka mora biti svjetlija od
+    // sadržaja iza sebe da se čita kao zaseban sloj — sa bojom podloge se
+    // stapala u jedno (Markova prijava, svijetla tema). Isto u header-u i
+    // klasičnom futeru — mijenjati u TROJKU!
+    background: color-mix(in srgb, var(--carbon) 95%, transparent);
     border-top: 1px solid var(--line);
     box-shadow: 0 -16px 38px -22px rgba(0, 0, 0, .8);
 
@@ -282,11 +287,13 @@
     );
 }
 
+// Na bijelom staklu bijeli blik ne postoji — svjetlo koje putuje nosi blagi
+// volt ton, kao da se akcenat prelama kroz staklo.
 :host-context([data-theme='light']) .dock-surface::before {
     background: radial-gradient(
         42% 70% at var(--sheen-x, 50%) -8%,
-        rgba(255, 255, 255, .55),
-        rgba(255, 255, 255, .18) 45%,
+        rgba(62, 148, 0, .12),
+        rgba(62, 148, 0, .04) 45%,
         transparent 72%
     );
 }
@@ -295,10 +302,10 @@
     .dock-surface::before { background-position: center; }
 }
 
-// Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju).
-// Ista vrijednost i u header.component.scss — mijenjati u paru!
+// Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju),
+// bijelo kao kartice — u trojci sa headerom i klasičnim futerom.
 :host-context([data-theme='light']) .dock-surface {
-    background: var(--void);
+    background: var(--carbon);
 }
 
 // Prevlačenje: kupola se razlije (squash & stretch)…

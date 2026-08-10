@@ -4241,3 +4241,21 @@ posebna pravila (kupola `none`, špil `pan-y`) i dalje pobjeđuju.
 
 **Zašto ne pomjeranje ciklusa:** odbačeno u ADR-0004 — dani nose imena dana u
 sedmici, offset bi pravio zbrku, a biranje dana pokriva stvarnu potrebu.
+
+**Dopuna istog dana — trake kao POVRŠINA, meni ispod plutajućih kartica,
+poravnat birač dana (Markove prijave uživo):**
+
+1. **Header, kupola i klasični futer prešli sa `--void` na `--carbon`** — u
+   svijetloj temi su nosili TAČNO boju podloge pa su se stapali sa sadržajem
+   („bar meni istom bojom"); sada su bijeli kao kartice (u tamnoj nijansu
+   svjetliji od podloge). Sva tri mjesta u trojci — mijenjati zajedno. Pokretni
+   odsjaj na bijelom staklu prešao u blagi volt ton (bijeli blik na bijelom ne
+   postoji).
+2. **`float-overlay` izuzetak** (`_base.scss`, `exercice-detail`): pregled
+   vježbe je plutajuća kartica, a pravilo „scrim do dna" (≤639px, kupola) je
+   ispod nje gutalo meni bez ičega preko njega. Plutajući slojevi sada
+   zaustavljaju scrim iznad futera — meni ostaje vidljiv i upotrebljiv; zato
+   ljuska pri navigaciji zatvara svoje slojeve (exDetail/preview close u
+   NavigationEnd — idempotentno).
+3. **Birač dana kao grid** — naziv | tip | broj vježbi | kvačica, kolone
+   poravnate kroz sve redove (raniji flex je desni dio slagao „random").

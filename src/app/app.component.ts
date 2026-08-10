@@ -40,6 +40,13 @@ export class AppComponent{
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
 
+        // Slojevi iz LJUSKE (pregled vježbe, pregled profila) žive iznad svih
+        // ruta, pa ih promjena rute sama ne ruši — otkad je meni vidljiv (i
+        // klikabilan) ispod plutajuće kartice, navigacija bi ih ostavila da
+        // vise nad novim ekranom. Zatvaranje je idempotentno.
+        this.exDetail.close();
+        this.preview.close();
+
         const hiddenRoutes = [
           '/',
         ];

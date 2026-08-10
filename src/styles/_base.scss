@@ -489,7 +489,11 @@ button:not(:disabled):active { transform: scale(0.97); }
 // drži sadržaj u zoni palca. Na ≥640px (centrirani dijalog) meni OSTAJE
 // vidljiv — bez ovoga je na desktopu izgledalo kao da je meni nestao.
 @media (max-width: 639px) {
-  :root.nav-dome .modal-overlay {
+  // `float-overlay` je IZUZET: to su slojevi čija kartica PLUTA (pregled
+  // vježbe) umjesto da puni cio međuprostor — kod njih bi scrim do dna samo
+  // progutao kupolu bez ičega preko nje („bar meni nestane potpuno", Markova
+  // prijava 10.08.2026). Njihov scrim staje iznad futera, meni ostaje živ.
+  :root.nav-dome .modal-overlay:not(.float-overlay) {
     bottom: 0;
   }
 

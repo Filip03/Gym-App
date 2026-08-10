@@ -716,17 +716,21 @@
               [style.animation-delay.ms]="60 + i * 45"
               [disabled]="changingDayId !== null"
               (click)="pickDay(d)">
+        <!-- Grid: svaka informacija ima SVOJU kolonu, poravnatu kroz sve
+             redove — naziv | tip | broj vježbi | kvačica. -->
         <span class="dp-main">
           <span class="dp-name">{{ d.name }}</span>
           <span class="dp-tag" *ngIf="isScheduledDay(d)">danas po planu</span>
         </span>
-        <span class="dp-meta">
-          <span class="dp-type" *ngIf="!isRestEntry(d)">{{ d.day_type?.name || 'Trening' }}</span>
-          <span class="dp-type dp-rest" *ngIf="isRestEntry(d)">odmor</span>
-          <span class="dp-count num" *ngIf="dayExCount(d) > 0">{{ dayExCount(d) }} vj.</span>
+        <span class="dp-type" *ngIf="!isRestEntry(d)">{{ d.day_type?.name || 'Trening' }}</span>
+        <span class="dp-type dp-rest" *ngIf="isRestEntry(d)">odmor</span>
+        <span class="dp-count num">
+          <ng-container *ngIf="dayExCount(d) > 0">{{ dayExCount(d) }} vj.</ng-container>
         </span>
-        <i class="material-icons dp-check" *ngIf="isCurrentDay(d) && changingDayId === null">check</i>
-        <i class="material-icons dp-spin" *ngIf="changingDayId === (d?.id ?? 'rest')">sync</i>
+        <span class="dp-state">
+          <i class="material-icons dp-check" *ngIf="isCurrentDay(d) && changingDayId === null">check</i>
+          <i class="material-icons dp-spin" *ngIf="changingDayId === (d?.id ?? 'rest')">sync</i>
+        </span>
       </button>
     </div>
 

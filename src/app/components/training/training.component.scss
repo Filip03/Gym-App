@@ -2131,9 +2131,12 @@ $branch-indent: 16px;
 }
 
 .dp-day {
-  display: flex;
+  // Kolone poravnate KROZ SVE redove — svaka informacija ima svoj dio
+  // prostora: naziv (rasteže se) | tip | broj vježbi | kvačica.
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px 44px 20px;
   align-items: center;
-  gap: var(--s-3);
+  column-gap: var(--s-3);
   min-height: 52px;
   padding: var(--s-2) var(--s-3);
   background: var(--carbon-high);
@@ -2151,7 +2154,6 @@ $branch-indent: 16px;
 .dp-day:not(:disabled):hover { border-color: var(--line-strong); }
 
 .dp-main {
-  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -2171,13 +2173,6 @@ $branch-indent: 16px;
   color: var(--dust);
 }
 
-.dp-meta {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-}
-
 .dp-type {
   font-family: var(--font-data);
   font-size: var(--t-xs);
@@ -2185,15 +2180,19 @@ $branch-indent: 16px;
   letter-spacing: var(--ls-wide);
   text-transform: uppercase;
   color: var(--volt);
+  text-align: right;
 }
 .dp-type.dp-rest { color: var(--dust); text-transform: none; letter-spacing: 0; }
 
 .dp-count {
   font-size: var(--t-xs);
   color: var(--dust);
+  text-align: right;
+  white-space: nowrap;
 }
 
-.dp-check { flex: none; font-size: 18px; color: var(--volt); }
+.dp-state { display: grid; place-items: center; }
+.dp-check { font-size: 18px; color: var(--volt); }
 
 // Dan odmora je legitiman izbor, ali vizuelno tiši.
 .dp-day.rest { opacity: .75; }
