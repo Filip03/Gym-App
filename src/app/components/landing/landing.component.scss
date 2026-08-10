@@ -207,6 +207,25 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+// --- Kratki splash -----------------------------------------------------------
+// Povratak u aplikaciju (iOS relaunch PWA) unutar 6h: bez pljeska, prstena i
+// duge trake — logo samo izroni (skraćeni squash & stretch, isti jezik pokreta)
+// sa natpisom odmah za petama, pa postojeći `.leaving` sve pretopi (~600ms
+// ukupno; tajmere vodi landing.component.ts — T_EXIT_SHORT/T_LEAVE_SHORT).
+.landing.quick {
+
+  .puff,
+  .mark-wrap::before { display: none; }
+
+  .mark { animation: mark-surface 280ms var(--ease-out) both; }
+
+  .tagline { animation: rise 240ms var(--ease-spring) 60ms both; }
+  .readout { animation: rise 240ms var(--ease-spring) 90ms both; }
+
+  // Traka nema šta da „puni" za 600ms — stoji puna od starta.
+  .bar-fill { animation: none; transform: scaleX(1); }
+}
+
 // --- Svijetla tema -----------------------------------------------------------
 // Sjenka od 90% crne je na svijetloj podlozi mrlja, a ne dubina.
 :host-context([data-theme='light']) {
@@ -229,6 +248,14 @@
   .tagline,
   .readout,
   .bar-fill { animation: none; }
+
+  // Kratki splash ima svoje (konkretnije) animacije — i njih gasi isti prekidač,
+  // inače bi `.landing.quick .mark` po specifičnosti pregazio pravilo iznad.
+  .landing.quick {
+    .mark,
+    .tagline,
+    .readout { animation: none; }
+  }
 
   .bar-fill { transform: scaleX(1); }
 

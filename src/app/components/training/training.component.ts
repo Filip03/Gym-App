@@ -1,5 +1,6 @@
 import { Component, ElementRef, HostListener, OnDestroy, DoCheck, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
+import { DraftService } from '../../services/draft.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
 import { GlitchService } from '../../services/glitch.service';
@@ -28,6 +29,14 @@ interface DropsetEntry extends DropsetLog {
   editWeight?: number | null;
   editReps?: number | null;
   saving?: boolean;
+  /**
+   * Kratko stanje IZLAZNOG prelaza ostrva za unos: CSS ne svira animaciju na
+   * uklanjanju iz DOM-a, pa element mora ostati još onoliko koliko traje
+   * skupljanje. Polje je neobavezno — ne mora se navoditi pri pravljenju.
+   */
+  editClosing?: boolean;
+  /** X tačke dodira unutar grupe — odatle kreće kap mastila. */
+  inkX?: number;
 }
 
 interface LoggedSet {
@@ -58,6 +67,16 @@ interface LoggedSet {
   dropsetWeightInput: number | null;
   dropsetRepsInput: number | null;
   savingDropset: boolean;
+
+  // --- Ostrvo za unos: izlazni prelazi i tačka iz koje kreće mastilo --------
+  // Neobavezna polja — postojeći objekti ih ne moraju postavljati.
+
+  /** Ostrvo izmjene serije se skuplja (pilula se vraća poslije). */
+  editClosing?: boolean;
+  /** Ostrvo unosa dropseta se skuplja. */
+  dropClosing?: boolean;
+  /** X tačke dodira unutar grupe (pilula, „+") — odatle kreće kap mastila. */
+  inkX?: number;
 }
 
 interface TodayExercice extends SessionExercice {
@@ -121,6 +140,14 @@ interface TodayExercice extends SessionExercice {
   bwFlip: 'in' | 'out' | null;
   saving: boolean;
   menuOpen: boolean;
+
+  /**
+   * Ostrvo glavne forme se skuplja (upisano ili otkazano). Kao i svugdje:
+   * CSS ne svira animaciju na uklanjanju iz DOM-a, pa stanje vodi komponenta.
+   */
+  formClosing?: boolean;
+  /** X tačke dodira na „Upiši" — odatle kreće kap mastila. */
+  inkX?: number;
 }
 
 @Component({
@@ -136,6 +163,13 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   readonly SIDES: Side[] = ['L', 'D'];
 
   session: WorkoutSession | null = null;
+  /**
+   * PRVI KADAR IZ KEŠA: struktura dana (vježbe, redoslijed, ciljevi) je na
+   * ekranu, ali logovi/duhovi/rekordi još putuju mrežom. Karte su prigušene i
+   * neaktivne — vidi se ŠTA je na redu, ali NIJEDAN izmišljeni broj. Logovi se
+   * NIKAD ne keširaju: upisane serije su izvor istine.
+   */
+  hydrating = false;
   todayDate = '';
   /**
    * Pregled RANIJEG dana (?date=YYYY-MM-DD): sve na ekranu je samo za čitanje.
@@ -167,6 +201,17 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   showNote = false;
   noteText = '';
   noteSaving = false;
+
+  /**
+   * Nedovršena bilješka se pamti na telefonu (vidi DraftService).
+   *
+   * Bilješka se kuca usred treninga, između serija — izlazak sa ekrana,
+   * zaključan telefon ili ubijena kartica su je do sada brisali u prazno.
+   * Ključ ide po sesiji, pa se bilješke dva različita dana ne miješaju.
+   */
+  private noteDraftKey = '';
+  /** Trening ne traje duže od dana — stariji nacrt bilješke nema kome. */
+  private readonly NOTE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
   reordering = false;
@@ -234,6 +279,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     private trainingService: TrainingService,
     private exerciceService: ExerciceService,
     private authService: AuthService,
+    private drafts: DraftService,
     private audio: AudioService,
     private glitch: GlitchService,
     public queue: OfflineQueueService,
@@ -273,6 +319,19 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     // istorije se NE kači: osvježavanje bi napravilo sesiju za gledani datum.
     if (!this.viewOnly) {
       this.queue.onFlushed = () => { void this.reloadAfterSync(); };
+
+      // PRVI KADAR IZ KEŠA, bez ijednog odlaska na server: keširana struktura
+      // današnje sesije se nacrta odmah (prigušena, bez brojeva — vidi
+      // `hydrating`), a pravi tok ispod svejedno dovuče sesiju i logove pa
+      // tiho preuzme. Istorija (?date=...) ide isključivo preko mreže.
+      const cached = this.trainingService.peekTodaySession(user.id, this.todayDate);
+      if (cached) {
+        this.session = cached;
+        this.exercices = this.skeletonFrom(cached);
+        this.isRestDay = cached.exercices.length === 0;
+        this.hydrating = true;
+        this.loading = false;
+      }
     }
 
     try {
@@ -283,10 +342,19 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
           return;
         }
       } else {
-        const plan = await this.trainingService.getPlanForUser(user.id);
-        this.session = await this.trainingService.getOrCreateSession(user.id, this.todayDate, plan);
+        // Plan se dovlači SAMO ako sesije još nema — vidi getOrCreateSession.
+        // Poslije prvog ulaska tog dana sesija nosi sve, pa se dva serijska
+        // upita (plan_members → cio plan sa danima i vježbama) ne plaćaju.
+        let plan: any = null;
+
+        this.session = await this.trainingService.getOrCreateSession(
+          user.id,
+          this.todayDate,
+          async () => (plan = await this.trainingService.getPlanForUser(user.id))
+        );
 
         if (!this.session) {
+          // Dovde se stiže samo kad sesija nije postojala, dakle plan JE tražen.
           this.errorMessage = plan
             ? 'Nema definisanog rasporeda za danas.'
             : 'Nemaš plan koji pratiš. Napravi ga ili zaprati tuđi na ekranu Planovi.';
@@ -295,6 +363,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       }
 
       await this.hydrate();
+      this.restoreNoteDraft();
 
       // Poslije hydrate-a, jer odluka zavisi od upisanih serija.
       await this.restartClockIfStale();
@@ -407,6 +476,39 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
         menuOpen: false
       };
     });
+
+    // Stigli su pravi logovi — skeleton iz keša (ako ga je bilo) je zamijenjen.
+    this.hydrating = false;
+  }
+
+  /**
+   * Ekran iz KEŠIRANE strukture, prije mreže: iste vježbe i ciljevi, ali bez
+   * ijednog upisa, duha ili rekorda — te brojeve smije donijeti samo mreža.
+   * Karte su za to vrijeme prigušene i neaktivne (vidi `hydrating` u šablonu).
+   */
+  private skeletonFrom(session: WorkoutSession): TodayExercice[] {
+    return session.exercices.map(se => ({
+      ...se,
+      echo: null,
+      dayHasSides: false,
+      dayHasBodyweight: false,
+      echoHasSides: false,
+      layoutFlow: false,
+      previousBest: null,
+      previousBestReps: null,
+      isPr: false,
+      prShown: null,
+      celebrating: false,
+      celebrateKey: 0,
+      loggedSets: [],
+      showLogForm: false,
+      repsInput: null,
+      weightInput: null,
+      showWeightInput: !se.isBodyweight,
+      bwFlip: null,
+      saving: false,
+      menuOpen: false
+    }));
   }
 
   // -------------------------------------------------------------------------
@@ -836,26 +938,203 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   // -------------------------------------------------------------------------
+  // OSTRVO ZA UNOS — zajedničko za sva tri unosa
+  //
+  // Rezultat se kuca stojeći, jednom rukom, znojavim palcem. Zato se forma pri
+  // otvaranju RAŠIRI u krupan unos (polje 52px, cifre 20px, steperi ±), a čim
+  // je upisano tečno se skupi nazad u pilulu. Ovdje živi sve što je zajedničko
+  // za glavni upis, izmjenu serije i dropset: izlazni prelazi, tačka iz koje
+  // kreće mastilo i steperi.
+  // -------------------------------------------------------------------------
+
+  /** Koliko traje skupljanje ostrva — isto koliko i `io-collapse` u SCSS-u. */
+  private readonly IO_CLOSE_MS = 460;
+
+  /** Otvoreni izlazni prelazi — svi se gase pri napuštanju ekrana. */
+  private closeTimers: any[] = [];
+
+  /**
+   * Drži `closing` stanje pa ga sam ugasi.
+   *
+   * Kućno pravilo: CSS ne svira animaciju na uklanjanju iz DOM-a, pa element
+   * mora ostati u stablu tačno onoliko koliko traje skupljanje — tek tada se
+   * uklanja, i susjedi se za to vrijeme tečno slegnu umjesto da skoče.
+   */
+  private after(ms: number, done: () => void) {
+    const t = setTimeout(() => {
+      this.closeTimers = this.closeTimers.filter(x => x !== t);
+      done();
+    }, ms);
+    this.closeTimers.push(t);
+  }
+
+  /**
+   * Pamti TAČKU DODIRA — kap mastila kreće baš iz nje („+", pilula, „Upiši"),
+   * a ne iz sredine forme. Mjeri se prema zajedničkom pretku jer ostrva u
+   * trenutku dodira još nema u DOM-u; CSS iz toga računa svoju lokalnu tačku.
+   */
+  private inkAt(host: { inkX?: number }, ev: Event | undefined, root: string) {
+    const btn = ev?.currentTarget as HTMLElement | undefined;
+    const box = btn?.closest(root) as HTMLElement | null;
+    if (!btn || !box) return;
+    const b = btn.getBoundingClientRect();
+    const r = box.getBoundingClientRect();
+    host.inkX = Math.round(b.left + b.width / 2 - r.left);
+  }
+
+  /** Polja koja nose kilažu — po njima se bira korak (2,5 kg) i decimala. */
+  private static readonly WEIGHT_KEYS = ['weightInput', 'editWeight', 'dropsetWeightInput'];
+
+  /** Vrijednost koja je upravo skočila („pop"), u obliku `polje:id`. */
+  popKey: string | null = null;
+  private popTimer: any = null;
+  private stepDelay: any = null;
+  private stepRepeat: any = null;
+
+  /** Da li baš to polje treba da odsvira „pop" — koristi se iz šablona. */
+  popping(host: { id?: string }, key: string): boolean {
+    return this.popKey === key + ':' + (host.id ?? '');
+  }
+
+  /**
+   * Prijedlog za sljedeću seriju: ista serija prošlog treninga („duh"), a ako
+   * nje nema — posljednja današnja. Isti izvor koristi i prefil forme i steper,
+   * pa se prijedlog ne razilazi između njih.
+   */
+  private suggestFor(ex: TodayExercice): { reps: number; weight: number } | null {
+    return this.echoFor(ex, this.nextSetNumber(ex))
+        ?? (ex.loggedSets.length ? ex.loggedSets[ex.loggedSets.length - 1] : null);
+  }
+
+  /**
+   * Polazna vrijednost stepera kad je polje PRAZNO. Prvi dodir tada samo
+   * prihvati prijedlog (u teretani se najčešće ponavlja isto), a tek sljedeći
+   * pomjera za korak. Kod popunjenog polja steper kreće od upisane vrijednosti.
+   */
+  stepBase(ex: TodayExercice, field: 'weight' | 'reps'): number {
+    const s = this.suggestFor(ex);
+    if (!s) return 0;
+    return field === 'weight' ? s.weight : s.reps;
+  }
+
+  /** Isto za dropset: duh dropseta ako postoji, inače sama working serija. */
+  dropBase(ex: TodayExercice, set: LoggedSet, field: 'weight' | 'reps'): number {
+    const src = this.ghostDropsets(ex, set)[0] ?? set;
+    return field === 'weight' ? src.weight : src.reps;
+  }
+
+  /**
+   * Jedan korak stepera.
+   *
+   * Kilaža ide po 2,5 kg (najmanji par tanjira), ponavljanja po 1. Vrijednost
+   * se poravnava NA KORAK, pa se iz 83 kg dobija 85 a ne 85,5 — brojevi ostaju
+   * oni koji se stvarno mogu složiti na šipci.
+   */
+  private stepOnce(host: any, key: string, dir: 1 | -1, base: number) {
+    const isWeight = TrainingComponent.WEIGHT_KEYS.includes(key);
+    const step = isWeight ? 2.5 : 1;
+    const cur = host[key] as number | null;
+
+    let next: number;
+    if (cur == null) {
+      // Prazno polje: prihvati prijedlog iz duha; ako duha nema, kreni od nule.
+      next = base > 0 ? base : Math.max(0, dir * step);
+    } else {
+      next = dir > 0
+        ? Math.floor(cur / step + 1e-6) * step + step
+        : Math.ceil(cur / step - 1e-6) * step - step;
+    }
+
+    next = Math.min(1000, Math.max(0, next));
+    host[key] = isWeight ? Math.round(next * 2) / 2 : Math.round(next);
+
+    this.popKey = key + ':' + (host.id ?? '');
+    clearTimeout(this.popTimer);
+    this.popTimer = setTimeout(() => this.popKey = null, 280);
+  }
+
+  /**
+   * Dodir na ± : jedan korak odmah, a držanje ga ponavlja (pauza pa brzo).
+   *
+   * `preventDefault` na `pointerdown` je namjeran — bez njega dugme uzme fokus
+   * pa se tastatura na telefonu zatvori na svaki dodir stepera.
+   */
+  stepHold(ev: Event, host: any, key: string, dir: 1 | -1, base: number) {
+    ev.preventDefault();
+    this.stepEnd();
+    this.stepOnce(host, key, dir, base);
+    this.stepDelay = setTimeout(() => {
+      this.stepRepeat = setInterval(() => this.stepOnce(host, key, dir, base), 110);
+    }, 420);
+  }
+
+  stepEnd() {
+    clearTimeout(this.stepDelay);
+    clearInterval(this.stepRepeat);
+  }
+
+  /** Ima li vježba otvoreno ostrvo u serijama — ostatak reda se tada priguši. */
+  islandOpen(ex: TodayExercice): boolean {
+    return ex.loggedSets.some(s => this.groupOpen(s));
+  }
+
+  /** Grupa (serija + njeni dropsetovi) koja drži otvoreno ostrvo. */
+  groupOpen(set: LoggedSet): boolean {
+    return !!(set.editing || set.editClosing || set.addingDropset || set.dropClosing
+           || set.dropsets.some(d => d.editing || d.editClosing));
+  }
+
+  // -------------------------------------------------------------------------
   // Upis serije
   // -------------------------------------------------------------------------
 
-  toggleLogForm(ex: TodayExercice) {
-    ex.showLogForm = !ex.showLogForm;
+  toggleLogForm(ex: TodayExercice, ev?: Event) {
+    // Zatvaranje ide kroz izlazni prelaz — ostrvo se skuplja, ne nestaje.
+    if (ex.showLogForm) { this.closeLogForm(ex); return; }
+
+    ex.showLogForm = true;
+    ex.formClosing = false;
     ex.menuOpen = false;
     ex.bwFlip = null;
+    this.inkAt(ex, ev, '.exercice-row');
 
     // Predloži prošli rezultat kao polaznu vrijednost — u teretani se najčešće
     // ponavlja isto ili se dodaje mali korak.
-    const prev = this.echoFor(ex, this.nextSetNumber(ex));
+    //
+    // Prvo ISTA serija prošlog treninga (duh). Ako duha za nju nema — a nema ga
+    // uvijek kad se danas radi više serija nego prošli put — uzima se
+    // POSLJEDNJA DANAŠNJA serija. Bez toga su polja od treće serije nadalje
+    // ostajala prazna, pa se svaki put kucalo ispočetka.
+    const suggest = this.suggestFor(ex);
 
-    // Bodyweight vježba se otvara u stanju „čist BW" — osim ako je prošli put
-    // stvarno bilo tega, tada se polje otvara sa tom kilažom. Ranije je prefil
+    // Bodyweight vježba se otvara u stanju „čist BW" — osim ako je prijedlog
+    // stvarno nosio teg, tada se polje otvara sa tom kilažom. Ranije je prefil
     // upisivao i nulu, pa se morala brisati rukom prije svake serije.
-    const withWeight = !ex.isBodyweight || (prev?.weight ?? 0) > 0;
+    const withWeight = !ex.isBodyweight || (suggest?.weight ?? 0) > 0;
 
-    ex.repsInput = ex.showLogForm ? prev?.reps ?? null : null;
-    ex.weightInput = (ex.showLogForm && withWeight) ? prev?.weight ?? null : null;
+    ex.repsInput = suggest?.reps ?? null;
+    ex.weightInput = withWeight ? suggest?.weight ?? null : null;
     ex.showWeightInput = withWeight;
+  }
+
+  /**
+   * Skupljanje ostrva glavne forme — i poslije upisa i na „Otkaži".
+   *
+   * Vrijednosti se brišu TEK kad se ostrvo skupi, da brojevi ne trepnu u
+   * prazno polje usred animacije. Ako je forma u međuvremenu ponovo otvorena,
+   * čišćenje se preskače — inače bi obrisalo svjež prefil.
+   */
+  private closeLogForm(ex: TodayExercice) {
+    if (!ex.showLogForm) return;
+    ex.showLogForm = false;
+    ex.formClosing = true;
+    ex.menuOpen = false;   // kao i ranije: zatvaranje forme sklanja i meni
+    this.after(this.IO_CLOSE_MS, () => {
+      if (ex.showLogForm) return;
+      ex.formClosing = false;
+      ex.repsInput = null;
+      ex.weightInput = null;
+    });
   }
 
   /**
@@ -871,8 +1150,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     ex.showWeightInput = opening;
 
     if (opening) {
-      const prev = this.echoFor(ex, this.nextSetNumber(ex));
-      ex.weightInput = (prev?.weight ?? 0) > 0 ? prev!.weight : null;
+      // Isti prijedlog kao pri otvaranju forme: duh te serije, pa posljednja
+      // današnja — da čip „BW + teg" ne otvori prazno polje kad duha nema.
+      const w = this.suggestFor(ex)?.weight ?? 0;
+      ex.weightInput = w > 0 ? w : null;
     } else {
       ex.weightInput = null;
     }
@@ -964,9 +1245,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       // Prva serija sa stranom pretvara raspored u dvije kolone, prva bez tega
       // pali bedž „BW" — izvedena stanja moraju pratiti upis odmah.
       this.refreshDerived(ex);
-      ex.showLogForm = false;
-      ex.repsInput = null;
-      ex.weightInput = null;
+      // Ostrvo se TEČNO skupi (polja se prazne tek na kraju skupljanja), a nova
+      // pilula se u istom taktu rodi svojom postojećom animacijom.
+      this.closeLogForm(ex);
     };
 
     // Bez mreže se ni ne pokušava — odmah u red, bez čekanja na istek veze.
@@ -1021,9 +1302,15 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       || msg.includes('load failed');
   }
 
-  startEditSet(ex: TodayExercice, set: LoggedSet) {
+  /**
+   * Dodir na pilulu: ona se NA LICU MJESTA morfuje u ostrvo za unos — ista
+   * geometrija i ista krupnoća kao kod glavnog upisa, bez „drugog reda ispod".
+   */
+  startEditSet(ex: TodayExercice, set: LoggedSet, ev?: Event) {
     if (set.pending) return;   // još nije u bazi — nema šta da se mijenja
     set.editing = true;
+    set.editClosing = false;
+    this.inkAt(set, ev, '.set-group');   // kap kreće iz dodirnute pilule
     set.editReps = set.reps;
     // Kilaža 0 znači „bez tega" — polje se otvara prazno, da se nula ne mora
     // brisati rukom prije nego što se teg upiše. Vrijedi i kad je flag vježbe
@@ -1032,7 +1319,15 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   cancelEditSet(set: LoggedSet) {
+    this.closeEditSet(set);
+  }
+
+  /** Morf nazad: ostrvo se skupi na veličinu pilule, pa se pilula vrati. */
+  private closeEditSet(set: LoggedSet) {
+    if (!set.editing) return;
     set.editing = false;
+    set.editClosing = true;
+    this.after(this.IO_CLOSE_MS, () => set.editClosing = false);
   }
 
   async saveEditSet(ex: TodayExercice, set: LoggedSet) {
@@ -1050,7 +1345,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       set.reps = updated.reps;
       set.weight = updated.weight;
       Object.assign(set, this.compare(ex.echo, set.setNumber, set.weight, set.reps, set.side));
-      set.editing = false;
+      this.closeEditSet(set);
 
       // Izmjena može i stvoriti i poništiti rekord — zato ista provjera kao
       // pri upisu, uključujući i animaciju. Kilaža 0 ↔ teg mijenja i bedž „BW".
@@ -1113,17 +1408,36 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
    * Sada je put: dodir na seriju → red za izmjenu → strelica. Dropset je time
    * vezan baš za seriju na koju si pritisnuo, i ne zauzima mjesto dok ne treba.
    */
-  startDropset(set: LoggedSet) {
+  startDropset(set: LoggedSet, ev?: Event) {
     if (set.pending) return;   // još nije u bazi — nema na šta da se veže
-    set.editing = false;
+    this.closeEditSet(set);    // ako je izmjena bila otvorena — skupi je, ne gasi
     set.addingDropset = true;
+    set.dropClosing = false;
     set.dropsetWeightInput = null;
     set.dropsetRepsInput = null;
+    // Kap mastila kreće iz same tačke „+", pa se vidi odakle je forma izrasla.
+    this.inkAt(set, ev, '.set-group');
+  }
+
+  /** Skupljanje ostrva dropseta — i poslije upisa i na „Otkaži". */
+  closeDropset(set: LoggedSet) {
+    if (!set.addingDropset) return;
+    set.addingDropset = false;
+    set.dropClosing = true;
+    this.after(this.IO_CLOSE_MS, () => {
+      if (set.addingDropset) return;
+      set.dropClosing = false;
+      set.dropsetWeightInput = null;
+      set.dropsetRepsInput = null;
+    });
   }
 
   toggleDropsetForm(set: LoggedSet) {
     if (set.pending) return;
-    set.addingDropset = !set.addingDropset;
+    // Zatvaranje ide kroz skupljanje ostrva, kao i svugdje drugdje.
+    if (set.addingDropset) { this.closeDropset(set); return; }
+    set.addingDropset = true;
+    set.dropClosing = false;
     set.dropsetWeightInput = null;
     set.dropsetRepsInput = null;
   }
@@ -1148,9 +1462,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       });
 
       set.dropsets.push({ ...saved, deleting: false });
-      set.addingDropset = false;
-      set.dropsetWeightInput = null;
-      set.dropsetRepsInput = null;
+      // Polja se prazne tek kad se ostrvo skupi (vidi `closeDropset`).
+      this.closeDropset(set);
 
       // Kod jednoručne vježbe dropset se preslika i na ISTU seriju druge ruke
       // — isti princip kao upis serije: jedan unos puni obje. Ako druga ruka
@@ -1174,7 +1487,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       // Serije nema u bazi, a ekran je i dalje pokazuje. Bez osvježavanja bi
       // ostala na spisku i svaki sljedeći pokušaj bi pao na isti način.
       if (/dropset_logs_exercice_log_id_fkey/i.test(String(err?.message ?? ''))) {
-        set.addingDropset = false;
+        this.closeDropset(set);
         void this.reloadAfterSync();
       }
     } finally {
@@ -1188,9 +1501,11 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
    * samo nastanak (da se ne kuca dvaput), a izmjena postoji baš zato da se
    * jedna strana ispravi kad se razlikovala.
    */
-  startEditDropset(ex: TodayExercice, dropset: DropsetEntry) {
+  startEditDropset(ex: TodayExercice, dropset: DropsetEntry, ev?: Event) {
     if (this.isFinished || dropset.deleting) return;
     dropset.editing = true;
+    dropset.editClosing = false;
+    this.inkAt(dropset, ev, '.set-group');   // kap kreće iz dodirnute pilule
     // Kao i kod serije: kilaža 0 je „bez tega", ne nula — i po flagu vježbe i
     // po samom redu, pa stari BW dropset ostaje takav i poslije gašenja flaga.
     dropset.editWeight = this.bwField(ex, dropset.weight) ? null : dropset.weight;
@@ -1198,7 +1513,15 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   }
 
   cancelEditDropset(dropset: DropsetEntry) {
+    this.closeEditDropset(dropset);
+  }
+
+  /** Morf nazad u pilulu dropseta — isti izlazni prelaz kao kod serije. */
+  private closeEditDropset(dropset: DropsetEntry) {
+    if (!dropset.editing) return;
     dropset.editing = false;
+    dropset.editClosing = true;
+    this.after(this.IO_CLOSE_MS, () => dropset.editClosing = false);
   }
 
   async saveEditDropset(ex: TodayExercice, dropset: DropsetEntry) {
@@ -1213,7 +1536,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       );
       dropset.reps = updated.reps;
       dropset.weight = updated.weight;
-      dropset.editing = false;
+      this.closeEditDropset(dropset);
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška prilikom izmjene dropseta.');
     } finally {
@@ -1246,6 +1569,10 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     clearTimeout(this.tiFlashTimer);
     clearTimeout(this.bwFlipTimer);
     clearTimeout(this.layoutTimer);
+    // Ostrva za unos: nedovršena skupljanja, „pop" i držanje stepera.
+    this.closeTimers.forEach(t => clearTimeout(t));
+    clearTimeout(this.popTimer);
+    this.stepEnd();
     // Header je zajednički za sve rute — bez ovoga bi strelica "nazad" ostala
     // sakrivena i na drugim ekranima ako se stranica napusti (npr. preko
     // futera) dok je neki edit mod bio otvoren.
@@ -1632,10 +1959,42 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     }
   }
 
+  /**
+   * Vraća nedovršenu bilješku pri otvaranju treninga.
+   *
+   * Ako nešto stoji u nacrtu, polje se i OTVARA samo — inače bi tekst tiho
+   * čekao iza dugmeta i čovjek bi mislio da ga je izgubio.
+   */
+  private restoreNoteDraft() {
+    if (this.viewOnly || !this.session) return;
+
+    this.noteDraftKey = `note.${this.session.id}`;
+    const draft = this.drafts.load<string>(this.noteDraftKey, this.NOTE_DRAFT_MAX_AGE_MS);
+    if (draft === null) return;
+
+    this.noteText = draft;
+    if (draft.trim()) this.showNote = true;
+  }
+
+  /** Svaki otkucaj u polje odlaže nacrt; upis ide tek kad se kucanje smiri. */
+  onNoteInput(value: string) {
+    this.noteText = value;
+    if (this.noteDraftKey) this.drafts.saveDebounced(this.noteDraftKey, value, 300);
+  }
+
   toggleNote() {
     if (this.viewOnly) return;   // bilješka iz istorije se čita, ne mijenja
     this.showNote = !this.showNote;
-    if (this.showNote) this.noteText = this.session?.note ?? '';
+
+    if (this.showNote) {
+      // Nacrt je NOVIJI od onog što je u bazi — ono što je otkucano a nije
+      // sačuvano ne smije da se izgubi zatvaranjem i ponovnim otvaranjem polja.
+      const draft = this.noteDraftKey
+        ? this.drafts.load<string>(this.noteDraftKey, this.NOTE_DRAFT_MAX_AGE_MS)
+        : null;
+
+      this.noteText = draft ?? this.session?.note ?? '';
+    }
   }
 
   async saveNote() {
@@ -1645,6 +2004,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     try {
       await this.trainingService.saveNote(this.session.id, this.noteText);
       this.session.note = this.noteText.trim() || null;
+      // Bilješka je u bazi — nacrt više nema šta da čuva. „Otkaži" ga NAMJERNO
+      // ne briše: zatvaranje polja nije odustajanje od teksta.
+      this.drafts.clear(this.noteDraftKey);
       this.showNote = false;
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri upisu bilješke.');
@@ -1658,6 +2020,16 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     this.swapMode = 'add';
     this.pickerSuggestedLabel = 'Za današnji dan';
     this.openPicker();
+
+    // Keširani katalog puni birač ODMAH — bez čekanja mreže. Uži izbor
+    // („za današnji dan") i svjež katalog stignu ispod i tiho dopune.
+    const cachedGroups = this.exerciceService.peekGroups();
+    if (cachedGroups) {
+      this.pickerGroups = toPickerGroups(
+        cachedGroups, new Set(this.exercices.map(e => e.exerciceId))
+      );
+      this.swapLoading = false;
+    }
 
     try {
       const already = new Set(this.exercices.map(e => e.exerciceId));
@@ -1704,6 +2076,17 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     this.swapMode = mode;
     this.pickerSuggestedLabel = 'Slične vježbe';
     this.openPicker();
+
+    // Isto kao kod dodavanja: keširani katalog odmah, „slične" stignu ispod.
+    const cachedCatalog = this.exerciceService.peekGroups();
+    if (cachedCatalog) {
+      const cachedAlready = new Set(
+        this.exercices.filter(e => e.id !== ex.id).map(e => e.exerciceId)
+      );
+      cachedAlready.add(ex.exerciceId);
+      this.pickerGroups = toPickerGroups(cachedCatalog, cachedAlready);
+      this.swapLoading = false;
+    }
 
     try {
       // Zamjena je ranije nudila SAMO vježbe iz iste mišićne grupe, kao ravnu

@@ -3822,3 +3822,352 @@ trainingu i servis ostali isti.
   <pre>), restart okidanja prekida prethodni rAF pa kreće novi sat; u
   `ngOnDestroy` se gase rAF, interval skremblovanja, svi tajmeri i skida
   `glitch-jolt` sa <html>.
+
+**Dopuna istog dana — v3.1, bez trzaja + tečnija poruka (Markova dorada):**
+trzaj cijelog UI-ja uklonjen u potpunosti (klasa, tajmer, stil u _base.scss —
+„shaky screen je malo previše"); talas nosi svu dramu. Poruka („+2 kg") sada
+u kućnom jeziku: izranja uz squash & stretch spring (320ms), iza nje se
+razlije kap mastila (`msg-box::before`), a odlazi rasplivom — razvuče se i
+potone u prozirnost (260ms) umjesto tvrdih rezova.
+
+## [2026-08-10] iPhone PWA: sistemski gest više ne navigira, aplikacija se vraća gdje je stala, splash samo pri prvom otvaranju
+
+Markova prijava: usred treninga izađe iz PWA ili zaključa ekran, a pri povratku
+osvane na dashboardu ili leaderboardu. Dva uzroka, tri povezane popravke.
+
+### 1. Futer ne smije da navigira na iOS sistemski gest
+
+Gest izlaska iz PWA kreće uvis sa donje ivice ekrana — tačno preko futera.
+
+**Kupola** (`footer.component.ts`):
+- `pointercancel` više ne dijeli tok sa `pointerup`: novi `onCancel`
+  (`footer.component.ts:467`) NIKAD ne zove router — tjeme se oprugom vrati na
+  aktivni slot (van doka: na sredinu), a eventualni procureli `click` se
+  proguta. Ranije je prekid pokazivača prolazio kroz `onUp` i „birao" stavku.
+- Prag za početak prevlačenja (`onMove`, `footer.component.ts:384`): sa 5px
+  bilo kakvog pomaka podignut na ~12px PRETEŽNO VODORAVNOG (`|dx| > |dy|·1,4`;
+  prati se i `clientY`). Pretežno vertikalan pokret (≥12px) pušta praćenje
+  (`abandonDrag`, `footer.component.ts:484`) — skrol ili sistemski gest, ne
+  prevlačenje po doku.
+- **offDock stanje** (`footer.component.ts:104`): za rute van stavki doka
+  (npr. `/training`) `activeIndex()` vraća -1, a tjeme je ranije sjedalo na
+  slot 0 (`/dashboard`) — pa je svaki „snap" vodio tamo. Sada: tjeme miruje na
+  SREDINI luka (`restSlot()` = 2,5, između ikona — bez ležišta na ikoni), i u
+  `initDock` i preko NavigationEnd pretplate. Prevlačenje van doka navigira
+  SAMO ako se završi na stavci (`onUp`: puštanje na < pola slota od sredine →
+  opruga nazad, bez routera; isto i za puštanje na slotu odjave kad nema
+  aktivne rute).
+
+**Klasični futer** (`footer.component.html:20` `#flat` +
+`footer.component.ts:550-611`): između `pointerdown` i `pointerup` mjeri se
+pomjeraj; preko ~10px (vertikalni je upravo početak sistemskog gesta) →
+`click` se guta u capture fazi prije RouterLink-a — isti obrazac kao
+`suppressClick` u kupoli. Tap bez pomjeranja prolazi netaknut.
+
+### 2. Pamćenje i vraćanje posljednje rute
+
+Novi servis `src/app/services/last-route.service.ts` — localStorage ključ
+`gymapp.lastRoute.<userId>`, sadržaj `{ url, ts }`:
+- `remember(url, userId)` — piše SAMO rute sa bijele liste (/dashboard,
+  /exercices, /leaderboard, /profiles, /blog, /news, /training), url CIO — sa
+  query parametrima (`?date=` ostaje). Nikad `/`, `/login`, `/register`.
+  Poziva se iz postojeće NavigationEnd pretplate u `app.component.ts:63-64`
+  (userId iz AuthService; bez korisnika nema upisa).
+- `consume(userId)` — vrati url ako je svjež, inače null (bajat zapis obriše).
+  Svježina: `/training` BEZ `?date` („današnji trening") važi samo ako je
+  zapis od DANAS (isti kalendarski dan, lokalno) I mlađi od `LIVE_WINDOW_H`
+  (4h, import iz `shared/warmup-grace.ts` — ista granica kao „trenira sada");
+  `/training` SA `?date` i sve ostale rute: 2 sata.
+- Čita ga `landing.component.ts` u `leave()`: prijavljen korisnik ide na
+  `consume()` url preko `navigateByUrl` (query preživi), tek ako nema svježeg
+  zapisa na `/dashboard`. `guestGuard` netaknut.
+- `signOut` u futeru (`footer.component.ts:613`) briše zapis korisnika — druga
+  prijava na istom telefonu ne osviće na tuđem ekranu.
+
+### 3. Splash samo pri prvom otvaranju
+
+iOS pri svakom relaunch-u PWA kreće od start_url `/` — pun „pljesak krede" od
+3,1s svirao je i poslije običnog zaključavanja ekrana.
+
+- `landing.component.ts`: marker `gymapp.splashSeen = ts` u **localStorage-u
+  sa pragom od 6h** (`SPLASH_FRESH_MS`) — namjerno NE sessionStorage: kad iOS
+  ubije proces PWA, sessionStorage se briše, pa bi povratak opet imao pun
+  splash. Pun splash samo kad zapisa nema ili je stariji od 6h; inače KRATKI:
+  `quick = true`, tajmeri `T_EXIT_SHORT = 240ms` / `T_LEAVE_SHORT = 620ms`
+  (~600ms ukupno) kroz POSTOJEĆI `fadeOut`/`.leaving` tok pretapanja.
+- `landing.component.scss` `.landing.quick`: bez oblaka krede i prstena, logo
+  izroni skraćenim squash & stretch (280ms), natpis i traka odmah za petama
+  (rise 240ms), traka puna od starta. U `prefers-reduced-motion` bloku dodate
+  i `.quick` varijante (konkretniji selektor bi inače pregazio gašenje) —
+  smanjen pokret i dalje gasi SVE.
+- `landing.component.html`: `[class.quick]="quick"` na `.landing`.
+
+**Efekat:** izlazak/zaključavanje usred treninga → povratak za ~0,6s pravo na
+`/training` (sa datumom ako je bio otvoren), bez lažne navigacije futera.
+
+**Build:** `ng build --configuration development` prolazi; jedine dvije
+poruke su zatečena NG8107 upozorenja u training templateu.
+
+---
+
+## [2026-08-10] Trajni nacrti, brži ulasci, bezbjedan updateFullPlan, limiti
+**Tip:** popravka + performanse
+
+Po Markovim prijavama sa terena (drugi dio paketa; prvi je „iPhone UX trojka"
+iznad):
+
+1. **Trajni nacrti** — novi `DraftService` (localStorage, verzija šeme u
+   ključu, otporan na punu memoriju). Plan builder čuva CIO nacrt (naziv,
+   opis, tip, dani, režim izmjene, tekući dan) debounce-om 500ms; klik na
+   overlay = „sačuvaj i zatvori", dugme Otkaži = odbaci; pri povratku na
+   dashboard animirana traka „Imaš nedovršen plan — Nastavi / Odbaci" (kućni
+   jezik, ink + talas). Bilješka treninga se čuva po sesiji (300ms) i vraća
+   pri ulasku. Rješava „krenem plan, izađem, sve ispočetka".
+2. **Brži ulasci** — dashboard: 4 nezavisna upita kroz `Promise.all`
+   (serijska dubina 4→1); `/exercices` bez duplog `getMuscleGroups`;
+   `getOrCreateSession` prima lijenu funkciju za plan i zove je SAMO kad
+   sesija ne postoji — svaki sljedeći ulazak u trening štedi
+   `plan_members` + cio `getFullPlan` (1–2 serijska kruga).
+3. **`updateFullPlan` više ne može pojesti plan** — redoslijed obrnut na
+   „prvo upiši NOVE dane, pa obriši STARE po zapamćenim id-jevima"; prekid na
+   pola ostavlja stari plan netaknut (dokazano na lokalnoj bazi: namjerni FK
+   prekid — broj dana ni u jednom trenutku ispod 7). `insertDays` paralelno.
+4. **Limiti na upite koji rastu zauvijek** — ekipa 20000 redova, kalendar
+   2000/20000, pragovi rekorda 5000 (velikodušno; semantika netaknuta).
+
+**Dopuna istog dana — dvije vizuelne popravke kupole (Markove prijave):**
+1. Van doka (npr. /training) tjeme je stajalo na 2,5 pa je Gausova blizina
+   podizala i rang-listu i profil kao „dva izabrana taba" — sada se tjeme
+   SAKRIJE (opacity, meki prelaz), sve ikone leže ravno na luku, zarezi
+   hladni; vraća se čim krene stvarno prevlačenje ili povratak na stavku doka
+   (`flat` u render(), klasa `offdock`).
+2. `.modal-overlay` (_base.scss) i blog lightbox `.lb` su se završavali na
+   vrhu PRAVOUGAONE trake — pored luka kupole ostajale su neprekrivene rupe.
+   U `nav-dome` režimu sada idu do same ivice ekrana (`bottom: 0` +
+   `padding-bottom` čuva karticu iznad tjemena).
+
+**Dopuna istog dana — popup = pun panel između traka (Markov app_sc.png):**
+`.modal-card` je na telefonu bio lebdeći bottom-sheet sa zaobljenim vrhom —
+ispod zaglavlja su kroz zaobljenje virila dva „zareza" scrima (utisak greške),
+a dizajn se pravio da trake ne postoje. Sada: na telefonu kartica PUNI cio
+međuprostor između traka (height 100%, bez radijusa, bez sopstvenih ivica —
+trake je omeđuju); ≥640px ostaje centrirani zaobljeni dijalog. Važi za sve
+kućne modale (birač vježbi, planovi, rezime, težina, pregled profila...).
+
+**Dopuna istog dana — bez sive trake ispod panela (Markov app_bug.jpg):**
+u kupola režimu panel se završavao iznad zone kupole pa je ispod ostajala
+siva pravougaona traka scrima sa lukom u sredini. Sada panel (i blog
+lightbox) ide do SAME ivice ekrana i prekrije i kupolu — ona je pod scrimom
+ionako neaktivna dok je modal otvoren — a unutrašnji padding kartice drži
+sadržaj u zoni palca.
+
+**Dopuna istog dana — desktop meni + tečni reflow (Markove prijave):**
+1. Panel-preko-kupole ograničen na telefon (max-width 639px) — na desktopu je
+   svaki otvoren modal prekrivao i meni pa je izgledalo da je „nestao"; sada
+   na ≥640px meni ostaje vidljiv ispod centriranog dijaloga.
+2. Traka nedovršenog plana animira i svoj ZAUZETI PROSTOR (draft-grow /
+   draft-collapse: max-height + margin + padding + border), ne samo sebe — pa
+   sadržaj ispod TEČE za njom umjesto da skoči. Pravilo upisano i u skill
+   tecne-animacije kao obavezno za svaki ulazak/izlazak elementa iz toka.
+
+## [2026-08-10] Redizajn UX-a plan buildera — dan-tabovi, tečni birač vježbi, sticky akciona traka
+**Tip:** funkcionalnost
+**Ref:** Markova primjedba „UI za pravljenje treninga nije toliko dobar"
+
+**Problem:** Modal za pravljenje/izmjenu plana je crtao svih sedam dana kao
+mrežu stisnutih kartica: izbor vježbe se jedva vidio (tanka promjena obruba),
+serije/ponavljanja su bila dva gola polja ispod kartice, „Gotovo"/„Sačuvaj" se
+tražilo skrolom, redovi u danu bez sličica i bez animacije preuređivanja,
+native `<select>` za tipove je otvarao sistemski točak, a prazan dan nije
+govorio šta dalje.
+
+**Rješenje:** Editor plana presložen oko JEDNOG dana sa tabovima PON–NED
+(bedž broja vježbi + obojen tip dana; prelaz dana ulazi talasom, unazad
+obrnutim redom). Sadržaj skroluje između zaglavlja i STALNE akcione trake
+(Otkaži · napredak `n vježbi · m/7 dana` · Sačuvaj). Birač vježbi je pun panel
+sa jasnim zaglavljem, pretragom i ljepljivim nazivima grupa; izabrana kartica
+dobija volt okvir/ispunu, kap mastila iz TAČKE DODIRA i redni broj u danu, a
+iz kartice se tečno izduži „ostrvo" sa serije × ponavljanja i +/- steperima
+(dynamic-island obrazac iz treninga; prostor animiran — susjedi teku). Red
+liste dana: sličica (dodir → isti pregled kao tab Vježbe), redni broj, naziv,
+čip serije×pon., strelice sa FLIP animacijom (recept iz treninga) i uklanjanje
+kroz kolaps prostora. Native selecti zamijenjeni kućnim `app-dropdown`
+(animiran panel, kap iz dodira, tastatura, `t-field-min`). Validacija:
+„Sačuvaj" je vizuelno ugašeno dok forma ne valja, a dodir protrese polja koja
+fale (naziv/tip/opis) i ispiše poruku uz traku. Nacrt (planDraft) i dalje radi:
+snimak sada nosi i `picture` po vježbi (stari nacrti se dopune iz kataloga),
+a prolazna animaciona stanja (closing/pop) se NE snimaju.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/shared/dropdown/dropdown.component.{ts,html,scss}` —
+  novo: kućni padajući meni (listbox), animiran po skillu tecne-animacije
+- `src/app/components/shared/exercice-detail/exercice-detail.component.{ts,html,scss}` —
+  novo: pregled vježbe izdvojen sa taba Vježbe u zajedničku komponentu
+- `src/app/components/exercices/exercices.component.html:112` — detalj modal
+  zamijenjen `<app-exercice-detail>`; `.scss` — preseljeni stilovi uklonjeni
+- `src/app/app.module.ts` — deklarisane obje nove komponente
+- `src/app/components/dashboard/dashboard.component.ts` — `SelectedExercice`
+  dobija `picture` + prolazna polja; `planDraft()` snima samo trajna polja;
+  `backfillPictures()`; FLIP `moveInDay`/`flipRow`; `removeFromDay` sa
+  kolapsom; `goToEditDay`/`editDayKey`/`dayAnimDir`; birač: `pickerQuery`,
+  `pickerShownGroups`, `pickedOrd`, `toggleExercicePick` sa kapi iz dodira i
+  `islandClosing`; steperi `bumpTarget`; validacija `formReady`/`shakeInvalid`
+  (tip plana sada obavezan); pregled `openExPreview` (grupe lijeno, keširano)
+- `src/app/components/dashboard/dashboard.component.html` — modal plana:
+  `plan-scroll` + `plan-actionbar`, dan-tabovi, `day-pane` (rađa se iznova po
+  `editDayKey`), lista `sel-row`, prazna stanja; birač `picker2`; preview
+- `src/app/components/dashboard/dashboard.component.scss` — sekcija „EDITOR
+  PLANA" + „BIRAČ VJEŽBI (picker2)"; mrtvi stilovi stare mreže uklonjeni;
+  sve novo pokriveno `prefers-reduced-motion`
+
+**Efekat:** Na telefonu se plan slaže dan po dan palcem: tab pokazuje koliko
+je gdje izabrano, izabrana vježba se vidi iz aviona (okvir + broj + ostrvo sa
+ciljevima), „Sačuvaj"/„Gotovo" su uvijek na ekranu, preuređivanje se VIDI, a
+prazan dan kaže tačno šta da se uradi. Sve promjene stanja su animirane
+kućnim jezikom; nacrt preživljava i dalje svaki prekid.
+
+**Napomene:** Dugme „Sačuvaj" namjerno NIJE `disabled` dok forma ne valja —
+mrtvo dugme ne umije da objasni zašto; umjesto toga je vizuelno ugašeno, a
+dodir trese polja koja fale. Tip plana je novim pravilom obavezan i pri
+izmjeni starih planova bez tipa. Stari nacrti (bez `picture`) se dopunjavaju
+pri vraćanju; šema nacrta ostaje `v1` jer je izmjena unazad kompatibilna.
+
+---
+
+## [2026-08-10] Ostrvo za unos rezultata u treningu
+**Tip:** UX redizajn
+
+Polja za upis (posebno dropset i izmjena serije) bila su premala — „gađanje
+prstom" (Markova prijava). Sada sve tri forme dijele JEDNU osnovu `.io`
+(training.component.scss): pri otvaranju se forma TEČNO raširi u ostrvo —
+polja 52px visine, cifre 20px mono, prostor raste (`io-grow`, susjedi teku) —
+a ostatak kartice se priguši na 0.55 dok se kuca. Po upisu ostrvo se skupi
+(`island-sip` + `io-collapse`) i nova pilula se rodi u istom taktu.
+
+- **Izmjena serije**: pilula se morfuje NA LICU MJESTA u editor — prostor
+  kreće od visine pilule (38px), ne od nule; zatvaranje unazad pa pilula
+  preuzme. Bez „drugog reda ispod".
+- **Dropset**: unos raste iz „+" tačke (kap mastila iz izmjerenog X-a),
+  izmjena kao morf pilule; ista krupnoća kao glavna forma.
+- **Steperi ±**: kilaža ±2,5 (poravnanje na korak), ponavljanja ±1; dugmad
+  44px, drži-pa-ponavlja (420ms pa 110ms), prazno polje kreće od duh
+  prijedloga; vrijednost „popne" pri promjeni; u čistom BW steper kilaže se
+  skuplja kroz max-height.
+- Netaknuti: BW čip (weight-slot flex tok), L/D kolone (polja se u koloni
+  ruke prelamaju jedno ispod drugog), Enter-lanac, offline queue, vibracije/
+  glitch okidači; `prefers-reduced-motion` gasi sve novo.
+
+**Dopuna istog dana — dropdown: staklo + pametan smjer (Markov bug_2):**
+providnost panela i probijanje sadržaja kroz listu riješeni trostruko:
+(1) host se izdiže dok je lista otvorena (stacking vs animirani susjedi);
+(2) panel je Apple mat staklo — providna podloga + backdrop blur 18px
+(svijetla: mliječno bijelo; @supports fallback puna boja); (3) panel se
+otvara NAGORE kad ispod okidača nema mjesta (dno modala/sticky traka bi ga
+sjekli), max-visina po raspoloživom prostoru.
+
+**Dopuna istog dana — ostrvo za unos v2 (Markove tri regresije) + dropdown fino:**
+1. Vraćeni echo placeholderi („Kilaža"/„kg"/„pon." i brojevi-duhovi) — crtica
+   ih je bila zamijenila pa je forma djelovala prazna; prefil ojačan: kad
+   prošli trening nema tu seriju, prijedlog je posljednja današnja serija
+   (`suggestFor`) — isti izvor za BW čip i stepere.
+2. BW čip opet vidljiv i prepoznatljiv (jedinica vraćena u polje, steperi
+   inline pa čip više ne davi među kutijama); skupljanje u čist BW glatko.
+3. Diskretnije: polja 46px (bilo 52), cifre 18px (bilo 20), steperi inline
+   [−][polje][+] 40×46 prozirni; Sačuvaj 46px; izračunat raspored za 390px i
+   L/D kolone (polje preko cijele kolone, dugmad ispod).
+4. Dropdown: veći dah od sticky trake pri mjerenju smjera (128px) i manje
+   providno staklo (86%/84%) — ugniježdeni backdrop blur unutar modala ne
+   muti pouzdano pa sama podloga mora nositi čitljivost.
+
+**Dopuna istog dana — čist BW bez praznine (Markovi bw_on/bw_off):** skupljeni
+elementi kilaže gubili su širinu ali ne i visinu, pa su se sa flex-wrap
+prelamali u nevidljive redove i ostavljali ogromnu prazninu ispod čipa. Sada
+u čistom BW gube i visinu (flex-basis/height/margin/padding 0), red je 46px:
+čip + tihi natpis „tjelesna težina — dodir na BW dodaje teg", a ponavljanja
+odmah ispod.
+
+**Dopuna istog dana — čist BW u jednom redu (Markova dorada):** čip pri
+čistom BW USKAČE u red ponavljanja — `[BW][−][Ponavljanja][+]` — umjesto
+zasebnog reda sa natpisom; natpis uklonjen (`io-fields.bw-plain` nowrap).
+
+**Dopuna istog dana — stacking doktrina + detalj vježbe u ljusci + futer dah:**
+1. Detalj vježbe (tab Vježbe je crtao kupolu PREKO kartice — predak sa
+   stacking contextom guta z-index sloja u toku stranice) preseljen u LJUSKU
+   kao globalni sloj sa `ExerciceDetailService` (obrazac ProfilePreview);
+   koriste ga i Vježbe i plan builder. Doktrina preklopnih slojeva upisana u
+   docs/08-KONVENCIJE.md — strukturno, da se klasa buga više ne vraća.
+2. Futerski „8px dah" ograničen na dodirne ekrane (`pointer: coarse`) — na
+   mišu je dizao red ikona vidljivo („na webu je meni podignut više").
+
+---
+
+## [2026-08-10] Stale-while-revalidate keš sloj u localStorage — prvi piksel bez mreže
+**Tip:** funkcionalnost / performanse
+**Ref:** ADR-0003
+
+**Problem:** Svaki ulazak na tab je počinjao spinnerom i čekanjem na Supabase —
+na mobilnoj vezi u teretani 10–20 sekundi (Markove prijave). A čeka se na
+podatke koji se praktično ne mijenjaju između dva ulaska: katalog vježbi,
+šifarnici, planovi, struktura današnjeg treninga, kalendar, sedmica ekipe.
+
+**Rješenje:** Novi `CacheService` — SWR keš u `localStorage` sa ključevima
+`gymapp.cache.v1.<domen>.<userId|global>`. Komponenta na vrhu `ngOnInit`
+SINHRONO `peek`-ne keš i odmah crta (spinner se i ne pojavi), pa SVEJEDNO zove
+postojeću servisnu metodu; servis po uspjehu radi `put` i prikaz se tiho
+dopuni — bez pražnjenja pa punjenja. Verzija šeme je u ključu (konstruktor
+briše starije), lični podaci nose `userId` (telefon dijele dva korisnika),
+puna memorija i neispravan JSON se tiho tolerišu (obrazac iz
+`offline-queue.service.ts`). NIKAD se ne keširaju: `getSessionLogs` (izvor
+istine), `getLiveSessions`, `getSessionTimes`, `getPersonalBests`/
+`getBodyweightBests` (prag rekorda). Zašto ne `ngsw` dataGroups: ADR-0003
+(kontrola invalidacije + sinhroni prvi render).
+
+**Dodirnuti fajlovi:**
+- `src/app/services/cache.service.ts` — NOVO: `peek`/`put`/`clear(prefix)`/
+  `clearUser`; TTL konstante; čišćenje starih verzija šeme
+- `src/app/services/exercice.service.ts:34,93,139` — peek/put kataloga (24h,
+  globalno); `addExercice` obara katalog
+- `src/app/services/dashboard.service.ts:33–53,79,94,164,186` — peek/put za
+  myPlans/otherPlans (1h, po korisniku) i plan_type/day_type (7 dana,
+  globalno); `:154,252,337` create/update/deleteFullPlan obaraju liste planova
+  + razriješeni aktivni plan; `:461–517` follow/unfollow/activate/deactivate
+  obaraju aktivni plan
+- `src/app/services/training.service.ts:145,156` — peek/put razriješenog
+  aktivnog plana (`training.activePlan.<uid>`); `:290,349` — peek/put strukture
+  DANAS-sesije (`training.session.<uid>`, samo današnja, peek odbija tuđi
+  datum); `:382–606` — sve izmjene sesije obaraju strukturu (zamjena,
+  dodavanje, uklanjanje, redoslijed, ciljevi, bilješka, kraj/ponovno
+  otvaranje), a L·D/BW flagovi i katalog
+- `src/app/services/leaderboard.service.ts:168,172,316,455,499` — peek/put za
+  sedmicu (30 min), rekorde (1h) i profile ekipe (6h; memorijski keš proširen:
+  localStorage sjeme + tiho osvježenje u pozadini)
+- `src/app/services/profile.service.ts:41,45,57,73,235,267` — peek/put profila
+  (6h) i kalendara (1h); nova slika obara profil
+- `src/app/components/dashboard/dashboard.component.ts:288–299` — prvi kadar
+  lista i šifarnika iz keša; `:556–566` — traka dana iz keširanog plana
+- `src/app/components/exercices/exercices.component.ts:60–99` — katalog iz
+  keša, spinner samo kad nema ničega
+- `src/app/components/leaderboard/leaderboard.component.ts:115–129` — sedmica/
+  rekordi/katalog iz keša; greške tihog osvježenja ne viču preko sadržaja
+- `src/app/components/profile/profile.component.ts:328–353` — profil/kalendar/
+  katalog iz keša
+- `src/app/components/training/training.component.ts:172,323–334,481,489` —
+  skeleton iz keširane strukture (`hydrating`: prigušene karte, bez brojeva,
+  dok logovi ne stignu); `:2026,2081` — birač pri dodavanju/zamjeni prvo iz
+  keširanog kataloga
+- `src/app/components/training/training.component.html:127` +
+  `training.component.scss:106–130` — `hydrating` prigušenje, tečan povratak
+  (tokeni `--d-slow`, reduced-motion ga sam gasi)
+- `src/app/components/footer/footer.component.ts:638` — odjava briše SVE lične
+  zapise keša (`clearUser`); globalni katalog ostaje
+- `docs/05-decisions/ADR-0003-kes-sloj-localstorage.md` + red u registru
+
+**Efekat:** Povratak na svaki tab crta odmah iz keša — planovi, katalog,
+profil, kalendar, sedmica, rekordi i struktura treninga stoje na ekranu bez
+ijednog round-tripa, a mreža ih u pozadini tiho dopuni. Živi podaci (serije,
+„trenira sada", sat, rekordi-pragovi) i dalje uvijek čekaju mrežu.
+
+**Napomene:** Prvi ulazak poslije prijave i dalje ide preko mreže (keš je
+prazan). Ko dodaje novu mutaciju planova/sesije/kataloga, mora pogoditi
+invalidaciju — spisak tačaka u ADR-0003. Ključevi reda čekanja
+(`gymapp.queue.*`) i nacrta (`gymapp.draft.*`) nijesu dirani.

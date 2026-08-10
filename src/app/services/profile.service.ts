@@ -1,8 +1,13 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
+import { CacheService, TTL_1H, TTL_6H } from './cache.service';
 import { Profile } from '../models/models';
 
 const BUCKET_NAME = 'profile-pictures';
+
+// Ključevi keša (vidi CacheService) — oba LIČNA, userId obavezan u ključu.
+const cacheProfile = (userId: string) => `profile.profile.${userId}`;
+const cacheCalendar = (userId: string) => `profile.calendar.${userId}`;
 
 /** Jedan odrađen dan u kalendaru treninga. */
 export interface TrainingDay {
@@ -28,7 +33,18 @@ export interface WeightPoint {
 })
 export class ProfileService {
 
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService, private cache: CacheService) {}
+
+  // --- Keš za prvi kadar profila ---------------------------------------------
+  // Sinhroni peek-ovi; prave metode se svejedno zovu poslije i tiho dopune.
+
+  peekProfile(userId: string): Profile | null {
+    return this.cache.peek<Profile>(cacheProfile(userId), TTL_6H);
+  }
+
+  peekTrainingCalendar(userId: string): TrainingDay[] | null {
+    return this.cache.peek<TrainingDay[]>(cacheCalendar(userId), TTL_1H);
+  }
 
   async getProfile(userId: string): Promise<Profile> {
     const { data, error } = await this.supabase.client
@@ -38,6 +54,7 @@ export class ProfileService {
       .single();
 
     if (error) throw error;
+    this.cache.put(cacheProfile(userId), data);
     return data as Profile;
   }
 
@@ -53,6 +70,7 @@ export class ProfileService {
       .single();
 
     if (error) throw error;
+    this.cache.put(cacheProfile(userId), data);   // svjež snimak umjesto starog
     return data as Profile;
   }
 
@@ -161,18 +179,24 @@ export class ProfileService {
    * „Trening gotov", dakle bio si tamo, samo nisi upisivao.
    */
   async getTrainingCalendar(userId: string, sinceIso: string): Promise<TrainingDay[]> {
+    // Granice su zaštita, ne pravilo: godina ima najviše 366 sesija, a i vrlo
+    // marljiv korisnik za godinu upiše nekoliko hiljada serija. Krov postoji da
+    // upit bez prirodnog kraja ne bi jednog dana povukao neograničeno mnogo
+    // redova na telefon. Ako se ikad dotakne, kalendar treba računati u bazi.
     const [sessions, logs] = await Promise.all([
       this.supabase.client
         .from('workout_sessions')
         .select('date, finished_at')
         .eq('user_id', userId)
         .not('finished_at', 'is', null)
-        .gte('date', sinceIso),
+        .gte('date', sinceIso)
+        .limit(2000),
       this.supabase.client
         .from('exercice_logs')
         .select('date, exercice_id, set_number')
         .eq('user_id', userId)
         .gte('date', sinceIso)
+        .limit(20000)
     ]);
 
     if (sessions.error) throw sessions.error;
@@ -201,9 +225,16 @@ export class ProfileService {
       byDate.set(date, seen.size);
     }
 
-    return [...byDate.entries()]
+    const days = [...byDate.entries()]
       .map(([date, sets]) => ({ date, sets }))
       .sort((a, b) => a.date.localeCompare(b.date));
+
+    // `sinceIso` se ne pamti: uvijek je „godina unazad", pa se između dva
+    // ulaska razlikuje za dan-dva — na kalendaru nevidljivo, a osvježenje
+    // ionako odmah slijedi.
+    this.cache.put(cacheCalendar(userId), days);
+
+    return days;
   }
 
   getPublicUrl(path: string): string {
@@ -231,6 +262,9 @@ export class ProfileService {
       .eq('id', userId);
 
     if (updateError) throw updateError;
+
+    // Keširani profil nosi staru sliku — neka sljedeće dovlačenje upiše svjež.
+    this.cache.clear(cacheProfile(userId));
 
     return path;
   }

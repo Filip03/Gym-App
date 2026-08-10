@@ -464,7 +464,9 @@ button:not(:disabled):active { transform: scale(0.97); }
   right: 0;
   z-index: 100;
   display: flex;
-  align-items: flex-end;
+  // Na telefonu kartica PUNI cio međuprostor između traka — popup ovdje nije
+  // lebdeći prozorčić nego panel (vidi .modal-card); ≥640px se centrira.
+  align-items: stretch;
   justify-content: center;
 
   background: var(--scrim);
@@ -474,21 +476,37 @@ button:not(:disabled):active { transform: scale(0.97); }
   animation: overlay-in var(--d-base) var(--ease-out) both;
 }
 
+// KUPOLA, SAMO TELEFON: luk lebdi preko sadržaja, pa se panel ne završava
+// iznad njega (ostajala je siva traka scrima sa lukom u sredini — Markov
+// app_bug.jpg) nego ide do SAME ivice i prekrije i kupolu; unutrašnji padding
+// drži sadržaj u zoni palca. Na ≥640px (centrirani dijalog) meni OSTAJE
+// vidljiv — bez ovoga je na desktopu izgledalo kao da je meni nestao.
+@media (max-width: 639px) {
+  :root.nav-dome .modal-overlay {
+    bottom: 0;
+  }
+
+  :root.nav-dome .modal-card {
+    padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-6));
+  }
+}
+
 .modal-card {
   width: 100%;
   max-width: var(--page-max);
-  // 100% = visina praznog polja između zaglavlja i futera, koju postavlja
-  // `.modal-overlay`. Nikakav `vh` ni `svh` — nema šta da se procjenjuje.
-  max-height: 100%;
+  // Aplikacija ima STALNO gornju i donju traku, a popup živi u međuprostoru —
+  // pa se na telefonu ponaša kao PUN PANEL: od ivice do ivice, bez zaobljenih
+  // ćoškova (kroz njih su virili „zarezi" scrima ispod zaglavlja i pravili
+  // utisak greške — Markov app_sc.png) i bez sopstvenih ivica; trake su te
+  // koje ga omeđuju. ≥640px (laptop) ostaje centrirani zaobljeni dijalog.
+  height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
 
   padding: var(--s-6) var(--s-5);
   background: var(--carbon);
-  border: 1px solid var(--line);
-  border-bottom: none;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  box-shadow: var(--lift-3);
+  border: none;
+  border-radius: 0;
 
   animation: sheet-in var(--d-slow) var(--ease-spring) both;
 }
@@ -496,9 +514,12 @@ button:not(:disabled):active { transform: scale(0.97); }
 @media (min-width: 640px) {
   .modal-overlay { align-items: center; padding: var(--s-6); }
   .modal-card {
+    height: auto;
+    max-height: 100%;
+    border: 1px solid var(--line);
     border-radius: var(--r-xl);
-    border-bottom: 1px solid var(--line);
     padding-bottom: var(--s-6);
+    box-shadow: var(--lift-3);
     animation: dialog-in var(--d-slow) var(--ease-spring) both;
   }
 }
@@ -590,33 +611,4 @@ html.theme-anim *::after {
 
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
-}
-
-// ---------------------------------------------------------------------------
-// GLITCH TRZAJ CIJELOG UI-ja — faza 1 cyberpunk efekta za trenutke napretka.
-//
-// GlitchOverlayComponent zalijepi klasu `glitch-jolt` na <html> na ~240ms
-// (skine je tajmerom; restart ide zamjenom klase preko reflow-a). Pod njom se
-// CIJELI .shell — header, sadržaj i futer zajedno — trza u TVRDIM koracima:
-// steps(1) drži svaki kadar pa reže na sljedeći, bez klizanja. Uz pomak ide i
-// isječen clip-path kadar (na tren ostane samo pojas slike, kao pokidan
-// signal). Sadržaj se STVARNO pomjeri — to je „sve se zaglitchovalo".
-//
-// Performanse: samo transform + clip-path, bez filtera; 240ms, jedan element.
-// ---------------------------------------------------------------------------
-:root.glitch-jolt .shell {
-  animation: shell-glitch 240ms steps(1, end) both;
-}
-
-@keyframes shell-glitch {
-  0%   { transform: translate3d(0, 0, 0);    clip-path: inset(0 0 0 0); }
-  20%  { transform: translate3d(-7px, 0, 0); clip-path: inset(4% 0 16% 0); }
-  45%  { transform: translate3d(8px, 0, 0);  clip-path: inset(36% 0 30% 0); }
-  70%  { transform: translate3d(-5px, 0, 0); clip-path: inset(9% 0 3% 0); }
-  100% { transform: translate3d(0, 0, 0);    clip-path: inset(0 0 0 0); }
-}
-
-// Komponenta klasu ni ne lijepi uz smanjen pokret — ovo je pojas spasa.
-@media (prefers-reduced-motion: reduce) {
-  :root.glitch-jolt .shell { animation: none; }
 }

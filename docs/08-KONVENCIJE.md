@@ -239,3 +239,18 @@ globalnih, pa pravilo koje samo postavi `font-size` tiho probije zaštitu.
 
 Brza revizija: potražiti `font-size` u selektorima sa poljima bez
 `t-field-min` (rupa se već dvaput potkrala).
+
+## Preklopni slojevi — doktrina (obavezno)
+
+Svaki sloj koji se crta PREKO stranice (modal, pregled, lightbox) mora ili:
+1. živjeti u LJUSCI aplikacije (`app.component.html`) kao jedan globalni
+   element kojim upravlja servis (obrazac: `ProfilePreviewService`,
+   `ExerciceDetailService`) — za slojeve koje otvara više ekrana; ili
+2. koristiti kućni `.modal-overlay` obrazac unutar stranice — ALI tada nijedan
+   njegov predak ne smije praviti stacking context (transform/filter/animacija
+   sa zadržanim transformom), inače sloj potone pod futer (z60) bez obzira na
+   svoj z-index.
+
+Zašto: z-index važi samo unutar stacking contexta. Sloj u toku stranice je
+talac svojih predaka; sloj u ljusci je uvijek iznad traka. Kad preklopni sloj
+„proviri ispod futera" — selidba u ljusku je rješenje, ne veći z-index.

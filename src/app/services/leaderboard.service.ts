@@ -1,8 +1,16 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
+import { CacheService, TTL_30MIN, TTL_1H, TTL_6H } from './cache.service';
 import { ExerciceService, MuscleGroupWithExercices } from './exercice.service';
 import { ProfileService } from './profile.service';
 import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../shared/warmup-grace';
+
+// Ključevi keša (vidi CacheService). Sve tri sekcije su TIMSKE — isti podatak
+// za svakoga ko gleda — pa su ključevi globalni. „Ko trenira sada"
+// (`getLiveSessions`) se NAMJERNO ne kešira: jučerašnje „trenira sada" je laž.
+const CACHE_PROFILES = 'leaderboard.profiles.global';
+const CACHE_WEEK = 'leaderboard.week.global';
+const CACHE_RECORDS = 'leaderboard.records.global';
 
 /**
  * Podaci za ekran „Ekipa" (ranije „Leaderboard").
@@ -33,6 +41,18 @@ import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../shared/warmup-grace';
  * vježbi, a lakši trenažni dan te je prikazivao kao slabijeg nego prošle
  * sedmice. (`A3` u `docs/02-STANJE-KODA.md`.)
  */
+
+/**
+ * Gornja granica broja redova po upitu — zaštita, ne poslovno pravilo.
+ *
+ * Upiti ovog servisa čitaju upise CIJELE ekipe i nemaju prirodan kraj: rastu
+ * dokle god se trenira. Za nekoliko ljudi je i 90 dana svega par hiljada redova,
+ * pa granica nikad ne bi trebalo da se dotakne — postoji da jedan zaboravljeni
+ * upit ne bi jednog dana povukao pola baze na telefon u teretani. Ako se ekipa
+ * ikad toliko uveća da granica počne da siječe, upit treba prepraviti (agregat
+ * u bazi), a ne granicu podizati.
+ */
+const TEAM_ROW_LIMIT = 20000;
 
 /** Broj dana unazad. `0` = bez vremenskog ograničenja („Sve vrijeme"). */
 export type PeriodDays = 0 | 30 | 60 | 180 | 365;
@@ -137,9 +157,21 @@ export class LeaderboardService {
 
   constructor(
     private supabase: SupabaseService,
+    private cache: CacheService,
     private exerciceService: ExerciceService,
     private profileService: ProfileService
   ) {}
+
+  // --- Keš za prvi kadar ekrana „Ekipa" --------------------------------------
+  // Sinhroni peek-ovi; prave metode se svejedno zovu poslije i tiho dopune.
+
+  peekTeamWeek(): WeekMember[] | null {
+    return this.cache.peek<WeekMember[]>(CACHE_WEEK, TTL_30MIN);
+  }
+
+  peekRecords(): RecordEvent[] | null {
+    return this.cache.peek<RecordEvent[]>(CACHE_RECORDS, TTL_1H);
+  }
 
   async getExerciceGroups(): Promise<MuscleGroupWithExercices[]> {
     return this.exerciceService.getExercicesGroupedByMuscleGroup();
@@ -265,7 +297,7 @@ export class LeaderboardService {
 
     const today = this.todayIso();
 
-    return profiles.map(p => {
+    const members = profiles.map(p => {
       const dates = datesByUser.get(p.id) ?? new Set<string>();
       const days = week.map(d => dates.has(d));
 
@@ -280,6 +312,9 @@ export class LeaderboardService {
         lastLabel: this.agoLabel(last)
       };
     }).sort((a, b) => b.count - a.count || a.username.localeCompare(b.username));
+
+    this.cache.put(CACHE_WEEK, members);
+    return members;
   }
 
   // ---------------------------------------------------------------------------
@@ -415,7 +450,10 @@ export class LeaderboardService {
     // Najnoviji prvi. Koliko ih se prikazuje odlučuje komponenta — cijeli spisak
     // je ionako mali, pa se prekidač „svi / moji" i „učitaj još" rješavaju bez
     // ijednog novog upita.
-    return events.reverse();
+    events.reverse();
+
+    this.cache.put(CACHE_RECORDS, events);
+    return events;
   }
 
   // ---------------------------------------------------------------------------
@@ -423,10 +461,23 @@ export class LeaderboardService {
 
   private allProfiles(): Promise<TeamProfile[]> {
     if (!this.profilesCache) {
-      this.profilesCache = this.fetchProfiles().catch(err => {
-        this.profilesCache = null;   // neuspjeh se ne kešira
-        throw err;
-      });
+      // Memorijski keš proširen na localStorage: spisak članova se godinama ne
+      // mijenja (zatvorena ekipa), pa keširani odmah razriješi sve tri sekcije
+      // — a svjež se svejedno dovuče u pozadini i tiho zamijeni, da nova
+      // profilna slika ne kasni šest sati.
+      const cached = this.cache.peek<TeamProfile[]>(CACHE_PROFILES, TTL_6H);
+
+      if (cached) {
+        this.profilesCache = Promise.resolve(cached);
+        void this.fetchProfiles()
+          .then(fresh => { this.profilesCache = Promise.resolve(fresh); })
+          .catch(() => { /* keširani i dalje služe; sljedeći ekran pokuša opet */ });
+      } else {
+        this.profilesCache = this.fetchProfiles().catch(err => {
+          this.profilesCache = null;   // neuspjeh se ne kešira
+          throw err;
+        });
+      }
     }
     return this.profilesCache;
   }
@@ -439,12 +490,18 @@ export class LeaderboardService {
 
     if (error) throw error;
 
-    return ((data ?? []) as any[]).map(p => ({
+    const profiles = ((data ?? []) as any[]).map(p => ({
       id: p.id as string,
       username: (p.username ?? 'Nepoznat') as string,
       avatarUrl: p.profile_pic_url ? this.profileService.getPublicUrl(p.profile_pic_url) : null
     }));
+
+    this.cache.put(CACHE_PROFILES, profiles);
+    return profiles;
   }
+
+  // Svi upiti ispod čitaju upise cijele ekipe i imaju `TEAM_ROW_LIMIT` kao
+  // krov — vidi objašnjenje uz konstantu.
 
   private async logsFor(exerciceId: string, since: string | null) {
     let query = this.supabase.client
@@ -454,7 +511,7 @@ export class LeaderboardService {
 
     if (since) query = query.gte('date', since);
 
-    const { data, error } = await query;
+    const { data, error } = await query.limit(TEAM_ROW_LIMIT);
     if (error) throw error;
     return (data ?? []) as any[];
   }
@@ -463,7 +520,8 @@ export class LeaderboardService {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
       .select('user_id, exercice_id, weight, reps, date, set_number')
-      .gte('date', since);
+      .gte('date', since)
+      .limit(TEAM_ROW_LIMIT);
 
     if (error) throw error;
     return (data ?? []) as any[];
@@ -475,7 +533,8 @@ export class LeaderboardService {
       .from('workout_sessions')
       .select('user_id, date, finished_at')
       .not('finished_at', 'is', null)
-      .gte('date', since);
+      .gte('date', since)
+      .limit(TEAM_ROW_LIMIT);
 
     if (error) throw error;
     return (data ?? []) as any[];
@@ -486,7 +545,8 @@ export class LeaderboardService {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
       .select('user_id, date')
-      .gte('date', since);
+      .gte('date', since)
+      .limit(TEAM_ROW_LIMIT);
 
     if (error) throw error;
     return (data ?? []) as any[];

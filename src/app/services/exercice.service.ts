@@ -1,8 +1,17 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
+import { CacheService, TTL_24H } from './cache.service';
 import { Exercice, MuscleGroup } from '../models/models';
 
 const BUCKET_NAME = 'exercices-pictures';
+
+/**
+ * Ključ keša za grupisani katalog. GLOBALAN (bez userId) — katalog je
+ * zajednički svima, pa smije preživjeti i odjavu. Vidi `CacheService`.
+ * Izvezen jer ga obara i `TrainingService`: paljenje/gašenje L·D i BW flagova
+ * mijenja redove kataloga, a keširani bi ih na prvom kadru pokazivao stare.
+ */
+export const CACHE_GROUPS = 'exercices.groups.global';
 
 export interface MuscleGroupWithExercices {
   id: string;
@@ -15,7 +24,16 @@ export interface MuscleGroupWithExercices {
 })
 export class ExerciceService {
 
-  constructor(private supabase: SupabaseService) {}
+  constructor(private supabase: SupabaseService, private cache: CacheService) {}
+
+  /**
+   * Katalog iz keša, SINHRONO — za prvi kadar bez odlaska na server.
+   * Poslije njega se `getExercicesGroupedByMuscleGroup` svejedno zove, pa
+   * svjež katalog tiho zamijeni prikaz.
+   */
+  peekGroups(): MuscleGroupWithExercices[] | null {
+    return this.cache.peek<MuscleGroupWithExercices[]>(CACHE_GROUPS, TTL_24H);
+  }
 
   async getMuscleGroups(): Promise<MuscleGroup[]> {
     const { data, error } = await this.supabase.client
@@ -70,6 +88,10 @@ export class ExerciceService {
       groups.push({ id: 'uncategorized', name: 'Nekategorisano', exercices: uncategorized });
     }
 
+    // Svjež katalog u keš — sljedeći ulazak na bilo koji tab koji ga koristi
+    // (Vježbe, Ekipa, Profil, birači u treningu i planovima) crta odmah.
+    this.cache.put(CACHE_GROUPS, groups);
+
     return groups;
   }
 
@@ -111,6 +133,10 @@ export class ExerciceService {
     if (entry.pictureFile) {
       newExercice.picture = await this.uploadPicture(newExercice.id, entry.pictureFile);
     }
+
+    // Katalog se promijenio — keširani bez nove vježbe više ne valja ni za
+    // prvi kadar. Sljedeće dovlačenje upiše svjež.
+    this.cache.clear(CACHE_GROUPS);
 
     return newExercice as Exercice;
   }

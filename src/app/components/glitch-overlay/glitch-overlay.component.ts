@@ -3,12 +3,11 @@ import { Subscription } from 'rxjs';
 import { GlitchEvent, GlitchKind, GlitchService } from '../../services/glitch.service';
 
 /**
- * Ekranski „glitch" za trenutke napretka — sci-fi registar u tri faze:
+ * Ekranski „glitch" za trenutke napretka — sci-fi registar u dvije faze.
+ * (Trzaj cijelog UI-ja iz ranije verzije je uklonjen 31.07.2026 — Marku je
+ * „shaky screen bio malo previše"; talas nosi svu dramu.)
  *
- *   1. TRZAJ SAMOG UI-ja (0–240ms): klasa `glitch-jolt` na <html> — globalni
- *      stil u _base.scss trza CIJELI .shell u tvrdim koracima (translateX +
- *      isječen clip-path kadar). Sadržaj se stvarno pomjeri.
- *   2. ASCII TALAS (0–~kraj): nalet polja monospace znakova koji prohuja preko
+ *   1. ASCII TALAS (0–~kraj): nalet polja monospace znakova koji prohuja preko
  *      ekrana slijeva nadesno — kao da se more sa landinga na tren prelije
  *      preko aplikacije. Gustina je najjača na frontu, iza njega se brzo
  *      prorjeđuje i gasi; između znakova je providno, sadržaj se vidi kroz
@@ -85,15 +84,10 @@ const WAKE: Record<GlitchKind, Float32Array> = {
 
 /** Koliko traje dekodiranje poruke (od prvog do posljednjeg zaključanog slova). */
 const DECODE: Record<GlitchKind, number> = { volt: 230, gold: 500 };
-/** Trajanje trzaja cijelog shella — mora pratiti `shell-glitch` u _base.scss. */
-const JOLT_MS = 240;
 /** Korak skremblovanja: svakih ~45ms novi nasumični znakovi + zaključavanje. */
 const TICK_MS = 45;
 /** Poruka uleti tek pošto trzaj i talas već divljaju — mora pratiti SCSS delay. */
 const MSG_START_MS = 120;
-/** Klasa na <html> koja pali trzaj shella (globalni stil u _base.scss). */
-const JOLT_CLASS = 'glitch-jolt';
-
 @Component({
   selector: 'app-glitch-overlay',
   templateUrl: './glitch-overlay.component.html',
@@ -116,7 +110,6 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
 
   private sub: Subscription | null = null;
   private endTimer: any = null;
-  private joltTimer: any = null;
   private msgStartTimer: any = null;
   private scrambleTimer: any = null;
 
@@ -149,27 +142,11 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
     this.kind = e.kind;
     this.burst = [e.key];
 
-    this.jolt();
     this.startWave(e.kind);
     this.scramble(e.message, e.kind);
 
     clearTimeout(this.endTimer);
     this.endTimer = setTimeout(() => this.burst = [], TOTAL[e.kind]);
-  }
-
-  /**
-   * Faza 1: trza se SAM UI — klasa na <html>, animacija u _base.scss.
-   * Restart usred trzaja: skini klasu, isprovociraj reflow pa je vrati —
-   * bez reflow-a pregledač vidi isto stanje i ne odsvira ponovo.
-   */
-  private jolt() {
-    const root = document.documentElement;
-    root.classList.remove(JOLT_CLASS);
-    void root.offsetWidth;
-    root.classList.add(JOLT_CLASS);
-
-    clearTimeout(this.joltTimer);
-    this.joltTimer = setTimeout(() => root.classList.remove(JOLT_CLASS), JOLT_MS);
   }
 
   // --- Faza 2: ASCII talas ---------------------------------------------------
@@ -382,9 +359,7 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
     this.sub?.unsubscribe();
     this.stopWave();
     clearTimeout(this.endTimer);
-    clearTimeout(this.joltTimer);
     clearTimeout(this.msgStartTimer);
     clearInterval(this.scrambleTimer);
-    document.documentElement.classList.remove(JOLT_CLASS);
   }
 }

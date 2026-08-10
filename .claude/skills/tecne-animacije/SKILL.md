@@ -52,3 +52,17 @@ Ovo je izričita želja vlasnika projekta i kućno pravilo.
   (razliv, kap, sip/retreat, faze kroz `watchTimerPhase`)
 - `src/app/components/dashboard/dashboard.component.scss` — split-flap natpis
   velikog dugmeta (talas po slovima, smjer, `faceKey`/`outFace`)
+
+## Pomjeraj susjeda — animiraj i PROSTOR, ne samo element (obavezno)
+
+Kad element ULAZI u tok ili IZLAZI iz njega (traka, kartica, red), animacija
+na samom elementu (opacity/transform) NIJE dovoljna: susjedi bi na umetanje/
+uklanjanje iz DOM-a SKOČILI na nova mjesta — jumpy, „flicker" (Markova
+prijava 10.08.2026, traka nedovršenog plana).
+
+**Pravilo:** uz splash/sip animaciju elementa ide i druga animacija koja vodi
+njegov ZAUZETI PROSTOR — `max-height` (ili `max-width`), `margin`, `padding`,
+`border-width` od nule do vrijednosti i nazad. Susjede tada pokret elementa
+tečno pogura/povuče, nikad ne skaču. Uklanjanje iz DOM-a tek POSLIJE kolapsa
+(komponenta drži `closing` klasu i tajmer). Referentna implementacija:
+`.draft-bar` (`draft-grow`/`draft-collapse`, dashboard.component.scss).

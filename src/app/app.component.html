@@ -11,6 +11,13 @@
 
     <app-footer *ngIf="showFooter"></app-footer>
 
+    <!-- Detalj vježbe — JEDAN globalni sloj (ExerciceDetailService); u ljusci
+         da nikad ne potone pod futer (stacking doktrina, KONVENCIJE). -->
+    <app-exercice-detail *ngIf="exDetail.exercice"
+                         [exercice]="exDetail.exercice"
+                         [groups]="exDetail.groups"
+                         (dismiss)="exDetail.close()"></app-exercice-detail>
+
     <!-- Brzi pregled profila — JEDAN modal za cijelu aplikaciju; otvara ga
          ProfilePreviewService preko [appProfilePreview] zakačke na avatarima. -->
     <app-profile-preview [userId]="preview.userId" (closed)="preview.close()"></app-profile-preview>

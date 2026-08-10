@@ -1,8 +1,19 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase_service';
 import { OfflineQueueService } from './offline-queue.service';
-import { DashboardService } from './dashboard.service';
+import { DashboardService, cacheActivePlan } from './dashboard.service';
+import { CacheService, TTL_24H } from './cache.service';
+import { CACHE_GROUPS } from './exercice.service';
 import { ExerciceLog, DropsetLog } from '../models/models';
+
+/**
+ * Domen keša strukture DANAŠNJE sesije — vježbe dana, redoslijed, ciljevi.
+ * NIKAD logovi: upisane serije su izvor istine i uvijek idu preko mreže.
+ * Ključ je po korisniku (telefon dijele dva korisnika), a „do kraja dana"
+ * važi kroz datum U SAMOM PODATKU — peek odbija sesiju drugog datuma.
+ */
+const CACHE_SESSION = 'training.session';
+const cacheSession = (userId: string) => `${CACHE_SESSION}.${userId}`;
 
 /** Vježba unutar današnjeg treninga, sa svime što ekran treba da prikaže. */
 export interface SessionExercice {
@@ -76,6 +87,19 @@ export interface EchoSet {
  */
 const ECHO_ROW_LIMIT = 40;
 
+/**
+ * Krov za upite koji traže NAJBOLJI rezultat (`getPersonalBests`,
+ * `getBodyweightBests`).
+ *
+ * Ti upiti povuku cijelu istoriju datih vježbi da bi zadržali po jedan red po
+ * vježbi — količina raste zauvijek, a treba samo vrh. Granica je zaštita, a ne
+ * promjena značenja: redovi stižu poređani od najtežeg (odnosno od najviše
+ * ponavljanja), pa bi odsijecanje pogodilo isključivo one najslabije, koje
+ * rekord ionako nikad ne bi dobili. 5000 redova je za jednog korisnika i deset
+ * vježbi dana višegodišnja istorija.
+ */
+const BEST_ROW_LIMIT = 5000;
+
 export interface Echo {
   date: string;
   sets: EchoSet[];
@@ -89,7 +113,8 @@ export class TrainingService {
   constructor(
     private supabase: SupabaseService,
     private dashboardService: DashboardService,
-    private queue: OfflineQueueService
+    private queue: OfflineQueueService,
+    private cache: CacheService
   ) {
     // Red čekanja ne poznaje bazu — ovdje mu se kaže kako se upis stvarno šalje.
     // Registruje se i pri pokretanju aplikacije, pa se zaostali upisi iz
@@ -111,10 +136,28 @@ export class TrainingService {
   // Plan
   // -------------------------------------------------------------------------
 
+  /**
+   * Razriješeni aktivni plan iz keša, SINHRONO — za prvi kadar trake „šta je
+   * danas na redu" na dashboardu. `getPlanForUser` se svejedno zove poslije,
+   * pa svjež plan tiho ispravi prikaz. Obara se pri izmjeni/brisanju plana i
+   * pri follow/activate (vidi DashboardService).
+   */
+  peekPlanForUser(userId: string): any | null {
+    return this.cache.peek<any>(cacheActivePlan(userId), TTL_24H);
+  }
+
   // Praćen tuđi plan ima prioritet (max jedan zbog unique constraint-a na
   // plan_members.profile_id). Ako korisnik ne prati nikog, koristi se sopstveni:
   // jedini ako ga ima samo jedan, inače onaj označen kao aktivan.
   async getPlanForUser(userId: string) {
+    const plan = await this.resolvePlanForUser(userId);
+    // I `null` je odgovor, ali se ne kešira: prazan keš i „nema plana" izgledaju
+    // isto pri peek-u, a plan bez ijednog dana je rijedak i jeftin za dovući.
+    if (plan) this.cache.put(cacheActivePlan(userId), plan);
+    return plan;
+  }
+
+  private async resolvePlanForUser(userId: string) {
     const { data: membership, error: memberError } = await this.supabase.client
       .from('plan_members')
       .select('plan_id')
@@ -150,11 +193,27 @@ export class TrainingService {
    * Vraća današnji trening. Ako ga nema, pravi ga tako što PREPISUJE vježbe iz
    * plana za taj dan. Od tog trenutka izmjene idu u sesiju, ne u plan — zato se
    * vježba može zamijeniti samo za danas.
+   *
+   * PLAN SE DOVLAČI LIJENO
+   *
+   * Treći parametar nije plan nego FUNKCIJA koja ga dovuče, i zove se samo kad
+   * sesije još nema — dakle jednom po danu, pri prvom ulasku. Ranije se plan
+   * dovlačio prije ovog poziva, pa je svaki ulazak u trening plaćao dva
+   * serijska upita (`plan_members` → `getFullPlan` sa svim danima i vježbama)
+   * koja se u 99% slučajeva odmah bace: sesija postoji i sve nosi u sebi.
+   *
+   * `null` znači „ne pravi sesiju ako je nema" — tako je zovu osvježavanja
+   * poslije izmjene sesije, gdje je sesija sigurno tu.
    */
-  async getOrCreateSession(userId: string, date: string, plan: any): Promise<WorkoutSession | null> {
+  async getOrCreateSession(
+    userId: string,
+    date: string,
+    loadPlan: (() => Promise<any>) | null
+  ): Promise<WorkoutSession | null> {
     const existing = await this.findSession(userId, date);
     if (existing) return existing;
 
+    const plan = loadPlan ? await loadPlan() : null;
     if (!plan) return null;
 
     const dayName = this.dayNameFor(date);
@@ -222,6 +281,17 @@ export class TrainingService {
     return this.findSession(userId, date);
   }
 
+  /**
+   * Struktura DANAŠNJE sesije iz keša, SINHRONO — za prvi kadar ekrana
+   * treninga: vježbe dana se vide odmah (prigušene, bez brojeva), dok logovi
+   * i svježa struktura stižu mrežom. Sesija drugog datuma se odbija — keš
+   * „do kraja dana" ističe sam, promjenom datuma.
+   */
+  peekTodaySession(userId: string, date: string): WorkoutSession | null {
+    const cached = this.cache.peek<WorkoutSession>(cacheSession(userId), TTL_24H);
+    return cached && cached.date === date ? cached : null;
+  }
+
   private async findSession(userId: string, date: string): Promise<WorkoutSession | null> {
     const { data, error } = await this.supabase.client
       .from('workout_sessions')
@@ -244,7 +314,7 @@ export class TrainingService {
 
     const row = data as any;
 
-    return {
+    const session: WorkoutSession = {
       id: row.id,
       date: row.date,
       planId: row.plan_id,
@@ -272,6 +342,22 @@ export class TrainingService {
             .some(m => /leg/i.test(m.muscle_group?.name ?? ''))
         }))
     };
+
+    // Kešira se SAMO današnja — pregled istorije (`getSessionByDate` sa ranijim
+    // datumom) ne smije pregaziti strukturu dana koji se upravo trenira.
+    if (date === this.todayIso()) {
+      this.cache.put(cacheSession(userId), session);
+    }
+
+    return session;
+  }
+
+  /** Lokalni datum kao `YYYY-MM-DD` — `toISOString()` uveče pređe u sjutra. */
+  private todayIso(): string {
+    const now = new Date();
+    const m = `${now.getMonth() + 1}`.padStart(2, '0');
+    const d = `${now.getDate()}`.padStart(2, '0');
+    return `${now.getFullYear()}-${m}-${d}`;
   }
 
   // -------------------------------------------------------------------------
@@ -293,6 +379,7 @@ export class TrainingService {
       .eq('id', sessionExerciceId);
 
     if (error) throw error;
+    this.cache.clear(CACHE_SESSION);   // struktura dana se promijenila
   }
 
   async addExercice(sessionId: string, exerciceId: string, orderNum: number): Promise<void> {
@@ -306,6 +393,7 @@ export class TrainingService {
       });
 
     if (error) throw error;
+    this.cache.clear(CACHE_SESSION);   // struktura dana se promijenila
   }
 
   async removeExercice(sessionExerciceId: string): Promise<void> {
@@ -315,6 +403,7 @@ export class TrainingService {
       .eq('id', sessionExerciceId);
 
     if (error) throw error;
+    this.cache.clear(CACHE_SESSION);   // struktura dana se promijenila
   }
 
   /**
@@ -363,6 +452,9 @@ export class TrainingService {
 
       if (error) throw error;
     }
+
+    // Pokriva i `resetOrderToPlan` — on završava ovim pozivom.
+    this.cache.clear(CACHE_SESSION);
   }
 
   /** Serije/ponavljanja za OVAJ trening. Plan ostaje netaknut. */
@@ -377,6 +469,7 @@ export class TrainingService {
       .eq('id', sessionExerciceId);
 
     if (error) throw error;
+    this.cache.clear(CACHE_SESSION);   // ciljevi su dio keširane strukture
   }
 
   /** Upis bilješke uz trening. Prazan tekst briše bilješku. */
@@ -389,6 +482,7 @@ export class TrainingService {
       .eq('id', sessionId);
 
     if (error) throw error;
+    this.cache.clear(CACHE_SESSION);   // bilješka je dio keširane strukture
   }
 
   async finishSession(sessionId: string): Promise<void> {
@@ -398,6 +492,9 @@ export class TrainingService {
       .eq('id', sessionId);
 
     if (error) throw error;
+    // `finishedAt` bira raspored prvog kadra (živ trening ↔ istorija) — keš
+    // sa starim stanjem bi lagao dok osvježenje ne stigne.
+    this.cache.clear(CACHE_SESSION);
   }
 
   /**
@@ -413,6 +510,7 @@ export class TrainingService {
       .eq('id', sessionId);
 
     if (error) throw error;
+    this.cache.clear(CACHE_SESSION);   // isto kao finishSession, drugi smjer
   }
 
   /**
@@ -481,6 +579,11 @@ export class TrainingService {
       .eq('id', exerciceId);
 
     if (error) throw error;
+
+    // Flag živi u katalogu, a prepisuje se i u keširanu strukturu sesije —
+    // oba prva kadra bi ga inače pokazala staro.
+    this.cache.clear(CACHE_SESSION);
+    this.cache.clear(CACHE_GROUPS);
   }
 
   /**
@@ -497,6 +600,10 @@ export class TrainingService {
       .eq('id', exerciceId);
 
     if (error) throw error;
+
+    // Isti razlog kao kod setUnilateral.
+    this.cache.clear(CACHE_SESSION);
+    this.cache.clear(CACHE_GROUPS);
   }
 
   async logSet(entry: {
@@ -793,7 +900,8 @@ export class TrainingService {
       .eq('user_id', userId)
       .in('exercice_id', exerciceIds)
       .lt('date', beforeDate)
-      .order('weight', { ascending: false });
+      .order('weight', { ascending: false })
+      .limit(BEST_ROW_LIMIT);
 
     if (error) throw error;
 
@@ -826,7 +934,8 @@ export class TrainingService {
       .in('exercice_id', exerciceIds)
       .eq('weight', 0)
       .lt('date', beforeDate)
-      .order('reps', { ascending: false });
+      .order('reps', { ascending: false })
+      .limit(BEST_ROW_LIMIT);
 
     if (error) throw error;
 

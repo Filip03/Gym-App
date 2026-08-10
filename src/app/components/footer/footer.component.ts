@@ -4,8 +4,10 @@ import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
 import { AuthService } from '../../services/auth.service'
+import { CacheService } from '../../services/cache.service';
 import { PushNotificationService } from '../../services/push-notification.service';
 import { NavModeService } from '../../services/nav-mode.service';
+import { LastRouteService } from '../../services/last-route.service';
 
 interface DockItem {
   icon: string;
@@ -93,11 +95,21 @@ export class FooterComponent implements OnDestroy {
   private target = 0;    // slot na koji opruga vuče
   private tilt = 0;      // „navijenost" točka u stepenima
 
+  /**
+   * Trenutna ruta nije nijedna stavka doka (npr. /training). Tjeme tada miruje
+   * na SREDINI luka, između ikona — bez ležišta na ikoni — a prevlačenje koje
+   * se ne završi jasnim izborom (pointercancel, povratak na sredinu) ne vodi
+   * NIGDJE. Ranije je tjeme sjedalo na slot 0, pa je iOS sistemski gest usred
+   * treninga umio da odvede na /dashboard.
+   */
+  private offDock = false;
+
   private raf = 0;
   private anim: { from: number; to: number; tilt0: number; t0: number; dur: number } | null = null;
   private pending = false;
 
   private downX = 0;
+  private downY = 0;
   private downPos = 0;
   private moved = false;
   private suppressClick = false;
@@ -112,7 +124,9 @@ export class FooterComponent implements OnDestroy {
     private router: Router,
     private pushNotifications: PushNotificationService,
     private zone: NgZone,
-    private nav: NavModeService
+    private nav: NavModeService,
+    private lastRoute: LastRouteService,
+    private cache: CacheService
   ){
     this.reduced = typeof window !== 'undefined'
       && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -122,6 +136,7 @@ export class FooterComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.teardownDock();
+    this.teardownFlat();
     this.navSub?.unsubscribe();
   }
 
@@ -139,7 +154,9 @@ export class FooterComponent implements OnDestroy {
     this.tickEls = Array.from(dock.querySelectorAll<HTMLElement>('.dock-tick'));
 
     const start = this.activeIndex();
-    this.pos = this.target = start < 0 ? 0 : start;
+    this.offDock = start < 0;
+    dock.classList.toggle('offdock', this.offDock);
+    this.pos = this.target = start < 0 ? this.restSlot() : start;
     this.tilt = 0;
 
     this.layout();
@@ -163,7 +180,19 @@ export class FooterComponent implements OnDestroy {
       .pipe(filter(e => e instanceof NavigationEnd))
       .subscribe(() => {
         const i = this.activeIndex();
-        if (i < 0 || i === this.target) return;
+        if (i < 0) {
+          // Ruta van doka (npr. /training): tjeme oprugom ode na sredinu luka
+          // i tamo miruje dok se korisnik ne vrati na neku od stavki.
+          if (!this.offDock) {
+            this.offDock = true;
+            this.dock?.classList.add('offdock');
+            this.animateTo(this.restSlot());
+          }
+          return;
+        }
+        this.offDock = false;
+        this.dock?.classList.remove('offdock');
+        if (i === this.target) return;
         this.bloom(i);
         this.settleShake();
         this.animateTo(i);
@@ -245,6 +274,12 @@ export class FooterComponent implements OnDestroy {
     if (!this.dock || !this.crest) return;
     const pos = this.pos;
 
+    // Van doka (npr. /training), dok se ne prevlaci: NIJEDNA ikona nije
+    // „bliska" tjemenu — sve leze ravno na luku, tjeme je sakriveno (CSS),
+    // zarezi hladni. Inace bi tjeme na 2,5 podiglo i rang-listu i profil
+    // istovremeno, kao dva izabrana taba.
+    const flat = this.offDock && !this.moved;
+
     // tjeme — ista zaštita od isijecanja kao za ikone (ležište je 64px kutija)
     const cx = this.xAt(pos);
     const cy = Math.min(this.crestY + this.dip(cx),
@@ -260,7 +295,7 @@ export class FooterComponent implements OnDestroy {
     for (let i = 0; i < this.itemEls.length; i++) {
       const el = this.itemEls[i];
       const u = i - pos;
-      const near = Math.exp(-(u * u) / 0.62);          // 1 u tjemenu, pada u stranu
+      const near = flat ? 0 : Math.exp(-(u * u) / 0.62);   // 1 u tjemenu, pada u stranu
       const pull = 0.30 * u * Math.exp(-(u * u) / 2);  // magnet: klizi ka tjemenu
       const x = this.xAt(i - pull);
       const y = Math.min(this.crestY + this.dip(x) - 15 * near, maxY);
@@ -277,7 +312,7 @@ export class FooterComponent implements OnDestroy {
       const slot = this.tickSlots[k];
       const x = this.xAt(slot);
       const y = this.crestY + this.dip(x);
-      const hot = Math.max(0, 1 - Math.abs(slot - pos) * 1.8);
+      const hot = flat ? 0 : Math.max(0, 1 - Math.abs(slot - pos) * 1.8);
       this.tickEls[k].style.transform =
         `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${(1 + hot).toFixed(3)})`;
       this.tickEls[k].style.setProperty('--hot', hot.toFixed(3));
@@ -340,6 +375,7 @@ export class FooterComponent implements OnDestroy {
 
     this.anim = null;                 // prst preuzima kontrolu od opruge
     this.downX = ev.clientX;
+    this.downY = ev.clientY;
     this.downPos = this.pos;
     this.moved = false;
     this.suppressClick = false;
@@ -350,17 +386,24 @@ export class FooterComponent implements OnDestroy {
     this.zone.runOutsideAngular(() => {
       window.addEventListener('pointermove', this.onMove, { passive: false });
       window.addEventListener('pointerup', this.onUp);
-      window.addEventListener('pointercancel', this.onUp);
+      // Prekid pokazivača (iOS sistemski gest, dolazni poziv...) NIJE izbor —
+      // ima svoj tok, koji nikad ne navigira.
+      window.addEventListener('pointercancel', this.onCancel);
     });
   }
 
   private onMove = (ev: PointerEvent): void => {
     const dx = ev.clientX - this.downX;
+    const dy = ev.clientY - this.downY;
 
-    // Prag: ispod 5 px je tap, ne prevlačenje — navigacija se ne smije izgubiti
-    // zbog drhtaja prsta.
+    // Prevlačenje po doku počinje tek na ~12px PRETEŽNO VODORAVNOG pomaka.
+    // Vertikalan pokret nije prevlačenje po doku nego skrol ili početak iOS
+    // sistemskog gesta (izlazak iz PWA kreće uvis sa donje ivice — tačno preko
+    // futera): tada se praćenje pušta, pa ostane tap ili ništa.
     if (!this.moved) {
-      if (Math.abs(dx) < 5) return;
+      const adx = Math.abs(dx), ady = Math.abs(dy);
+      if (ady >= 12 && adx <= ady * 1.4) { this.abandonDrag(); return; }
+      if (adx < 12 || adx <= ady * 1.4) return;
       this.moved = true;
       this.dock?.classList.add('dragging');
     }
@@ -383,6 +426,9 @@ export class FooterComponent implements OnDestroy {
     this.dock.classList.remove('pressing', 'dragging');
 
     if (!this.moved) return;            // običan tap — link/dugme rade svoje
+    // poslije obrade se stanje prevlačenja gasi — van doka se sve vraća u
+    // ravno mirovanje (vidi `flat` u render)
+    setTimeout(() => { this.moved = false; this.requestRender(); }, 0);
 
     // Poslije prevlačenja pregledač ipak šalje `click` na element pod prstom;
     // taj klik nije izbor korisnika i guta se (vidi capture osluškivač gore).
@@ -392,12 +438,26 @@ export class FooterComponent implements OnDestroy {
     const max = this.items.length - 1;
     let idx = Math.round(Math.max(0, Math.min(max, this.pos)));
 
+    // Van doka (npr. /training) prevlačenje mora da se ZAVRŠI na nekoj stavci
+    // da bi značilo izbor; puštanje blizu sredine samo vrati tjeme na počinak.
+    if (this.offDock && Math.abs(this.pos - this.downPos) < 0.5) {
+      this.settleShake();
+      this.animateTo(this.restSlot());
+      return;
+    }
+
     if (!this.items[idx].route) {
       // Odjava se ne pokreće prevlačenjem. Tjeme se vraća na trenutnu rutu, a
       // ikona kratko trzne u crveno — „ovdje se mora tapnuti".
-      const back = this.activeIndex();
-      idx = back < 0 ? max - 1 : back;
       this.flashQuit();
+      const back = this.activeIndex();
+      if (back < 0) {
+        // Van doka nema slota „trenutne rute" — nazad na sredinu, bez navigacije.
+        this.settleShake();
+        this.animateTo(this.restSlot());
+        return;
+      }
+      idx = back;
     }
 
     this.settleShake();
@@ -411,10 +471,41 @@ export class FooterComponent implements OnDestroy {
     }
   };
 
+  /**
+   * `pointercancel`: sistem je oteo pokazivač (iOS gest izlaska, kontrolni
+   * centar, dolazni poziv). To NIKAD nije izbor korisnika — nema ni jednog
+   * poziva routera; tjeme se oprugom vrati na aktivni slot (van doka: sredinu).
+   * Ranije je ovaj događaj dijelio tok sa `pointerup`, pa je gest izlaska iz
+   * PWA usput „birao" stavku i Marko se budio na dashboardu usred treninga.
+   */
+  private onCancel = (): void => {
+    this.detach();
+    if (!this.dock) return;
+
+    this.dock.classList.remove('pressing', 'dragging');
+    if (!this.moved) return;
+
+    // Ako poslije prekida ipak procuri click, ni on nije izbor — proguta se.
+    this.suppressClick = true;
+    setTimeout(() => this.suppressClick = false, 140);
+
+    const back = this.activeIndex();
+    this.settleShake();
+    this.animateTo(back < 0 ? this.restSlot() : back);
+    // stanje prevlačenja se gasi — van doka se ikone vraćaju u ravno mirovanje
+    setTimeout(() => { this.moved = false; this.requestRender(); }, 0);
+  };
+
+  /** Vertikalan pokret: pusti praćenje prije nego što prevlačenje počne. */
+  private abandonDrag(): void {
+    this.detach();
+    this.dock?.classList.remove('pressing');
+  }
+
   private detach(): void {
     window.removeEventListener('pointermove', this.onMove);
     window.removeEventListener('pointerup', this.onUp);
-    window.removeEventListener('pointercancel', this.onUp);
+    window.removeEventListener('pointercancel', this.onCancel);
   }
 
   // ==========================================================================
@@ -456,9 +547,96 @@ export class FooterComponent implements OnDestroy {
     return this.items.findIndex(it => !!it.route && url.startsWith(it.route));
   }
 
+  /** Počinak tjemena kad je ruta van doka: sredina luka, između ikona. */
+  private restSlot(): number {
+    return (this.items.length - 1) / 2;
+  }
+
+  // ==========================================================================
+  // KLASIČNI futer — zaštita od klika koji je zapravo bio sistemski gest
+  // ==========================================================================
+  //
+  // Na iOS-u gest izlaska iz PWA kreće uvis sa donje ivice — tačno preko
+  // futera. Pregledač pri tom umije da isporuči `click` na <a routerLink>
+  // ispod prsta, pa korisnik „izabere" rutu koju nije ni takao. Zato se između
+  // pointerdown i pointerup mjeri pomjeraj: preko ~10px (vertikalni je upravo
+  // sistemski gest) → click se guta u capture fazi, prije RouterLink-a.
+  // Tap bez pomjeranja prolazi netaknut. Isti obrazac kao suppressClick gore.
+
+  @ViewChild('flat') set flatEl(ref: ElementRef<HTMLElement> | undefined) {
+    const el = ref?.nativeElement ?? null;
+    if (el === this.flat) return;
+    this.teardownFlat();
+    this.flat = el;
+    if (el) {
+      el.addEventListener('click', this.onFlatClickCapture, true);
+      this.zone.runOutsideAngular(() =>
+        el.addEventListener('pointerdown', this.onFlatDown));
+    }
+  }
+
+  private flat: HTMLElement | null = null;
+  private flatDownX = 0;
+  private flatDownY = 0;
+  private flatMoved = false;
+  private flatSuppress = false;
+
+  private teardownFlat(): void {
+    if (!this.flat) return;
+    this.flat.removeEventListener('click', this.onFlatClickCapture, true);
+    this.flat.removeEventListener('pointerdown', this.onFlatDown);
+    this.detachFlat();
+    this.flat = null;
+  }
+
+  private onFlatDown = (ev: PointerEvent): void => {
+    if (ev.button > 0) return;
+    this.flatDownX = ev.clientX;
+    this.flatDownY = ev.clientY;
+    this.flatMoved = false;
+    window.addEventListener('pointermove', this.onFlatMove, { passive: true });
+    window.addEventListener('pointerup', this.onFlatUp);
+    window.addEventListener('pointercancel', this.onFlatUp);
+  };
+
+  private onFlatMove = (ev: PointerEvent): void => {
+    if (this.flatMoved) return;
+    if (Math.abs(ev.clientX - this.flatDownX) > 10 ||
+        Math.abs(ev.clientY - this.flatDownY) > 10) {
+      this.flatMoved = true;
+    }
+  };
+
+  private onFlatUp = (): void => {
+    this.detachFlat();
+    if (!this.flatMoved) return;
+    this.flatSuppress = true;
+    setTimeout(() => this.flatSuppress = false, 250);
+  };
+
+  private onFlatClickCapture = (e: Event): void => {
+    if (this.flatSuppress) { e.preventDefault(); e.stopPropagation(); }
+  };
+
+  private detachFlat(): void {
+    window.removeEventListener('pointermove', this.onFlatMove);
+    window.removeEventListener('pointerup', this.onFlatUp);
+    window.removeEventListener('pointercancel', this.onFlatUp);
+  }
+
   // ==========================================================================
 
   async signOut(){
+    // Zapamćena posljednja ruta je lična — odjava je briše, da sljedeća
+    // prijava (možda tuđa, isti telefon) ne osvane na tuđem ekranu.
+    const user = this.service.getCurrentUser();
+    if (user) this.lastRoute.forget(user.id);
+
+    // Isti razlog za keš: SVI lični zapisi (planovi, sesija, profil, kalendar)
+    // odlaze sa odjavom — sljedeća prijava može biti tuđa. Globalni katalog i
+    // šifarnici ostaju: isti su svima. Red čekanja i nacrti se NE diraju.
+    if (user) this.cache.clearUser(user.id);
+
     // Prije signOut-a — dok Supabase sesija još važi za Authorization header.
     await this.pushNotifications.unregisterFromPush();
     await this.service.signOut();

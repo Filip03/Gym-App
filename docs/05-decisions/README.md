@@ -38,3 +38,4 @@ Za svaku: kako bi radila, šta dobijamo, šta gubimo.
 |---|---|---|---|
 | [0001](ADR-0001-lokalni-supabase.md) | Lokalni Supabase u Dockeru sa šemom u gitu | prihvaćeno | 2026-07-25 |
 | [0002](ADR-0002-fcm-push-preko-spring-boot.md) | Push notifikacije preko zasebnog Spring Boot servisa | prihvaćeno | 2026-07-30 |
+| [0003](ADR-0003-kes-sloj-localstorage.md) | Stale-while-revalidate keš sloj u localStorage | prihvaćeno | 2026-08-10 |

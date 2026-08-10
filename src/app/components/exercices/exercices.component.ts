@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { Exercice, MuscleGroup } from '../../models/models';
+import { ExerciceDetailService } from '../shared/exercice-detail/exercice-detail.service';
 
 @Component({
   selector: 'app-exercices',
@@ -16,8 +17,6 @@ export class ExercicesComponent implements OnInit {
 
   // Detaljan prikaz jedne vježbe. Kartice u mreži su nužno tijesne — slika je
   // mala a opis se odsijeca na tri reda — pa se puni sadržaj vidi tek ovdje.
-  detail: Exercice | null = null;
-  detailGroups: string[] = [];
 
   showCreateModal = false;
   creating = false;
@@ -31,7 +30,8 @@ export class ExercicesComponent implements OnInit {
   newIsUnilateral = false;
   selectedMuscleGroupIds: string[] = [];
 
-  constructor(private exerciceService: ExerciceService) {}
+  constructor(private exerciceService: ExerciceService,
+    private exDetail: ExerciceDetailService) {}
 
   async ngOnInit() {
     await this.loadExercices();
@@ -57,31 +57,51 @@ export class ExercicesComponent implements OnInit {
   }
 
   private async loadExercices() {
-    this.loading = true;
+    // PRVI KADAR IZ KEŠA, bez ijednog odlaska na server: keširani katalog se
+    // nacrta odmah (spinner se i ne pojavi), a svjež se svejedno dovuče ispod
+    // i TIHO zamijeni prikaz — bez pražnjenja pa punjenja.
+    const cached = this.exerciceService.peekGroups();
+    if (cached) this.applyGroups(cached);
+
+    // Spinner samo kad nema ni keša ni već prikazanog sadržaja (npr. odmah
+    // poslije dodavanja vježbe keš je oboren, ali stari prikaz još stoji).
+    this.loading = this.groups.length === 0;
     this.errorMessage = '';
 
     try {
-      this.muscleGroups = await this.exerciceService.getMuscleGroups();
-      this.groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
+      // Jedan poziv, ne dva: `getExercicesGroupedByMuscleGroup` i sam iznutra
+      // zove `getMuscleGroups`, pa je zaseban poziv bio isti upit poslat dvaput,
+      // i to serijski — čekanje bez ijednog novog podatka. Spisak grupa za
+      // modal „nova vježba" se izvodi iz istog rezultata; redoslijed je isti
+      // (grupe stižu poređane po nazivu), a `uncategorized` je izmišljena grupa
+      // iz servisa, ne red u bazi, pa se ne nudi za označavanje.
+      this.applyGroups(await this.exerciceService.getExercicesGroupedByMuscleGroup());
     } catch (err: any) {
-      this.errorMessage = err.message ?? 'Greška pri učitavanju vježbi.';
+      // Ako keš već drži ekran, greška tihog osvježenja ne viče preko sadržaja.
+      if (this.groups.length === 0) {
+        this.errorMessage = err.message ?? 'Greška pri učitavanju vježbi.';
+      }
     } finally {
       this.loading = false;
     }
   }
 
-  openDetail(ex: Exercice) {
-    this.detail = ex;
-    // Vježba može pripadati većem broju grupa; skupljaju se iz već učitanih
-    // grupa umjesto novog upita.
-    this.detailGroups = this.groups
-      .filter(g => g.exercices.some(e => e.id === ex.id))
-      .map(g => g.name);
+  /** Isti raspored i za keširan i za svjež katalog — jedno mjesto istine. */
+  private applyGroups(groups: MuscleGroupWithExercices[]) {
+    this.groups = groups;
+    this.muscleGroups = groups
+      .filter(g => g.id !== 'uncategorized')
+      .map(g => ({ id: g.id, name: g.name }));
   }
 
-  closeDetail() {
-    this.detail = null;
-    this.detailGroups = [];
+  openDetail(ex: Exercice) {
+    // Vježba može pripadati većem broju grupa; skupljaju se iz već učitanih
+    // grupa umjesto novog upita. Pregled otvara GLOBALNI sloj u ljusci
+    // (ExerciceDetailService) — u toku stranice bi potonuo pod futer.
+    const groups = this.groups
+      .filter(g => g.exercices.some(e => e.id === ex.id))
+      .map(g => g.name);
+    this.exDetail.open(ex, groups);
   }
 
   openCreateModal() {

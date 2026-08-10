@@ -1,0 +1,235 @@
+// Kućni padajući meni — vidi komentar u .ts za razlog postojanja.
+// Jezik pokreta: skill `tecne-animacije` (razliv, kap iz tačke dodira, talas).
+
+:host { display: block; width: 100%; }
+
+.dd { position: relative; width: 100%; }
+
+// --- Dugme: izgleda kao ostala polja forme ----------------------------------
+
+.dd-trigger {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 46px;
+  padding: var(--s-3) var(--s-4);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--ice);
+  text-align: left;
+  font-weight: 400;
+  // Kroz max() OBAVEZNO — polje ispod 16px na dodirnom ekranu tjera iOS
+  // da zumira cijelu stranicu (kućno pravilo za svako polje).
+  font-size: max(0.95rem, var(--t-field-min));
+  cursor: pointer;
+
+  transition: border-color var(--d-fast) var(--ease),
+              background-color var(--d-fast) var(--ease),
+              box-shadow var(--d-fast) var(--ease);
+}
+
+.dd-trigger:hover { border-color: var(--line-strong); }
+.dd.open .dd-trigger,
+.dd-trigger:focus-visible {
+  border-color: var(--volt);
+  background: var(--carbon);
+  box-shadow: 0 0 0 3px var(--volt-a10);
+}
+
+.dd-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dd-value.placeholder { color: var(--dust); }
+
+// Novi natpis izranja odozdo — rađa se iznova kroz labelKey.
+.dd-value-in {
+  display: inline-block;
+  animation: dd-rise 300ms var(--ease-spring) both;
+}
+
+.dd-caret {
+  flex: none;
+  font-size: 20px;
+  color: var(--mist);
+  transition: transform var(--d-slow) var(--ease-spring),
+              color var(--d-base) var(--ease);
+}
+
+.dd.open .dd-caret { transform: rotate(180deg); color: var(--volt); }
+
+// Kap mastila iz tačke dodira na dugmetu.
+.dd-ink {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  animation: dd-ink 560ms var(--ease-out) both;
+}
+
+// --- Panel sa opcijama -------------------------------------------------------
+// Apsolutan je (van toka), pa susjede ne pomjera — pravilo o prostoru se ovdje
+// ne primjenjuje; razliv i talas nose utisak.
+
+.dd-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s-1);
+
+  // Zamagljeno staklo (Markov izbor): providna podloga + blur, pa lista
+  // djeluje kao Apple-ovo mat staklo IZNAD sadržaja — sadržaj ispod se
+  // nazire kao sjenka, a opcije ostaju savršeno čitljive. Mali element na
+  // kratko — backdrop-filter ovdje ne košta kao na cijelim trakama.
+  background: color-mix(in srgb, var(--carbon-high) 86%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--lift-3);
+
+  // Bez podrške za blur: puna boja, da ništa ne prosijava.
+  @supports not (backdrop-filter: blur(1px)) {
+    background: var(--carbon-high);
+  }
+
+  transform-origin: top center;
+  animation: dd-splash 420ms var(--ease-spring) both;
+}
+
+// Otvaranje NAGORE: kad ispod okidača nema mjesta (dno modala, sticky traka).
+.dd-panel.up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform-origin: bottom center;
+}
+
+// Zatvaranje: isti pokret unazad; element ode iz DOM-a tek poslije (300ms).
+.dd-panel.closing {
+  animation: dd-sip 260ms var(--ease) both;
+  pointer-events: none;
+}
+
+.dd-opt {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--s-2) var(--s-3);
+
+  border-radius: var(--r-sm);
+  color: var(--ice);
+  text-align: left;
+  font-weight: 500;
+  font-size: max(var(--t-base), var(--t-field-min));
+
+  animation: dd-rise 300ms var(--ease-spring) both;
+  transition: background-color var(--d-fast) var(--ease),
+              color var(--d-fast) var(--ease);
+}
+
+.dd-opt.active { background: var(--volt-a10); }
+.dd-opt.on { color: var(--volt); }
+.dd-opt.none { color: var(--mist); font-weight: 400; }
+
+.dd-opt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dd-check { flex: none; font-size: 18px; color: var(--volt); }
+
+// Kap na izabranoj opciji — iz tačke dodira.
+.dd-opt-ink {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a40);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  animation: dd-ink 480ms var(--ease-out) both;
+}
+
+// --- Pokret ------------------------------------------------------------------
+
+@keyframes dd-splash {
+  0%   { opacity: 0; transform: translateY(-4px) scale(1, .82); }
+  45%  { opacity: 1; transform: translateY(0)    scale(1.01, 1.03); }
+  100% { opacity: 1; transform: translateY(0)    scale(1, 1); }
+}
+
+@keyframes dd-sip {
+  0%   { opacity: 1; transform: translateY(0)    scale(1, 1); }
+  40%  { opacity: .7; transform: translateY(0)   scale(.99, 1.02); }
+  100% { opacity: 0; transform: translateY(-4px) scale(1, .86); }
+}
+
+@keyframes dd-rise {
+  from { opacity: 0; transform: translateY(.45em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dd-ink {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(30); opacity: 0; }
+}
+
+// Validacija spolja: roditelj zalijepi klasu `shake` na <app-dropdown> i
+// dugme se protrese — isti pokret kao polja forme.
+:host(.shake) .dd-trigger {
+  animation: dd-shake 420ms var(--ease);
+  border-color: var(--ember);
+}
+
+@keyframes dd-shake {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-7px); }
+  36% { transform: translateX(6px); }
+  54% { transform: translateX(-4px); }
+  72% { transform: translateX(3px); }
+  88% { transform: translateX(-1px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-panel, .dd-panel.closing, .dd-opt, .dd-value-in,
+  :host(.shake) .dd-trigger { animation: none; }
+  .dd-ink, .dd-opt-ink { display: none; }
+  .dd-caret { transition: none; }
+}
+
+
+// Svijetla tema: mliječno staklo — bijela osnova umjesto tamne.
+:host-context([data-theme='light']) .dd-panel {
+  background: color-mix(in srgb, #FFFFFF 84%, transparent);
+
+  @supports not (backdrop-filter: blur(1px)) {
+    background: var(--carbon);
+  }
+}

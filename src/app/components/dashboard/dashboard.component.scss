@@ -350,34 +350,8 @@
   margin-bottom: 1rem;
 }
 
-// Kreiranje plana: kartice dana jedna pored druge (wrap po potrebi),
-// izbor vježbi ide u poseban veliki modal
-
-.create-days-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.75rem;
-}
-
-.create-day-card {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  background: var(--carbon);
-}
-
-.create-day-card select {
-  width: 100%;
-  background: var(--carbon-high);
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  padding: 0.4rem 0.5rem;
-  color: var(--ice);
-  font-size: max(0.9rem, var(--t-field-min));
-}
+// Kreiranje plana: dan-tabovi + jedan dan na ekranu — stilovi su u sekciji
+// „EDITOR PLANA" na dnu ove datoteke. Stara mreža od sedam kartica je uklonjena.
 
 .custom-day-badge {
   align-self: flex-start;
@@ -393,100 +367,32 @@
 }
 
 .edit-exercices-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  align-self: flex-start;
+  min-height: 40px;
   background: var(--volt-a10);
   border: 1px solid var(--volt-a40);
   color: var(--volt);
   border-radius: 8px;
-  padding: 0.4rem 0.6rem;
+  padding: 0.4rem 0.8rem;
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
+
+.edit-exercices-btn .material-icons { font-size: 17px; }
 
 .edit-exercices-btn:hover {
   background: var(--volt-a20);
 }
 
-.exercice-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.muscle-group-section h3 {
-  margin-bottom: 0.75rem;
-  color: var(--volt);
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.exercice-card {
-  position: relative;
-  border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  padding: 0.75rem;
-  background: var(--carbon-high);
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.exercice-card:hover {
-  border-color: var(--volt-a40);
-  transform: translateY(-2px);
-}
-
-.exercice-card.selected {
-  border-color: var(--volt);
-  background: var(--volt-a10);
-}
-
-.exercice-card img {
-  width: 100%;
-  height: 90px;
-  object-fit: contain;
-  background: var(--carbon-high);
-  border-radius: 10px;
-}
-
-.exercice-card h4 {
-  margin: 0;
-  color: var(--ice);
-  font-size: 0.95rem;
-}
-
-.exercice-picker-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.exercice-picker-inputs {
-  display: flex;
-  gap: 0.4rem;
-}
-
-.exercice-picker-inputs input {
-  width: 0;
-  flex: 1;
-  background: var(--carbon-high);
-  border: 1px solid var(--volt-a40);
-  border-radius: 6px;
-  padding: 0.35rem 0.5rem;
-  color: var(--ice);
-  font-size: max(0.85rem, var(--t-field-min));
-}
-
-.exercice-picker-inputs input:focus {
-  outline: none;
-  border-color: var(--volt);
-}
+// Stara mreža birača (exercice-grid/exercice-card/exercice-picker-inputs) je
+// uklonjena — novi birač je „picker2" na dnu datoteke: pretraga, ljepljive
+// grupe, kap iz tačke dodira i ostrvo sa serijama × ponavljanjima.
 
 .arrow-btn {
   flex-shrink: 0;
@@ -523,16 +429,6 @@
   color: var(--ice);
   font-size: 1rem;
   text-align: center;
-}
-
-.day-header select {
-  width: 100%;
-  background: var(--carbon-high);
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  padding: 0.3rem 0.3rem;
-  color: var(--ice);
-  font-size: max(1rem, var(--t-field-min));
 }
 
 .day-type-badge {
@@ -1647,4 +1543,1203 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
   line-height: var(--lh-body);
   white-space: pre-line;
   text-align: left;
+}
+
+// --- Nedovršen plan --------------------------------------------------------
+//
+// Traka koja se javi kad je ostao nacrt plana (vidi DraftService i
+// dashboard.component.ts, sekcija „Nedovršen plan"). Namjerno TIHA: puna volt
+// podloga je rezervisana za „Započni trening", ovo je podsjetnik.
+//
+// Pokret po kućnom jeziku: traka se razlije (squash & stretch), kap mastila
+// krene iz ikone i pređe preko nje, a sadržaj izranja talasom — svako dijete
+// korak kasnije. Odlazak je isto to unazad: traka se sipne, kap se povuče u
+// ikonu. Klasu `closing` drži komponenta, jer CSS ne svira animaciju na
+// uklanjanju elementa.
+
+.draft-bar {
+  position: relative;
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--volt-a20);
+  border-radius: var(--r-md);
+  color: var(--ice);
+  font-size: var(--t-sm);
+
+  // DVIJE animacije: splash (opacity/transform — traka SAMA) i grow
+  // (max-height/margin/padding — PROSTOR koji zauzima). Bez druge bi susjedi
+  // pri pojavi trake SKOČILI na nova mjesta umjesto da ih pokret trake
+  // tečno pogura — Markovo globalno pravilo: pomjeraj elemenata se animira.
+  animation:
+    draft-grow   380ms var(--ease-out) both,
+    draft-splash 520ms 120ms var(--ease-spring) both;
+  transform-origin: left center;
+}
+
+.draft-bar > .material-icons {
+  flex: none;
+  font-size: 20px;
+  color: var(--volt);
+}
+
+.db-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--mist);
+}
+
+.db-name {
+  color: var(--ice);
+  font-weight: 600;
+}
+
+.db-resume,
+.db-discard {
+  flex: none;
+  min-height: 34px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  transition: background-color var(--d-fast) var(--ease),
+              border-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease),
+              opacity var(--d-fast) var(--ease);
+}
+
+.db-resume { background: var(--volt-fill); color: var(--volt-ink); }
+.db-resume:not(:disabled):hover { background: var(--volt-hi); }
+
+.db-discard {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--dust);
+}
+.db-discard:not(:disabled):hover { border-color: var(--volt-a40); color: var(--ice); }
+
+.db-resume:not(:disabled):active,
+.db-discard:not(:disabled):active { transform: scale(.97); }
+
+.db-resume:disabled,
+.db-discard:disabled { opacity: .55; }
+
+// Kap mastila iz ikone — ista izvedba kao tajmer-ostrvo u treningu.
+.draft-bar::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-4) + 10px);
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  animation: draft-ink 560ms var(--ease-out) both;
+}
+
+// Sadržaj izranja talasom, korak po korak iza kapi.
+.draft-bar > .material-icons { animation: draft-rise 340ms var(--ease-spring) 90ms both; }
+.draft-bar .db-text          { animation: draft-rise 340ms var(--ease-spring) 180ms both; }
+.draft-bar .db-resume        { animation: draft-rise 340ms var(--ease-spring) 270ms both; }
+.draft-bar .db-discard       { animation: draft-rise 340ms var(--ease-spring) 350ms both; }
+
+// Odlazak: isti pokret unazad — traka se stisne, kap se povuče u ikonu,
+// sadržaj tone nazad dolje.
+.draft-bar.closing {
+  // sip = traka sama; collapse = njen PROSTOR — susjedi teku za njom umjesto
+  // da skoče kad element ode iz DOM-a (komponenta ga skida tek na 480ms).
+  animation:
+    draft-sip      340ms var(--ease-spring) both,
+    draft-collapse 320ms 140ms var(--ease) both;
+}
+.draft-bar.closing::after { animation: draft-ink-retreat 420ms var(--ease) both; }
+.draft-bar.closing > .material-icons,
+.draft-bar.closing .db-text,
+.draft-bar.closing .db-resume,
+.draft-bar.closing .db-discard { animation: draft-sink 300ms var(--ease) both; }
+
+// Dok se vježbe nacrta dovlače iz kataloga: kap pulsira, pa se vidi da traka
+// radi umjesto da djeluje zamrznuto.
+.draft-bar.working::after {
+  animation: draft-ink 1100ms var(--ease-out) infinite;
+}
+
+@keyframes draft-splash {
+  0%   { opacity: 0; transform: translateY(6px) scale(1, 1); }
+  38%  { opacity: 1; transform: translateY(0)   scale(1.02, .93); }
+  70%  {              transform: translateY(0)  scale(.995, 1.03); }
+  100% { opacity: 1; transform: translateY(0)   scale(1, 1); }
+}
+
+@keyframes draft-grow {
+  from {
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+  to {
+    max-height: 160px;
+    margin-bottom: var(--s-5);
+    padding-top: var(--s-3);
+    padding-bottom: var(--s-3);
+    border-width: 1px;
+  }
+}
+
+@keyframes draft-collapse {
+  from {
+    max-height: 160px;
+    margin-bottom: var(--s-5);
+    padding-top: var(--s-3);
+    padding-bottom: var(--s-3);
+    border-width: 1px;
+  }
+  to {
+    max-height: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+}
+
+@keyframes draft-sip {
+  0%   { opacity: 1; transform: scale(1, 1); }
+  35%  { opacity: 1; transform: scale(.97, 1.05); }
+  70%  { opacity: .5; transform: scale(1.01, .96); }
+  100% { opacity: 0; transform: translateY(4px) scale(.99, .9); }
+}
+
+@keyframes draft-ink {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(28); opacity: 0; }
+}
+
+@keyframes draft-ink-retreat {
+  0%   { transform: translate(-50%, -50%) scale(20); opacity: 0; }
+  45%  { opacity: .35; }
+  100% { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+}
+
+@keyframes draft-rise {
+  from { opacity: 0; transform: translateY(.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes draft-sink {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(.35em); }
+}
+
+// Na telefonu natpis i dvije dugmadi ne staju u jedan red — ikona i tekst
+// ostaju gore, dugmad se spuštaju i dijele donji red.
+@media (max-width: 430px) {
+  .draft-bar { flex-wrap: wrap; row-gap: var(--s-2); }
+  .db-text { flex: 1 1 calc(100% - 32px); }
+  .db-resume, .db-discard { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draft-bar,
+  .draft-bar.closing,
+  .draft-bar > .material-icons,
+  .draft-bar .db-text,
+  .draft-bar .db-resume,
+  .draft-bar .db-discard { animation: none; transition: none; }
+  .draft-bar::after { display: none; }
+  .draft-bar.closing { display: none; }
+}
+
+// ===========================================================================
+// EDITOR PLANA — redizajn (dan-tabovi, lista dana, akciona traka, birač)
+//
+// Modal za pravljenje plana je pun panel u tri sloja: sadržaj skroluje u
+// sredini, akciona traka (Otkaži · napredak · Sačuvaj) STOJI u dnu — „Sačuvaj"
+// se nikad ne traži skrolom. Umjesto mreže od sedam stisnutih kartica crta se
+// JEDAN dan, sa tabovima PON–NED; prelaz između dana ulazi talasom po kućnom
+// jeziku (skill `tecne-animacije`), a svako umetanje/uklanjanje animira i
+// SVOJ PROSTOR, pa susjedi teku umjesto da skaču.
+// ===========================================================================
+
+.plan-modal {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.plan-modal form {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--s-6) var(--s-5) var(--s-5);
+}
+
+@media (max-width: 560px) {
+  .plan-scroll { padding-inline: var(--s-4); }
+}
+
+// Greška uz akcionu traku: ulazi razlivom i vodi SVOJ prostor (max-height),
+// pa traka ispod nje dolije umjesto da skoči.
+.plan-error {
+  flex: none;
+  overflow: hidden;
+  margin: 0 var(--s-5);
+  animation:
+    err-grow 280ms var(--ease-out) both,
+    pane-rise 360ms 120ms var(--ease-spring) both;
+}
+
+@keyframes err-grow {
+  from { max-height: 0;     margin-top: 0;          padding-top: 0; padding-bottom: 0; border-width: 0; }
+  to   { max-height: 120px; margin-top: var(--s-2); padding-top: var(--s-3); padding-bottom: var(--s-3); border-width: 1px; }
+}
+
+@media (max-width: 560px) {
+  .plan-error { margin-inline: var(--s-4); }
+}
+
+// --- Akciona traka u dnu ----------------------------------------------------
+
+.plan-actionbar {
+  flex: none;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+
+  background: color-mix(in srgb, var(--carbon) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+
+  animation: pane-rise 420ms var(--ease-spring) 120ms backwards;
+}
+
+@media (max-width: 560px) {
+  .plan-actionbar { padding-inline: var(--s-4); }
+}
+
+.pa-cancel { min-height: 44px; padding: 0 var(--s-4); }
+.pa-save   { min-height: 44px; }
+
+// „Sačuvaj" dok forma nije valjana: jasno ugašeno, ali NE i disabled — dodir
+// protrese polja koja fale i ispiše šta nedostaje (mrtvo dugme ne objašnjava).
+.pa-save {
+  transition: filter var(--d-base) var(--ease),
+              opacity var(--d-base) var(--ease),
+              background-color var(--d-fast) var(--ease),
+              box-shadow var(--d-base) var(--ease);
+}
+
+.pa-save.unready {
+  filter: saturate(.3) brightness(.75);
+  opacity: .55;
+  box-shadow: none;
+}
+
+// Odbijanje: dugme se kratko izmigolji — „ne još".
+.pa-save.nudge { animation: save-nudge 420ms var(--ease); }
+
+@keyframes save-nudge {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+// Napredak: ukupno vježbi i koliko je dana „riješeno". Brojevi se rađaju
+// iznova pri promjeni, pa promjena popne umjesto da preskoči.
+.pa-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--mist);
+  white-space: nowrap;
+}
+
+.pa-line.sub { color: var(--dust); }
+
+.pa-pop {
+  display: inline-block;
+  color: var(--volt);
+  font-weight: 700;
+  animation: count-pop 360ms var(--ease-spring) both;
+}
+
+@keyframes count-pop {
+  0%   { opacity: 0; transform: translateY(.4em) scale(1.25); }
+  60%  { opacity: 1; transform: translateY(0)    scale(1.08); }
+  100% { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+// --- Validacija: polje se protrese, kratko i kućno --------------------------
+
+.form-group.shake input,
+.form-group.shake textarea {
+  animation: field-shake 420ms var(--ease);
+  border-color: var(--ember);
+}
+
+@keyframes field-shake {
+  0%, 100% { transform: translateX(0); }
+  18% { transform: translateX(-7px); }
+  36% { transform: translateX(6px); }
+  54% { transform: translateX(-4px); }
+  72% { transform: translateX(3px); }
+  88% { transform: translateX(-1px); }
+}
+
+// --- Dan-tabovi u editoru ---------------------------------------------------
+// Ista osnova kao tabovi pregleda plana (.day-tab), sa dva dodatka: obojen
+// tip dana i bedž sa brojem izabranih vježbi.
+
+.edit-day-tabs {
+  padding-top: 7px;          // prostor za bedž koji viri iznad taba
+  margin-bottom: var(--s-4);
+}
+
+.edit-day-tabs .day-tab {
+  position: relative;
+  min-width: 46px;
+  overflow: visible;
+  gap: 3px;
+}
+
+.dt-type {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--dust);
+  line-height: 1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edit-day-tabs .day-tab.typed .dt-type { color: var(--volt); }
+.edit-day-tabs .day-tab.rest .dt-type  { color: var(--mist); }
+.edit-day-tabs .day-tab.on .dt-type    { color: var(--volt); }
+
+// Bedž: broj vježbi dana. Rađa se iznova pri promjeni (vidi šablon), pa
+// promjena „popne".
+.dt-count {
+  position: absolute;
+  top: -7px;
+  right: -3px;
+  z-index: 1;
+
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+
+  background: var(--volt-fill);
+  border-radius: var(--r-full);
+  color: var(--volt-ink);
+  font-size: 10px;
+  font-weight: 700;
+  box-shadow: 0 0 10px -3px var(--volt-a40);
+}
+
+.dt-count-in {
+  display: inline-block;
+  animation: count-pop 360ms var(--ease-spring) both;
+}
+
+// --- Sadržaj dana: ulazi talasom pri listanju -------------------------------
+
+.day-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.dp-label {
+  display: block;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--mist);
+  margin-bottom: var(--s-2);
+}
+
+.day-pane > .dp-block { animation: pane-rise 380ms var(--ease-spring) both; }
+
+.day-pane > .dp-block:nth-child(1) { animation-delay: 30ms; }
+.day-pane > .dp-block:nth-child(2) { animation-delay: 100ms; }
+.day-pane > .dp-block:nth-child(3) { animation-delay: 170ms; }
+.day-pane > .dp-block:nth-child(4) { animation-delay: 240ms; }
+
+// Pri listanju UNAZAD talas teče obrnutim redom (kućno pravilo o smjeru).
+.day-pane.back > .dp-block:nth-child(1) { animation-delay: 240ms; }
+.day-pane.back > .dp-block:nth-child(2) { animation-delay: 170ms; }
+.day-pane.back > .dp-block:nth-child(3) { animation-delay: 100ms; }
+.day-pane.back > .dp-block:nth-child(4) { animation-delay: 30ms; }
+
+// Lista ima SVOJ talas po redovima (--row-delay) — blok ne duplira pokret.
+.day-pane > .sel-list { animation: none; }
+
+@keyframes pane-rise {
+  from { opacity: 0; transform: translateY(.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// --- Lista izabranih vježbi dana --------------------------------------------
+// Red po uzoru na pregled treninga: sličica, redni broj, naziv preko ostatka
+// reda, čip serije×pon., strelice (FLIP u komponenti), uklanjanje.
+
+.sel-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.sel-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto auto;
+  align-items: center;
+  gap: var(--s-2);
+  overflow: hidden;
+
+  padding: var(--s-2) var(--s-1);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: transparent;
+
+  // Dvije animacije: rise = red SAM (talas), grow = njegov PROSTOR — susjedi
+  // teku dok red izrasta, ne skaču (pravilo „pomjeraj susjeda").
+  animation:
+    sel-grow 300ms var(--ease-out) var(--row-delay, 0ms) both,
+    sel-rise 360ms var(--ease-spring) calc(var(--row-delay, 0ms) + 70ms) both;
+}
+
+.sel-row:nth-child(odd) { background: color-mix(in srgb, var(--ice) 2.5%, transparent); }
+.sel-row:last-child { border-bottom: none; }
+
+// Uklanjanje: red se sipne pa mu se prostor skupi; iz niza odlazi tek poslije
+// (komponenta drži `closing` ~420ms).
+.sel-row.closing {
+  pointer-events: none;
+  animation:
+    sel-sip      280ms var(--ease) both,
+    sel-collapse 260ms 140ms var(--ease) both;
+}
+
+@keyframes sel-grow {
+  from { max-height: 0;    padding-top: 0;          padding-bottom: 0;          border-bottom-width: 0; }
+  to   { max-height: 76px; padding-top: var(--s-2); padding-bottom: var(--s-2); border-bottom-width: 1px; }
+}
+
+@keyframes sel-collapse {
+  from { max-height: 76px; padding-top: var(--s-2); padding-bottom: var(--s-2); border-bottom-width: 1px; }
+  to   { max-height: 0;    padding-top: 0;          padding-bottom: 0;          border-bottom-width: 0; }
+}
+
+@keyframes sel-rise {
+  from { opacity: 0; transform: translateY(.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sel-sip {
+  0%   { opacity: 1; transform: scale(1, 1); }
+  35%  { opacity: 1; transform: scale(.97, 1.05); }
+  100% { opacity: 0; transform: translateX(10px) scale(.98, .9); }
+}
+
+.sel-thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  overflow: hidden;
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--dust);
+  cursor: pointer;
+
+  transition: border-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease);
+}
+
+.sel-thumb:hover { border-color: var(--volt-a40); transform: scale(1.05); }
+.sel-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sel-thumb .ph .material-icons,
+.sel-thumb .material-icons { font-size: 18px; }
+
+// Redni broj — isti jezik kao u pregledu plana; rađa se iznova pri promjeni.
+.sel-ord {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  background: var(--volt-a10);
+  color: var(--volt);
+  font-size: var(--t-2xs);
+  font-weight: 700;
+}
+
+.sel-ord-in {
+  display: inline-block;
+  animation: count-pop 360ms var(--ease-spring) both;
+}
+
+.sel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ice);
+  font-size: var(--t-sm);
+  font-weight: 500;
+}
+
+.sel-chip {
+  flex: none;
+  padding: 3px var(--s-2);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  font-size: var(--t-xs);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--d-fast) var(--ease),
+              color var(--d-fast) var(--ease);
+}
+
+.sel-chip:hover { border-color: var(--volt-a40); color: var(--volt); }
+
+.sel-move { display: flex; flex-shrink: 0; }
+
+.sel-move button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  color: var(--dust);
+}
+
+.sel-move button:not(:disabled):hover { color: var(--volt); background: var(--volt-a10); }
+.sel-move .material-icons { font-size: 18px; }
+
+.sel-remove {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-full);
+  color: var(--dust);
+}
+
+.sel-remove:hover { color: var(--ember); background: var(--ember-a15); }
+.sel-remove .material-icons { font-size: 17px; }
+
+// --- Prazna stanja dana ------------------------------------------------------
+
+.day-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  width: 100%;
+  padding: var(--s-6) var(--s-4);
+
+  background: transparent;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  color: var(--mist);
+  text-align: center;
+}
+
+.day-empty > .material-icons {
+  font-size: 30px;
+  color: var(--volt);
+  margin-bottom: var(--s-1);
+}
+
+.day-empty.rest > .material-icons { color: var(--mist); }
+
+.de-title {
+  font-family: var(--font-display);
+  font-size: var(--t-base);
+  font-weight: 700;
+  color: var(--ice);
+}
+
+.de-sub { font-size: var(--t-xs); color: var(--dust); }
+
+.day-empty.cta { cursor: pointer; transition: border-color var(--d-base) var(--ease), background-color var(--d-base) var(--ease); }
+.day-empty.cta:hover { border-color: var(--volt-a40); background: var(--volt-a10); }
+
+// Poziv na akciju izranja korak iza ostatka dana, sa blagim razlivom — a
+// PRVO mu izraste prostor (de-grow), pa susjedi doteku umjesto da skoče
+// (npr. kad posljednji red liste ode i prazno stanje uskoči na njegovo mjesto).
+// Selektor sa .dp-block namjerno: nth-child pravila iznad postavljaju
+// animation-delay jače specifičnosti, a ovdje kašnjenja nose same animacije
+// (prostor odmah, sadržaj korak kasnije).
+.day-pane > .day-empty.dp-block {
+  overflow: hidden;
+  animation:
+    de-grow      320ms var(--ease-out) both,
+    pane-rise    420ms var(--ease-spring) 170ms both,
+    empty-splash 520ms var(--ease-spring) 170ms both;
+  transform-origin: center top;
+}
+
+@keyframes de-grow {
+  from { max-height: 0;     padding-top: 0;          padding-bottom: 0;          border-width: 0; }
+  to   { max-height: 240px; padding-top: var(--s-6); padding-bottom: var(--s-6); border-width: 1px; }
+}
+
+@keyframes empty-splash {
+  0%   { transform: scale(1, 1); }
+  45%  { transform: scale(1.015, .95); }
+  75%  { transform: scale(.995, 1.02); }
+  100% { transform: scale(1, 1); }
+}
+
+// ===========================================================================
+// BIRAČ VJEŽBI (picker2)
+// ===========================================================================
+
+.picker2-overlay { z-index: 120; }
+
+.picker2-card {
+  width: 100%;
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .picker2-card { height: min(100%, 780px); }
+}
+
+// --- Zaglavlje: naslov JASNO odvojen od liste -------------------------------
+
+.p2-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-5) var(--s-5) var(--s-3);
+}
+
+.p2-title { flex: 1; min-width: 0; }
+
+.p2-eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--volt);
+}
+
+.p2-head h2 {
+  margin: 0;
+  font-size: var(--t-lg);
+  color: var(--ice);
+}
+
+.p2-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-full);
+  background: var(--carbon-high);
+  color: var(--mist);
+}
+
+.p2-close:hover { background: var(--steel); color: var(--ice); }
+
+.p2-tools {
+  flex: none;
+  padding: 0 var(--s-5) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.p2-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.p2-search > .material-icons {
+  position: absolute;
+  left: var(--s-3);
+  font-size: 20px;
+  color: var(--dust);
+  pointer-events: none;
+}
+
+.p2-search input {
+  padding-left: calc(var(--s-3) + 20px + var(--s-2));
+  padding-right: var(--s-9, 2.25rem);
+}
+
+.p2-clear {
+  position: absolute;
+  right: var(--s-2);
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-full);
+  color: var(--dust);
+}
+
+.p2-clear .material-icons { font-size: 18px; }
+.p2-clear:hover { background: var(--carbon-high); color: var(--ice); }
+
+// --- Lista: skroluje IZMEĐU zaglavlja i podnožja ----------------------------
+
+.p2-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--s-4) var(--s-5) var(--s-6);
+}
+
+.p2-group + .p2-group { margin-top: var(--s-5); }
+
+// Naziv grupe je LJEPLJIV — dok se grupa skroluje, zna se gdje si.
+.p2-group-name {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+
+  margin: 0 calc(var(--s-2) * -1) var(--s-2);
+  padding: var(--s-2) var(--s-2);
+
+  background: color-mix(in srgb, var(--carbon) 94%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wider);
+  text-transform: uppercase;
+  color: var(--volt);
+}
+
+.p2-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s-3);
+  align-items: start;
+}
+
+@media (max-width: 560px) {
+  .p2-grid { grid-template-columns: repeat(2, 1fr); }
+  .p2-head, .p2-tools { padding-inline: var(--s-4); }
+  .p2-body { padding-inline: var(--s-4); }
+}
+
+.p2-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// --- Kartica vježbe ----------------------------------------------------------
+
+.p2-card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  text-align: left;
+  cursor: pointer;
+
+  transition: border-color var(--d-base) var(--ease),
+              background-color var(--d-base) var(--ease),
+              transform var(--d-fast) var(--ease-out);
+}
+
+.p2-card:hover { border-color: var(--volt-a40); transform: translateY(-2px); }
+
+.p2-card img,
+.p2-ph {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--r-sm);
+  background: var(--carbon);
+}
+
+.p2-ph { display: grid; place-items: center; color: var(--dust); }
+
+.p2-name {
+  margin: 0;
+  font-size: var(--t-sm);
+  font-weight: 500;
+  color: var(--ice);
+  line-height: var(--lh-snug);
+}
+
+// IZABRANA: naglašen volt okvir i ispuna + razliv pri izboru — jasno stanje.
+.p2-item.selected .p2-card {
+  border-color: var(--volt);
+  background: var(--volt-a10);
+  box-shadow: 0 0 0 1px var(--volt-a40), 0 0 18px -6px var(--volt-a40);
+  animation: island-splash-p2 520ms var(--ease-spring);
+  transform-origin: center center;
+}
+
+@keyframes island-splash-p2 {
+  0%   { transform: scale(1, 1); }
+  38%  { transform: scale(1.03, .94); }
+  70%  { transform: scale(.99, 1.03); }
+  100% { transform: scale(1, 1); }
+}
+
+// Kap mastila iz TAČKE DODIRA (koordinate postavlja komponenta).
+.p2-ink {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--volt-a40);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  animation: p2-ink-bloom 560ms var(--ease-out) both;
+}
+
+// Odznačavanje: kap se POVUČE nazad u tačku dodira.
+.p2-ink.out { animation: p2-ink-retreat 460ms var(--ease) both; }
+
+@keyframes p2-ink-bloom {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .85; }
+  100% { transform: translate(-50%, -50%) scale(34); opacity: 0; }
+}
+
+@keyframes p2-ink-retreat {
+  0%   { transform: translate(-50%, -50%) scale(26); opacity: 0; }
+  45%  { opacity: .3; }
+  100% { transform: translate(-50%, -50%) scale(0);  opacity: .85; }
+}
+
+// Redni broj na kartici — koja je po redu u danu; pri promjeni broja se
+// rađa iznova i popne.
+.p2-ord {
+  position: absolute;
+  top: var(--s-2);
+  left: var(--s-2);
+  z-index: 2;
+
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+
+  background: var(--volt-fill);
+  border-radius: var(--r-full);
+  color: var(--volt-ink);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  box-shadow: 0 1px 8px -2px rgba(0, 0, 0, .5);
+
+  animation: ord-in 380ms var(--ease-spring) both;
+}
+
+.p2-ord-in {
+  display: inline-block;
+  animation: count-pop 360ms var(--ease-spring) both;
+}
+
+@keyframes ord-in {
+  0%   { opacity: 0; transform: scale(.3); }
+  60%  { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+// --- „Dynamic island": serije × ponavljanja izrastaju iz kartice ------------
+// Dvije animacije: splash = ostrvo SAMO; grow = njegov PROSTOR (max-height,
+// margin) — kartice ispod u mreži DOTEKU na nova mjesta, ne skoče.
+
+.p2-island {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+
+  background: var(--volt-a10);
+  border: 1px solid var(--volt-a40);
+  border-top: none;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+
+  // Ostrvo se čita kao produžetak kartice: uvučeno pod nju.
+  margin: -6px 4px 0;
+  padding: calc(var(--s-2) + 6px) var(--s-2) var(--s-2);
+
+  transform-origin: center top;
+  animation:
+    isl-grow   340ms var(--ease-out) both,
+    isl-splash 520ms 80ms var(--ease-spring) both;
+}
+
+.p2-island.closing {
+  pointer-events: none;
+  animation:
+    isl-sip      300ms var(--ease-spring) both,
+    isl-collapse 280ms 140ms var(--ease) both;
+}
+
+@keyframes isl-grow {
+  from {
+    max-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+  to {
+    max-height: 210px;
+    margin-top: -6px;
+    padding-top: calc(var(--s-2) + 6px);
+    padding-bottom: var(--s-2);
+    border-width: 1px;
+  }
+}
+
+@keyframes isl-collapse {
+  from {
+    max-height: 210px;
+    margin-top: -6px;
+    padding-top: calc(var(--s-2) + 6px);
+    padding-bottom: var(--s-2);
+    border-width: 1px;
+  }
+  to {
+    max-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+  }
+}
+
+@keyframes isl-splash {
+  0%   { transform: scale(1, 1); }
+  38%  { transform: scale(1.03, .92); }
+  70%  { transform: scale(.99, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+
+@keyframes isl-sip {
+  0%   { opacity: 1; transform: scale(1, 1); }
+  40%  { opacity: 1; transform: scale(.97, 1.04); }
+  100% { opacity: 0; transform: scale(.98, .9); }
+}
+
+// Sadržaj ostrva izranja talasom, korak po korak.
+.p2-island .p2-target:nth-of-type(1) { animation: pane-rise 300ms var(--ease-spring) 140ms both; }
+.p2-island .p2-x                     { animation: pane-rise 300ms var(--ease-spring) 200ms both; }
+.p2-island .p2-target:nth-of-type(2) { animation: pane-rise 300ms var(--ease-spring) 260ms both; }
+
+.p2-target {
+  // VERTIKALNO: natpis iznad, kontrole ispod. U uskoj koloni mreže na
+  // telefonu red „natpis + − vrijednost +" ne staje pa se + odsijecao van
+  // kartice (Markov bug_3) — ovako sve staje i u najužu kolonu.
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  min-width: 0;
+}
+
+.p2-t-label {
+  flex: none;
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--mist);
+}
+
+.p2-x {
+  align-self: center;
+  color: var(--dust);
+  font-size: var(--t-2xs);
+  line-height: 1;
+  margin: -3px 0;
+}
+
+// Steper: minus · polje · plus — za palac, bez tastature.
+.p2-stepper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.p2-stepper button {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: var(--carbon-high);
+  border: 1px solid var(--line);
+  color: var(--mist);
+}
+
+.p2-stepper button:hover { border-color: var(--volt-a40); color: var(--volt); }
+.p2-stepper button .material-icons { font-size: 16px; }
+
+.p2-stepper input {
+  width: 0;
+  flex: 1;
+  min-width: 30px;
+  min-height: 34px;
+  padding: 0 var(--s-1);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--volt-a40);
+  border-radius: var(--r-sm);
+  color: var(--ice);
+  text-align: center;
+  // Kroz max() OBAVEZNO — polje ispod 16px na dodiru tjera iOS da zumira.
+  font-size: max(var(--t-sm), var(--t-field-min));
+}
+
+.p2-stepper input:focus { outline: none; border-color: var(--volt); }
+
+// „Pop" vrijednosti pri steperu: dvije alias animacije se smjenjuju po
+// parnosti brojača — ista klasa ne bi ponovo pokrenula animaciju.
+.p2-stepper input.pop-a { animation: val-pop-a 300ms var(--ease-spring); }
+.p2-stepper input.pop-b { animation: val-pop-b 300ms var(--ease-spring); }
+
+@keyframes val-pop-a {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+@keyframes val-pop-b {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+
+// --- Podnožje: „Gotovo" uvijek na ekranu ------------------------------------
+
+.p2-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+
+  background: color-mix(in srgb, var(--carbon) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 560px) {
+  .p2-foot { padding-inline: var(--s-4); }
+}
+
+.p2-count {
+  font-family: var(--font-data);
+  font-size: var(--t-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--mist);
+  white-space: nowrap;
+}
+
+.p2-count-in {
+  display: inline-block;
+  color: var(--volt);
+  font-weight: 700;
+  animation: count-pop 360ms var(--ease-spring) both;
+}
+
+.p2-done { min-height: 44px; }
+.p2-done .material-icons { font-size: 18px; }
+
+// --- Smanjen pokret: SVE novo se gasi ---------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-error,
+  .plan-actionbar,
+  .pa-pop,
+  .pa-save.nudge,
+  .form-group.shake input,
+  .form-group.shake textarea,
+  .dt-count-in,
+  .day-pane > .dp-block,
+  .day-pane > .day-empty.dp-block,
+  .sel-row,
+  .sel-row.closing,
+  .sel-ord-in,
+  .p2-item.selected .p2-card,
+  .p2-ord,
+  .p2-ord-in,
+  .p2-island,
+  .p2-island.closing,
+  .p2-island .p2-target,
+  .p2-island .p2-x,
+  .p2-stepper input.pop-a,
+  .p2-stepper input.pop-b,
+  .p2-count-in { animation: none; }
+
+  .p2-ink { display: none; }
 }

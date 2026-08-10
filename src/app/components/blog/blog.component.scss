@@ -285,6 +285,14 @@
   position: fixed;
   top: calc(var(--header-h) + var(--safe-t));
   bottom: calc(var(--footer-h) + var(--safe-b));
+
+  // Kupola, samo telefon: do ivice ekrana, kao .modal-overlay u _base.scss —
+  // bez sive trake ispod; na desktopu meni ostaje vidljiv.
+  @media (max-width: 639px) {
+    :root.nav-dome & {
+      bottom: 0;
+    }
+  }
   left: 0;
   right: 0;
   z-index: 200;

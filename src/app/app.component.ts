@@ -1,8 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterOutlet, NavigationEnd } from '@angular/router'
 import { filter } from 'rxjs'
+import { ExerciceDetailService } from './components/shared/exercice-detail/exercice-detail.service';
 import { ProfilePreviewService } from './shared/profile-preview.directive';
 import { PushNotificationService } from './services/push-notification.service';
+import { AuthService } from './services/auth.service';
+import { LastRouteService } from './services/last-route.service';
 
 @Component({
   selector: 'app-root',
@@ -24,7 +27,10 @@ export class AppComponent{
   constructor(
     private router: Router,
     public preview: ProfilePreviewService,
-    push: PushNotificationService
+    public exDetail: ExerciceDetailService,
+    push: PushNotificationService,
+    private auth: AuthService,
+    private lastRoute: LastRouteService
   ) {
     // Tiha obnova push registracije pri svakom pokretanju — ako je dozvola već
     // data i prekidač uključen, ne radi ništa vidljivo (nema prompta).
@@ -52,6 +58,12 @@ export class AppComponent{
         this.showLayout = !hiddenRoutes.includes(path);
         this.showFooter = !hiddenRoutesFooter.includes(path);
         this.wide = this.wideRoutes.includes(path);
+
+        // Pamti gdje je korisnik, sa query parametrima (?date= mora ostati) —
+        // da ga PWA relaunch sa splasha vrati na isto mjesto, ne na dashboard.
+        // Servis sam odbija rute van bijele liste (/, /login, /register...).
+        const user = this.auth.getCurrentUser();
+        if (user) this.lastRoute.remember(this.router.url, user.id);
       });
   }
 }

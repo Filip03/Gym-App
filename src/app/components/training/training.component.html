@@ -75,7 +75,9 @@
 
   <!-- Bilješka uz TAJ dan treninga (kolona `note`, jedna po danu). -->
   <div class="note-box" *ngIf="showNote">
-    <textarea [(ngModel)]="noteText" rows="2" maxlength="280"
+    <!-- Nacrt se pamti na svaku izmjenu (vidi onNoteInput) — zato ngModelChange
+         umjesto dvosmjernog vezivanja. -->
+    <textarea [ngModel]="noteText" (ngModelChange)="onNoteInput($event)" rows="2" maxlength="280"
               placeholder="Kako je prošlo? Loše spavao, nova šipka, bol u ramenu…"></textarea>
     <div class="note-actions">
       <span class="note-count num">{{ noteText.length }}/280</span>
@@ -120,11 +122,17 @@
     <button type="button" class="btn-ghost" (click)="openAdd()">Ipak treniram</button>
   </div>
 
-  <div class="exercice-list" *ngIf="!isRestDay">
+  <!-- `hydrating`: prvi kadar iz keša — struktura dana stoji odmah, prigušena
+       i neaktivna dok logovi ne stignu mrežom (bez izmišljenih brojeva). -->
+  <div class="exercice-list" [class.hydrating]="hydrating" *ngIf="!isRestDay">
+    <!-- `hush`: dok je ostrvo za unos otvoreno, ostatak kartice (pilule serija,
+         duhovi, bedževi) se blago priguši — pažnja ide na unos, a puna jačina
+         se vrati čim se ostrvo skupi. -->
     <div class="exercice-row" #exRow
          *ngFor="let ex of exercices; trackBy: trackById"
          [class.done]="isComplete(ex)"
          [class.moved]="selectedId === ex.id"
+         [class.hush]="ex.showLogForm"
          (click)="onRowClick(ex)">
 
       <div class="exercice-main">
@@ -186,7 +194,7 @@
         </div>
 
         <div class="exercice-actions" *ngIf="!reordering && !isFinished">
-          <button type="button" class="log-btn" (click)="toggleLogForm(ex)">
+          <button type="button" class="log-btn" (click)="toggleLogForm(ex, $event)">
             {{ ex.showLogForm ? 'Otkaži' : 'Upiši' }}
           </button>
 
@@ -243,6 +251,7 @@
 
       <!-- Serije: današnje pune, prošle kao duh -->
       <div class="sets" [class.split]="splitLayout(ex)" [class.reflow]="ex.layoutFlow"
+           [class.hushed]="islandOpen(ex)"
            *ngIf="!reordering && (ex.loggedSets.length > 0 || ex.echo)">
         <!-- Grupa = jedna working serija sa svojim dropsetovima ispod nje.
              Dropset se ne smije naći u istom redu kao tuđa serija, pa grupa ide
@@ -250,9 +259,11 @@
              Šablon, jer se ista grupa crta i u dvoručnom redu i u blokovima po
              ruci kod jednoručnih vježbi. -->
         <ng-template #setGroupTpl let-set>
-        <div class="set-group">
+        <div class="set-group" [class.io-open]="groupOpen(set)">
 
-          <span class="set-wrap" *ngIf="!set.editing"
+          <!-- Pilula se sklanja dok traje izmjena I dok se ostrvo skuplja —
+               tako izgleda kao da se ona sama raširila pa vratila. -->
+          <span class="set-wrap" *ngIf="!set.editing && !set.editClosing"
                 [class.has-drop]="!set.pending && !isFinished">
           <button type="button" class="set" [disabled]="isFinished"
                   [class.up]="set.delta === 'up'"
@@ -260,7 +271,7 @@
                   [class.pending]="set.pending"
                   [title]="set.pending ? 'Čeka mrežu — sačuvano na telefonu'
                                        : (set.prevLabel ?? 'Prvi put ova serija')"
-                  (click)="startEditSet(ex, set)">
+                  (click)="startEditSet(ex, set, $event)">
             <span class="set-n num">{{ set.setNumber }}</span>
 
             <!-- Naglašava se BAŠ ono što se promijenilo, da se iz "95kg × 11"
@@ -284,38 +295,85 @@
             <!-- Rep uz seriju: jedini put do dropseta, i vidi se da pripada
                  baš ovoj seriji jer dijeli okvir sa njom. -->
             <button type="button" class="set-drop" *ngIf="!set.pending && !isFinished"
-                    title="Dodaj dropset na ovu seriju" (click)="startDropset(set)">
+                    title="Dodaj dropset na ovu seriju" (click)="startDropset(set, $event)">
               <i class="material-icons">add</i>
             </button>
           </span>
 
-          <div class="set-edit" *ngIf="set.editing">
-            <span class="set-n num">{{ set.setNumber }}</span>
-            <!-- Prazno polje znači tjelesnu težinu, pa i duh u polju to kaže
-                 umjesto da traži kilažu. Gleda se i sam red (bwField), pa
-                 serija odrađena bez tega ostaje „BW" i kad se flag ugasi. -->
-            <input appNumField keyboard="text" [(ngModel)]="set.editWeight"
-                   [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
-                   (keydown.enter)="editReps.focus()" />
-            <input #editReps keyboard="text" appNumField="integer" [(ngModel)]="set.editReps" placeholder="pon."
-                   (keydown.enter)="saveEditSet(ex, set)" />
-            <button type="button" class="mini save" [disabled]="set.saving" (click)="saveEditSet(ex, set)">
-              <i class="material-icons">check</i>
-            </button>
-            <button type="button" class="mini" (click)="cancelEditSet(set)">
-              <i class="material-icons">close</i>
-            </button>
-            <button type="button" class="mini danger" [disabled]="set.saving" (click)="deleteSet(ex, set)">
-              <i class="material-icons">delete_outline</i>
-            </button>
+          <!-- Izmjena serije: pilula se NA LICU MJESTA morfuje u ostrvo za
+               unos — ista geometrija i ista krupnoća kao kod glavnog upisa,
+               bez „drugog reda ispod". -->
+          <div class="set-edit io morph" *ngIf="set.editing || set.editClosing"
+               [class.closing]="set.editClosing"
+               [style.--ink-x]="(set.inkX ?? 28) + 'px'">
+            <div class="io-head">
+              <span class="set-n num">{{ set.setNumber }}</span>
+              <span class="io-title">Izmjena serije</span>
+            </div>
+
+            <div class="io-fields">
+              <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                        (pointerdown)="stepHold($event, set, 'editWeight', -1, set.weight)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
+                <label class="field" [class.pop]="popping(set, 'editWeight')">
+                  <!-- Prazno polje znači tjelesnu težinu, pa i duh u polju to
+                       kaže umjesto da traži kilažu. Gleda se i sam red
+                       (bwField), pa serija odrađena bez tega ostaje „BW" i
+                       kad se flag ugasi. -->
+                  <input appNumField keyboard="text" [(ngModel)]="set.editWeight"
+                         [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
+                         (keydown.enter)="editReps.focus()" />
+                  <span class="unit">kg</span>
+                </label>
+                <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                        (pointerdown)="stepHold($event, set, 'editWeight', 1, set.weight)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
+              </div>
+
+              <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'editReps', -1, set.reps)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
+                <label class="field" [class.pop]="popping(set, 'editReps')">
+                  <input #editReps keyboard="text" appNumField="integer" [(ngModel)]="set.editReps"
+                         placeholder="pon." (keydown.enter)="saveEditSet(ex, set)" />
+                  <span class="unit">pon.</span>
+                </label>
+                <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'editReps', 1, set.reps)"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
+              </div>
+            </div>
+
+            <div class="io-actions">
+              <button type="button" class="io-save" [disabled]="set.saving" (click)="saveEditSet(ex, set)">
+                <i class="material-icons">check</i>
+                {{ set.saving ? 'Čuvam...' : 'Sačuvaj' }}
+              </button>
+              <button type="button" class="io-cancel" (click)="cancelEditSet(set)">Otkaži</button>
+              <button type="button" class="io-del" [disabled]="set.saving"
+                      (click)="deleteSet(ex, set)" aria-label="Obriši seriju" title="Obriši seriju">
+                <i class="material-icons">delete_outline</i>
+              </button>
+            </div>
           </div>
 
           <!-- Dropset(ovi) odrađeni odmah nakon ove working serije.
                Bez ikone strelice — spojnica sa lijeve strane već kaže čemu
                pripadaju, pa bi strelica bila isto rečeno dvaput. -->
           <ng-container *ngFor="let d of set.dropsets">
-            <button type="button" class="set dropset" *ngIf="!d.editing" [disabled]="isFinished"
-                    title="Dodirni za izmjenu" (click)="startEditDropset(ex, d)">
+            <button type="button" class="set dropset" *ngIf="!d.editing && !d.editClosing"
+                    [disabled]="isFinished"
+                    title="Dodirni za izmjenu" (click)="startEditDropset(ex, d, $event)">
               <span class="set-v num">
                 <ng-container *ngIf="d.weight > 0">{{ d.weight }}<small>kg</small> × </ng-container>{{ d.reps }}
               </span>
@@ -323,18 +381,60 @@
                  (click)="deleteDropset(set, d); $event.stopPropagation()">close</i>
             </button>
 
-            <div class="set-edit dropset-form" *ngIf="d.editing">
-              <input appNumField keyboard="text" [(ngModel)]="d.editWeight"
-                     [placeholder]="bwField(ex, d.weight) ? 'BW' : 'kg'"
-                     (keydown.enter)="dropEditReps.focus()" />
-              <input #dropEditReps appNumField="integer" keyboard="text" [(ngModel)]="d.editReps" placeholder="pon."
-                     (keydown.enter)="saveEditDropset(ex, d)" />
-              <button type="button" class="mini save" [disabled]="d.saving" (click)="saveEditDropset(ex, d)">
-                <i class="material-icons">check</i>
-              </button>
-              <button type="button" class="mini" (click)="cancelEditDropset(d)">
-                <i class="material-icons">close</i>
-              </button>
+            <!-- Izmjena dropseta — isto ostrvo, iste mjere kao svugdje. -->
+            <div class="set-edit dropset-form io morph" *ngIf="d.editing || d.editClosing"
+                 [class.closing]="d.editClosing"
+                 [style.--ink-x]="(d.inkX ?? 28) + 'px'">
+              <div class="io-head">
+                <span class="io-title">Izmjena dropseta</span>
+              </div>
+
+              <div class="io-fields">
+                <div class="io-slot">
+                  <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                          (pointerdown)="stepHold($event, d, 'editWeight', -1, d.weight)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">remove</i>
+                  </button>
+                  <label class="field" [class.pop]="popping(d, 'editWeight')">
+                    <input appNumField keyboard="text" [(ngModel)]="d.editWeight"
+                           [placeholder]="bwField(ex, d.weight) ? 'BW' : 'kg'"
+                           (keydown.enter)="dropEditReps.focus()" />
+                    <span class="unit">kg</span>
+                  </label>
+                  <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                          (pointerdown)="stepHold($event, d, 'editWeight', 1, d.weight)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">add</i>
+                  </button>
+                </div>
+
+                <div class="io-slot">
+                  <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                          (pointerdown)="stepHold($event, d, 'editReps', -1, d.reps)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">remove</i>
+                  </button>
+                  <label class="field" [class.pop]="popping(d, 'editReps')">
+                    <input #dropEditReps appNumField="integer" keyboard="text" [(ngModel)]="d.editReps"
+                           placeholder="pon." (keydown.enter)="saveEditDropset(ex, d)" />
+                    <span class="unit">pon.</span>
+                  </label>
+                  <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                          (pointerdown)="stepHold($event, d, 'editReps', 1, d.reps)"
+                          (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                    <i class="material-icons">add</i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="io-actions">
+                <button type="button" class="io-save" [disabled]="d.saving" (click)="saveEditDropset(ex, d)">
+                  <i class="material-icons">check</i>
+                  {{ d.saving ? 'Čuvam...' : 'Sačuvaj' }}
+                </button>
+                <button type="button" class="io-cancel" (click)="cancelEditDropset(d)">Otkaži</button>
+              </div>
             </div>
           </ng-container>
 
@@ -348,20 +448,62 @@
             </span>
           </span>
 
-          <div class="set-edit dropset-form" *ngIf="set.addingDropset">
-            <span class="both-tag" *ngIf="ex.isUnilateral && set.side"
-                  title="Upisuje se i na istu seriju druge ruke">L+D</span>
-            <input appNumField keyboard="text" [(ngModel)]="set.dropsetWeightInput"
-                   [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
-                   (keydown.enter)="dropReps.focus()" />
-            <input #dropReps keyboard="text" appNumField="integer" [(ngModel)]="set.dropsetRepsInput" placeholder="pon."
-                   (keydown.enter)="saveDropset(ex, set)" />
-            <button type="button" class="mini save" [disabled]="set.savingDropset" (click)="saveDropset(ex, set)">
-              <i class="material-icons">check</i>
-            </button>
-            <button type="button" class="mini" (click)="set.addingDropset = false">
-              <i class="material-icons">close</i>
-            </button>
+          <!-- Unos dropseta — ostrvo izraste iz same tačke „+" (vidi --ink-x). -->
+          <div class="set-edit dropset-form io" *ngIf="set.addingDropset || set.dropClosing"
+               [class.closing]="set.dropClosing"
+               [style.--ink-x]="(set.inkX ?? 28) + 'px'">
+            <div class="io-head">
+              <span class="io-title">Dropset</span>
+              <span class="both-tag" *ngIf="ex.isUnilateral && set.side"
+                    title="Upisuje se i na istu seriju druge ruke">L+D</span>
+            </div>
+
+            <div class="io-fields">
+              <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                        (pointerdown)="stepHold($event, set, 'dropsetWeightInput', -1, dropBase(ex, set, 'weight'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
+                <label class="field" [class.pop]="popping(set, 'dropsetWeightInput')">
+                  <input appNumField keyboard="text" [(ngModel)]="set.dropsetWeightInput"
+                         [placeholder]="bwField(ex, set.weight) ? 'BW' : 'kg'"
+                         (keydown.enter)="dropReps.focus()" />
+                  <span class="unit">kg</span>
+                </label>
+                <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                        (pointerdown)="stepHold($event, set, 'dropsetWeightInput', 1, dropBase(ex, set, 'weight'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
+              </div>
+
+              <div class="io-slot">
+                <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'dropsetRepsInput', -1, dropBase(ex, set, 'reps'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">remove</i>
+                </button>
+                <label class="field" [class.pop]="popping(set, 'dropsetRepsInput')">
+                  <input #dropReps keyboard="text" appNumField="integer" [(ngModel)]="set.dropsetRepsInput"
+                         placeholder="pon." (keydown.enter)="saveDropset(ex, set)" />
+                  <span class="unit">pon.</span>
+                </label>
+                <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                        (pointerdown)="stepHold($event, set, 'dropsetRepsInput', 1, dropBase(ex, set, 'reps'))"
+                        (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+                  <i class="material-icons">add</i>
+                </button>
+              </div>
+            </div>
+
+            <div class="io-actions">
+              <button type="button" class="io-save" [disabled]="set.savingDropset" (click)="saveDropset(ex, set)">
+                <i class="material-icons">check</i>
+                {{ set.savingDropset ? 'Čuvam...' : 'Sačuvaj' }}
+              </button>
+              <button type="button" class="io-cancel" (click)="closeDropset(set)">Otkaži</button>
+            </div>
           </div>
 
         </div>
@@ -423,20 +565,29 @@
         </ng-container>
       </div>
 
-      <!-- Upis: polja su predpunjena prošlim rezultatom -->
-      <div class="log-form" *ngIf="ex.showLogForm && !isFinished">
-        <span class="set-label">Serija {{ nextSetNumber(ex) }}<span class="both-tag"
-              *ngIf="ex.isUnilateral"
-              title="Upisuje obje ruke — ako se desna razlikovala, dodirni njenu seriju i ispravi">L+D</span></span>
+      <!-- Upis: OSTRVO ZA UNOS. Pri otvaranju se raširi u krupan unos, po
+           upisu se tečno skupi. Polja su predpunjena prošlim rezultatom.
+           Ostaje u DOM-u dok traje skupljanje (`formClosing`). -->
+      <div class="log-form io" *ngIf="(ex.showLogForm || ex.formClosing) && !isFinished"
+           [class.closing]="ex.formClosing"
+           [style.--ink-x]="(ex.inkX ?? 28) + 'px'">
+        <div class="io-head">
+          <span class="set-label">Serija {{ nextSetNumber(ex) }}</span>
+          <span class="both-tag" *ngIf="ex.isUnilateral"
+                title="Upisuje obje ruke — ako se desna razlikovala, dodirni njenu seriju i ispravi">L+D</span>
+        </div>
 
-        <!-- Kilaža i ponavljanja dijele isti red: kad se kilaža skupi u čip
-             „BW", ponavljanja tečno preuzmu oslobođeni prostor. -->
-        <div class="log-fields">
+        <!-- Kilaža i ponavljanja su JEDNA flex ćelija: na širokom ekranu dijele
+             red pa, kad se kilaža skupi u čip „BW", ponavljanja tečno preuzmu
+             oslobođeni prostor; na telefonu (gdje za dva polja sa steperima
+             nema mjesta) svako ima svoj red, a čip i steperi ostaju uz kilažu. -->
+        <div class="log-fields io-fields"
+             [class.bw-plain]="ex.isBodyweight && !ex.showWeightInput">
 
           <!-- Bodyweight vježba: čip prebacuje između „čistog BW" (u bazu ide
                0) i „BW + teg". Polje se NE uklanja iz DOM-a nego skuplja, da
                prelaz ima pokret u oba smjera. -->
-          <div class="weight-slot"
+          <div class="weight-slot io-slot"
                [class.bw]="ex.isBodyweight"
                [class.plain]="ex.isBodyweight && !ex.showWeightInput"
                [class.bloom]="ex.bwFlip === 'in'"
@@ -448,28 +599,58 @@
                                : 'Dodaj teg uz tjelesnu težinu'"
                     (click)="toggleBodyweightWeight(ex)">BW</button>
 
-            <label class="field">
+
+            <!-- U stanju „čist BW" steperi kilaže nemaju šta da mijenjaju —
+                 skupljaju se zajedno sa poljem, u istom pokretu kao i ono. -->
+            <button type="button" class="io-btn" aria-label="Smanji kilažu"
+                    (pointerdown)="stepHold($event, ex, 'weightInput', -1, stepBase(ex, 'weight'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">remove</i>
+            </button>
+
+            <label class="field" [class.pop]="popping(ex, 'weightInput')">
               <input appNumField keyboard="text" [(ngModel)]="ex.weightInput"
                      [disabled]="ex.isBodyweight && !ex.showWeightInput"
                      [placeholder]="echoPlaceholder(ex, 'weight')"
                      (keydown.enter)="logReps.focus()" />
               <span class="unit">kg</span>
             </label>
+
+            <button type="button" class="io-btn" aria-label="Povećaj kilažu"
+                    (pointerdown)="stepHold($event, ex, 'weightInput', 1, stepBase(ex, 'weight'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">add</i>
+            </button>
           </div>
 
-          <label class="field">
-            <input #logReps keyboard="text" appNumField="integer" [(ngModel)]="ex.repsInput"
-                   [placeholder]="echoPlaceholder(ex, 'reps')"
-                   (keydown.enter)="saveLog(ex)" />
-            <span class="unit">pon.</span>
-          </label>
+          <div class="io-slot">
+            <button type="button" class="io-btn" aria-label="Manje ponavljanja"
+                    (pointerdown)="stepHold($event, ex, 'repsInput', -1, stepBase(ex, 'reps'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">remove</i>
+            </button>
+            <label class="field" [class.pop]="popping(ex, 'repsInput')">
+              <input #logReps keyboard="text" appNumField="integer" [(ngModel)]="ex.repsInput"
+                     [placeholder]="echoPlaceholder(ex, 'reps')"
+                     (keydown.enter)="saveLog(ex)" />
+              <span class="unit">pon.</span>
+            </label>
+            <button type="button" class="io-btn" aria-label="Više ponavljanja"
+                    (pointerdown)="stepHold($event, ex, 'repsInput', 1, stepBase(ex, 'reps'))"
+                    (pointerup)="stepEnd()" (pointerleave)="stepEnd()" (pointercancel)="stepEnd()">
+              <i class="material-icons">add</i>
+            </button>
+          </div>
         </div>
 
-        <button type="button" class="save-log-btn"
-                [disabled]="ex.saving || ex.repsInput == null || (ex.weightInput == null && !ex.isBodyweight)"
-                (click)="saveLog(ex)">
-          {{ ex.saving ? '...' : 'Sačuvaj' }}
-        </button>
+        <div class="io-actions">
+          <button type="button" class="io-save"
+                  [disabled]="ex.saving || ex.repsInput == null || (ex.weightInput == null && !ex.isBodyweight)"
+                  (click)="saveLog(ex)">
+            <i class="material-icons">check</i>
+            {{ ex.saving ? 'Čuvam...' : 'Sačuvaj' }}
+          </button>
+        </div>
       </div>
 
     </div>

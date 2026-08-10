@@ -1,6 +1,6 @@
 <!-- Splash: kratak udarac (pljesak krede prije dizanja), iz kojeg izranja
      identitet. Klik/dodir bilo gdje preskače na login (vidi skip()). -->
-<div class="landing" [class.leaving]="fadeOut" (click)="skip()">
+<div class="landing" [class.leaving]="fadeOut" [class.quick]="quick" (click)="skip()">
 
   <!-- Mekan sjaj iza identiteta — statičan, samo da ekran ne bude ravna ploča. -->
   <div class="veil" aria-hidden="true"></div>

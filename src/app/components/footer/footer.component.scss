@@ -15,10 +15,14 @@
     align-items: center;
 
     height: calc(var(--footer-h) + var(--footer-gap));
-    // + 8px daha na dnu: ikone sjede par piksela više od same ivice (Markov
-    // fini štih 31.07.2026) — dovoljno da ne "leže" na dnu, premalo da traka
-    // djeluje podignuto.
-    padding: 0 var(--s-2) calc(var(--footer-gap) + 8px);
+    padding: 0 var(--s-2) var(--footer-gap);
+
+    // + 8px daha SAMO NA DODIRU: ikone par piksela više od ivice (Markov fini
+    // štih 31.07.2026). Na mišu daha nema — dizao je cio red vidljivo
+    // (Markova primjedba 10.08.2026: „na webu je meni podignut više").
+    @media (pointer: coarse) {
+      padding-bottom: calc(var(--footer-gap) + 8px);
+    }
 
     // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
     //
@@ -333,6 +337,14 @@
     // Samo `opacity` — položaj tjemena je inline transform iz TS-a i keyframe
     // ga ne smije pregaziti.
     animation: crest-in var(--d-slower) var(--ease-out) 240ms backwards;
+    transition: opacity var(--d-slow) var(--ease);
+}
+
+// Van doka (npr. /training): tjeme se SAKRIJE — nema ležišta ni na jednoj
+// ikoni, pa ni utiska da su dvije „izabrane". Vraća se čim korisnik stvarno
+// zavuče prst (dragging) ili se vrati na neku od stavki doka.
+.dock.offdock:not(.dragging) .dock-crest {
+    opacity: 0;
 }
 
 @keyframes crest-in {

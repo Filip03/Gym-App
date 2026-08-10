@@ -10,7 +10,22 @@ $branch-indent: 16px;
 // 0 3px 10px white` su uklonjeni — pravili su efekat izgorjelog ekrana i gurali
 // sadržaj u usku kolonu od 600px usred širokog ekrana.
 
-:host { display: block; }
+:host {
+  display: block;
+
+  // Mjere OSTRVA ZA UNOS na jednom mjestu — glavni upis, izmjena serije i
+  // dropset moraju biti isti do piksela, inače se tri forme razidu.
+  //
+  // Mjere su namjerno DISKRETNE: ostrvo je proširena stara forma, ne novi
+  // ekran (Markova prijava na prvu verziju — 52px/20px je djelovalo džinovski).
+  --io-h:    46px;       // visina polja za kucanje i dugmadi
+  --io-btn:  40px;       // širina stepera ±; visinu mu daje --io-h (40×46)
+  --io-num:  1.125rem;   // 18px — krupnije od osnovnih 15px, ali mirno
+  // Krajnja visina do koje ostrvo raste. `max-height` je jedini način da se
+  // animira PROSTOR sadržaja nepoznate visine; vrijednost je namjerno veća od
+  // najvišeg ostrva (uska kolona, sve u koloni ≈ 320px).
+  --io-max:  520px;
+}
 
 // --- Zaglavlje treninga ----------------------------------------------------
 
@@ -93,10 +108,23 @@ $branch-indent: 16px;
   background: var(--carbon);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  transition: border-color var(--d-base) var(--ease);
+  transition: border-color var(--d-base) var(--ease),
+              opacity var(--d-slow) var(--ease),
+              filter var(--d-slow) var(--ease);
 }
 
 .exercice-row:focus-within { border-color: var(--line-strong); }
+
+// PRVI KADAR IZ KEŠA (vidi `hydrating` u komponenti): struktura dana stoji
+// odmah, ali su karte prigušene i neaktivne dok logovi ne stignu mrežom —
+// vidi se ŠTA je na redu, bez ijednog izmišljenog broja. Kad pravi podaci
+// preuzmu, prigušenje se TEČNO povuče (tranzicija na redu iznad) — bez
+// treptaja; uz smanjen pokret prelaz je trenutan kao i sve ostalo.
+.exercice-list.hydrating .exercice-row {
+  opacity: 0.55;
+  filter: saturate(0.6);
+  pointer-events: none;
+}
 
 .exercice-main {
   display: flex;
@@ -181,24 +209,6 @@ $branch-indent: 16px;
   text-transform: uppercase;
   color: var(--mist);
   white-space: nowrap;
-}
-
-.save-log-btn {
-  min-height: 46px;
-  padding: 0 var(--s-4);
-  background: var(--volt-fill);
-  border-radius: var(--r-sm);
-  color: var(--volt-ink);
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-@media (max-width: 520px) {
-  // Natpis serije, red sa poljima i dugme — svako u svom redu. Sama polja
-  // ostaju jedno pored drugog, jer ih drži `.log-fields`, ne grid.
-  .log-form { grid-template-columns: 1fr; }
-  .edit-set-form { grid-template-columns: 1fr 1fr; }
-  .set-label { grid-column: 1 / -1; }
 }
 
 // ===========================================================================
@@ -324,6 +334,23 @@ $branch-indent: 16px;
   border-top: 1px solid var(--line);
 }
 
+// Dok je otvoreno ostrvo za unos, ostatak kartice se PRIGUŠI — pažnja ide na
+// polja u koja se kuca, a odrađene serije i duhovi ostaju čitljivi u pozadini.
+// Puna jačina se vraća čim se ostrvo skupi; prelaz je u oba smjera.
+.sets,
+.exercice-meta { transition: opacity var(--d-slow) var(--ease); }
+
+.exercice-row.hush .sets,
+.exercice-row.hush .exercice-meta { opacity: .55; }
+
+// Kod izmjene serije i dropseta priguši se sve OSIM grupe koja drži ostrvo.
+.set-group { transition: opacity var(--d-slow) var(--ease); }
+.sets.hushed .set-group:not(.io-open) { opacity: .55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sets, .exercice-meta, .set-group { transition: none; }
+}
+
 .set {
   display: inline-flex;
   align-items: center;
@@ -369,36 +396,15 @@ $branch-indent: 16px;
 .set.ghost .set-v small { color: var(--echo); }
 
 // --- Izmjena serije --------------------------------------------------------
+//
+// Izmjena i dropset više nemaju svoju formu: oboje su OSTRVO ZA UNOS (`.io`,
+// dolje). Ovdje ostaje samo širina — ostrvo izmjene mora biti šire od pilule
+// iz koje je izraslo, ali ne šire od reda vježbe.
 
 .set-edit {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  padding: var(--s-1) var(--s-2);
-  background: var(--carbon-high);
-  border: 1px solid var(--volt-a40);
-  border-radius: var(--r-sm);
+  width: 280px;
+  max-width: 100%;
 }
-
-.set-edit input {
-  width: 62px;
-  min-height: 36px;
-  padding: 0 var(--s-1);
-  font-size: max(var(--t-sm), var(--t-field-min));
-}
-
-.mini {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--r-sm);
-  color: var(--mist);
-}
-.mini .material-icons { font-size: 18px; }
-.mini:hover { background: var(--carbon); color: var(--ice); }
-.mini.save { color: var(--volt); }
-.mini.danger { color: var(--ember); }
 
 // --- Dropset -----------------------------------------------------------------
 //
@@ -422,8 +428,6 @@ $branch-indent: 16px;
 }
 .set.dropset .del:hover { color: var(--ember); }
 .set.dropset .del.disabled { pointer-events: none; opacity: .4; }
-
-.dropset-form input { width: 56px; }
 
 // Serija i njeni dropsetovi kao jedna grana.
 //
@@ -553,30 +557,24 @@ $branch-indent: 16px;
 .side-half .set-drop { padding: 0 var(--s-1); }
 .side-half .set-drop .material-icons { font-size: 13px; }
 
-// Izmjena serije i unos dropseta staju u kolonu u JEDNOM redu — polja i
-// dugmad zajedno, ništa se ne prelama u novi red. Zato su u koloni polja
-// elastična a dugmad uža; redni broj se ne ispisuje jer ga kazuje pozicija.
+// Ostrvo za unos u koloni jedne ruke.
+//
+// Kolona je na telefonu ~145px, a polje sa steperom traži bar 110px — zato se
+// ovdje kilaža i ponavljanja NE dijele red nego idu jedno ispod drugog (to
+// `.io-fields` radi sam, prelamanjem). Krupnoća polja i dodirne mete ostaju
+// ISTE kao u punom redu: uska kolona ne smije značiti sitniji unos.
 .side-half .set-edit {
-  display: flex;
-  flex-wrap: nowrap;
   width: 100%;
   max-width: 100%;
-  gap: 2px;
-  padding: var(--s-1);
 }
-.side-half .set-edit .set-n { display: none; }
-.side-half .set-edit input {
-  flex: 1 1 32px;
-  width: auto;
-  min-width: 0;
-  padding-left: 2px;
-  padding-right: 2px;
-  text-align: center;
-}
-.side-half .set-edit .mini { width: 26px; height: 30px; flex: none; }
-.side-half .set-edit .mini .material-icons { font-size: 15px; }
-// U koloni oznaku L+D kazuje title — za tekst nema mjesta u jednom redu.
+// U koloni oznaku „L+D" kazuje title — za tekst nema mjesta.
 .side-half .dropset-form .both-tag { display: none; }
+// Natpis „Izmjena serije" u koloni ne staje uz redni broj — broj je dovoljan,
+// pilula iz koje je ostrvo izraslo već kaže o čemu se radi.
+.side-half .io-title { display: none; }
+// Kod dropseta u koloni bi zaglavlje tako ostalo prazno — sklanja se cijelo,
+// a čemu forma pripada kazuje grana koja u nju ulazi.
+.side-half .dropset-form .io-head { display: none; }
 
 .set-group .dropset,
 .set-group .dropset-form {
@@ -614,6 +612,15 @@ $branch-indent: 16px;
   border-bottom-left-radius: 8px;
   pointer-events: none;
 }
+
+// Ostrvo dropseta je visoko; spojnica mora ući u njegov VRH, ne u sredinu —
+// inače bi grana visila pola forme naniže.
+.set-group .dropset-form::before { bottom: calc(100% - 26px); }
+
+// Uvlačenje grane jede širinu grupe — bez ovoga ostrvo dropseta na uskom
+// telefonu viri iz kartice za tačno tih 16px.
+.set-group { max-width: 100%; }
+.set-group .dropset-form { max-width: calc(100% - #{$branch-indent}); }
 
 // Rep sa „+" uz upisanu seriju — jedini put do dropseta.
 //
@@ -674,44 +681,185 @@ $branch-indent: 16px;
 .set-drop:hover { color: var(--volt); border-color: var(--volt-a40); }
 .set-wrap:hover .set { border-color: var(--line-strong); }
 
-// --- Upis serije -----------------------------------------------------------
-
-// Razmak od reda sa upisanim serijama.
+// ===========================================================================
+// OSTRVO ZA UNOS — jedna osnova za sva tri unosa
+// ===========================================================================
 //
-// `.sets` ima svoju gornju marginu i liniju, ali `.log-form` nije imao nijednu
-// — pa je polje za upis nalijegalo na red serija, linija uz liniju.
-.log-form {
-  margin-top: var(--s-3);
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
+// Rezultat se u teretani kuca STOJEĆI, jednom rukom, znojavim palcem, između
+// dvije serije. Sitna polja u jednom redu (Markova prijava: dropset i izmjena
+// serije su se gađali prstom) zamijenjena su ostrvom: forma se pri otvaranju
+// tečno RAŠIRI u krupan unos — polje 52px, cifre 20px, steperi ± od 44px — a
+// čim je upisano, skupi se nazad.
+//
+// Sva tri unosa (glavna serija, izmjena serije, dropset) dijele OVU osnovu:
+// iste mjere, isti pokret, jedno mjesto za izmjenu.
+//
+// Ulazak i izlazak nose DVIJE animacije u istom taktu:
+//   - razliv/sip na samom ostrvu (squash & stretch), i
+//   - `max-height` + padding, koji vode njegov ZAUZETI PROSTOR — bez toga bi
+//     susjedi (pilule, dugme „Trening gotov") skočili na svako otvaranje.
+
+.io {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   gap: var(--s-2);
+  padding: var(--s-3);
+
+  background: var(--carbon);
+  border: 1px solid var(--volt-a40);
+  border-radius: var(--r-md);
+  box-shadow: var(--lift-1);
+
+  // Prostor koji ostrvo zauzima ide do ove granice; sve iznad bi se odsjeklo,
+  // pa je namjerno postavljena visoko (vidi --io-max).
+  max-height: var(--io-max);
+  overflow: hidden;
+
+  animation: island-splash 520ms var(--ease-spring) both,
+             io-grow 460ms var(--ease-spring) both;
+  transform-origin: left top;
 }
 
-// Kilaža i ponavljanja su JEDNA flex ćelija, a ne dvije grid kolone.
-//
-// Bodyweight vježba skuplja polje kilaže na čip „BW"; da su to dvije grid
-// kolone, oslobođeni prostor bi ostao prazan između čipa i ponavljanja jer se
-// `grid-template-columns` ne može tečno animirati. Ovako ponavljanja rastu sama
-// od sebe, kroz flex — kontinuirano i bez skoka.
-.log-fields {
+// Morf iz pilule: prostor ne kreće od nule nego od visine pilule, pa izgleda
+// kao da se SAMA pilula raširila — bez skoka na mjestu gdje je stajala.
+.io.morph { animation: island-splash 520ms var(--ease-spring) both,
+                       io-morph 460ms var(--ease-spring) both; }
+
+@keyframes io-grow {
+  from { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: .2; }
+  to   { max-height: var(--io-max); padding-top: var(--s-3); padding-bottom: var(--s-3); opacity: 1; }
+}
+
+@keyframes io-morph {
+  from { max-height: 38px; padding-top: var(--s-1); padding-bottom: var(--s-1); }
+  to   { max-height: var(--io-max); padding-top: var(--s-3); padding-bottom: var(--s-3); }
+}
+
+// Skupljanje: isti jezik unazad. Komponenta drži `closing` stanje tačno
+// koliko traje ova animacija (IO_CLOSE_MS), pa se tek onda uklanja iz DOM-a.
+.io.closing {
+  pointer-events: none;
+  animation: island-sip 460ms var(--ease-spring) both,
+             io-collapse 460ms var(--ease) both;
+}
+.io.morph.closing {
+  animation: island-sip 460ms var(--ease-spring) both,
+             io-unmorph 460ms var(--ease) both;
+}
+
+@keyframes io-collapse {
+  from { max-height: var(--io-max); opacity: 1; }
+  60%  { opacity: .25; }
+  to   { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+}
+
+// Nazad u pilulu: prostor se skuplja na njenu visinu, pa je pilula preuzme
+// svojom `set-in` animacijom — spoj se ne vidi.
+@keyframes io-unmorph {
+  from { max-height: var(--io-max); opacity: 1; }
+  60%  { opacity: .3; }
+  to   { max-height: 38px; padding-top: var(--s-1); padding-bottom: var(--s-1); opacity: 0; }
+}
+
+// Mastilo: kap krene iz TAČKE DODIRA („Upiši", pilula, „+") i razlije se kroz
+// ostrvo. `--ink-x` postavlja komponenta (`inkAt`); bez nje kap kreće s lijeva.
+.io::after {
+  content: '';
+  position: absolute;
+  left: var(--ink-x, 28px);
+  top: 8px;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  pointer-events: none;
+  animation: io-ink 560ms var(--ease-out) both;
+}
+.io.closing::after { animation: io-ink-back 420ms var(--ease) both; }
+
+@keyframes io-ink {
+  from { transform: scale(0);  opacity: .9; }
+  to   { transform: scale(30); opacity: 0;  }
+}
+@keyframes io-ink-back {
+  from { transform: scale(24); opacity: 0;  }
+  45%  { opacity: .3; }
+  to   { transform: scale(0);  opacity: .8; }
+}
+
+// Talas sadržaja: redovi ostrva izranjaju odozdo, jedan za drugim.
+.io > *      { animation: ch-rise 300ms var(--ease-spring) both; }
+.io > *:nth-child(1) { animation-delay:  70ms; }
+.io > *:nth-child(2) { animation-delay: 160ms; }
+.io > *:nth-child(3) { animation-delay: 250ms; }
+.io.closing > *      { animation: none; }
+
+// --- Zaglavlje ostrva ------------------------------------------------------
+
+.io-head {
   display: flex;
   align-items: center;
   gap: var(--s-2);
+  min-height: 16px;
+}
+.io-head .both-tag { margin-left: 0; }
+.io-head .set-n { min-width: 0; }
+
+.io-title {
+  font-family: var(--font-data);
+  font-size: var(--t-2xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--mist);
+  white-space: nowrap;
+}
+
+// --- Polja -----------------------------------------------------------------
+//
+// Jedan slot = [−] [polje] [+]. Kilaža i ponavljanja stoje jedno pored drugog
+// dok ima mjesta, a na telefonu se PRELOME jedno ispod drugog — na 390px za
+// dva slota sa steperima nema mjesta (svaki bi dobio 147px, a sam par dugmadi
+// i razmaci pojedu 96px).
+.io-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s-2);
   min-width: 0;
 }
-.log-fields > .field { flex: 1 1 0; min-width: 0; }
 
-// Kroz max() OBAVEZNO — polje ispod 16px na dodirnom ekranu tjera iOS da
-// zumira cijelu stranicu. Ista veličina koju daje i globalno pravilo.
-.log-fields input { font-size: max(var(--t-base), var(--t-field-min)); }
+// `flex-basis` je PRAG PRELAMANJA (ne stvarna širina): dva slota od 190px ne
+// stanu u ostrvo izmjene (~256px), pa svaki dobije svoj red; u širokom ostrvu
+// stanu jedan pored drugog. `min-width: 0` dozvoljava da slot sam na redu bude
+// i uži od praga.
+.io-slot {
+  flex: 1 1 190px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
 
-.field { position: relative; margin: 0; }
-.field input { padding-right: var(--s-10); }
+// Osnova 60px, ne `auto`: prazan `<input>` ima sopstvenu prirodnu širinu od
+// ~20 znakova, pa bi sa `auto` slot mislio da mu treba ~280px i izbacio dugme
+// „+" u novi red. Sa malom osnovom polje jednostavno popuni ostatak reda.
+.io .field {
+  position: relative;
+  flex: 1 1 60px;
+  min-width: 0;
+  margin: 0;
+}
 
-.field .unit {
+// Jedinica ostaje DESNO u polju, tačno gdje je i bila prije ostrva — forma
+// mora ostati prepoznatljiva kao ista forma, samo krupnija.
+.io .field .unit {
   position: absolute;
   right: var(--s-3);
+  left: auto;
   top: 50%;
   transform: translateY(-50%);
   font-family: var(--font-data);
@@ -720,11 +868,178 @@ $branch-indent: 16px;
   pointer-events: none;
 }
 
-// Duh se vidi i u samom polju, kao placeholder.
-.log-form input::placeholder {
+.io .field input {
+  width: 100%;
+  min-height: var(--io-h);
+  // Simetrično, da broj stoji na sredini polja a jedinica desno u svom kutku.
+  padding: 0 var(--s-8);
+  background: var(--carbon-high);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--ice);
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  // Krupnije cifre — ali OBAVEZNO kroz max(): polje ispod 16px na dodirnom
+  // ekranu tjera iOS da zumira cijelu stranicu, i ne vrati zum nazad.
+  font-size: max(var(--io-num), var(--t-field-min));
+  text-align: center;
+}
+
+.io .field input::placeholder {
   color: var(--echo);
   font-weight: 600;
 }
+
+// Fokus se MORA ponoviti ovdje: globalno pravilo (`input:focus`) je slabije od
+// selektora ostrva, pa bi bez ovoga polje u koje se kuca ostalo bez oznake.
+.io .field input:focus {
+  background: var(--carbon);
+  border-color: var(--volt);
+  box-shadow: 0 0 0 3px var(--volt-a10);
+}
+
+// Vrijednost promijenjena steperom kratko poskoči — da se vidi da je dugme
+// stvarno nešto uradilo, i kad se gleda krajičkom oka.
+.io .field.pop input { animation: io-pop 280ms var(--ease-spring); }
+
+@keyframes io-pop {
+  0%   { transform: scale(1);    }
+  35%  { transform: scale(1.07); }
+  100% { transform: scale(1);    }
+}
+
+// --- Steperi ± -------------------------------------------------------------
+//
+// Kilaža ide po 2,5 kg (najmanji par tanjira), ponavljanja po 1; držanje
+// ponavlja korak. Dugmad stoje UZ polje (lijevo/desno), ne kao zaseban pun
+// red — tanka ivica bez pune podloge, da pomažu a ne da viču.
+.io-btn {
+  flex: none;
+  width: var(--io-btn);
+  min-height: var(--io-h);
+  display: grid;
+  place-items: center;
+
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  // Bez ovoga dugi pritisak na telefonu izabere tekst i otvori lupu.
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+.io-btn .material-icons { font-size: 18px; }
+.io-btn:hover { border-color: var(--volt-a40); color: var(--volt); }
+.io-btn:active {
+  background: var(--volt-a10);
+  border-color: var(--volt-a40);
+  color: var(--volt);
+}
+
+// U koloni jedne ruke (~120px) [−][polje][+] ne staje u jedan red: polje ide
+// gore preko cijele kolone (`order: -1`), dugmad u red ispod — kompaktnija
+// (38px), ali i dalje pola kolone široka, što je više nego dovoljno za palac.
+.side-half .io-slot > .field { flex: 1 0 100%; order: -1; }
+.side-half .io-btn { flex: 1 1 0; width: auto; min-height: 38px; }
+.side-half .io .field input { padding: 0 var(--s-5) 0 var(--s-3); }
+.side-half .io .field .unit { right: var(--s-1); }
+
+// Dugmad ostrva u koloni: niža i uža, da „Otkaži" i korpa stanu u isti red
+// ispod „Sačuvaj" umjesto da svako uzme svoj.
+.side-half .io-save,
+.side-half .io-cancel { min-height: 40px; padding: 0 var(--s-2); }
+.side-half .io-del { width: 40px; min-height: 40px; }
+
+// Grana ka ostrvu dropseta je u koloni upola uža — tih 8px je razlika između
+// stepera od 35px i stepera od 39px, a grana se i dalje jasno vidi.
+.side-half .set-group .dropset-form { margin-left: 8px; max-width: calc(100% - 8px); }
+.side-half .set-group .dropset-form::before { left: -8px; width: 8px; }
+
+// --- Dugmad ostrva ---------------------------------------------------------
+
+.io-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.io-save {
+  // Osnova manja od stvarne širine dugmeta, da mu „Otkaži" i korpa stanu u
+  // isti red umjesto da svako padne u svoj.
+  flex: 1 1 90px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: var(--io-h);
+  padding: 0 var(--s-4);
+
+  background: var(--volt-fill);
+  border-radius: var(--r-sm);
+  color: var(--volt-ink);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.io-save .material-icons { font-size: 19px; }
+
+.io-cancel {
+  flex: 0 1 auto;
+  min-height: var(--io-h);
+  padding: 0 var(--s-4);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--mist);
+  white-space: nowrap;
+}
+.io-cancel:hover { color: var(--ice); border-color: var(--volt-a40); }
+
+.io-del {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--io-h);
+  min-height: var(--io-h);
+  border: 1px solid var(--ember-a30);
+  border-radius: var(--r-sm);
+  color: var(--ember);
+}
+.io-del:hover { background: var(--ember-a15); }
+
+@media (prefers-reduced-motion: reduce) {
+  .io, .io.morph, .io.closing, .io.morph.closing,
+  .io > *, .io .field.pop input { animation: none; transition: none; }
+  .io::after { display: none; }
+}
+
+// --- Upis serije -----------------------------------------------------------
+
+// Razmak od reda sa upisanim serijama.
+//
+// `.sets` ima svoju gornju marginu i liniju, ali `.log-form` nije imao nijednu
+// — pa je polje za upis nalijegalo na red serija, linija uz liniju.
+.log-form { margin-top: var(--s-3); }
+
+// Kilaža i ponavljanja su JEDNA flex ćelija, a ne dvije grid kolone.
+//
+// Bodyweight vježba skuplja polje kilaže na čip „BW"; da su to dvije grid
+// kolone, oslobođeni prostor bi ostao prazan između čipa i ponavljanja jer se
+// `grid-template-columns` ne može tečno animirati. Ovako ponavljanja rastu sama
+// od sebe, kroz flex — kontinuirano i bez skoka.
+.log-fields { min-width: 0; }
+
+// Prag prelamanja glavne forme: 300px po slotu. Na telefonu (ostrvo ~302px
+// unutra) dva takva slota ne stanu u red, pa kilaža i ponavljanja idu jedno
+// ispod drugog — svako preko cijele širine, sa čipom i steperima u SVOM redu.
+// Na širokom ekranu (≥ ~660px unutar ostrva) stoje jedno pored drugog, kao i
+// do sada. Prag je namjerno u px, ne u %: kad se slot kilaže skupi na čip,
+// prag ostaje 300px pa ponavljanja NE skoče gore u isti red.
+.log-fields > .io-slot { flex: 1 1 300px; min-width: 0; }
+
+.field { position: relative; margin: 0; }
 
 // --- Bodyweight: čip „BW" i polje koje se razliva iz njega -----------------
 //
@@ -736,12 +1051,15 @@ $branch-indent: 16px;
 // pogađanja krajnje širine kao kod `max-width`), a čip ostaje vidljiv jer
 // `min-width` slota ne pada ispod njegove širine.
 
+// Slot kilaže je i sam ostrvska ćelija: [BW] [−] [polje] [+] u jednom redu.
+// Skupljanje na čip ide kroz BROJEVE (`flex-grow`, `flex-basis`, `max-width`),
+// pa se sve interpolira glatko i bez pogađanja krajnje širine.
 .weight-slot {
   position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--s-2);
-  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -754,20 +1072,53 @@ $branch-indent: 16px;
   // Čip ne smije da se stisne ispod svoje širine kad slot prestane da raste.
   min-width: 46px;
   transition: flex-grow 460ms var(--ease-spring),
+              flex-basis 460ms var(--ease-spring),
               gap var(--d-slow) var(--ease);
 }
 
 .weight-slot.bw > .field {
-  transition: opacity var(--d-base) var(--ease);
+  transition: opacity var(--d-base) var(--ease),
+              flex-grow 460ms var(--ease-spring);
 }
 
-// Čip je uzeo dio širine reda, pa jedinica „kg" ne treba pun razmak koji polje
-// inače ostavlja za nju — na uskom telefonu bi za kucanje ostalo premalo.
-.weight-slot.bw > .field input { padding-right: var(--s-6); }
-.weight-slot.bw > .field .unit { right: var(--s-2); }
+.weight-slot.bw > .io-btn {
+  transition: max-width 460ms var(--ease-spring),
+              opacity var(--d-base) var(--ease),
+              border-width var(--d-slow) var(--ease);
+  max-width: var(--io-btn);
+}
 
-.weight-slot.bw.plain { flex-grow: 0; gap: 0; }
-.weight-slot.bw.plain > .field { opacity: 0; pointer-events: none; }
+// „Čist BW": kilaže nema, pa se skuplja SVE osim čipa — i sam slot (da na
+// širokom ekranu ponavljanja preuzmu oslobođeni prostor, kao i do sada), i
+// polje, i steperi. Ništa se ne uklanja iz DOM-a, pa prelaz ima pokret u oba
+// smjera.
+// Čist BW: slot se skuplja na čip + tihi natpis. Skriveni elementi moraju
+// izgubiti i VISINU, ne samo širinu — sa flex-wrap su se inače prelamali u
+// nevidljive redove pune visine i ostavljali ogromnu prazninu ispod čipa
+// (Markov bw_off.jpg).
+// Čist BW: čip USKAČE u red ponavljanja — jedan jedini red
+// [BW][−][Ponavljanja][+], bez zasebnog reda i bez teksta (Markova dorada).
+.io-fields.bw-plain { flex-wrap: nowrap; }
+.io-fields.bw-plain > .weight-slot.bw.plain { flex: 0 0 auto; }
+.io-fields.bw-plain > .io-slot { flex: 1 1 0; min-width: 0; }
+
+.weight-slot.bw.plain { gap: 0; }
+.weight-slot.bw.plain > .field,
+.weight-slot.bw.plain > .io-btn {
+  flex-basis: 0;
+  max-width: 0;
+  min-width: 0;
+  width: 0;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 
 .bw-chip {
   flex: none;
@@ -775,7 +1126,8 @@ $branch-indent: 16px;
   align-items: center;
   justify-content: center;
   width: 46px;
-  min-height: 44px;
+  // Ista visina kao polje ostrva — čip i polje stoje u ravni, ne stepenasto.
+  min-height: var(--io-h);
 
   background: var(--carbon-high);
   border: 1px dashed var(--line-strong);
@@ -832,13 +1184,16 @@ $branch-indent: 16px;
 }
 .weight-slot.sip::after { animation: ink-retreat 420ms var(--ease); }
 
-// Sadržaj izranja talasom — polje kilaže dolazi odozdo, korak iza kapi.
+// Sadržaj izranja talasom — polje kilaže dolazi odozdo, korak iza kapi, a
+// steperi korak iza polja.
 .weight-slot.bloom > .field { animation: ch-rise 260ms var(--ease-spring) 120ms both; }
+.weight-slot.bloom > .io-btn { animation: ch-rise 260ms var(--ease-spring) 190ms both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .weight-slot.bw, .weight-slot.bw > .field, .bw-chip,
+  .weight-slot.bw, .weight-slot.bw > .field, .weight-slot.bw > .io-btn, .bw-chip,
   .weight-slot.bloom, .weight-slot.sip,
-  .weight-slot.bloom > .field { transition: none; animation: none; }
+  .weight-slot.bloom > .field,
+  .weight-slot.bloom > .io-btn { transition: none; animation: none; }
   .weight-slot::after { display: none; }
 }
 
@@ -864,12 +1219,6 @@ $branch-indent: 16px;
   display: flex;
   justify-content: flex-end;
   gap: var(--s-3);
-}
-
-@media (max-width: 520px) {
-  .log-form { grid-template-columns: 1fr; }
-  .set-label { grid-column: 1 / -1; }
-  .log-form .save-log-btn { grid-column: 1 / -1; }
 }
 
 // --- Lični rekord ----------------------------------------------------------

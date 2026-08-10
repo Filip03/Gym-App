@@ -1,0 +1,37 @@
+<!-- Splash: ASCII more preko cijelog ekrana iz kojeg izranja identitet.
+     Klik/dodir bilo gdje preskače na login (vidi skip() u komponenti). -->
+<div class="landing" [class.leaving]="fadeOut" (click)="skip()">
+
+  <!-- Talas-polje: SAMO dva tekstualna čvora, prepisuju se svakih ~33 ms.
+       `.deep` nosi mirnu vodu, `.crest` samo grebene u volt boji; lenjir mjeri
+       stvarnu širinu znaka da bi mreža bila tačna i kad font zakasni. -->
+  <div class="field" #field aria-hidden="true">
+    <span class="ruler" #ruler>MMMMMMMMMMMMMMMMMMMM</span>
+    <pre class="glyphs deep" #deep></pre>
+    <pre class="glyphs crest" #crest></pre>
+  </div>
+
+  <!-- Zatamnjenje u centru i po ivicama: identitet mora da se čita preko mora. -->
+  <div class="veil" aria-hidden="true"></div>
+
+  <div class="identity">
+
+    <div class="mark-wrap">
+      <!-- Logo prati temu — svijetla ima svoju varijantu. -->
+      <img class="mark" alt="Jeba"
+           [src]="theme.isLight ? 'assets/logo_light_mode.png' : 'assets/logo.png'">
+    </div>
+
+    <!-- Tekst upisuje komponenta (dekodiranje iz šuma), pa je za čitače ekrana
+         pravo značenje na aria-label-u. -->
+    <p class="tagline" role="img" [attr.aria-label]="tagline">
+      <span class="lead" #lead aria-hidden="true"></span><span class="tail" #tail aria-hidden="true"></span>
+    </p>
+
+    <p class="readout" aria-hidden="true">
+      <span class="label">ZAGRIJAVANJE</span>
+      <span class="meter" #meter></span>
+    </p>
+
+  </div>
+</div>
