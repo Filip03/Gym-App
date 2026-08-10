@@ -4085,3 +4085,7 @@ prelamali u nevidljive redove i ostavljali ogromnu prazninu ispod čipa. Sada
 u čistom BW gube i visinu (flex-basis/height/margin/padding 0), red je 46px:
 čip + tihi natpis „tjelesna težina — dodir na BW dodaje teg", a ponavljanja
 odmah ispod.
+
+**Dopuna istog dana — čist BW u jednom redu (Markova dorada):** čip pri
+čistom BW USKAČE u red ponavljanja — `[BW][−][Ponavljanja][+]` — umjesto
+zasebnog reda sa natpisom; natpis uklonjen (`io-fields.bw-plain` nowrap).

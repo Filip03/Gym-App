@@ -1083,7 +1083,13 @@ $branch-indent: 16px;
 // izgubiti i VISINU, ne samo širinu — sa flex-wrap su se inače prelamali u
 // nevidljive redove pune visine i ostavljali ogromnu prazninu ispod čipa
 // (Markov bw_off.jpg).
-.weight-slot.bw.plain { flex: 1 1 auto; gap: 0 var(--s-2); }
+// Čist BW: čip USKAČE u red ponavljanja — jedan jedini red
+// [BW][−][Ponavljanja][+], bez zasebnog reda i bez teksta (Markova dorada).
+.io-fields.bw-plain { flex-wrap: nowrap; }
+.io-fields.bw-plain > .weight-slot.bw.plain { flex: 0 0 auto; }
+.io-fields.bw-plain > .io-slot { flex: 1 1 0; min-width: 0; }
+
+.weight-slot.bw.plain { gap: 0; }
 .weight-slot.bw.plain > .field,
 .weight-slot.bw.plain > .io-btn {
   flex-basis: 0;
@@ -1100,24 +1106,6 @@ $branch-indent: 16px;
   pointer-events: none;
 }
 
-// Umjesto praznine: tihi natpis uz čip — kaže ZAŠTO nema polja za kilažu.
-.bw-note {
-  display: none;
-  min-width: 0;
-  font-size: var(--t-xs);
-  color: var(--dust);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.weight-slot.bw.plain .bw-note {
-  display: block;
-  flex: 1 1 auto;
-  animation: ch-rise 260ms var(--ease-spring) 120ms backwards;
-}
-@media (prefers-reduced-motion: reduce) {
-  .weight-slot.bw.plain .bw-note { animation: none; }
-}
 
 .bw-chip {
   flex: none;

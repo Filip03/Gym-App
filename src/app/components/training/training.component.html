@@ -579,7 +579,8 @@
              red pa, kad se kilaža skupi u čip „BW", ponavljanja tečno preuzmu
              oslobođeni prostor; na telefonu (gdje za dva polja sa steperima
              nema mjesta) svako ima svoj red, a čip i steperi ostaju uz kilažu. -->
-        <div class="log-fields io-fields">
+        <div class="log-fields io-fields"
+             [class.bw-plain]="ex.isBodyweight && !ex.showWeightInput">
 
           <!-- Bodyweight vježba: čip prebacuje između „čistog BW" (u bazu ide
                0) i „BW + teg". Polje se NE uklanja iz DOM-a nego skuplja, da
@@ -596,9 +597,6 @@
                                : 'Dodaj teg uz tjelesnu težinu'"
                     (click)="toggleBodyweightWeight(ex)">BW</button>
 
-            <!-- Umjesto praznine pored čipa: zašto nema polja za kilažu. -->
-            <span class="bw-note" *ngIf="ex.isBodyweight"
-                  aria-hidden="true">tjelesna težina — dodir na BW dodaje teg</span>
 
             <!-- U stanju „čist BW" steperi kilaže nemaju šta da mijenjaju —
                  skupljaju se zajedno sa poljem, u istom pokretu kao i ono. -->
