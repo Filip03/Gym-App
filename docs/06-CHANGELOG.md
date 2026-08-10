@@ -3829,3 +3829,81 @@ trzaj cijelog UI-ja uklonjen u potpunosti (klasa, tajmer, stil u _base.scss —
 u kućnom jeziku: izranja uz squash & stretch spring (320ms), iza nje se
 razlije kap mastila (`msg-box::before`), a odlazi rasplivom — razvuče se i
 potone u prozirnost (260ms) umjesto tvrdih rezova.
+
+## [2026-08-10] iPhone PWA: sistemski gest više ne navigira, aplikacija se vraća gdje je stala, splash samo pri prvom otvaranju
+
+Markova prijava: usred treninga izađe iz PWA ili zaključa ekran, a pri povratku
+osvane na dashboardu ili leaderboardu. Dva uzroka, tri povezane popravke.
+
+### 1. Futer ne smije da navigira na iOS sistemski gest
+
+Gest izlaska iz PWA kreće uvis sa donje ivice ekrana — tačno preko futera.
+
+**Kupola** (`footer.component.ts`):
+- `pointercancel` više ne dijeli tok sa `pointerup`: novi `onCancel`
+  (`footer.component.ts:467`) NIKAD ne zove router — tjeme se oprugom vrati na
+  aktivni slot (van doka: na sredinu), a eventualni procureli `click` se
+  proguta. Ranije je prekid pokazivača prolazio kroz `onUp` i „birao" stavku.
+- Prag za početak prevlačenja (`onMove`, `footer.component.ts:384`): sa 5px
+  bilo kakvog pomaka podignut na ~12px PRETEŽNO VODORAVNOG (`|dx| > |dy|·1,4`;
+  prati se i `clientY`). Pretežno vertikalan pokret (≥12px) pušta praćenje
+  (`abandonDrag`, `footer.component.ts:484`) — skrol ili sistemski gest, ne
+  prevlačenje po doku.
+- **offDock stanje** (`footer.component.ts:104`): za rute van stavki doka
+  (npr. `/training`) `activeIndex()` vraća -1, a tjeme je ranije sjedalo na
+  slot 0 (`/dashboard`) — pa je svaki „snap" vodio tamo. Sada: tjeme miruje na
+  SREDINI luka (`restSlot()` = 2,5, između ikona — bez ležišta na ikoni), i u
+  `initDock` i preko NavigationEnd pretplate. Prevlačenje van doka navigira
+  SAMO ako se završi na stavci (`onUp`: puštanje na < pola slota od sredine →
+  opruga nazad, bez routera; isto i za puštanje na slotu odjave kad nema
+  aktivne rute).
+
+**Klasični futer** (`footer.component.html:20` `#flat` +
+`footer.component.ts:550-611`): između `pointerdown` i `pointerup` mjeri se
+pomjeraj; preko ~10px (vertikalni je upravo početak sistemskog gesta) →
+`click` se guta u capture fazi prije RouterLink-a — isti obrazac kao
+`suppressClick` u kupoli. Tap bez pomjeranja prolazi netaknut.
+
+### 2. Pamćenje i vraćanje posljednje rute
+
+Novi servis `src/app/services/last-route.service.ts` — localStorage ključ
+`gymapp.lastRoute.<userId>`, sadržaj `{ url, ts }`:
+- `remember(url, userId)` — piše SAMO rute sa bijele liste (/dashboard,
+  /exercices, /leaderboard, /profiles, /blog, /news, /training), url CIO — sa
+  query parametrima (`?date=` ostaje). Nikad `/`, `/login`, `/register`.
+  Poziva se iz postojeće NavigationEnd pretplate u `app.component.ts:63-64`
+  (userId iz AuthService; bez korisnika nema upisa).
+- `consume(userId)` — vrati url ako je svjež, inače null (bajat zapis obriše).
+  Svježina: `/training` BEZ `?date` („današnji trening") važi samo ako je
+  zapis od DANAS (isti kalendarski dan, lokalno) I mlađi od `LIVE_WINDOW_H`
+  (4h, import iz `shared/warmup-grace.ts` — ista granica kao „trenira sada");
+  `/training` SA `?date` i sve ostale rute: 2 sata.
+- Čita ga `landing.component.ts` u `leave()`: prijavljen korisnik ide na
+  `consume()` url preko `navigateByUrl` (query preživi), tek ako nema svježeg
+  zapisa na `/dashboard`. `guestGuard` netaknut.
+- `signOut` u futeru (`footer.component.ts:613`) briše zapis korisnika — druga
+  prijava na istom telefonu ne osviće na tuđem ekranu.
+
+### 3. Splash samo pri prvom otvaranju
+
+iOS pri svakom relaunch-u PWA kreće od start_url `/` — pun „pljesak krede" od
+3,1s svirao je i poslije običnog zaključavanja ekrana.
+
+- `landing.component.ts`: marker `gymapp.splashSeen = ts` u **localStorage-u
+  sa pragom od 6h** (`SPLASH_FRESH_MS`) — namjerno NE sessionStorage: kad iOS
+  ubije proces PWA, sessionStorage se briše, pa bi povratak opet imao pun
+  splash. Pun splash samo kad zapisa nema ili je stariji od 6h; inače KRATKI:
+  `quick = true`, tajmeri `T_EXIT_SHORT = 240ms` / `T_LEAVE_SHORT = 620ms`
+  (~600ms ukupno) kroz POSTOJEĆI `fadeOut`/`.leaving` tok pretapanja.
+- `landing.component.scss` `.landing.quick`: bez oblaka krede i prstena, logo
+  izroni skraćenim squash & stretch (280ms), natpis i traka odmah za petama
+  (rise 240ms), traka puna od starta. U `prefers-reduced-motion` bloku dodate
+  i `.quick` varijante (konkretniji selektor bi inače pregazio gašenje) —
+  smanjen pokret i dalje gasi SVE.
+- `landing.component.html`: `[class.quick]="quick"` na `.landing`.
+
+**Efekat:** izlazak/zaključavanje usred treninga → povratak za ~0,6s pravo na
+`/training` (sa datumom ako je bio otvoren), bez lažne navigacije futera.
+
+**Build:** `ng build --configuration development` prolazi; jedine dvije
+poruke su zatečena NG8107 upozorenja u training templateu.

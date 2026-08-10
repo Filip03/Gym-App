@@ -15,7 +15,9 @@
 -->
 
 <!-- 1) KLASIČNI ------------------------------------------------------------ -->
-<nav class="footer" *ngIf="!dome">
+<!-- #flat: komponenta na njemu mjeri pomjeraj između down i up — klik koji je
+     zapravo bio početak iOS sistemskog gesta (pomak >10px) se proguta. -->
+<nav class="footer" #flat *ngIf="!dome">
     <a routerLink="/dashboard" routerLinkActive="on" aria-label="Planovi">
         <i class="material-icons">home</i>
     </a>
