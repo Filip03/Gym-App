@@ -107,20 +107,44 @@
     </span>
   </button>
 
-  <span class="rx-addwrap">
-    <button type="button" class="rx-add" [class.open]="paletteFor === item.id"
-            (click)="togglePalette(item, $event)" aria-label="Dodaj reakciju">
-      <i class="material-icons">add_reaction</i>
-    </button>
-    <span class="rx-pal" *ngIf="paletteFor === item.id"
-          [class.closing]="paletteClosing" (click)="$event.stopPropagation()">
-      <button type="button" class="rx-p"
-              *ngFor="let k of reactionKinds; let i = index"
-              [style.animation-delay.ms]="paletteClosing ? 0 : 40 + i * 35"
-              (click)="toggleReaction(item, k, $event)">{{ k }}</button>
-    </span>
-  </span>
+  <button type="button" class="rx-add" [class.open]="paletteItem?.id === item.id"
+          (click)="togglePalette(item, $event)" aria-label="Dodaj reakciju">
+    <i class="material-icons">add_reaction</i>
+  </button>
 </ng-template>
+
+<!-- Paleta reakcija — JEDNA, fiksna uz dodirnuto [+], IZNAD svega (kartica ju
+     je sjekla kroz overflow). Pet brzih + custom: bilo koji emoji. -->
+<div class="rx-pal" *ngIf="paletteItem"
+     [class.closing]="paletteClosing" [class.down]="!paletteUp"
+     [style.left.px]="paletteX" [style.top.px]="paletteY"
+     (click)="$event.stopPropagation()">
+  <button type="button" class="rx-p"
+          *ngFor="let k of reactionKinds; let i = index"
+          [style.animation-delay.ms]="paletteClosing ? 0 : 40 + i * 35"
+          (click)="toggleReaction(paletteItem, k, $event)">{{ k }}</button>
+
+  <button type="button" class="rx-p rx-more" *ngIf="!customOpen"
+          [style.animation-delay.ms]="paletteClosing ? 0 : 40 + reactionKinds.length * 35"
+          (click)="customOpen = true; $event.stopPropagation()"
+          aria-label="Bilo koji emoji">
+    <i class="material-icons">keyboard</i>
+  </button>
+
+  <input class="rx-custom" *ngIf="customOpen" #customInput
+         [(ngModel)]="customEmoji" (keydown.enter)="submitCustomEmoji($event)"
+         (blur)="customEmoji && submitCustomEmoji($event)"
+         placeholder="😎" maxlength="8" autofocus
+         aria-label="Unesi bilo koji emoji">
+</div>
+
+<!-- ASCII/emoji prskalica na dodatu reakciju — glifovi prsnu iz tačke dodira. -->
+<div class="rx-burst" *ngIf="burst" [style.left.px]="burst.x" [style.top.px]="burst.y">
+  <span class="rx-bit" *ngFor="let p of burst.parts"
+        [class.big]="p.big"
+        [style.--dx]="p.dx" [style.--dy]="p.dy" [style.--rot]="p.rot"
+        [style.animation-delay.ms]="p.delay">{{ p.ch }}</span>
+</div>
 
 <!-- Pregled -->
 <div class="lb" *ngIf="selectedItem as item" (click)="closeLightbox()"

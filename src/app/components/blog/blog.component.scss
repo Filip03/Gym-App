@@ -530,7 +530,12 @@
 }
 .post-rx > * { pointer-events: auto; }
 
+// HOLOGRAM balončić (Markov „tony stark" registar): staklo sa gradijentnim
+// volt→cijan rubom (dvoslojni background trik), skanline pruge preko, blik
+// koji klizne pri rađanju, i materijalizacija sa treperenjem (steps).
 .rx-b {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -538,24 +543,57 @@
   padding: 3px 9px;
   border-radius: 999px;
 
-  background: color-mix(in srgb, var(--carbon) 82%, transparent);
-  backdrop-filter: blur(10px) saturate(1.15);
-  -webkit-backdrop-filter: blur(10px) saturate(1.15);
-  border: 1px solid var(--line-strong);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(color-mix(in srgb, var(--carbon) 86%, transparent),
+                    color-mix(in srgb, var(--carbon) 86%, transparent)) padding-box,
+    linear-gradient(115deg, var(--volt-a40), rgba(96, 220, 255, .55) 45%, var(--volt-a40)) border-box;
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
   color: var(--ice);
   cursor: pointer;
 
-  animation: rx-pop 420ms var(--ease-spring) both;
-  transition: border-color var(--d-fast) var(--ease),
-              background-color var(--d-fast) var(--ease),
+  animation:
+    rx-pop     480ms var(--ease-spring) both,
+    rx-flicker 420ms steps(7) both;
+  transition: box-shadow var(--d-fast) var(--ease),
               transform var(--d-fast) var(--ease);
 }
 .rx-b:active { transform: scale(.93); }
 
-// Moja reakcija — volt rub, da se odmah vidi šta sam ja dao.
+// Skanline pruge — hologramska tekstura preko stakla.
+.rx-b::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: repeating-linear-gradient(
+    0deg, transparent 0 2px, rgba(96, 220, 255, .06) 2px 3px);
+}
+
+// Blik koji klizne preko pri rađanju (i na hover) — svjetlo preko holograma.
+.rx-b::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -60%;
+  width: 45%;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, .20), transparent);
+  transform: skewX(-18deg);
+  animation: rx-sweep 900ms var(--ease-out) 160ms both;
+}
+.rx-b:hover::after { animation: rx-sweep 700ms var(--ease-out) both; }
+
+// Moja reakcija — puni sjaj: jači rub + spoljni glow.
 .rx-b.on {
-  border-color: var(--volt-a40);
-  background: color-mix(in srgb, var(--volt-a10) 60%, var(--carbon));
+  background:
+    linear-gradient(color-mix(in srgb, var(--volt-a10) 55%, var(--carbon)),
+                    color-mix(in srgb, var(--volt-a10) 55%, var(--carbon))) padding-box,
+    linear-gradient(115deg, var(--volt), rgba(96, 220, 255, .8) 45%, var(--volt)) border-box;
+  box-shadow: 0 0 14px -5px var(--volt-a40), 0 0 20px -9px rgba(96, 220, 255, .6);
 }
 
 .rx-e { font-size: 15px; line-height: 1; }
@@ -581,8 +619,6 @@
   animation: rx-rise 260ms var(--ease-spring) both;
 }
 
-.rx-addwrap { position: relative; display: inline-flex; }
-
 .rx-add {
   display: grid;
   place-items: center;
@@ -598,51 +634,133 @@
   cursor: pointer;
   transition: color var(--d-fast) var(--ease),
               border-color var(--d-fast) var(--ease),
+              box-shadow var(--d-fast) var(--ease),
               transform var(--d-fast) var(--ease);
 }
 .rx-add .material-icons { font-size: 16px; }
 .rx-add:active { transform: scale(.93); }
-.rx-add.open { color: var(--volt); border-color: var(--volt-a40); }
+.rx-add.open {
+  color: var(--volt);
+  border-color: var(--volt-a40);
+  box-shadow: 0 0 12px -4px rgba(96, 220, 255, .5);
+}
 
-// Paleta se razlije IZ dugmeta (transform-origin dolje-lijevo), emoji ulaze
-// talasom; zatvaranje je isto to unazad (closing drži komponenta).
+// Paleta — JEDNA, fiksna uz dodirnuto [+], IZNAD SVEGA (z 400 > futer 340 >
+// pregled profila 300). Hologramsko staklo sa volt→cijan rubom; razlije se
+// iz ugla dugmeta (origin dolje-lijevo, ili gore-lijevo kad je `down`),
+// emoji izranjaju talasom. Visina ~50px je uračunata u sidro (TS).
 .rx-pal {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + 8px);
-  z-index: 3;
+  position: fixed;
+  z-index: 400;
   display: flex;
+  align-items: center;
   gap: 2px;
-  padding: 5px;
+  padding: 6px;
   border-radius: 999px;
 
-  background: color-mix(in srgb, var(--carbon) 90%, transparent);
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
-  border: 1px solid var(--line-strong);
-  box-shadow: var(--lift-3);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(color-mix(in srgb, var(--carbon) 92%, transparent),
+                    color-mix(in srgb, var(--carbon) 92%, transparent)) padding-box,
+    linear-gradient(115deg, var(--volt-a40), rgba(96, 220, 255, .55) 45%, var(--volt-a40)) border-box;
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow: 0 12px 34px -12px rgba(0, 0, 0, .6),
+              0 0 22px -8px rgba(96, 220, 255, .35);
 
-  transform-origin: 14px calc(100% + 8px);
-  animation: rx-pal-in 320ms var(--ease-spring) both;
+  transform-origin: 16px 100%;
+  animation: rx-pal-in 340ms var(--ease-spring) both;
 }
+.rx-pal.down { transform-origin: 16px 0; }
 .rx-pal.closing { animation: rx-pal-out 240ms var(--ease) both; }
 
 .rx-p {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  font-size: 19px;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   animation: rx-rise 260ms var(--ease-spring) both;
   transition: background-color var(--d-fast) var(--ease),
+              box-shadow var(--d-fast) var(--ease),
               transform var(--d-fast) var(--ease);
 }
-.rx-p:hover { background: var(--volt-a10); }
-.rx-p:active { transform: scale(1.15); }
+.rx-p:hover {
+  background: var(--volt-a10);
+  box-shadow: 0 0 12px -4px rgba(96, 220, 255, .55);
+}
+.rx-p:active { transform: scale(1.18); }
 .rx-pal.closing .rx-p { animation: none; }
+
+.rx-more { color: var(--mist); }
+.rx-more .material-icons { font-size: 19px; }
+
+// Custom emoji — telefon otvori emoji tastaturu; Enter ili blur šalje.
+// Veličina fonta OBAVEZNO kroz max(..., --t-field-min) — kućno pravilo polja.
+.rx-custom {
+  width: 78px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--volt-a40);
+  background: var(--carbon-high);
+  color: var(--ice);
+  text-align: center;
+  font-size: max(19px, var(--t-field-min));
+  animation: rx-rise 260ms var(--ease-spring) both;
+}
+.rx-custom:focus { outline: none; border-color: var(--volt); }
+
+// --- Prskalica: ASCII glifovi + emoji prsnu iz tačke dodira -----------------
+.rx-burst {
+  position: fixed;
+  z-index: 500;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.rx-bit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--font-data);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--volt);
+  text-shadow: 0 0 8px var(--volt-a40);
+  animation: rx-bit-fly 640ms var(--ease-out) both;
+}
+.rx-bit:nth-child(3n) { color: rgba(96, 220, 255, .95); text-shadow: 0 0 8px rgba(96, 220, 255, .5); }
+.rx-bit.big { font-size: 19px; text-shadow: none; }
+
+@keyframes rx-bit-fly {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.4) rotate(0deg); }
+  12%  { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx) * 1px), calc(-50% + var(--dy) * 1px))
+               rotate(calc(var(--rot) * 1deg)) scale(1);
+  }
+}
+
+// Hologramska materijalizacija: treperenje u koracima, kao projekcija koja
+// se pali; i blik koji pređe preko stakla.
+@keyframes rx-flicker {
+  0%   { opacity: 0; }
+  18%  { opacity: .9; }
+  32%  { opacity: .35; }
+  48%  { opacity: 1; }
+  62%  { opacity: .7; }
+  78%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+@keyframes rx-sweep {
+  to { left: 120%; }
+}
 
 // U pregledu: balončići pri dnu, iznad nagovještaja.
 .lb-rx {
@@ -679,5 +797,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .post, .group > h3, .group > .group-head { animation: none; }
-  .rx-b, .rx-n-in, .rx-pal, .rx-p, .lb-strip.snap { animation: none; transition: none; }
+  .rx-b, .rx-b::after, .rx-n-in, .rx-pal, .rx-p, .rx-custom,
+  .rx-bit, .lb-strip.snap { animation: none; transition: none; }
 }

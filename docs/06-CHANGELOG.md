@@ -4342,3 +4342,29 @@ red u bazi; brisanje objave kaskadno nosi reakcije. Test objave obrisane.
 
 **⚠️ Prije sljedećeg deploya na cloud Supabase moraju DVIJE migracije:**
 `20260810000000_plan_visibility.sql` i `20260810010000_blog_reactions.sql`.
+
+**Dopuna — reakcije v2 (Markove prijave i „tony stark" želja):**
+
+1. **Paleta na globalnom nivou:** `position: fixed` uz dodirnuto [+] (z 400,
+   iznad futera i svih pregleda) — unutar kartice ju je sjekao
+   `overflow: hidden`, a `content-visibility` bi ubio i fixed u njoj. Jedna
+   paleta za cio ekran; sidro i smjer (gore/dolje) računa komponenta;
+   zatvara se na dodir vani i na listanje.
+2. **Custom emoji:** dugme-tastatura u paleti otvara polje (telefon nudi
+   emoji tastaturu) — bilo koji emoji postaje reakcija (prva grafema,
+   ASCII odbijen). Font kroz max(..., --t-field-min), kućno pravilo.
+3. **Hologramski stil:** balončići i paleta sa volt→cijan gradijentnim rubom
+   (dvoslojni background), skanline teksturom, blikom koji klizne pri
+   rađanju i materijalizacijom sa treperenjem (steps); moja reakcija nosi
+   spoljni glow. **ASCII prskalica:** na dodatu reakciju glifovi
+   (+ * × ▲ █ ░ · > /) i izabrani emoji prsnu iz tačke dodira (fixed sloj,
+   bez uticaja na raspored).
+4. **Simulacija više korisnika nad lokalnom bazom:** 12 PRAVIH objava
+   kopirano iz cloud `blog_media` (R2 je javan pa se slike/snimci vide
+   lokalno; Kaćin cloud id mapiran na lokalni) + reakcije sva tri korisnika,
+   uključujući custom 🍗.
+5. **Uzrok „Edge Function non-2xx" pri otpremi NA LOKALU:** funkcija
+   r2-presign traži R2 tajne (Filipovi Cloudflare ključevi) koje postoje
+   samo na cloud projektu — lokalno nema `supabase/functions/.env`. Dodat
+   `.env.example` šablon; otprema radi na produkciji, lokalno tek kad se
+   ključevi upišu (fajl je u .gitignore, repo je javan).

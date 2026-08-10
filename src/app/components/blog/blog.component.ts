@@ -210,12 +210,31 @@ export class BlogComponent implements OnInit, OnDestroy {
   readonly reactionKinds = REACTION_KINDS;
   /** Sve reakcije po objavi (media id → redovi). */
   private reactionsByMedia = new Map<string, BlogReaction[]>();
-  /** Objava čija je paleta otvorena (media id) + kratko izlazno stanje. */
-  paletteFor: string | null = null;
+
+  /**
+   * Paleta je JEDNA, na nivou komponente, `position: fixed` uz dodirnuto [+]
+   * — unutar kartice ju je sjekao `overflow: hidden` (Markova prijava), a
+   * `content-visibility` na kartici ubija i fixed u njoj.
+   */
+  paletteItem: BlogMediaItem | null = null;
   paletteClosing = false;
+  /** Tačka sidra palete — gornji-lijevi ugao [+] dugmeta, viewport koordinate. */
+  paletteX = 0;
+  paletteY = 0;
+  /** Paleta otvorena NAGORE ili NADOLJE — zavisi od mjesta na ekranu. */
+  paletteUp = true;
+  /** Polje za custom emoji unutar palete. */
+  customOpen = false;
+  customEmoji = '';
   private paletteTimer: any = null;
-  /** Ključ ponovnog rađanja broja u balončiću — promjena „popne" (talas). */
-  bubbleKey = 0;
+
+  /**
+   * ASCII/emoji prskalica na dodatu reakciju — Markov registar („tony stark
+   * / ascii efekti"): glifovi prsnu iz tačke dodira i izblijede.
+   */
+  burst: { x: number; y: number; parts: { ch: string; dx: number; dy: number; rot: number; delay: number; big: boolean }[] } | null = null;
+  private burstTimer: any = null;
+  private burstSeq = 0;
 
   private indexReactions(rows: BlogReaction[]) {
     const map = new Map<string, BlogReaction[]>();
@@ -256,39 +275,77 @@ export class BlogComponent implements OnInit, OnDestroy {
 
   togglePalette(item: BlogMediaItem, event: Event) {
     event.stopPropagation();
-    if (this.paletteFor === item.id) { this.closePalette(); return; }
+    if (this.paletteItem?.id === item.id && !this.paletteClosing) { this.closePalette(); return; }
+
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const PAL_H = 50;   // visina pilule — uračunata u sidro kad ide nagore
+
     clearTimeout(this.paletteTimer);
     this.paletteClosing = false;
-    this.paletteFor = item.id;
+    this.customOpen = false;
+    this.customEmoji = '';
+    // Ne smije van desne ivice (custom polje je proširi do ~310px).
+    this.paletteX = Math.max(8, Math.min(r.left, window.innerWidth - 318));
+    // Pri vrhu ekrana nema mjesta iznad — paleta se otvara ispod dugmeta.
+    this.paletteUp = r.top > 170;
+    this.paletteY = this.paletteUp ? r.top - 10 - PAL_H : r.bottom + 10;
+    this.paletteItem = item;
   }
 
   closePalette() {
-    if (!this.paletteFor || this.paletteClosing) return;
+    if (!this.paletteItem || this.paletteClosing) return;
     this.paletteClosing = true;
     clearTimeout(this.paletteTimer);
     this.paletteTimer = setTimeout(() => {
-      this.paletteFor = null;
+      this.paletteItem = null;
       this.paletteClosing = false;
+      this.customOpen = false;
     }, 260);
   }
 
-  /** Dodir bilo gdje van palete je zatvara — kao svaki popup. */
+  /** Dodir van palete je zatvara; listanje takođe — fiksna ne smije da lebdi. */
   @HostListener('document:click')
   onDocClick() { this.closePalette(); }
+  @HostListener('window:wheel')
+  @HostListener('window:touchmove')
+  onDocScroll() { if (this.paletteItem && !this.paletteClosing) this.closePalette(); }
+
+  /**
+   * Custom emoji: bilo koji znak van ASCII opsega (telefon nudi emoji
+   * tastaturu). Uzima se prva „grafema" — 💪🏿 i slične sekvence ostaju cijele.
+   */
+  submitCustomEmoji(event: Event) {
+    event.stopPropagation();
+    const raw = this.customEmoji.trim();
+    if (!raw || /^[\x00-\x7F]+$/.test(raw)) { this.customEmoji = ''; return; }
+
+    let first = raw;
+    try {
+      const seg = new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' });
+      first = seg.segment(raw)[Symbol.iterator]().next().value?.segment ?? raw;
+    } catch {
+      first = [...raw].slice(0, 2).join('');
+    }
+
+    if (this.paletteItem) void this.toggleReaction(this.paletteItem, first, event);
+    this.customEmoji = '';
+  }
 
   async toggleReaction(item: BlogMediaItem, kind: string, event: Event) {
     event.stopPropagation();
     if (!this.currentUserId) return;
-    this.closePalette();
 
     const rows = this.reactionsByMedia.get(item.id) ?? [];
     const mineIdx = rows.findIndex(r => r.profileId === this.currentUserId && r.kind === kind);
 
     // Odmah na ekran, pa tek onda mreža — reakcija mora da PUKNE pod prstom.
     if (mineIdx >= 0) rows.splice(mineIdx, 1);
-    else rows.push({ mediaId: item.id, profileId: this.currentUserId, kind });
+    else {
+      rows.push({ mediaId: item.id, profileId: this.currentUserId, kind });
+      this.fireBurst(event, kind);
+    }
     this.reactionsByMedia.set(item.id, rows);
-    this.bubbleKey++;
+    this.closePalette();
 
     try {
       await this.blogService.toggleReaction(item.id, this.currentUserId, kind);
@@ -300,8 +357,37 @@ export class BlogComponent implements OnInit, OnDestroy {
         if (i >= 0) rows.splice(i, 1);
       }
       this.reactionsByMedia.set(item.id, rows);
-      this.bubbleKey++;
     }
+  }
+
+  /** Prskalica iz tačke dodira: izabrani emoji + ASCII glifovi iz registra. */
+  private fireBurst(event: Event, kind: string) {
+    const el = event.currentTarget as HTMLElement | null;
+    const r = el?.getBoundingClientRect();
+    if (!r) return;
+
+    const GLYPHS = ['+', '*', '×', '▲', '█', '░', '·', '>', '/'];
+    const seq = ++this.burstSeq;
+    const parts = Array.from({ length: 12 }, (_, i) => {
+      // Bez Math.random u petlji rendera nije problem — ovo je jednokratno.
+      const ang = (i / 12) * Math.PI * 2 + Math.random() * 0.5;
+      const dist = 34 + Math.random() * 42;
+      const big = i % 4 === 0;
+      return {
+        ch: big ? kind : GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+        dx: Math.cos(ang) * dist,
+        dy: Math.sin(ang) * dist - 18,
+        rot: (Math.random() - 0.5) * 140,
+        delay: Math.floor(Math.random() * 90),
+        big
+      };
+    });
+
+    this.burst = { x: r.left + r.width / 2, y: r.top + r.height / 2, parts };
+    clearTimeout(this.burstTimer);
+    this.burstTimer = setTimeout(() => {
+      if (seq === this.burstSeq) this.burst = null;
+    }, 820);
   }
 
   triggerUpload() {
@@ -469,6 +555,7 @@ export class BlogComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     if (this.moveHandler) document.removeEventListener('touchmove', this.moveHandler);
     clearTimeout(this.paletteTimer);
+    clearTimeout(this.burstTimer);
   }
 
   async onFileSelected(event: Event) {
