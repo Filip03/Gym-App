@@ -1079,15 +1079,44 @@ $branch-indent: 16px;
 // širokom ekranu ponavljanja preuzmu oslobođeni prostor, kao i do sada), i
 // polje, i steperi. Ništa se ne uklanja iz DOM-a, pa prelaz ima pokret u oba
 // smjera.
-.weight-slot.bw.plain { flex: 0 1 46px; gap: 0; }
-.weight-slot.bw.plain > .field { flex-grow: 0; opacity: 0; pointer-events: none; }
+// Čist BW: slot se skuplja na čip + tihi natpis. Skriveni elementi moraju
+// izgubiti i VISINU, ne samo širinu — sa flex-wrap su se inače prelamali u
+// nevidljive redove pune visine i ostavljali ogromnu prazninu ispod čipa
+// (Markov bw_off.jpg).
+.weight-slot.bw.plain { flex: 1 1 auto; gap: 0 var(--s-2); }
+.weight-slot.bw.plain > .field,
 .weight-slot.bw.plain > .io-btn {
+  flex-basis: 0;
   max-width: 0;
   min-width: 0;
   width: 0;
-  opacity: 0;
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
   border-width: 0;
+  opacity: 0;
+  overflow: hidden;
   pointer-events: none;
+}
+
+// Umjesto praznine: tihi natpis uz čip — kaže ZAŠTO nema polja za kilažu.
+.bw-note {
+  display: none;
+  min-width: 0;
+  font-size: var(--t-xs);
+  color: var(--dust);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.weight-slot.bw.plain .bw-note {
+  display: block;
+  flex: 1 1 auto;
+  animation: ch-rise 260ms var(--ease-spring) 120ms backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .weight-slot.bw.plain .bw-note { animation: none; }
 }
 
 .bw-chip {

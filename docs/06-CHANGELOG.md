@@ -4078,3 +4078,10 @@ sjekli), max-visina po raspoloživom prostoru.
 4. Dropdown: veći dah od sticky trake pri mjerenju smjera (128px) i manje
    providno staklo (86%/84%) — ugniježdeni backdrop blur unutar modala ne
    muti pouzdano pa sama podloga mora nositi čitljivost.
+
+**Dopuna istog dana — čist BW bez praznine (Markovi bw_on/bw_off):** skupljeni
+elementi kilaže gubili su širinu ali ne i visinu, pa su se sa flex-wrap
+prelamali u nevidljive redove i ostavljali ogromnu prazninu ispod čipa. Sada
+u čistom BW gube i visinu (flex-basis/height/margin/padding 0), red je 46px:
+čip + tihi natpis „tjelesna težina — dodir na BW dodaje teg", a ponavljanja
+odmah ispod.

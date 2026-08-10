@@ -596,6 +596,10 @@
                                : 'Dodaj teg uz tjelesnu težinu'"
                     (click)="toggleBodyweightWeight(ex)">BW</button>
 
+            <!-- Umjesto praznine pored čipa: zašto nema polja za kilažu. -->
+            <span class="bw-note" *ngIf="ex.isBodyweight"
+                  aria-hidden="true">tjelesna težina — dodir na BW dodaje teg</span>
+
             <!-- U stanju „čist BW" steperi kilaže nemaju šta da mijenjaju —
                  skupljaju se zajedno sa poljem, u istom pokretu kao i ono. -->
             <button type="button" class="io-btn" aria-label="Smanji kilažu"
