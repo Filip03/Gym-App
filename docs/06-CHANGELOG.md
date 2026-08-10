@@ -3960,3 +3960,12 @@ siva pravougaona traka scrima sa lukom u sredini. Sada panel (i blog
 lightbox) ide do SAME ivice ekrana i prekrije i kupolu — ona je pod scrimom
 ionako neaktivna dok je modal otvoren — a unutrašnji padding kartice drži
 sadržaj u zoni palca.
+
+**Dopuna istog dana — desktop meni + tečni reflow (Markove prijave):**
+1. Panel-preko-kupole ograničen na telefon (max-width 639px) — na desktopu je
+   svaki otvoren modal prekrivao i meni pa je izgledalo da je „nestao"; sada
+   na ≥640px meni ostaje vidljiv ispod centriranog dijaloga.
+2. Traka nedovršenog plana animira i svoj ZAUZETI PROSTOR (draft-grow /
+   draft-collapse: max-height + margin + padding + border), ne samo sebe — pa
+   sadržaj ispod TEČE za njom umjesto da skoči. Pravilo upisano i u skill
+   tecne-animacije kao obavezno za svaki ulazak/izlazak elementa iz toka.
