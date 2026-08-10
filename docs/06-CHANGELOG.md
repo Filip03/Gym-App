@@ -3934,3 +3934,14 @@ iznad):
    prekid — broj dana ni u jednom trenutku ispod 7). `insertDays` paralelno.
 4. **Limiti na upite koji rastu zauvijek** — ekipa 20000 redova, kalendar
    2000/20000, pragovi rekorda 5000 (velikodušno; semantika netaknuta).
+
+**Dopuna istog dana — dvije vizuelne popravke kupole (Markove prijave):**
+1. Van doka (npr. /training) tjeme je stajalo na 2,5 pa je Gausova blizina
+   podizala i rang-listu i profil kao „dva izabrana taba" — sada se tjeme
+   SAKRIJE (opacity, meki prelaz), sve ikone leže ravno na luku, zarezi
+   hladni; vraća se čim krene stvarno prevlačenje ili povratak na stavku doka
+   (`flat` u render(), klasa `offdock`).
+2. `.modal-overlay` (_base.scss) i blog lightbox `.lb` su se završavali na
+   vrhu PRAVOUGAONE trake — pored luka kupole ostajale su neprekrivene rupe.
+   U `nav-dome` režimu sada idu do same ivice ekrana (`bottom: 0` +
+   `padding-bottom` čuva karticu iznad tjemena).

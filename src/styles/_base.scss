@@ -474,6 +474,14 @@ button:not(:disabled):active { transform: scale(0.97); }
   animation: overlay-in var(--d-base) var(--ease-out) both;
 }
 
+// KUPOLA: donja navigacija nije pravougaona traka nego luk koji lebdi preko
+// sadržaja — overlay zato ide do SAME ivice ekrana (inače pored luka ostanu
+// neprekrivene „rupe" sa strana), a padding drži karticu iznad tjemena.
+:root.nav-dome .modal-overlay {
+  bottom: 0;
+  padding-bottom: calc(var(--footer-h) + var(--safe-b));
+}
+
 .modal-card {
   width: 100%;
   max-width: var(--page-max);

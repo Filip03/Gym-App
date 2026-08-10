@@ -333,6 +333,14 @@
     // Samo `opacity` — položaj tjemena je inline transform iz TS-a i keyframe
     // ga ne smije pregaziti.
     animation: crest-in var(--d-slower) var(--ease-out) 240ms backwards;
+    transition: opacity var(--d-slow) var(--ease);
+}
+
+// Van doka (npr. /training): tjeme se SAKRIJE — nema ležišta ni na jednoj
+// ikoni, pa ni utiska da su dvije „izabrane". Vraća se čim korisnik stvarno
+// zavuče prst (dragging) ili se vrati na neku od stavki doka.
+.dock.offdock:not(.dragging) .dock-crest {
+    opacity: 0;
 }
 
 @keyframes crest-in {

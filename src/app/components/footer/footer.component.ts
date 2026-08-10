@@ -153,6 +153,7 @@ export class FooterComponent implements OnDestroy {
 
     const start = this.activeIndex();
     this.offDock = start < 0;
+    dock.classList.toggle('offdock', this.offDock);
     this.pos = this.target = start < 0 ? this.restSlot() : start;
     this.tilt = 0;
 
@@ -182,11 +183,13 @@ export class FooterComponent implements OnDestroy {
           // i tamo miruje dok se korisnik ne vrati na neku od stavki.
           if (!this.offDock) {
             this.offDock = true;
+            this.dock?.classList.add('offdock');
             this.animateTo(this.restSlot());
           }
           return;
         }
         this.offDock = false;
+        this.dock?.classList.remove('offdock');
         if (i === this.target) return;
         this.bloom(i);
         this.settleShake();
@@ -269,6 +272,12 @@ export class FooterComponent implements OnDestroy {
     if (!this.dock || !this.crest) return;
     const pos = this.pos;
 
+    // Van doka (npr. /training), dok se ne prevlaci: NIJEDNA ikona nije
+    // „bliska" tjemenu — sve leze ravno na luku, tjeme je sakriveno (CSS),
+    // zarezi hladni. Inace bi tjeme na 2,5 podiglo i rang-listu i profil
+    // istovremeno, kao dva izabrana taba.
+    const flat = this.offDock && !this.moved;
+
     // tjeme — ista zaštita od isijecanja kao za ikone (ležište je 64px kutija)
     const cx = this.xAt(pos);
     const cy = Math.min(this.crestY + this.dip(cx),
@@ -284,7 +293,7 @@ export class FooterComponent implements OnDestroy {
     for (let i = 0; i < this.itemEls.length; i++) {
       const el = this.itemEls[i];
       const u = i - pos;
-      const near = Math.exp(-(u * u) / 0.62);          // 1 u tjemenu, pada u stranu
+      const near = flat ? 0 : Math.exp(-(u * u) / 0.62);   // 1 u tjemenu, pada u stranu
       const pull = 0.30 * u * Math.exp(-(u * u) / 2);  // magnet: klizi ka tjemenu
       const x = this.xAt(i - pull);
       const y = Math.min(this.crestY + this.dip(x) - 15 * near, maxY);
@@ -301,7 +310,7 @@ export class FooterComponent implements OnDestroy {
       const slot = this.tickSlots[k];
       const x = this.xAt(slot);
       const y = this.crestY + this.dip(x);
-      const hot = Math.max(0, 1 - Math.abs(slot - pos) * 1.8);
+      const hot = flat ? 0 : Math.max(0, 1 - Math.abs(slot - pos) * 1.8);
       this.tickEls[k].style.transform =
         `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${(1 + hot).toFixed(3)})`;
       this.tickEls[k].style.setProperty('--hot', hot.toFixed(3));
@@ -415,6 +424,9 @@ export class FooterComponent implements OnDestroy {
     this.dock.classList.remove('pressing', 'dragging');
 
     if (!this.moved) return;            // običan tap — link/dugme rade svoje
+    // poslije obrade se stanje prevlačenja gasi — van doka se sve vraća u
+    // ravno mirovanje (vidi `flat` u render)
+    setTimeout(() => { this.moved = false; this.requestRender(); }, 0);
 
     // Poslije prevlačenja pregledač ipak šalje `click` na element pod prstom;
     // taj klik nije izbor korisnika i guta se (vidi capture osluškivač gore).
@@ -478,6 +490,8 @@ export class FooterComponent implements OnDestroy {
     const back = this.activeIndex();
     this.settleShake();
     this.animateTo(back < 0 ? this.restSlot() : back);
+    // stanje prevlačenja se gasi — van doka se ikone vraćaju u ravno mirovanje
+    setTimeout(() => { this.moved = false; this.requestRender(); }, 0);
   };
 
   /** Vertikalan pokret: pusti praćenje prije nego što prevlačenje počne. */

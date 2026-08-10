@@ -285,6 +285,13 @@
   position: fixed;
   top: calc(var(--header-h) + var(--safe-t));
   bottom: calc(var(--footer-h) + var(--safe-b));
+
+  // Kupola: do ivice ekrana, kao .modal-overlay u _base.scss — pored luka ne
+  // smiju ostati neprekrivene „rupe".
+  :root.nav-dome & {
+    bottom: 0;
+    padding-bottom: calc(var(--footer-h) + var(--safe-b));
+  }
   left: 0;
   right: 0;
   z-index: 200;
