@@ -4031,3 +4031,28 @@ mrtvo dugme ne umije da objasni zašto; umjesto toga je vizuelno ugašeno, a
 dodir trese polja koja fale. Tip plana je novim pravilom obavezan i pri
 izmjeni starih planova bez tipa. Stari nacrti (bez `picture`) se dopunjavaju
 pri vraćanju; šema nacrta ostaje `v1` jer je izmjena unazad kompatibilna.
+
+---
+
+## [2026-08-10] Ostrvo za unos rezultata u treningu
+**Tip:** UX redizajn
+
+Polja za upis (posebno dropset i izmjena serije) bila su premala — „gađanje
+prstom" (Markova prijava). Sada sve tri forme dijele JEDNU osnovu `.io`
+(training.component.scss): pri otvaranju se forma TEČNO raširi u ostrvo —
+polja 52px visine, cifre 20px mono, prostor raste (`io-grow`, susjedi teku) —
+a ostatak kartice se priguši na 0.55 dok se kuca. Po upisu ostrvo se skupi
+(`island-sip` + `io-collapse`) i nova pilula se rodi u istom taktu.
+
+- **Izmjena serije**: pilula se morfuje NA LICU MJESTA u editor — prostor
+  kreće od visine pilule (38px), ne od nule; zatvaranje unazad pa pilula
+  preuzme. Bez „drugog reda ispod".
+- **Dropset**: unos raste iz „+" tačke (kap mastila iz izmjerenog X-a),
+  izmjena kao morf pilule; ista krupnoća kao glavna forma.
+- **Steperi ±**: kilaža ±2,5 (poravnanje na korak), ponavljanja ±1; dugmad
+  44px, drži-pa-ponavlja (420ms pa 110ms), prazno polje kreće od duh
+  prijedloga; vrijednost „popne" pri promjeni; u čistom BW steper kilaže se
+  skuplja kroz max-height.
+- Netaknuti: BW čip (weight-slot flex tok), L/D kolone (polja se u koloni
+  ruke prelamaju jedno ispod drugog), Enter-lanac, offline queue, vibracije/
+  glitch okidači; `prefers-reduced-motion` gasi sve novo.
