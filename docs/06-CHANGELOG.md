@@ -4056,3 +4056,11 @@ a ostatak kartice se priguši na 0.55 dok se kuca. Po upisu ostrvo se skupi
 - Netaknuti: BW čip (weight-slot flex tok), L/D kolone (polja se u koloni
   ruke prelamaju jedno ispod drugog), Enter-lanac, offline queue, vibracije/
   glitch okidači; `prefers-reduced-motion` gasi sve novo.
+
+**Dopuna istog dana — dropdown: staklo + pametan smjer (Markov bug_2):**
+providnost panela i probijanje sadržaja kroz listu riješeni trostruko:
+(1) host se izdiže dok je lista otvorena (stacking vs animirani susjedi);
+(2) panel je Apple mat staklo — providna podloga + backdrop blur 18px
+(svijetla: mliječno bijelo; @supports fallback puna boja); (3) panel se
+otvara NAGORE kad ispod okidača nema mjesta (dno modala/sticky traka bi ga
+sjekli), max-visina po raspoloživom prostoru.

@@ -17,7 +17,8 @@
   </button>
 
   <!-- Panel ostaje u DOM-u i tokom closing stanja da izlazna animacija odsvira. -->
-  <div class="dd-panel" *ngIf="open || closing" [class.closing]="closing" role="listbox">
+  <div class="dd-panel" *ngIf="open || closing" [class.closing]="closing" [class.up]="up"
+       [style.maxHeight.px]="panelMax" role="listbox">
     <button type="button" class="dd-opt" role="option"
             *ngFor="let o of shown; let i = index; trackBy: trackOpt"
             [attr.id]="optId(i)"

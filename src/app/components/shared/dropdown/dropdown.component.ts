@@ -112,10 +112,26 @@ export class DropdownComponent implements OnChanges, OnDestroy {
     this.openPanel();
   }
 
+  /**
+   * Panel se otvara NAGORE kad ispod okidača nema mjesta (dno modala, sticky
+   * traka, rub skrol-kontejnera bi ga isjekli — Markov bug_2). Mjeri se
+   * viewport: gdje ima više prostora, tamo lista ide; max-visina se ravna po
+   * raspoloživom.
+   */
+  up = false;
+  panelMax = 280;
+
   private openPanel() {
     clearTimeout(this.closeTimer);
     this.closing = false;
     this.chosenInk = null;
+
+    const rect = (this.host.nativeElement as HTMLElement).getBoundingClientRect();
+    const below = window.innerHeight - rect.bottom - 84;   // dah za sticky traku
+    const above = rect.top - 84;
+    this.up = below < 220 && above > below;
+    this.panelMax = Math.max(160, Math.min(280, (this.up ? above : below) - 12));
+
     this.open = true;
 
     const idx = this.shown.findIndex(o => o.id === this.value);
