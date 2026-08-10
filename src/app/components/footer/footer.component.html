@@ -41,11 +41,13 @@
 <!-- 2) KUPOLA -------------------------------------------------------------- -->
 <nav class="dock" #dock *ngIf="dome" (pointerdown)="onDown($event)" aria-label="Glavna navigacija">
 
-    <div class="dock-surface"></div>
+    <div class="dock-surface">
+        <!-- Tjeme živi U kupoli: njen overflow+luk režu sjaj oblikom stakla,
+             pa prsten više ne isplivava preko ivice (Markov menu_bug). -->
+        <span class="dock-crest" aria-hidden="true"></span>
+    </div>
 
     <span class="dock-tick" *ngFor="let t of tickSlots" aria-hidden="true"></span>
-
-    <span class="dock-crest" aria-hidden="true"></span>
 
     <ng-container *ngFor="let it of items; let i = index">
 

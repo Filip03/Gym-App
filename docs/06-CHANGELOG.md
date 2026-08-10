@@ -4171,3 +4171,10 @@ ijednog round-tripa, a mreža ih u pozadini tiho dopuni. Živi podaci (serije,
 prazan). Ko dodaje novu mutaciju planova/sesije/kataloga, mora pogoditi
 invalidaciju — spisak tačaka u ADR-0003. Ključevi reda čekanja
 (`gymapp.queue.*`) i nacrta (`gymapp.draft.*`) nijesu dirani.
+
+**Dopuna istog dana — ležište u staklu kupole (Markov menu_bug):** svijetleći
+prsten aktivne ikone je na krajnjim pozicijama isplivavao van luka. Tjeme je
+preseljeno U `.dock-surface` (overflow + luk radius ga sijeku oblikom stakla
+— sjaj sada živi u kupoli), a krajnje ikone su blago uvučene ka unutra
+(edge 0.115/36–58 → 0.155/50–70). Bez smanjivanja ikona — mete za palac
+netaknute.

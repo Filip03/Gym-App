@@ -149,7 +149,7 @@ export class FooterComponent implements OnDestroy {
     if (!dock || !dock.isConnected) return;
 
     this.surface = dock.querySelector<HTMLElement>('.dock-surface');
-    this.crest   = dock.querySelector<HTMLElement>('.dock-crest');
+    this.crest   = dock.querySelector<HTMLElement>('.dock-crest');   // u .dock-surface
     this.itemEls = Array.from(dock.querySelectorAll<HTMLElement>('.dock-item'));
     this.tickEls = Array.from(dock.querySelectorAll<HTMLElement>('.dock-tick'));
 
@@ -246,7 +246,9 @@ export class FooterComponent implements OnDestroy {
     // Ikone se drže uske kolone i na laptopu — na 1200 px razvučen red od šest
     // ikona preko cijelog ekrana ne bi bio ni luk ni navigacija.
     const L = Math.min(w, 520);
-    const edge = Math.min(Math.max(L * 0.115, 36), 58);
+    // 0.115/36–58 → 0.155/50–70: krajnje ikone bliže unutra — na samom rubu
+    // luka su sjedale toliko nisko da je ležište virilo van kupole.
+    const edge = Math.min(Math.max(L * 0.155, 50), 70);
     this.step = (L - 2 * edge) / (this.items.length - 1);
 
     // Kupola je šira od doka (viri sa strana) da je blago naginjanje ne odlijepi
