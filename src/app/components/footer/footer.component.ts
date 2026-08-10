@@ -289,6 +289,12 @@ export class FooterComponent implements OnDestroy {
     this.crest.style.transform =
       `translate3d(${cx.toFixed(2)}px, ${(cy - 3).toFixed(2)}px, 0)`;
 
+    // Odsjaj na staklu prati tjeme — svjetlo se prelama kroz kupolu.
+    if (this.surface) {
+      const sheen = 50 + (cx / Math.max(this.half * 2, 1)) * 100;
+      this.surface.style.setProperty('--sheen-x', sheen.toFixed(1) + '%');
+    }
+
     // Ikona (kutija 56px, centrirana) ne smije proviriti ispod doka — na uskom
     // ekranu rub luka padne duboko, pa se krajnje ikone bez ovoga isijecaju.
     const maxY = this.dock.clientHeight - 34;

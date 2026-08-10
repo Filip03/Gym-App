@@ -4191,3 +4191,9 @@ sječenje prstena lukom „ne valja — vrati": tjeme vraćeno IZVAN stakla (kru
 uvijek cio), a geometrija uvučena da prsten stane POD luk: sjedište ikona
 dublje (crestY 35→44), izdizanje 15→12, prsten 64→48 (ne dodiruje liniju),
 kupola 86→92px. WebKit maska ostaje na staklu (čuva mastilo u obliku luka).
+
+**Dopuna — Apple staklo na kupoli (Markova želja za detaljem):** pokretni
+specularni odsjaj klizi po staklu prateći tjeme (`--sheen-x` iz render(),
+radial blik odozgo; jači u svijetloj temi) + svjetlosni rub po vrhu luka
+(inset sjaj). Maska luka sijece odsjaj u oblik stakla; reduced-motion ga
+umiri u centar.

@@ -260,6 +260,39 @@
 
     transform-origin: 50% 50%;
     transition: transform var(--d-slower) var(--ease-spring);
+
+    // Svjetlosni RUB po vrhu luka — staklo hvata svjetlo na ivici.
+    box-shadow: 0 -16px 38px -22px rgba(0, 0, 0, .8),
+                inset 0 2px 8px -4px rgba(255, 255, 255, .35);
+}
+
+// POKRETNI ODSJAJ (Apple staklo): mekani specularni blik koji KLIZI po kupoli
+// prateći tjeme (--sheen-x upisuje render() svaki kadar) — svjetlo koje se
+// prelama u staklu dok se prevlači. Maska luka ga sama sijece u oblik.
+.dock-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+        42% 70% at var(--sheen-x, 50%) -8%,
+        rgba(255, 255, 255, .22),
+        rgba(255, 255, 255, .07) 45%,
+        transparent 72%
+    );
+}
+
+:host-context([data-theme='light']) .dock-surface::before {
+    background: radial-gradient(
+        42% 70% at var(--sheen-x, 50%) -8%,
+        rgba(255, 255, 255, .55),
+        rgba(255, 255, 255, .18) 45%,
+        transparent 72%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dock-surface::before { background-position: center; }
 }
 
 // Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju).
