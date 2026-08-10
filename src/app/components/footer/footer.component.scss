@@ -246,6 +246,13 @@
 
     border-radius: 50% 50% 0 0 / var(--arc-rise, 64px) var(--arc-rise, 64px) 0 0;
 
+    // WebKit (iPhone!): overflow+border-radius NE sijeku djecu na sopstvenom
+    // kompozitnom sloju (tjeme koristi translate3d) — na Safariju je prsten
+    // i dalje isplivavao van luka iako je na Chrome-u bio uredno odsječen.
+    // Maska tjera WebKit da kliping stvarno primijeni na oblik luka.
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+    isolation: isolate;
+
     // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
     background: color-mix(in srgb, var(--void) 95%, transparent);
     border-top: 1px solid var(--line);
