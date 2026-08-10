@@ -76,6 +76,19 @@ export interface EchoSet {
  */
 const ECHO_ROW_LIMIT = 40;
 
+/**
+ * Krov za upite koji traže NAJBOLJI rezultat (`getPersonalBests`,
+ * `getBodyweightBests`).
+ *
+ * Ti upiti povuku cijelu istoriju datih vježbi da bi zadržali po jedan red po
+ * vježbi — količina raste zauvijek, a treba samo vrh. Granica je zaštita, a ne
+ * promjena značenja: redovi stižu poređani od najtežeg (odnosno od najviše
+ * ponavljanja), pa bi odsijecanje pogodilo isključivo one najslabije, koje
+ * rekord ionako nikad ne bi dobili. 5000 redova je za jednog korisnika i deset
+ * vježbi dana višegodišnja istorija.
+ */
+const BEST_ROW_LIMIT = 5000;
+
 export interface Echo {
   date: string;
   sets: EchoSet[];
@@ -150,11 +163,27 @@ export class TrainingService {
    * Vraća današnji trening. Ako ga nema, pravi ga tako što PREPISUJE vježbe iz
    * plana za taj dan. Od tog trenutka izmjene idu u sesiju, ne u plan — zato se
    * vježba može zamijeniti samo za danas.
+   *
+   * PLAN SE DOVLAČI LIJENO
+   *
+   * Treći parametar nije plan nego FUNKCIJA koja ga dovuče, i zove se samo kad
+   * sesije još nema — dakle jednom po danu, pri prvom ulasku. Ranije se plan
+   * dovlačio prije ovog poziva, pa je svaki ulazak u trening plaćao dva
+   * serijska upita (`plan_members` → `getFullPlan` sa svim danima i vježbama)
+   * koja se u 99% slučajeva odmah bace: sesija postoji i sve nosi u sebi.
+   *
+   * `null` znači „ne pravi sesiju ako je nema" — tako je zovu osvježavanja
+   * poslije izmjene sesije, gdje je sesija sigurno tu.
    */
-  async getOrCreateSession(userId: string, date: string, plan: any): Promise<WorkoutSession | null> {
+  async getOrCreateSession(
+    userId: string,
+    date: string,
+    loadPlan: (() => Promise<any>) | null
+  ): Promise<WorkoutSession | null> {
     const existing = await this.findSession(userId, date);
     if (existing) return existing;
 
+    const plan = loadPlan ? await loadPlan() : null;
     if (!plan) return null;
 
     const dayName = this.dayNameFor(date);
@@ -793,7 +822,8 @@ export class TrainingService {
       .eq('user_id', userId)
       .in('exercice_id', exerciceIds)
       .lt('date', beforeDate)
-      .order('weight', { ascending: false });
+      .order('weight', { ascending: false })
+      .limit(BEST_ROW_LIMIT);
 
     if (error) throw error;
 
@@ -826,7 +856,8 @@ export class TrainingService {
       .in('exercice_id', exerciceIds)
       .eq('weight', 0)
       .lt('date', beforeDate)
-      .order('reps', { ascending: false });
+      .order('reps', { ascending: false })
+      .limit(BEST_ROW_LIMIT);
 
     if (error) throw error;
 

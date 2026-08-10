@@ -1648,3 +1648,175 @@ i.in-ch { animation: ch-in 240ms var(--ease-out) both; }
   white-space: pre-line;
   text-align: left;
 }
+
+// --- Nedovršen plan --------------------------------------------------------
+//
+// Traka koja se javi kad je ostao nacrt plana (vidi DraftService i
+// dashboard.component.ts, sekcija „Nedovršen plan"). Namjerno TIHA: puna volt
+// podloga je rezervisana za „Započni trening", ovo je podsjetnik.
+//
+// Pokret po kućnom jeziku: traka se razlije (squash & stretch), kap mastila
+// krene iz ikone i pređe preko nje, a sadržaj izranja talasom — svako dijete
+// korak kasnije. Odlazak je isto to unazad: traka se sipne, kap se povuče u
+// ikonu. Klasu `closing` drži komponenta, jer CSS ne svira animaciju na
+// uklanjanju elementa.
+
+.draft-bar {
+  position: relative;
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+
+  background: var(--carbon-high);
+  border: 1px solid var(--volt-a20);
+  border-radius: var(--r-md);
+  color: var(--ice);
+  font-size: var(--t-sm);
+
+  animation: draft-splash 520ms var(--ease-spring) both;
+  transform-origin: left center;
+}
+
+.draft-bar > .material-icons {
+  flex: none;
+  font-size: 20px;
+  color: var(--volt);
+}
+
+.db-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--mist);
+}
+
+.db-name {
+  color: var(--ice);
+  font-weight: 600;
+}
+
+.db-resume,
+.db-discard {
+  flex: none;
+  min-height: 34px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  transition: background-color var(--d-fast) var(--ease),
+              border-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease),
+              opacity var(--d-fast) var(--ease);
+}
+
+.db-resume { background: var(--volt-fill); color: var(--volt-ink); }
+.db-resume:not(:disabled):hover { background: var(--volt-hi); }
+
+.db-discard {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--dust);
+}
+.db-discard:not(:disabled):hover { border-color: var(--volt-a40); color: var(--ice); }
+
+.db-resume:not(:disabled):active,
+.db-discard:not(:disabled):active { transform: scale(.97); }
+
+.db-resume:disabled,
+.db-discard:disabled { opacity: .55; }
+
+// Kap mastila iz ikone — ista izvedba kao tajmer-ostrvo u treningu.
+.draft-bar::after {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-4) + 10px);
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--volt-a20);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  animation: draft-ink 560ms var(--ease-out) both;
+}
+
+// Sadržaj izranja talasom, korak po korak iza kapi.
+.draft-bar > .material-icons { animation: draft-rise 340ms var(--ease-spring) 90ms both; }
+.draft-bar .db-text          { animation: draft-rise 340ms var(--ease-spring) 180ms both; }
+.draft-bar .db-resume        { animation: draft-rise 340ms var(--ease-spring) 270ms both; }
+.draft-bar .db-discard       { animation: draft-rise 340ms var(--ease-spring) 350ms both; }
+
+// Odlazak: isti pokret unazad — traka se stisne, kap se povuče u ikonu,
+// sadržaj tone nazad dolje.
+.draft-bar.closing {
+  animation: draft-sip 460ms var(--ease-spring) both;
+}
+.draft-bar.closing::after { animation: draft-ink-retreat 420ms var(--ease) both; }
+.draft-bar.closing > .material-icons,
+.draft-bar.closing .db-text,
+.draft-bar.closing .db-resume,
+.draft-bar.closing .db-discard { animation: draft-sink 300ms var(--ease) both; }
+
+// Dok se vježbe nacrta dovlače iz kataloga: kap pulsira, pa se vidi da traka
+// radi umjesto da djeluje zamrznuto.
+.draft-bar.working::after {
+  animation: draft-ink 1100ms var(--ease-out) infinite;
+}
+
+@keyframes draft-splash {
+  0%   { opacity: 0; transform: translateY(6px) scale(1, 1); }
+  38%  { opacity: 1; transform: translateY(0)   scale(1.02, .93); }
+  70%  {              transform: translateY(0)  scale(.995, 1.03); }
+  100% { opacity: 1; transform: translateY(0)   scale(1, 1); }
+}
+
+@keyframes draft-sip {
+  0%   { opacity: 1; transform: scale(1, 1); }
+  35%  { opacity: 1; transform: scale(.97, 1.05); }
+  70%  { opacity: .5; transform: scale(1.01, .96); }
+  100% { opacity: 0; transform: translateY(4px) scale(.99, .9); }
+}
+
+@keyframes draft-ink {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+  100% { transform: translate(-50%, -50%) scale(28); opacity: 0; }
+}
+
+@keyframes draft-ink-retreat {
+  0%   { transform: translate(-50%, -50%) scale(20); opacity: 0; }
+  45%  { opacity: .35; }
+  100% { transform: translate(-50%, -50%) scale(0);  opacity: .9; }
+}
+
+@keyframes draft-rise {
+  from { opacity: 0; transform: translateY(.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes draft-sink {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(.35em); }
+}
+
+// Na telefonu natpis i dvije dugmadi ne staju u jedan red — ikona i tekst
+// ostaju gore, dugmad se spuštaju i dijele donji red.
+@media (max-width: 430px) {
+  .draft-bar { flex-wrap: wrap; row-gap: var(--s-2); }
+  .db-text { flex: 1 1 calc(100% - 32px); }
+  .db-resume, .db-discard { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .draft-bar,
+  .draft-bar.closing,
+  .draft-bar > .material-icons,
+  .draft-bar .db-text,
+  .draft-bar .db-resume,
+  .draft-bar .db-discard { animation: none; transition: none; }
+  .draft-bar::after { display: none; }
+  .draft-bar.closing { display: none; }
+}

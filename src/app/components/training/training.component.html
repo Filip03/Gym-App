@@ -75,7 +75,9 @@
 
   <!-- Bilješka uz TAJ dan treninga (kolona `note`, jedna po danu). -->
   <div class="note-box" *ngIf="showNote">
-    <textarea [(ngModel)]="noteText" rows="2" maxlength="280"
+    <!-- Nacrt se pamti na svaku izmjenu (vidi onNoteInput) — zato ngModelChange
+         umjesto dvosmjernog vezivanja. -->
+    <textarea [ngModel]="noteText" (ngModelChange)="onNoteInput($event)" rows="2" maxlength="280"
               placeholder="Kako je prošlo? Loše spavao, nova šipka, bol u ramenu…"></textarea>
     <div class="note-actions">
       <span class="note-count num">{{ noteText.length }}/280</span>

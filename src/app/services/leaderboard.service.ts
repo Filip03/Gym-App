@@ -34,6 +34,18 @@ import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../shared/warmup-grace';
  * sedmice. (`A3` u `docs/02-STANJE-KODA.md`.)
  */
 
+/**
+ * Gornja granica broja redova po upitu — zaštita, ne poslovno pravilo.
+ *
+ * Upiti ovog servisa čitaju upise CIJELE ekipe i nemaju prirodan kraj: rastu
+ * dokle god se trenira. Za nekoliko ljudi je i 90 dana svega par hiljada redova,
+ * pa granica nikad ne bi trebalo da se dotakne — postoji da jedan zaboravljeni
+ * upit ne bi jednog dana povukao pola baze na telefon u teretani. Ako se ekipa
+ * ikad toliko uveća da granica počne da siječe, upit treba prepraviti (agregat
+ * u bazi), a ne granicu podizati.
+ */
+const TEAM_ROW_LIMIT = 20000;
+
 /** Broj dana unazad. `0` = bez vremenskog ograničenja („Sve vrijeme"). */
 export type PeriodDays = 0 | 30 | 60 | 180 | 365;
 
@@ -446,6 +458,9 @@ export class LeaderboardService {
     }));
   }
 
+  // Svi upiti ispod čitaju upise cijele ekipe i imaju `TEAM_ROW_LIMIT` kao
+  // krov — vidi objašnjenje uz konstantu.
+
   private async logsFor(exerciceId: string, since: string | null) {
     let query = this.supabase.client
       .from('exercice_logs')
@@ -454,7 +469,7 @@ export class LeaderboardService {
 
     if (since) query = query.gte('date', since);
 
-    const { data, error } = await query;
+    const { data, error } = await query.limit(TEAM_ROW_LIMIT);
     if (error) throw error;
     return (data ?? []) as any[];
   }
@@ -463,7 +478,8 @@ export class LeaderboardService {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
       .select('user_id, exercice_id, weight, reps, date, set_number')
-      .gte('date', since);
+      .gte('date', since)
+      .limit(TEAM_ROW_LIMIT);
 
     if (error) throw error;
     return (data ?? []) as any[];
@@ -475,7 +491,8 @@ export class LeaderboardService {
       .from('workout_sessions')
       .select('user_id, date, finished_at')
       .not('finished_at', 'is', null)
-      .gte('date', since);
+      .gte('date', since)
+      .limit(TEAM_ROW_LIMIT);
 
     if (error) throw error;
     return (data ?? []) as any[];
@@ -486,7 +503,8 @@ export class LeaderboardService {
     const { data, error } = await this.supabase.client
       .from('exercice_logs')
       .select('user_id, date')
-      .gte('date', since);
+      .gte('date', since)
+      .limit(TEAM_ROW_LIMIT);
 
     if (error) throw error;
     return (data ?? []) as any[];

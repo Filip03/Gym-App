@@ -61,8 +61,16 @@ export class ExercicesComponent implements OnInit {
     this.errorMessage = '';
 
     try {
-      this.muscleGroups = await this.exerciceService.getMuscleGroups();
+      // Jedan poziv, ne dva: `getExercicesGroupedByMuscleGroup` i sam iznutra
+      // zove `getMuscleGroups`, pa je zaseban poziv bio isti upit poslat dvaput,
+      // i to serijski — čekanje bez ijednog novog podatka. Spisak grupa za
+      // modal „nova vježba" se izvodi iz istog rezultata; redoslijed je isti
+      // (grupe stižu poređane po nazivu), a `uncategorized` je izmišljena grupa
+      // iz servisa, ne red u bazi, pa se ne nudi za označavanje.
       this.groups = await this.exerciceService.getExercicesGroupedByMuscleGroup();
+      this.muscleGroups = this.groups
+        .filter(g => g.id !== 'uncategorized')
+        .map(g => ({ id: g.id, name: g.name }));
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju vježbi.';
     } finally {

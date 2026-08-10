@@ -1,7 +1,8 @@
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { Component, DoCheck, ElementRef, HostListener, OnDestroy, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { Router } from '@angular/router';
 import { DashboardService } from '../../services/dashboard.service';
 import { AuthService } from '../../services/auth.service';
+import { DraftService } from '../../services/draft.service';
 import { LeaderboardService, LiveSession } from '../../services/leaderboard.service';
 import { WorkoutPlan, PlanType, DayType, Exercice } from '../../models/models';
 import { DAY_NAMES } from '../../shared/day-names';
@@ -26,12 +27,34 @@ interface DayEntry {
   selectedExercices: SelectedExercice[];
 }
 
+/**
+ * Nacrt nedovršenog plana — tačno ono što treba da se forma vrati kakva je bila.
+ *
+ * `availableExercices` se NAMJERNO ne pamti: to je ponuda iz kataloga, po danu
+ * i po nekoliko desetina vježbi, i lako se ponovo dovuče. Nacrt tako ostaje
+ * mali (par kilobajta), a `localStorage` je uzak.
+ */
+interface PlanDraft {
+  name: string;
+  description: string;
+  planTypeId: string;
+  editingPlanId: string | null;
+  adaptingFromPlanId: string | null;
+  currentDayIndex: number;
+  days: {
+    dayNumber: number;
+    dayName: string;
+    dayTypeId: string | null;
+    selectedExercices: SelectedExercice[];
+  }[];
+}
+
 @Component({
   selector: 'app-dashboard',
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
   myPlans: any[] = [];
   otherPlans: any[] = [];
   planTypes: PlanType[] = [];
@@ -68,6 +91,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   isMobile = false;
   currentDayIndex = 0;
+
+  // --- Nedovršen plan ---------------------------------------------------------
+  //
+  // Modal za pravljenje plana drži sve u memoriji komponente. Dovoljno je bilo
+  // zatvoriti ga (ili da telefon ubije karticu) i cio raspored je nestajao —
+  // sedam dana ručno birane vježbe, ispočetka. Sada se stanje forme odlaže u
+  // `DraftService` dok je modal otvoren, a pri povratku na dashboard stoji
+  // DISKRETNA traka „Nastavi / Odbaci". Modal se NE otvara sam — nacrt je
+  // ponuda, ne obaveza.
+
+  /** Nacrt stariji od ovoga se ne nudi — plan od prekjuče je zaboravljen plan. */
+  private readonly DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+  /** Ključ nacrta ovog korisnika (`plan.<userId>`). Prazan dok se ne zna ko je. */
+  private draftKey = '';
+  /** Nacrt ponuđen na traci. */
+  private pendingDraft: PlanDraft | null = null;
+  /** Posljednje upisano stanje — da `ngDoCheck` ne piše bez stvarne izmjene. */
+  private lastDraftJson = '';
+
+  /** Traka „Imaš nedovršen plan" je na ekranu. */
+  draftAvailable = false;
+  /** Kratko stanje za IZLAZNU animaciju trake — CSS ne svira na uklanjanju klase. */
+  draftClosing = false;
+  /** Vježbe nacrta se dovlače iz kataloga — traka to pokaže umjesto da zamrzne. */
+  draftRestoring = false;
+  private draftCloseTimer: any = null;
 
   /**
    * Visina okvira karusela prati AKTIVNI dan.
@@ -164,6 +214,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private trainingService: TrainingService,
     private leaderboardService: LeaderboardService,
     private newsService: NewsService,
+    private drafts: DraftService,
     private router: Router
   ) {}
 
@@ -177,6 +228,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.checkIfMobile();
     this.currentUserId = user.id;
+    this.draftKey = `plan.${user.id}`;
 
     void this.loadLive();
     void this.checkForNews();
@@ -190,17 +242,179 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }, 60_000);
 
     try {
-      this.myPlans = await this.dashboardService.getMyPlans(user.id);
-      this.otherPlans = await this.dashboardService.getOtherPlans(user.id);
-      this.planTypes = await this.dashboardService.getPlanTypes();
-      this.dayTypes = await this.dashboardService.getDayTypes();
+      // Četiri nezavisna upita — jedan ne treba ništa od drugog, pa idu uporedo.
+      // Serijski su značili četiri odlaska na server prije nego što se ekran
+      // uopšte iscrta; na mobilnoj vezi je to bila cijela sekunda čekanja.
+      [this.myPlans, this.otherPlans, this.planTypes, this.dayTypes] = await Promise.all([
+        this.dashboardService.getMyPlans(user.id),
+        this.dashboardService.getOtherPlans(user.id),
+        this.dashboardService.getPlanTypes(),
+        this.dashboardService.getDayTypes()
+      ]);
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju podataka.';
     } finally {
       this.loading = false;
     }
 
+    // Tek poslije učitavanja: vraćanje nacrta traži `dayTypes` i `planTypes`.
+    this.offerDraft();
+
     await this.loadToday(user.id);
+  }
+
+  // --- Nacrt plana ------------------------------------------------------------
+
+  /**
+   * Upisuje nacrt dok je modal otvoren.
+   *
+   * Zašto `ngDoCheck` a ne poziv iz svakog polja: stanje forme mijenja desetak
+   * mjesta — tri `ngModel` polja, tip dana po danu, biranje vježbi u pickeru,
+   * ciljevi, strelice za redoslijed, listanje dana. Jedno centralno mjesto ne
+   * može da se zaboravi pri sljedećoj izmjeni forme. Snimak je mali objekat
+   * (bez kataloga vježbi), a upis ide tek kad se stanje STVARNO promijeni, pa
+   * ciklus provjere ostaje jeftin.
+   */
+  ngDoCheck() {
+    if (!this.showCreateModal || !this.draftKey) return;
+
+    const snapshot = this.planDraft();
+    const json = JSON.stringify(snapshot);
+    if (json === this.lastDraftJson) return;
+
+    this.lastDraftJson = json;
+
+    // Prazna forma nije nacrt — inače bi samo otvaranje modala ostavilo trag.
+    if (this.isDraftEmpty(snapshot)) {
+      this.drafts.clear(this.draftKey);
+      return;
+    }
+
+    this.drafts.saveDebounced(this.draftKey, snapshot, 500);
+  }
+
+  private planDraft(): PlanDraft {
+    return {
+      name: this.newPlanName,
+      description: this.newPlanDescription,
+      planTypeId: this.newPlanTypeId,
+      editingPlanId: this.editingPlanId,
+      adaptingFromPlanId: this.adaptingFromPlanId,
+      currentDayIndex: this.currentDayIndex,
+      days: this.weekDays.map(d => ({
+        dayNumber: d.dayNumber,
+        dayName: d.dayName,
+        dayTypeId: d.dayTypeId,
+        selectedExercices: d.selectedExercices
+      }))
+    };
+  }
+
+  private isDraftEmpty(draft: PlanDraft): boolean {
+    return !draft.name.trim()
+      && !draft.description.trim()
+      && !draft.planTypeId
+      && draft.days.every(d => !d.dayTypeId && d.selectedExercices.length === 0);
+  }
+
+  /**
+   * Pamti zatečeno stanje forme kao „nepromijenjeno".
+   *
+   * Bez ovoga bi otvaranje izmjene postojećeg plana odmah upisalo nacrt, pa bi
+   * traka „nedovršen plan" iskakala i onome ko je samo zavirio u plan.
+   */
+  private markDraftBaseline() {
+    this.lastDraftJson = JSON.stringify(this.planDraft());
+  }
+
+  /** Traka se nudi samo ako nacrt postoji i nije prestar. */
+  private offerDraft() {
+    if (!this.draftKey || this.showCreateModal) return;
+
+    const draft = this.drafts.load<PlanDraft>(this.draftKey, this.DRAFT_MAX_AGE_MS);
+    if (draft) this.showDraftBar(draft);
+  }
+
+  private showDraftBar(draft: PlanDraft) {
+    clearTimeout(this.draftCloseTimer);
+    this.pendingDraft = draft;
+    this.draftClosing = false;
+    this.draftAvailable = true;
+  }
+
+  /** Skidanje trake ide kroz izlaznu animaciju, ne nestankom u jednom kadru. */
+  private hideDraftBar() {
+    if (!this.draftAvailable) return;
+    this.draftClosing = true;
+    clearTimeout(this.draftCloseTimer);
+    this.draftCloseTimer = setTimeout(() => {
+      this.draftAvailable = false;
+      this.draftClosing = false;
+      this.pendingDraft = null;
+    }, 480);
+  }
+
+  /** Naziv nacrta na traci, ako je stigao da se otkuca. */
+  get draftLabel(): string {
+    const name = this.pendingDraft?.name?.trim();
+    return name ? `„${name}"` : '';
+  }
+
+  /** Vraća SVE — i režim izmjene/prilagođavanja i dan na kojem se stalo. */
+  async resumeDraft() {
+    const draft = this.pendingDraft;
+    if (!draft || this.draftRestoring) return;
+
+    this.draftRestoring = true;
+
+    try {
+      this.newPlanName = draft.name;
+      this.newPlanDescription = draft.description;
+      this.newPlanTypeId = draft.planTypeId;
+      this.editingPlanId = draft.editingPlanId;
+      this.adaptingFromPlanId = draft.adaptingFromPlanId;
+      this.createError = '';
+
+      this.weekDays = draft.days.map(d => ({
+        dayNumber: d.dayNumber,
+        dayName: d.dayName,
+        dayTypeId: d.dayTypeId,
+        availableExercices: [],
+        selectedExercices: d.selectedExercices ?? []
+      }));
+
+      this.computeFilteredDayTypes();
+
+      // Ponuda vježbi se ne pamti u nacrtu — dovlači se ponovo, uporedo po
+      // danima, isto kao u populateWeekDaysFor().
+      if (this.isCustomPlanType) {
+        await this.applyCustomDayDefaults();
+      } else {
+        await Promise.all(this.weekDays.map(async day => {
+          if (!day.dayTypeId) return;
+          try {
+            day.availableExercices = await this.dashboardService.getExercicesForDayType(day.dayTypeId);
+          } catch {
+            // Bez ponude se dan i dalje vidi; izmjena vježbi tog dana neće raditi.
+          }
+        }));
+      }
+
+      this.closeExercicePicker();
+      this.showCreateModal = true;
+      this.currentDayIndex = draft.currentDayIndex ?? 0;
+      this.markDraftBaseline();
+      this.hideDraftBar();
+    } finally {
+      this.draftRestoring = false;
+    }
+  }
+
+  /** Izričito odbacivanje — nacrt se briše, traka odlazi. */
+  discardDraft() {
+    if (this.draftRestoring) return;
+    this.drafts.clear(this.draftKey);
+    this.hideDraftBar();
   }
 
   /** Dan i tip treninga za danas, po planu koji korisnik prati ili ima aktivan. */
@@ -466,6 +680,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.liveTimer) clearInterval(this.liveTimer);
     if (this.elapsedTimer) clearInterval(this.elapsedTimer);
     clearTimeout(this.outFaceTimer);
+    clearTimeout(this.draftCloseTimer);
   }
 
   /**
@@ -557,6 +772,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.filteredDayTypes = [];
     this.currentDayIndex = 0;
     this.closeExercicePicker();
+    this.markDraftBaseline();
   }
 
   // --- Prevlačenje prstom ----------------------------------------------------
@@ -714,7 +930,33 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }, attempt === 0 ? 0 : 120);
   }
 
-  closeCreateModal() {
+  /**
+   * Klik na pozadinu modala — NIJE odustajanje.
+   *
+   * Modal se zatvara i promašajem prsta, a raspored od sedam dana je previše
+   * posla da bi nestao zbog toga. Nacrt se zato upisuje ODMAH (bez čekanja da
+   * odgođeni upis istekne) i nudi se na traci.
+   */
+  dismissCreateModal() {
+    const snapshot = this.planDraft();
+
+    if (this.draftKey && !this.isDraftEmpty(snapshot)) {
+      this.drafts.save(this.draftKey, snapshot);
+      this.showDraftBar(snapshot);
+    }
+
+    this.resetCreateModal();
+  }
+
+  /** Dugme „Otkaži" je izričito odustajanje — nacrt se briše. */
+  cancelCreateModal() {
+    this.drafts.clear(this.draftKey);
+    this.hideDraftBar();
+    this.resetCreateModal();
+  }
+
+  /** Prazni formu i zatvara modal. Ne dira nacrt — o njemu odlučuje pozivalac. */
+  private resetCreateModal() {
     this.showCreateModal = false;
     this.newPlanName = '';
     this.newPlanDescription = '';
@@ -724,6 +966,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.filteredDayTypes = [];
     this.editingPlanId = null;
     this.adaptingFromPlanId = null;
+    this.lastDraftJson = '';
     this.closeExercicePicker();
   }
 
@@ -746,6 +989,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.closeViewModal();
     this.showCreateModal = true;
     this.currentDayIndex = 0;
+    this.markDraftBaseline();
   }
 
   /**
@@ -770,6 +1014,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.closeViewModal();
     this.showCreateModal = true;
     this.currentDayIndex = 0;
+    this.markDraftBaseline();
   }
 
   /** weekDays iz nekog plana (svejedno da li se time izmjenjuje ili se od njega pravi novi). */
@@ -1016,7 +1261,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
 
       this.myPlans = await this.dashboardService.getMyPlans(user.id);
-      this.closeCreateModal();
+
+      // Plan je u bazi — nacrt je odradio svoje.
+      this.drafts.clear(this.draftKey);
+      this.hideDraftBar();
+      this.resetCreateModal();
     } catch (err: any) {
       this.createError = err.message ?? (this.editingPlanId ? 'Greška prilikom izmene plana.' : 'Greška prilikom kreiranja plana.');
     } finally {

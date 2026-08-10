@@ -1,5 +1,6 @@
 import { Component, ElementRef, HostListener, OnDestroy, DoCheck, OnInit, QueryList, ViewChildren } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
+import { DraftService } from '../../services/draft.service';
 import { ExerciceService } from '../../services/exercice.service';
 import { AudioService } from '../../services/audio.service';
 import { GlitchService } from '../../services/glitch.service';
@@ -168,6 +169,17 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   noteText = '';
   noteSaving = false;
 
+  /**
+   * Nedovršena bilješka se pamti na telefonu (vidi DraftService).
+   *
+   * Bilješka se kuca usred treninga, između serija — izlazak sa ekrana,
+   * zaključan telefon ili ubijena kartica su je do sada brisali u prazno.
+   * Ključ ide po sesiji, pa se bilješke dva različita dana ne miješaju.
+   */
+  private noteDraftKey = '';
+  /** Trening ne traje duže od dana — stariji nacrt bilješke nema kome. */
+  private readonly NOTE_DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
   /** Režim preređivanja: redovi se svode na naziv + strelice. */
   reordering = false;
   reorderSaving = false;
@@ -234,6 +246,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     private trainingService: TrainingService,
     private exerciceService: ExerciceService,
     private authService: AuthService,
+    private drafts: DraftService,
     private audio: AudioService,
     private glitch: GlitchService,
     public queue: OfflineQueueService,
@@ -283,10 +296,19 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
           return;
         }
       } else {
-        const plan = await this.trainingService.getPlanForUser(user.id);
-        this.session = await this.trainingService.getOrCreateSession(user.id, this.todayDate, plan);
+        // Plan se dovlači SAMO ako sesije još nema — vidi getOrCreateSession.
+        // Poslije prvog ulaska tog dana sesija nosi sve, pa se dva serijska
+        // upita (plan_members → cio plan sa danima i vježbama) ne plaćaju.
+        let plan: any = null;
+
+        this.session = await this.trainingService.getOrCreateSession(
+          user.id,
+          this.todayDate,
+          async () => (plan = await this.trainingService.getPlanForUser(user.id))
+        );
 
         if (!this.session) {
+          // Dovde se stiže samo kad sesija nije postojala, dakle plan JE tražen.
           this.errorMessage = plan
             ? 'Nema definisanog rasporeda za danas.'
             : 'Nemaš plan koji pratiš. Napravi ga ili zaprati tuđi na ekranu Planovi.';
@@ -295,6 +317,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
       }
 
       await this.hydrate();
+      this.restoreNoteDraft();
 
       // Poslije hydrate-a, jer odluka zavisi od upisanih serija.
       await this.restartClockIfStale();
@@ -1632,10 +1655,42 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     }
   }
 
+  /**
+   * Vraća nedovršenu bilješku pri otvaranju treninga.
+   *
+   * Ako nešto stoji u nacrtu, polje se i OTVARA samo — inače bi tekst tiho
+   * čekao iza dugmeta i čovjek bi mislio da ga je izgubio.
+   */
+  private restoreNoteDraft() {
+    if (this.viewOnly || !this.session) return;
+
+    this.noteDraftKey = `note.${this.session.id}`;
+    const draft = this.drafts.load<string>(this.noteDraftKey, this.NOTE_DRAFT_MAX_AGE_MS);
+    if (draft === null) return;
+
+    this.noteText = draft;
+    if (draft.trim()) this.showNote = true;
+  }
+
+  /** Svaki otkucaj u polje odlaže nacrt; upis ide tek kad se kucanje smiri. */
+  onNoteInput(value: string) {
+    this.noteText = value;
+    if (this.noteDraftKey) this.drafts.saveDebounced(this.noteDraftKey, value, 300);
+  }
+
   toggleNote() {
     if (this.viewOnly) return;   // bilješka iz istorije se čita, ne mijenja
     this.showNote = !this.showNote;
-    if (this.showNote) this.noteText = this.session?.note ?? '';
+
+    if (this.showNote) {
+      // Nacrt je NOVIJI od onog što je u bazi — ono što je otkucano a nije
+      // sačuvano ne smije da se izgubi zatvaranjem i ponovnim otvaranjem polja.
+      const draft = this.noteDraftKey
+        ? this.drafts.load<string>(this.noteDraftKey, this.NOTE_DRAFT_MAX_AGE_MS)
+        : null;
+
+      this.noteText = draft ?? this.session?.note ?? '';
+    }
   }
 
   async saveNote() {
@@ -1645,6 +1700,9 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     try {
       await this.trainingService.saveNote(this.session.id, this.noteText);
       this.session.note = this.noteText.trim() || null;
+      // Bilješka je u bazi — nacrt više nema šta da čuva. „Otkaži" ga NAMJERNO
+      // ne briše: zatvaranje polja nije odustajanje od teksta.
+      this.drafts.clear(this.noteDraftKey);
       this.showNote = false;
     } catch (err: any) {
       this.errorMessage = humanError(err, 'Greška pri upisu bilješke.');

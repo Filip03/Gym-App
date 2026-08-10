@@ -70,6 +70,24 @@
     <p *ngIf="loading">Učitavanje...</p>
     <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
 
+    <!-- Nedovršen plan iz ranije. Traka je DISKRETNA i ništa ne otvara sama —
+         modal koji bi iskočio pri svakom ulasku bio bi gori od izgubljenog
+         nacrta. Vidi resumeDraft()/discardDraft(). -->
+    <div class="draft-bar" *ngIf="draftAvailable && !loading"
+         [class.closing]="draftClosing" [class.working]="draftRestoring">
+      <i class="material-icons">history_edu</i>
+      <span class="db-text">
+        Imaš nedovršen plan
+        <span class="db-name" *ngIf="draftLabel">{{ draftLabel }}</span>
+      </span>
+      <button type="button" class="db-resume" [disabled]="draftRestoring" (click)="resumeDraft()">
+        {{ draftRestoring ? 'Vraćam...' : 'Nastavi' }}
+      </button>
+      <button type="button" class="db-discard" [disabled]="draftRestoring" (click)="discardDraft()">
+        Odbaci
+      </button>
+    </div>
+
     <div class="sections" *ngIf="!loading && !errorMessage">
 
         <section class="my-plans">
@@ -151,7 +169,8 @@
     </div>
 </div>
 
-<div class="modal-overlay" *ngIf="showCreateModal" (click)="closeCreateModal()">
+<!-- Klik na pozadinu ČUVA nacrt (dismiss), dugme „Otkaži" ga briše (cancel). -->
+<div class="modal-overlay" *ngIf="showCreateModal" (click)="dismissCreateModal()">
   <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
     <h2>{{ editingPlanId ? 'Izmijeni plan' : 'Novi plan' }}</h2>
     <p class="modal-note" *ngIf="adaptingFromPlanId">
@@ -241,7 +260,7 @@
       <p *ngIf="createError" class="error">{{ createError }}</p>
 
       <div class="form-actions">
-        <button type="button" (click)="closeCreateModal()">Otkaži</button>
+        <button type="button" (click)="cancelCreateModal()">Otkaži</button>
         <button type="submit" [disabled]="creating || !planForm.valid">
           {{ creating ? 'Čuvam...' : (editingPlanId ? 'Sačuvaj izmene' : 'Sačuvaj plan') }}
         </button>

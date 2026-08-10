@@ -161,18 +161,24 @@ export class ProfileService {
    * „Trening gotov", dakle bio si tamo, samo nisi upisivao.
    */
   async getTrainingCalendar(userId: string, sinceIso: string): Promise<TrainingDay[]> {
+    // Granice su zaštita, ne pravilo: godina ima najviše 366 sesija, a i vrlo
+    // marljiv korisnik za godinu upiše nekoliko hiljada serija. Krov postoji da
+    // upit bez prirodnog kraja ne bi jednog dana povukao neograničeno mnogo
+    // redova na telefon. Ako se ikad dotakne, kalendar treba računati u bazi.
     const [sessions, logs] = await Promise.all([
       this.supabase.client
         .from('workout_sessions')
         .select('date, finished_at')
         .eq('user_id', userId)
         .not('finished_at', 'is', null)
-        .gte('date', sinceIso),
+        .gte('date', sinceIso)
+        .limit(2000),
       this.supabase.client
         .from('exercice_logs')
         .select('date, exercice_id, set_number')
         .eq('user_id', userId)
         .gte('date', sinceIso)
+        .limit(20000)
     ]);
 
     if (sessions.error) throw sessions.error;

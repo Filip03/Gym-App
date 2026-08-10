@@ -200,8 +200,31 @@ async createFullPlan(
   return newPlan as WorkoutPlan;
 }
 
-// Izmena postojećeg plana - osnovni podaci se ažuriraju, a raspored po danima
-// se u potpunosti zamenjuje novim (jednostavnije i pouzdanije od diff-ovanja)
+/**
+ * Izmjena postojećeg plana — osnovni podaci se ažuriraju, a raspored po danima
+ * se u potpunosti zamjenjuje novim (jednostavnije i pouzdanije od diff-ovanja).
+ *
+ * PRVO UPIŠI NOVO, PA OBRIŠI STARO
+ *
+ * Ranije je redoslijed bio obrnut: obriši `day_exercice`, obriši `workout_days`,
+ * pa upiši nove dane jedan po jedan — do 14 serijskih odlazaka na server. Ako bi
+ * veza pukla na pola (a puca: teretana, podrum, tunel), plan bi ostao BEZ IJEDNOG
+ * DANA, i to nepovratno — stari raspored je već bio obrisan, novi nije stigao.
+ * Tako se tiho gubio cio plan.
+ *
+ * Sada se prvo upisuju NOVI redovi (stari se ne diraju), pa se tek pošto su svi
+ * prošli brišu stari — po id-jevima pokupljenim PRIJE upisa. Prekid na pola
+ * ostavlja plan sa starim danima, dakle ispravan; nedovršeni novi dani se čiste
+ * u `insertDays`. Šema ovo dozvoljava: `workout_days` nema unique ograničenje na
+ * `(plan_id, day_number)` (vidi 20260725000000_initial_schema.sql), pa dva
+ * kompleta dana mogu nakratko stajati jedan pored drugog.
+ *
+ * Cijena je kratak prozor (dio sekunde) u kojem bi neko ko baš tada otvori plan
+ * vidio dane duplirane. To je neuporedivo jeftinije od trajno praznog plana.
+ *
+ * Brisanje starih dana ionako ne dira istoriju: `workout_sessions.workout_day_id`
+ * je `on delete set null`, sesija ostaje sa svojim snimkom naziva i tipa dana.
+ */
 async updateFullPlan(
   planId: string,
   plan: { name: string; description: string; plan_type_id: string },
@@ -223,6 +246,8 @@ async updateFullPlan(
 
   if (planError) throw planError;
 
+  // Id-jevi STARIH dana se pamte prije upisa novih — poslije se više ne bi
+  // mogli razlikovati od novih, jer oba kompleta vise o istom planu.
   const { data: existingDays, error: fetchDaysError } = await this.supabase.client
     .from('workout_days')
     .select('id')
@@ -230,27 +255,43 @@ async updateFullPlan(
 
   if (fetchDaysError) throw fetchDaysError;
 
-  const existingDayIds = (existingDays ?? []).map(d => d.id);
+  const oldDayIds = (existingDays ?? []).map(d => d.id);
 
-  if (existingDayIds.length > 0) {
+  // 1) Novi raspored ide u bazu prvi. Ako ovdje pukne, plan i dalje ima stari.
+  await this.insertDays(planId, days);
+
+  // 2) Tek sada, kad je novo sigurno upisano, stari dani odlaze.
+  if (oldDayIds.length > 0) {
     const { error: deleteExError } = await this.supabase.client
       .from('day_exercice')
       .delete()
-      .in('workout_day_id', existingDayIds);
+      .in('workout_day_id', oldDayIds);
 
     if (deleteExError) throw deleteExError;
 
+    // PO ID-JEVIMA, ne po plan_id — inače bi ovo odnijelo i dane koje smo
+    // upravo upisali.
     const { error: deleteDaysError } = await this.supabase.client
       .from('workout_days')
       .delete()
-      .eq('plan_id', planId);
+      .in('id', oldDayIds);
 
     if (deleteDaysError) throw deleteDaysError;
   }
-
-  await this.insertDays(planId, days);
 }
 
+/**
+ * Upisuje dane plana i vraća id-jeve napravljenih redova.
+ *
+ * Dani su međusobno nezavisni, pa idu UPOREDO — serijska petlja je značila do
+ * 14 odlazaka na server u nizu (dan, pa njegove vježbe, pa sljedeći dan...),
+ * što se na mobilnoj vezi mjerilo sekundama. Vježbe jednog dana su i dalje
+ * jedan skupni insert.
+ *
+ * Ako ijedan dan padne, ovaj poziv za sobom POČISTI ono što je stigao da upiše
+ * i baci grešku — pola upisanog rasporeda je gore od nijednog, jer bi se
+ * pomiješalo sa starim danima koje pozivalac tek treba da obriše.
+ */
 private async insertDays(
   planId: string,
   days: {
@@ -259,36 +300,83 @@ private async insertDays(
     dayTypeId: string | null;
     exercices: { exerciceId: string; targetSets: number | null; targetReps: number | null; orderNum: number }[];
   }[]
-): Promise<void> {
-  for (const day of days) {
-    const { data: newDay, error: dayError } = await this.supabase.client
+): Promise<string[]> {
+  const results = await Promise.allSettled(days.map(day => this.insertDay(planId, day)));
+
+  const created = results
+    .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+    .map(r => r.value);
+
+  const failed = results.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
+
+  if (failed) {
+    await this.deleteDaysById(created);
+    throw failed.reason;
+  }
+
+  return created;
+}
+
+/** Jedan dan sa svojim vježbama. Vraća id novog reda u `workout_days`. */
+private async insertDay(
+  planId: string,
+  day: {
+    dayNumber: number;
+    dayName: string;
+    dayTypeId: string | null;
+    exercices: { exerciceId: string; targetSets: number | null; targetReps: number | null; orderNum: number }[];
+  }
+): Promise<string> {
+  const { data: newDay, error: dayError } = await this.supabase.client
+    .from('workout_days')
+    .insert({
+      plan_id: planId,
+      name: day.dayName,
+      day_number: day.dayNumber,
+      day_type: day.dayTypeId
+    })
+    .select()
+    .single();
+
+  if (dayError) throw dayError;
+
+  if (day.exercices.length === 0) return newDay.id as string;
+
+  const exerciceRows = day.exercices.map(ex => ({
+    workout_day_id: newDay.id,
+    exercice_id: ex.exerciceId,
+    order_num: ex.orderNum,
+    target_sets: ex.targetSets,
+    target_reps: ex.targetReps
+  }));
+
+  const { error: dayExError } = await this.supabase.client
+    .from('day_exercice')
+    .insert(exerciceRows);
+
+  if (dayExError) {
+    // Dan bez svojih vježbi ne smije ostati za sobom — briše se odmah, pa
+    // gore ostane samo greška.
+    await this.deleteDaysById([newDay.id as string]);
+    throw dayExError;
+  }
+
+  return newDay.id as string;
+}
+
+/** Čišćenje nedovršenog upisa. Tiho na grešci — greška upisa je važnija. */
+private async deleteDaysById(dayIds: string[]): Promise<void> {
+  if (dayIds.length === 0) return;
+
+  try {
+    // `day_exercice` ima FK na `workout_days` sa `on delete cascade`, pa se
+    // vježbe tih dana brišu same.
+    await this.supabase.client
       .from('workout_days')
-      .insert({
-        plan_id: planId,
-        name: day.dayName,
-        day_number: day.dayNumber,
-        day_type: day.dayTypeId
-      })
-      .select()
-      .single();
-
-    if (dayError) throw dayError;
-
-    if (day.exercices.length > 0) {
-      const exerciceRows = day.exercices.map(ex => ({
-        workout_day_id: newDay.id,
-        exercice_id: ex.exerciceId,
-        order_num: ex.orderNum,
-        target_sets: ex.targetSets,
-        target_reps: ex.targetReps
-      }));
-
-      const { error: dayExError } = await this.supabase.client
-        .from('day_exercice')
-        .insert(exerciceRows);
-
-      if (dayExError) throw dayExError;
-    }
+      .delete()
+      .in('id', dayIds);
+  } catch {
+    // Nema šta dalje da se radi — plan je i dalje ispravan sa starim danima.
   }
 }
 

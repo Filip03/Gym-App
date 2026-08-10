@@ -3907,3 +3907,30 @@ iOS pri svakom relaunch-u PWA kreće od start_url `/` — pun „pljesak krede" 
 
 **Build:** `ng build --configuration development` prolazi; jedine dvije
 poruke su zatečena NG8107 upozorenja u training templateu.
+
+---
+
+## [2026-08-10] Trajni nacrti, brži ulasci, bezbjedan updateFullPlan, limiti
+**Tip:** popravka + performanse
+
+Po Markovim prijavama sa terena (drugi dio paketa; prvi je „iPhone UX trojka"
+iznad):
+
+1. **Trajni nacrti** — novi `DraftService` (localStorage, verzija šeme u
+   ključu, otporan na punu memoriju). Plan builder čuva CIO nacrt (naziv,
+   opis, tip, dani, režim izmjene, tekući dan) debounce-om 500ms; klik na
+   overlay = „sačuvaj i zatvori", dugme Otkaži = odbaci; pri povratku na
+   dashboard animirana traka „Imaš nedovršen plan — Nastavi / Odbaci" (kućni
+   jezik, ink + talas). Bilješka treninga se čuva po sesiji (300ms) i vraća
+   pri ulasku. Rješava „krenem plan, izađem, sve ispočetka".
+2. **Brži ulasci** — dashboard: 4 nezavisna upita kroz `Promise.all`
+   (serijska dubina 4→1); `/exercices` bez duplog `getMuscleGroups`;
+   `getOrCreateSession` prima lijenu funkciju za plan i zove je SAMO kad
+   sesija ne postoji — svaki sljedeći ulazak u trening štedi
+   `plan_members` + cio `getFullPlan` (1–2 serijska kruga).
+3. **`updateFullPlan` više ne može pojesti plan** — redoslijed obrnut na
+   „prvo upiši NOVE dane, pa obriši STARE po zapamćenim id-jevima"; prekid na
+   pola ostavlja stari plan netaknut (dokazano na lokalnoj bazi: namjerni FK
+   prekid — broj dana ni u jednom trenutku ispod 7). `insertDays` paralelno.
+4. **Limiti na upite koji rastu zauvijek** — ekipa 20000 redova, kalendar
+   2000/20000, pragovi rekorda 5000 (velikodušno; semantika netaknuta).
