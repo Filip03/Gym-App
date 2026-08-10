@@ -464,7 +464,9 @@ button:not(:disabled):active { transform: scale(0.97); }
   right: 0;
   z-index: 100;
   display: flex;
-  align-items: flex-end;
+  // Na telefonu kartica PUNI cio međuprostor između traka — popup ovdje nije
+  // lebdeći prozorčić nego panel (vidi .modal-card); ≥640px se centrira.
+  align-items: stretch;
   justify-content: center;
 
   background: var(--scrim);
@@ -485,18 +487,19 @@ button:not(:disabled):active { transform: scale(0.97); }
 .modal-card {
   width: 100%;
   max-width: var(--page-max);
-  // 100% = visina praznog polja između zaglavlja i futera, koju postavlja
-  // `.modal-overlay`. Nikakav `vh` ni `svh` — nema šta da se procjenjuje.
-  max-height: 100%;
+  // Aplikacija ima STALNO gornju i donju traku, a popup živi u međuprostoru —
+  // pa se na telefonu ponaša kao PUN PANEL: od ivice do ivice, bez zaobljenih
+  // ćoškova (kroz njih su virili „zarezi" scrima ispod zaglavlja i pravili
+  // utisak greške — Markov app_sc.png) i bez sopstvenih ivica; trake su te
+  // koje ga omeđuju. ≥640px (laptop) ostaje centrirani zaobljeni dijalog.
+  height: 100%;
   overflow-y: auto;
   overscroll-behavior: contain;
 
   padding: var(--s-6) var(--s-5);
   background: var(--carbon);
-  border: 1px solid var(--line);
-  border-bottom: none;
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  box-shadow: var(--lift-3);
+  border: none;
+  border-radius: 0;
 
   animation: sheet-in var(--d-slow) var(--ease-spring) both;
 }
@@ -504,9 +507,12 @@ button:not(:disabled):active { transform: scale(0.97); }
 @media (min-width: 640px) {
   .modal-overlay { align-items: center; padding: var(--s-6); }
   .modal-card {
+    height: auto;
+    max-height: 100%;
+    border: 1px solid var(--line);
     border-radius: var(--r-xl);
-    border-bottom: 1px solid var(--line);
     padding-bottom: var(--s-6);
+    box-shadow: var(--lift-3);
     animation: dialog-in var(--d-slow) var(--ease-spring) both;
   }
 }

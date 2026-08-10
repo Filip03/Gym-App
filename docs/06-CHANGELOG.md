@@ -3945,3 +3945,11 @@ iznad):
    vrhu PRAVOUGAONE trake — pored luka kupole ostajale su neprekrivene rupe.
    U `nav-dome` režimu sada idu do same ivice ekrana (`bottom: 0` +
    `padding-bottom` čuva karticu iznad tjemena).
+
+**Dopuna istog dana — popup = pun panel između traka (Markov app_sc.png):**
+`.modal-card` je na telefonu bio lebdeći bottom-sheet sa zaobljenim vrhom —
+ispod zaglavlja su kroz zaobljenje virila dva „zareza" scrima (utisak greške),
+a dizajn se pravio da trake ne postoje. Sada: na telefonu kartica PUNI cio
+međuprostor između traka (height 100%, bez radijusa, bez sopstvenih ivica —
+trake je omeđuju); ≥640px ostaje centrirani zaobljeni dijalog. Važi za sve
+kućne modale (birač vježbi, planovi, rezime, težina, pregled profila...).
