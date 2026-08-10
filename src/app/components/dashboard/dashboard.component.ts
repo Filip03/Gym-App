@@ -11,6 +11,7 @@ import { DropdownOption } from '../shared/dropdown/dropdown.component';
 import { TrainingService } from '../../services/training.service';
 import { NewsService, NewsItem } from '../../services/news.service';
 import { DAY_NAMES as DAYS } from '../../shared/day-names';
+import { ExerciceDetailService } from '../shared/exercice-detail/exercice-detail.service';
 import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../../shared/warmup-grace';
 
 interface SelectedExercice {

@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
 import { Exercice, MuscleGroup } from '../../models/models';
+import { ExerciceDetailService } from '../shared/exercice-detail/exercice-detail.service';
 
 @Component({
   selector: 'app-exercices',
