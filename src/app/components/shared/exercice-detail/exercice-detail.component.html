@@ -1,0 +1,22 @@
+<div class="modal-overlay detail-overlay" (click)="dismiss.emit()">
+  <div class="detail-card" *ngIf="exercice" (click)="$event.stopPropagation()">
+
+    <button type="button" class="detail-close" (click)="dismiss.emit()" aria-label="Zatvori">
+      <i class="material-icons">close</i>
+    </button>
+
+    <div class="detail-media">
+      <img *ngIf="exercice.picture" [src]="pictureUrl(exercice.picture)" [alt]="exercice.name">
+      <span class="ph" *ngIf="!exercice.picture"><i class="material-icons">fitness_center</i></span>
+    </div>
+
+    <h2 class="detail-name">{{ exercice.name }}</h2>
+
+    <div class="detail-groups" *ngIf="groups.length">
+      <span class="dg" *ngFor="let g of groups">{{ g }}</span>
+    </div>
+
+    <p class="detail-text" *ngIf="exercice.description">{{ exercice.description }}</p>
+    <p class="detail-text empty-text" *ngIf="!exercice.description">Nema opisa za ovu vježbu.</p>
+  </div>
+</div>

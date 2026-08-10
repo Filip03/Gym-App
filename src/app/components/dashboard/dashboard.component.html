@@ -169,99 +169,203 @@
     </div>
 </div>
 
-<!-- Klik na pozadinu ČUVA nacrt (dismiss), dugme „Otkaži" ga briše (cancel). -->
+<!-- Klik na pozadinu ČUVA nacrt (dismiss), dugme „Otkaži" ga briše (cancel).
+     Kartica je stub: sadržaj skroluje u sredini, a akciona traka
+     (Otkaži · napredak · Sačuvaj) stoji STALNO u dnu — „Sačuvaj" se nikad
+     ne traži skrolom. -->
 <div class="modal-overlay" *ngIf="showCreateModal" (click)="dismissCreateModal()">
-  <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
-    <h2>{{ editingPlanId ? 'Izmijeni plan' : 'Novi plan' }}</h2>
-    <p class="modal-note" *ngIf="adaptingFromPlanId">
-      Pravi se tvoj novi plan na osnovu ovog rasporeda — original ostaje nepromijenjen.
-      Naziv i opis su obavezni.
-    </p>
+  <div class="modal-card modal-card-large plan-modal" (click)="$event.stopPropagation()">
+    <form (ngSubmit)="onSubmitPlan()">
 
-    <form (ngSubmit)="onSubmitPlan()" #planForm="ngForm">
+      <div class="plan-scroll">
+        <h2>{{ editingPlanId ? 'Izmijeni plan' : 'Novi plan' }}</h2>
+        <p class="modal-note" *ngIf="adaptingFromPlanId">
+          Pravi se tvoj novi plan na osnovu ovog rasporeda — original ostaje nepromijenjen.
+          Naziv i opis su obavezni.
+        </p>
 
-      <!-- GORNJI DIO: osnovne informacije -->
-      <div class="plan-info-section">
-        <div class="form-group">
-          <label for="name">Naziv plana</label>
-          <input id="name" name="name" type="text" [(ngModel)]="newPlanName" required />
+        <!-- GORNJI DIO: osnovne informacije -->
+        <div class="plan-info-section">
+          <div class="form-group" [class.shake]="shakeName">
+            <label for="name">Naziv plana</label>
+            <input id="name" name="name" type="text" [(ngModel)]="newPlanName" required />
+          </div>
+
+          <div class="form-group" [class.shake]="shakeDesc">
+            <label for="description">Opis</label>
+            <textarea id="description" name="description" [(ngModel)]="newPlanDescription" rows="2"
+                      [required]="!!adaptingFromPlanId"></textarea>
+          </div>
+
+          <div class="form-group" [class.shake]="shakeType">
+            <label for="planType">Tip plana</label>
+            <app-dropdown inputId="planType"
+                          [class.shake]="shakeType"
+                          [options]="planTypeOptions"
+                          [value]="newPlanTypeId || null"
+                          placeholder="Izaberi tip plana"
+                          (valueChange)="onPlanTypeSelected($event)"></app-dropdown>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="description">Opis</label>
-          <textarea id="description" name="description" [(ngModel)]="newPlanDescription" rows="2"
-                    [required]="!!adaptingFromPlanId"></textarea>
-        </div>
+        <hr class="divider" />
 
-        <div class="form-group">
-          <label for="planType">Tip plana</label>
-          <select id="planType" name="planType" [(ngModel)]="newPlanTypeId" (change)="onPlanTypeChange()">
-            <option value="">-- Izaberi tip --</option>
-            <option *ngFor="let type of planTypes" [value]="type.id">{{ type.name }}</option>
-          </select>
-        </div>
-      </div>
-
-      <hr class="divider" />
-
-      <!-- DONJI DIO: raspored po danima - kartice jedna pored druge, izbor vježbi ide u poseban modal -->
+        <!-- DONJI DIO: raspored po danima — tabovi PON–NED, jedan dan na ekranu -->
         <div class="week-schedule">
-        <h3>Raspored treninga</h3>
+          <h3>Raspored treninga</h3>
 
-        <div class="create-days-grid">
-            <div class="create-day-card" *ngFor="let day of weekDays">
-              <span class="day-name">{{ day.dayName }}</span>
+          <!-- Tab nosi i stanje dana: bedž sa brojem vježbi i obojen tip dana -->
+          <div class="day-tabs edit-day-tabs">
+            <button type="button" *ngFor="let d of weekDays; let i = index"
+                    class="day-tab"
+                    [class.on]="i === currentDayIndex"
+                    [class.rest]="isRestDayEntry(d)"
+                    [class.typed]="!!d.dayTypeId && !isRestDayEntry(d)"
+                    (click)="goToEditDay(i)">
+              <span class="dt-name">{{ shortDay(d.dayName) }}</span>
+              <span class="dt-type" *ngIf="dayTypeShort(d)">{{ dayTypeShort(d) }}</span>
+              <span class="dt-dot" *ngIf="!dayTypeShort(d)"></span>
+              <!-- Bedž se rađa iznova pri promjeni broja, pa promjena „popne" -->
+              <span class="dt-count num" *ngIf="dayCount(d) > 0">
+                <ng-container *ngFor="let k of [dayCount(d)]">
+                  <span class="dt-count-in">{{ dayCount(d) }}</span>
+                </ng-container>
+              </span>
+            </button>
+          </div>
 
-              <select
-                *ngIf="!isCustomPlanType"
-                [(ngModel)]="day.dayTypeId"
-                [name]="'dayType_' + day.dayNumber"
-                (change)="onDayTypeChange(day)"
-              >
-                <option [ngValue]="null">-- Izaberi tip dana --</option>
-                <option *ngFor="let type of filteredDayTypes" [value]="type.id">{{ type.name }}</option>
-              </select>
+          <!-- Sadržaj dana se rađa iznova pri listanju (editDayKey) — ulazi
+               talasom, unazad obrnutim redom (dayAnimDir). -->
+          <ng-container *ngFor="let k of [editDayKey]">
+            <div class="day-pane" *ngIf="weekDays[currentDayIndex] as day"
+                 [class.back]="dayAnimDir === -1">
 
-              <span class="custom-day-badge" *ngIf="isCustomPlanType">Sve vježbe</span>
+              <div class="dp-block" *ngIf="!isCustomPlanType">
+                <label class="dp-label" [attr.for]="'dayType' + day.dayNumber">Tip dana</label>
+                <app-dropdown [inputId]="'dayType' + day.dayNumber"
+                              [options]="dayTypeOptions"
+                              [value]="day.dayTypeId"
+                              placeholder="Dodirni i izaberi tip dana"
+                              nullLabel="Bez treninga (odmor)"
+                              (valueChange)="onDayTypeSelected(day, $event)"></app-dropdown>
+              </div>
 
-              <button
-                type="button"
-                class="edit-exercices-btn"
-                *ngIf="day.dayTypeId && day.availableExercices.length > 0"
-                (click)="openExercicePicker(day)"
-              >
-                {{ day.selectedExercices.length > 0 ? 'Izmijeni vježbe' : 'Izaberi vježbe' }}
+              <div class="dp-block" *ngIf="isCustomPlanType">
+                <span class="custom-day-badge">Sve vježbe iz kataloga</span>
+              </div>
+
+              <button type="button" class="edit-exercices-btn dp-block"
+                      *ngIf="day.selectedExercices.length > 0 && day.availableExercices.length > 0"
+                      (click)="openExercicePicker(day)">
+                <i class="material-icons">tune</i>
+                Izmijeni vježbe
               </button>
 
-              <div class="exercice-view-list" *ngIf="day.selectedExercices.length > 0">
-                <div class="exercice-view-item" *ngFor="let sel of day.selectedExercices; let i = index">
-                  <span class="ord num">{{ i + 1 }}</span>
-                  <span class="exercice-name">{{ sel.name }}</span>
-                  <span class="exercice-sets-reps">{{ sel.targetSets ?? '-' }} x {{ sel.targetReps ?? '-' }}</span>
-                  <span class="ord-actions">
-                    <button type="button" [disabled]="i === 0" (click)="moveInDay(day, i, -1)" aria-label="Gore">
+              <!-- Lista izabranih vježbi dana: sličica + naziv + redni broj +
+                   serije×pon. čip + strelice (FLIP) + uklanjanje -->
+              <div class="sel-list dp-block" *ngIf="day.selectedExercices.length > 0">
+                <div class="sel-row" #selRow
+                     *ngFor="let sel of day.selectedExercices; let i = index; trackBy: trackSel"
+                     [class.closing]="sel.closing"
+                     [style.--row-delay]="rowDelay(i, day.selectedExercices.length) + 'ms'">
+
+                  <button type="button" class="sel-thumb" (click)="openExPreview(day, sel)"
+                          [attr.aria-label]="'Pregled vježbe: ' + sel.name" title="Pregled vježbe">
+                    <img *ngIf="sel.picture" [src]="getExercicePictureUrl(sel.picture)" alt="">
+                    <span class="ph" *ngIf="!sel.picture"><i class="material-icons">fitness_center</i></span>
+                  </button>
+
+                  <!-- Redni broj se rađa iznova kad se promijeni — „pop" -->
+                  <span class="sel-ord num">
+                    <ng-container *ngFor="let k of [i + 1]">
+                      <span class="sel-ord-in">{{ i + 1 }}</span>
+                    </ng-container>
+                  </span>
+
+                  <span class="sel-name">{{ sel.name }}</span>
+
+                  <button type="button" class="sel-chip num" (click)="openExercicePicker(day)"
+                          title="Serije × ponavljanja — izmijeni u biraču">
+                    {{ sel.targetSets ?? '–' }}×{{ sel.targetReps ?? '–' }}
+                  </button>
+
+                  <span class="sel-move">
+                    <button type="button" [disabled]="i === 0"
+                            (click)="moveInDay(day, i, -1)" aria-label="Pomjeri gore">
                       <i class="material-icons">keyboard_arrow_up</i>
                     </button>
                     <button type="button" [disabled]="i === day.selectedExercices.length - 1"
-                            (click)="moveInDay(day, i, 1)" aria-label="Dolje">
+                            (click)="moveInDay(day, i, 1)" aria-label="Pomjeri dolje">
                       <i class="material-icons">keyboard_arrow_down</i>
                     </button>
                   </span>
+
+                  <button type="button" class="sel-remove" (click)="removeFromDay(day, i)"
+                          [attr.aria-label]="'Ukloni: ' + sel.name">
+                    <i class="material-icons">close</i>
+                  </button>
                 </div>
               </div>
 
-              <p *ngIf="day.dayTypeId && day.availableExercices.length === 0" class="no-exercices">
+              <!-- Prazna stanja dana -->
+              <button type="button" class="day-empty cta dp-block"
+                      *ngIf="day.selectedExercices.length === 0 && day.availableExercices.length > 0 && !isRestDayEntry(day)"
+                      (click)="openExercicePicker(day)">
+                <i class="material-icons">playlist_add</i>
+                <span class="de-title">Dodaj prvu vježbu</span>
+                <span class="de-sub">Dodirni pa biraj iz kataloga</span>
+              </button>
+
+              <div class="day-empty dp-block"
+                   *ngIf="day.selectedExercices.length === 0 && !day.dayTypeId && !isCustomPlanType">
+                <i class="material-icons">touch_app</i>
+                <span class="de-title">Dodaj prvu vježbu</span>
+                <span class="de-sub">Dodirni tip dana pa biraj</span>
+              </div>
+
+              <div class="day-empty rest dp-block" *ngIf="isRestDayEntry(day)">
+                <i class="material-icons">self_improvement</i>
+                <span class="de-title">Dan odmora</span>
+                <span class="de-sub">Bez vježbi — snaga raste dok se odmaraš</span>
+              </div>
+
+              <p class="no-exercices dp-block"
+                 *ngIf="day.dayTypeId && !isRestDayEntry(day) && day.availableExercices.length === 0 && day.selectedExercices.length === 0">
                 Nema vježbi za ovaj tip dana.
               </p>
+
             </div>
-        </div>
+          </ng-container>
         </div>
 
-      <p *ngIf="createError" class="error">{{ createError }}</p>
+      </div>
 
-      <div class="form-actions">
-        <button type="button" (click)="cancelCreateModal()">Otkaži</button>
-        <button type="submit" [disabled]="creating || !planForm.valid">
+      <!-- Greška stoji UZ akcionu traku, ne u dnu skrola — uvijek se vidi -->
+      <p *ngIf="createError" class="error plan-error">{{ createError }}</p>
+
+      <!-- Akciona traka: UVIJEK vidljiva, sadržaj skroluje iznad nje -->
+      <div class="plan-actionbar">
+        <button type="button" class="btn-ghost pa-cancel" (click)="cancelCreateModal()">Otkaži</button>
+
+        <div class="pa-progress" aria-live="polite">
+          <span class="pa-line">
+            <ng-container *ngFor="let k of [totalPickedCount]">
+              <span class="pa-pop num">{{ totalPickedCount }}</span>
+            </ng-container>
+            {{ countLabel(totalPickedCount) }}
+          </span>
+          <span class="pa-line sub">
+            <ng-container *ngFor="let k of [daysReadyCount]">
+              <span class="pa-pop num">{{ daysReadyCount }}</span>
+            </ng-container>
+            /7 dana
+          </span>
+        </div>
+
+        <button type="submit" class="btn-primary pa-save"
+                [disabled]="creating"
+                [class.unready]="!formReady"
+                [class.nudge]="saveNudge">
           {{ creating ? 'Čuvam...' : (editingPlanId ? 'Sačuvaj izmene' : 'Sačuvaj plan') }}
         </button>
       </div>
@@ -396,58 +500,137 @@
   </div>
 </div>
 
-<div class="modal-overlay" *ngIf="showExercicePicker" (click)="closeExercicePicker()">
-  <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
-    <h2>{{ pickerDay?.dayName }} — izbor vježbi</h2>
+<!-- Birač vježbi za dan.
+     Pun panel u tri sloja: zaglavlje (naslov jasno odvojen od liste) i
+     pretraga STOJE, lista skroluje između njih, „Gotovo" je STALNO u dnu.
+     Nazivi grupa su ljepljivi u listi. -->
+<div class="modal-overlay picker2-overlay" *ngIf="showExercicePicker" (click)="closeExercicePicker()">
+  <div class="modal-card picker2-card" (click)="$event.stopPropagation()">
 
-    <!-- Custom plan: vježbe grupisane po mišićnoj grupi, isto kao na /exercices -->
-    <ng-container *ngIf="isCustomPlanType">
-      <div class="muscle-group-section" *ngFor="let group of customExerciceGroups">
-        <h3>{{ group.name }}</h3>
-        <div class="exercice-grid">
-          <div class="exercice-picker-item" *ngFor="let ex of group.exercices">
-            <div
-              class="exercice-card"
-              [class.selected]="isExercicePicked(ex.id)"
-              (click)="toggleExercicePick(ex)"
-            >
-              <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name">
-              <h4>{{ ex.name }}</h4>
+    <header class="p2-head">
+      <div class="p2-title">
+        <span class="eyebrow p2-eyebrow">{{ pickerDay?.dayName }}</span>
+        <h2>Izbor vježbi</h2>
+      </div>
+      <button type="button" class="p2-close" (click)="closeExercicePicker()" aria-label="Zatvori">
+        <i class="material-icons">close</i>
+      </button>
+    </header>
+
+    <div class="p2-tools">
+      <div class="p2-search">
+        <i class="material-icons">search</i>
+        <input type="text" [(ngModel)]="pickerQuery" placeholder="Traži vježbu..."
+               autocomplete="off" spellcheck="false" />
+        <button type="button" class="p2-clear" *ngIf="pickerQuery" (click)="pickerQuery = ''"
+                aria-label="Očisti pretragu">
+          <i class="material-icons">close</i>
+        </button>
+      </div>
+    </div>
+
+    <div class="p2-body">
+      <section class="p2-group" *ngFor="let group of pickerShownGroups; trackBy: trackPickerGroup">
+        <h3 class="p2-group-name" *ngIf="group.name">{{ group.name }}</h3>
+
+        <div class="p2-grid">
+          <div class="p2-item" *ngFor="let ex of group.exercices; trackBy: trackExercice"
+               [class.selected]="isExercicePicked(ex.id)">
+
+            <button type="button" class="p2-card"
+                    [attr.aria-pressed]="isExercicePicked(ex.id)"
+                    (click)="toggleExercicePick(ex, $event)">
+              <!-- Redni broj u danu — rađa se iznova kad se promijeni („pop") -->
+              <span class="p2-ord num" *ngIf="pickedOrd(ex.id) as n">
+                <ng-container *ngFor="let k of [n]">
+                  <span class="p2-ord-in">{{ n }}</span>
+                </ng-container>
+              </span>
+
+              <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name" loading="lazy">
+              <span class="p2-ph" *ngIf="!ex.picture"><i class="material-icons">fitness_center</i></span>
+              <h4 class="p2-name">{{ ex.name }}</h4>
+
+              <!-- Kap mastila iz TAČKE DODIRA; novi ključ je rađa iznova.
+                   Pri odznačavanju kap se povlači nazad (out). -->
+              <ng-container *ngIf="pickerInk && pickerInk.id === ex.id">
+                <span class="p2-ink" *ngFor="let k of [pickerInk.key]"
+                      [class.out]="pickerInk.out"
+                      [style.left.%]="pickerInk.x" [style.top.%]="pickerInk.y"></span>
+              </ng-container>
+            </button>
+
+            <!-- „Dynamic island": po izboru se kartica tečno IZDUŽI i iz nje
+                 izrone serije × ponavljanja, sa +/- steperima za palac.
+                 Pri odznačavanju ostrvo prvo sipne (islandClosing), pa tek
+                 onda ode iz DOM-a — susjedi u mreži doteku, ne skaču. -->
+            <div class="p2-island"
+                 *ngIf="(getPickedInfo(ex.id) || islandClosing[ex.id]) as picked"
+                 [class.closing]="!getPickedInfo(ex.id)"
+                 (click)="$event.stopPropagation()">
+
+              <div class="p2-target">
+                <span class="p2-t-label">Serije</span>
+                <div class="p2-stepper">
+                  <button type="button" (click)="bumpTarget(picked, 'targetSets', -1)"
+                          aria-label="Serija manje"><i class="material-icons">remove</i></button>
+                  <input appNumField="integer" [(ngModel)]="picked.targetSets" placeholder="3"
+                         [class.pop-a]="(picked.setsPop ?? 0) % 2 === 1"
+                         [class.pop-b]="(picked.setsPop ?? 0) % 2 === 0 && (picked.setsPop ?? 0) > 0"
+                         aria-label="Broj serija" />
+                  <button type="button" (click)="bumpTarget(picked, 'targetSets', 1)"
+                          aria-label="Serija više"><i class="material-icons">add</i></button>
+                </div>
+              </div>
+
+              <span class="p2-x">×</span>
+
+              <div class="p2-target">
+                <span class="p2-t-label">Ponavljanja</span>
+                <div class="p2-stepper">
+                  <button type="button" (click)="bumpTarget(picked, 'targetReps', -1)"
+                          aria-label="Ponavljanje manje"><i class="material-icons">remove</i></button>
+                  <input appNumField="integer" [(ngModel)]="picked.targetReps" placeholder="10"
+                         [class.pop-a]="(picked.repsPop ?? 0) % 2 === 1"
+                         [class.pop-b]="(picked.repsPop ?? 0) % 2 === 0 && (picked.repsPop ?? 0) > 0"
+                         aria-label="Broj ponavljanja" />
+                  <button type="button" (click)="bumpTarget(picked, 'targetReps', 1)"
+                          aria-label="Ponavljanje više"><i class="material-icons">add</i></button>
+                </div>
+              </div>
             </div>
 
-            <div class="exercice-picker-inputs" *ngIf="getPickedInfo(ex.id) as picked" (click)="$event.stopPropagation()">
-              <input appNumField="integer" [(ngModel)]="picked.targetSets" placeholder="Serije" />
-              <input appNumField="integer" [(ngModel)]="picked.targetReps" placeholder="Ponavljanja" />
-            </div>
           </div>
         </div>
-      </div>
-    </ng-container>
+      </section>
 
-    <!-- Ostali tipovi dana: ravna mreža, vježbe već filtrirane po tipu dana -->
-    <div class="exercice-grid" *ngIf="!isCustomPlanType">
-      <div class="exercice-picker-item" *ngFor="let ex of pickerDay?.availableExercices">
-        <div
-          class="exercice-card"
-          [class.selected]="isExercicePicked(ex.id)"
-          (click)="toggleExercicePick(ex)"
-        >
-          <img *ngIf="ex.picture" [src]="getExercicePictureUrl(ex.picture)" [alt]="ex.name">
-          <h4>{{ ex.name }}</h4>
-        </div>
-
-        <div class="exercice-picker-inputs" *ngIf="getPickedInfo(ex.id) as picked" (click)="$event.stopPropagation()">
-          <input appNumField="integer" [(ngModel)]="picked.targetSets" placeholder="Serije" />
-          <input appNumField="integer" [(ngModel)]="picked.targetReps" placeholder="Ponavljanja" />
-        </div>
-      </div>
+      <p class="empty" *ngIf="pickerShownGroups.length === 0">
+        {{ pickerQuery.trim() ? 'Nema vježbe koja sadrži „' + pickerQuery.trim() + '".' : 'Nema vježbi za prikaz.' }}
+      </p>
     </div>
 
-    <div class="form-actions">
-      <button type="button" (click)="closeExercicePicker()">Gotovo</button>
-    </div>
+    <!-- „Gotovo" se NIKAD ne traži skrolom — traka stoji u dnu panela -->
+    <footer class="p2-foot">
+      <span class="p2-count">
+        <ng-container *ngFor="let k of [pickerCount]">
+          <span class="p2-count-in num">{{ pickerCount }}</span>
+        </ng-container>
+        {{ countLabel(pickerCount) }}
+      </span>
+      <button type="button" class="btn-primary p2-done" (click)="closeExercicePicker()">
+        <i class="material-icons">check</i>
+        Gotovo
+      </button>
+    </footer>
+
   </div>
 </div>
+
+<!-- Pregled vježbe — ISTA komponenta kao na tabu Vježbe -->
+<app-exercice-detail *ngIf="previewEx"
+                     [exercice]="previewEx"
+                     [groups]="previewGroups"
+                     (dismiss)="closeExPreview()"></app-exercice-detail>
 
 
 <div class="modal-overlay" *ngIf="showNewsPopup && latestNews" (click)="closeNewsPopup()">

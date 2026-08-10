@@ -20,6 +20,8 @@ import { ProfilePreviewDirective } from './shared/profile-preview.directive';
 import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
 import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
+import { ExerciceDetailComponent } from './components/shared/exercice-detail/exercice-detail.component';
+import { DropdownComponent } from './components/shared/dropdown/dropdown.component';
 import { DatePickerComponent } from './components/shared/date-picker/date-picker.component';
 import { ProfilePreviewComponent } from './components/profile-preview/profile-preview.component';
 import { NewsComponent } from './components/news/news.component';
@@ -38,6 +40,8 @@ import { GlitchOverlayComponent } from './components/glitch-overlay/glitch-overl
     ProfileComponent,
     BlogComponent,
     ExercicePickerComponent,
+    ExerciceDetailComponent,
+    DropdownComponent,
     DatePickerComponent,
     ProfilePreviewComponent,
     NewsComponent,

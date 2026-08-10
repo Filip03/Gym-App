@@ -1,0 +1,37 @@
+<div class="dd" [class.open]="open">
+  <button type="button" class="dd-trigger"
+          [attr.id]="inputId || null"
+          aria-haspopup="listbox"
+          [attr.aria-expanded]="open"
+          [attr.aria-activedescendant]="open ? optId(activeIndex) : null"
+          (click)="toggle($event)"
+          (keydown)="onTriggerKey($event)">
+    <!-- Natpis se rađa iznova pri promjeni (labelKey), pa uleti talasom. -->
+    <span class="dd-value" [class.placeholder]="!selectedName">
+      <ng-container *ngFor="let k of [labelKey]">
+        <span class="dd-value-in">{{ selectedName || placeholder }}</span>
+      </ng-container>
+    </span>
+    <i class="material-icons dd-caret">expand_more</i>
+    <span class="dd-ink" *ngIf="ink" [style.left.%]="ink.x" [style.top.%]="ink.y"></span>
+  </button>
+
+  <!-- Panel ostaje u DOM-u i tokom closing stanja da izlazna animacija odsvira. -->
+  <div class="dd-panel" *ngIf="open || closing" [class.closing]="closing" role="listbox">
+    <button type="button" class="dd-opt" role="option"
+            *ngFor="let o of shown; let i = index; trackBy: trackOpt"
+            [attr.id]="optId(i)"
+            [class.on]="o.id === value"
+            [class.active]="i === activeIndex"
+            [class.none]="o.id === null"
+            [attr.aria-selected]="o.id === value"
+            [style.animation-delay.ms]="50 + i * 40"
+            (mousemove)="activeIndex = i"
+            (click)="choose(o, $event)">
+      <span class="dd-opt-name">{{ o.name }}</span>
+      <i class="material-icons dd-check" *ngIf="o.id === value">check</i>
+      <span class="dd-opt-ink" *ngIf="chosenInk && chosenInk.id === o.id"
+            [style.left.px]="chosenInk.x" [style.top.px]="chosenInk.y"></span>
+    </button>
+  </div>
+</div>

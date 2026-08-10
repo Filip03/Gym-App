@@ -7,6 +7,7 @@ import { LeaderboardService, LiveSession } from '../../services/leaderboard.serv
 import { WorkoutPlan, PlanType, DayType, Exercice } from '../../models/models';
 import { DAY_NAMES } from '../../shared/day-names';
 import { ExerciceService, MuscleGroupWithExercices } from '../../services/exercice.service';
+import { DropdownOption } from '../shared/dropdown/dropdown.component';
 import { TrainingService } from '../../services/training.service';
 import { NewsService, NewsItem } from '../../services/news.service';
 import { DAY_NAMES as DAYS } from '../../shared/day-names';
@@ -15,8 +16,19 @@ import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../../shared/warmup-grace';
 interface SelectedExercice {
   exerciceId: string;
   name: string;
+  /**
+   * Sličica za red u listi dana. Stariji nacrti je nemaju (polje je dodato
+   * kasnije), pa se pri vraćanju nacrta dopunjava iz kataloga — vidi
+   * backfillPictures().
+   */
+  picture?: string | null;
   targetSets: number | null;
   targetReps: number | null;
+  /** PROLAZNO: red svira izlaznu animaciju prije uklanjanja. Ne ide u nacrt. */
+  closing?: boolean;
+  /** PROLAZNO: brojači „pop" animacije vrijednosti na steperima. Ne idu u nacrt. */
+  setsPop?: number;
+  repsPop?: number;
 }
 
 interface DayEntry {
@@ -134,6 +146,50 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
 
   /** Za Custom plan: vježbe za picker grupisane po mišićnoj grupi, kao na /exercices. */
   customExerciceGroups: MuscleGroupWithExercices[] = [];
+
+  // --- Editor plana: dan-tabovi, lista dana, birač ---------------------------
+  //
+  // Modal za pravljenje plana više ne crta svih sedam dana odjednom (mreža
+  // sitnih kartica u koje ništa nije stajalo) nego JEDAN dan, sa tabovima
+  // PON–NED iznad. Prelaz između dana se rađa iznova (editDayKey), pa sadržaj
+  // ulazi talasom po kućnom jeziku; smjer talasa prati smjer listanja.
+
+  /** Promjena ključa iznova rodi sadržaj aktivnog dana — ulazni talas odsvira. */
+  editDayKey = 0;
+  /** Smjer posljednjeg listanja dana: 1 naprijed, -1 nazad (obrnut talas). */
+  dayAnimDir: -1 | 1 = 1;
+
+  /** Pretraga u biraču vježbi. */
+  pickerQuery = '';
+  /**
+   * Vježbe čije „ostrvo" (serije × ponavljanja) upravo svira izlaznu animaciju.
+   * CSS ne svira animaciju na uklanjanju iz DOM-a, pa se sadržaj kratko zadrži
+   * ovdje dok se ostrvo sipne, a tek onda ukloni (kućno pravilo).
+   */
+  islandClosing: { [exerciceId: string]: SelectedExercice } = {};
+  private islandTimers: { [exerciceId: string]: any } = {};
+  /** Kap mastila iz tačke dodira na kartici birača (u % širine/visine kartice). */
+  pickerInk: { id: string; x: number; y: number; key: number; out: boolean } | null = null;
+
+  /** Redovi liste aktivnog dana — za FLIP animaciju preuređivanja. */
+  @ViewChildren('selRow') selRows!: QueryList<ElementRef<HTMLElement>>;
+  private rowFlipCleanup = new WeakMap<HTMLElement, (e: TransitionEvent) => void>();
+
+  // --- Validacija forme plana ------------------------------------------------
+  // Dugme „Sačuvaj" je vizuelno ugašeno dok forma nije valjana, ali NIJE
+  // disabled: dodir na njega protrese polja koja fale i ispiše šta nedostaje —
+  // mrtvo dugme ne bi umjelo da objasni zašto ne radi.
+  shakeName = false;
+  shakeType = false;
+  shakeDesc = false;
+  saveNudge = false;
+  private shakeTimer: any = null;
+
+  // --- Pregled vježbe (isti popup kao na tabu Vježbe) ------------------------
+  previewEx: Exercice | null = null;
+  previewGroups: string[] = [];
+  /** Katalog grupa, dovučen lijeno pri prvom pregledu i keširan. */
+  private groupsCatalog: MuscleGroupWithExercices[] | null = null;
 
   private dayNames = DAY_NAMES;
 
@@ -305,7 +361,19 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
         dayNumber: d.dayNumber,
         dayName: d.dayName,
         dayTypeId: d.dayTypeId,
+        // Snimaju se SAMO trajna polja. Prolazna stanja animacija (closing,
+        // setsPop...) ne smiju u nacrt — red koji upravo odlazi izlaznom
+        // animacijom se preskače, inače bi ga vraćanje nacrta oživjelo
+        // nevidljivog (sa closing: true).
         selectedExercices: d.selectedExercices
+          .filter(ex => !ex.closing)
+          .map(ex => ({
+            exerciceId: ex.exerciceId,
+            name: ex.name,
+            picture: ex.picture ?? null,
+            targetSets: ex.targetSets,
+            targetReps: ex.targetReps
+          }))
       }))
     };
   }
@@ -400,6 +468,10 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
         }));
       }
 
+      // Nacrti snimljeni prije uvođenja sličica nemaju `picture` — dopuni se
+      // iz upravo dovučene ponude, da lista dana ne ostane bez sličica.
+      this.backfillPictures();
+
       this.closeExercicePicker();
       this.showCreateModal = true;
       this.currentDayIndex = draft.currentDayIndex ?? 0;
@@ -407,6 +479,18 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
       this.hideDraftBar();
     } finally {
       this.draftRestoring = false;
+    }
+  }
+
+  /** Sličice za redove čiji nacrt (ili plan) nije imao `picture`. */
+  private backfillPictures() {
+    for (const day of this.weekDays) {
+      for (const sel of day.selectedExercices) {
+        if (sel.picture == null) {
+          const found = day.availableExercices.find(e => e.id === sel.exerciceId);
+          if (found) sel.picture = found.picture;
+        }
+      }
     }
   }
 
@@ -681,6 +765,8 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     if (this.elapsedTimer) clearInterval(this.elapsedTimer);
     clearTimeout(this.outFaceTimer);
     clearTimeout(this.draftCloseTimer);
+    clearTimeout(this.shakeTimer);
+    for (const id of Object.keys(this.islandTimers)) clearTimeout(this.islandTimers[id]);
   }
 
   /**
@@ -757,20 +843,125 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
    * Redoslijed se pri snimanju izvodi iz položaja u nizu (orderNum: index + 1),
    * pa je dovoljno zamijeniti mjesta. Ovo je JEDINO mjesto gdje se redoslijed
    * mijenja trajno — preređivanje u toku treninga vrijedi samo za taj dan.
+   *
+   * FLIP animacija (isti recept kao `move()` u treningu): zapamti gdje su
+   * redovi BILI, zamijeni ih u nizu, pa ih u sljedećem kadru transformom
+   * vrati na stara mjesta i pusti da doklize — VIDI SE koja je vježba
+   * otišla gdje, umjesto trenutne zamjene sadržaja.
    */
   moveInDay(day: DayEntry, index: number, direction: -1 | 1) {
     const to = index + direction;
     if (to < 0 || to >= day.selectedExercices.length) return;
 
+    const rows = this.selRows?.toArray().map(r => r.nativeElement) ?? [];
+    const movedEl = rows[index];
+    const otherEl = rows[to];
+    const movedFrom = movedEl?.getBoundingClientRect().top;
+    const otherFrom = otherEl?.getBoundingClientRect().top;
+
     const list = day.selectedExercices;
     [list[index], list[to]] = [list[to], list[index]];
+
+    if (this.reducedMotion || !movedEl || !otherEl || movedFrom == null || otherFrom == null) return;
+
+    requestAnimationFrame(() => {
+      const after = this.selRows.toArray().map(r => r.nativeElement);
+      const movedNow = after[to];
+      const otherNow = after[index];
+      if (!movedNow || !otherNow) return;
+
+      // Pokret nadolje se percipira brže („niz gravitaciju"), pa dobija više
+      // vremena — isto pravilo kao u treningu.
+      const ms = direction === 1 ? 620 : 540;
+
+      this.flipRow(movedNow, movedFrom - movedNow.getBoundingClientRect().top, 1.04, 6, true, ms);
+      this.flipRow(otherNow, otherFrom - otherNow.getBoundingClientRect().top, 0.97, 1, false, ms);
+    });
   }
+
+  /** Jedan korak FLIP animacije nad jednim redom — recept iz treninga. */
+  private flipRow(el: HTMLElement, dy: number, scale: number, z: number, lift: boolean, ms: number) {
+    const prev = this.rowFlipCleanup.get(el);
+    if (prev) { el.removeEventListener('transitionend', prev); this.rowFlipCleanup.delete(el); }
+
+    el.style.transition = 'none';
+    el.style.zIndex = String(z);
+    el.style.transform = `translateY(${dy}px) scale(${scale})`;
+    if (lift) el.style.boxShadow = 'var(--lift-3)';
+
+    requestAnimationFrame(() => {
+      el.style.transition =
+        `transform ${ms}ms cubic-bezier(0.2, 1.5, 0.35, 1), box-shadow ${ms}ms ease-out`;
+      el.style.transform = 'translateY(0) scale(1)';
+      el.style.boxShadow = '';
+
+      const done = (e: TransitionEvent) => {
+        if (e.propertyName !== 'transform') return;
+        el.style.transition = '';
+        el.style.zIndex = '';
+        el.style.transform = '';
+        el.removeEventListener('transitionend', done);
+        this.rowFlipCleanup.delete(el);
+      };
+      el.addEventListener('transitionend', done);
+      this.rowFlipCleanup.set(el, done);
+    });
+  }
+
+  /** Kućno pravilo: smanjen pokret gasi i JS-vođene animacije. */
+  private get reducedMotion(): boolean {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  /**
+   * Uklanjanje vježbe iz dana — red se prvo SIPNE (izlazna animacija koja vodi
+   * i njegov prostor, pa susjedi doteku umjesto da skoče), a iz niza odlazi
+   * tek poslije. Nacrt red u zatvaranju ionako preskače (vidi planDraft).
+   */
+  removeFromDay(day: DayEntry, index: number) {
+    const sel = day.selectedExercices[index];
+    if (!sel || sel.closing) return;
+
+    if (this.reducedMotion) {
+      day.selectedExercices.splice(index, 1);
+      return;
+    }
+
+    sel.closing = true;
+    setTimeout(() => {
+      const i = day.selectedExercices.indexOf(sel);
+      if (i >= 0) day.selectedExercices.splice(i, 1);
+    }, 420);
+  }
+
+  /** Kašnjenje ulaznog talasa redova; pri listanju unazad teče obrnuto. */
+  rowDelay(index: number, total: number): number {
+    const step = this.dayAnimDir === -1 ? total - 1 - index : index;
+    return 90 + Math.min(step * 55, 330);
+  }
+
+  /** Listanje dana u EDITORU plana — sadržaj dana se rađa iznova, talasom. */
+  goToEditDay(index: number) {
+    if (index === this.currentDayIndex || index < 0 || index >= this.weekDays.length) return;
+    this.dayAnimDir = index > this.currentDayIndex ? 1 : -1;
+    this.currentDayIndex = index;
+    this.editDayKey++;
+  }
+
+  /** Aktivni dan u editoru — na jednom mjestu, zbog šablona. */
+  get editDay(): DayEntry | null {
+    return this.weekDays[this.currentDayIndex] ?? null;
+  }
+
+  trackSel = (_: number, sel: SelectedExercice) => sel.exerciceId;
 
   openCreateModal() {
     this.showCreateModal = true;
     this.initWeekDays();
     this.filteredDayTypes = [];
     this.currentDayIndex = 0;
+    this.dayAnimDir = 1;
+    this.editDayKey++;
     this.closeExercicePicker();
     this.markDraftBaseline();
   }
@@ -968,6 +1159,9 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     this.adaptingFromPlanId = null;
     this.lastDraftJson = '';
     this.closeExercicePicker();
+    this.closeExPreview();
+    clearTimeout(this.shakeTimer);
+    this.shakeName = this.shakeType = this.shakeDesc = this.saveNudge = false;
   }
 
   // Otvara isti modal kao za kreiranje plana, samo popunjen postojećim podacima
@@ -1036,6 +1230,7 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
         .map(dayEx => ({
           exerciceId: dayEx.exercice_id,
           name: dayEx.exercices?.name ?? '',
+          picture: dayEx.exercices?.picture ?? null,
           targetSets: dayEx.target_sets,
           targetReps: dayEx.target_reps
         }));
@@ -1164,30 +1359,81 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
 
   openExercicePicker(day: DayEntry) {
     this.pickerDay = day;
+    this.pickerQuery = '';
+    this.pickerInk = null;
+    this.clearIslandClosing();
     this.showExercicePicker = true;
   }
 
   closeExercicePicker() {
     this.showExercicePicker = false;
     this.pickerDay = null;
+    this.pickerQuery = '';
+    this.pickerInk = null;
+    this.clearIslandClosing();
   }
 
-  // Klik na karticu vježbe je dodaje/uklanja iz izabranih; setovi/ponavljanja
-  // se onda kucaju direktno u polja koja se pojave ispod kartice - bez posebnog modala
-  toggleExercicePick(exercice: Exercice) {
+  private clearIslandClosing() {
+    for (const id of Object.keys(this.islandTimers)) clearTimeout(this.islandTimers[id]);
+    this.islandTimers = {};
+    this.islandClosing = {};
+  }
+
+  /**
+   * Dodir na karticu vježbe je dodaje/uklanja iz izabranih.
+   *
+   * Izbor odsvira kućnim jezikom: kap mastila iz TAČKE DODIRA (pickerInk),
+   * kartica se razlije, a iz nje se izduži „ostrvo" sa serijama i
+   * ponavljanjima (vidi šablon). Pri uklanjanju se ostrvo prvo sipne —
+   * sadržaj kratko živi u `islandClosing` da izlazna animacija ima šta da
+   * svira — pa tek onda ode iz DOM-a.
+   */
+  toggleExercicePick(exercice: Exercice, event?: MouseEvent) {
     if (!this.pickerDay) return;
 
     const index = this.pickerDay.selectedExercices.findIndex(e => e.exerciceId === exercice.id);
+    this.splashPickerInk(exercice.id, event, index >= 0);
+
     if (index >= 0) {
-      this.pickerDay.selectedExercices.splice(index, 1);
+      const [removed] = this.pickerDay.selectedExercices.splice(index, 1);
+
+      if (!this.reducedMotion) {
+        this.islandClosing[exercice.id] = removed;
+        clearTimeout(this.islandTimers[exercice.id]);
+        this.islandTimers[exercice.id] = setTimeout(() => {
+          delete this.islandClosing[exercice.id];
+          delete this.islandTimers[exercice.id];
+        }, 460);
+      }
     } else {
+      // Ponovo izabrana usred izlazne animacije — ostrvo se rađa iznova.
+      clearTimeout(this.islandTimers[exercice.id]);
+      delete this.islandTimers[exercice.id];
+      delete this.islandClosing[exercice.id];
+
       this.pickerDay.selectedExercices.push({
         exerciceId: exercice.id,
         name: exercice.name ?? '',
+        picture: exercice.picture ?? null,
         targetSets: null,
         targetReps: null
       });
     }
+  }
+
+  /** Kap mastila iz tačke dodira; na tastaturi (detail === 0) iz sredine. */
+  private splashPickerInk(id: string, event: MouseEvent | undefined, out: boolean) {
+    if (this.reducedMotion) { this.pickerInk = null; return; }
+
+    let x = 50, y = 50;
+    if (event && event.detail > 0) {
+      const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      if (r.width > 0) {
+        x = ((event.clientX - r.left) / r.width) * 100;
+        y = ((event.clientY - r.top) / r.height) * 100;
+      }
+    }
+    this.pickerInk = { id, x, y, key: (this.pickerInk?.key ?? 0) + 1, out };
   }
 
   isExercicePicked(exerciceId: string): boolean {
@@ -1198,8 +1444,199 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     return this.pickerDay?.selectedExercices.find(e => e.exerciceId === exerciceId);
   }
 
+  /** Redni broj vježbe u danu (1..n); 0 = nije izabrana (falsy za *ngIf). */
+  pickedOrd(exerciceId: string): number {
+    const i = this.pickerDay?.selectedExercices.findIndex(e => e.exerciceId === exerciceId) ?? -1;
+    return i + 1;
+  }
+
+  /** Koliko je vježbi izabrano u danu birača — za brojač u podnožju. */
+  get pickerCount(): number {
+    return this.pickerDay?.selectedExercices.length ?? 0;
+  }
+
+  /** „1 vježba, 2 vježbe, 5 vježbi" — padež prati broj. */
+  countLabel(n: number): string {
+    const m10 = n % 10;
+    const m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return 'vježba';
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'vježbe';
+    return 'vježbi';
+  }
+
+  /**
+   * Ono što birač stvarno crta: Custom plan zadržava grupe po mišićima,
+   * ostali tipovi su jedna bezimena grupa — pa je šablon JEDAN, kao u
+   * zajedničkom exercice-pickeru. Pretraga filtrira po nazivu.
+   */
+  get pickerShownGroups(): { name: string; exercices: Exercice[] }[] {
+    const day = this.pickerDay;
+    if (!day) return [];
+
+    const q = this.pickerQuery.trim().toLowerCase();
+    const match = (e: Exercice) => !q || (e.name ?? '').toLowerCase().includes(q);
+
+    if (this.isCustomPlanType) {
+      return this.customExerciceGroups
+        .map(g => ({ name: g.name, exercices: g.exercices.filter(match) }))
+        .filter(g => g.exercices.length > 0);
+    }
+
+    const items = day.availableExercices.filter(match);
+    return items.length ? [{ name: '', exercices: items }] : [];
+  }
+
+  trackPickerGroup = (_: number, g: { name: string }) => g.name;
+  trackExercice = (_: number, e: Exercice) => e.id;
+
+  /**
+   * Steper uz polja serija/ponavljanja — palac umjesto tastature.
+   * Vrijednost pri promjeni odsvira „pop": parni/neparni brojač bira jednu od
+   * dvije alias animacije, jer ista klasa ne bi ponovo pokrenula animaciju.
+   */
+  bumpTarget(sel: SelectedExercice, field: 'targetSets' | 'targetReps', delta: 1 | -1) {
+    const current = sel[field];
+    const next = Math.max(1, Math.min(999, (current ?? 0) + delta));
+    if (next === current) return;
+
+    sel[field] = next;
+    if (field === 'targetSets') sel.setsPop = (sel.setsPop ?? 0) + 1;
+    else sel.repsPop = (sel.repsPop ?? 0) + 1;
+  }
+
   getExercicePictureUrl(picture: string | null): string | null {
     return picture ? this.exerciceService.getPublicUrl(picture) : null;
+  }
+
+  // --- Kućni dropdown (tip plana / tip dana) ---------------------------------
+
+  get planTypeOptions(): DropdownOption[] {
+    return this.planTypes.map(t => ({ id: t.id, name: t.name ?? '' }));
+  }
+
+  get dayTypeOptions(): DropdownOption[] {
+    return this.filteredDayTypes.map(t => ({ id: t.id, name: t.name ?? '' }));
+  }
+
+  async onPlanTypeSelected(id: string | null) {
+    const value = id ?? '';
+    if (value === this.newPlanTypeId) return;
+    this.newPlanTypeId = value;
+    await this.onPlanTypeChange();
+    // Promjena tipa plana mijenja i sadržaj dana (Custom dobija katalog) —
+    // dan se rađa iznova da prelaz odsvira talasom, ne preskokom.
+    this.editDayKey++;
+  }
+
+  async onDayTypeSelected(day: DayEntry, id: string | null) {
+    if (id === day.dayTypeId) return;
+    day.dayTypeId = id;
+    // Namjerno BEZ ponovnog rađanja dana: dropdown ostaje da dovrši svoju
+    // izlaznu animaciju, a novo stanje (prazno stanje / poziv na akciju)
+    // ionako ulazi sopstvenom animacijom.
+    await this.onDayTypeChange(day);
+  }
+
+  /** Broj vježbi dana za bedž na tabu — red koji upravo odlazi se ne broji. */
+  dayCount(day: DayEntry): number {
+    return day.selectedExercices.filter(e => !e.closing).length;
+  }
+
+  // --- Dan-tabovi u editoru --------------------------------------------------
+
+  /** Kratki naziv tipa dana za tab (PUSH, PULL...); '' = tip nije izabran. */
+  dayTypeShort(day: DayEntry): string {
+    if (this.isCustomPlanType) return 'SVE';
+    const dt = this.dayTypes.find(t => t.id === day.dayTypeId);
+    return (dt?.name ?? '').toUpperCase().slice(0, 5);
+  }
+
+  isRestDayEntry(day: DayEntry): boolean {
+    const dt = this.dayTypes.find(t => t.id === day.dayTypeId);
+    return (dt?.name ?? '').toUpperCase() === 'REST';
+  }
+
+  // --- Traka napretka u dnu modala -------------------------------------------
+
+  /** Ukupno izabranih vježbi kroz svih sedam dana. */
+  get totalPickedCount(): number {
+    return this.weekDays.reduce(
+      (n, d) => n + d.selectedExercices.filter(e => !e.closing).length, 0
+    );
+  }
+
+  /** Dani koji su „riješeni": imaju tip (i REST je odluka) ili vježbe. */
+  get daysReadyCount(): number {
+    return this.weekDays.filter(d => d.dayTypeId || d.selectedExercices.length > 0).length;
+  }
+
+  // --- Validacija ------------------------------------------------------------
+
+  get formReady(): boolean {
+    return !!this.newPlanName.trim()
+      && !!this.newPlanTypeId
+      && (!this.adaptingFromPlanId || !!this.newPlanDescription.trim());
+  }
+
+  /**
+   * Pokušaj čuvanja nevaljane forme: polja koja fale se protresu, poruka kaže
+   * šta nedostaje, dugme se kratko izmigolji. Kratka stanja, pa reset — da
+   * sljedeći pokušaj ponovo odsvira.
+   */
+  private shakeInvalid() {
+    this.shakeName = !this.newPlanName.trim();
+    this.shakeType = !this.newPlanTypeId;
+    this.shakeDesc = !!this.adaptingFromPlanId && !this.newPlanDescription.trim();
+    this.saveNudge = true;
+
+    if (this.shakeName) this.createError = 'Naziv plana je obavezan.';
+    else if (this.shakeType) this.createError = 'Tip plana je obavezan.';
+    else this.createError = 'Opis je obavezan kad prilagođavaš tuđi plan.';
+
+    clearTimeout(this.shakeTimer);
+    this.shakeTimer = setTimeout(() => {
+      this.shakeName = this.shakeType = this.shakeDesc = this.saveNudge = false;
+    }, 520);
+  }
+
+  // --- Pregled vježbe iz liste dana ------------------------------------------
+
+  /**
+   * Dodir na sličicu izabrane vježbe → ISTI popup kao na tabu Vježbe
+   * (zajednička komponenta exercice-detail). Mišićne grupe se dovlače lijeno,
+   * jednom, i kešuju — ukras su, pa njihova greška ne ruši pregled.
+   */
+  async openExPreview(day: DayEntry, sel: SelectedExercice) {
+    const full = day.availableExercices.find(e => e.id === sel.exerciceId);
+    this.previewEx = full ?? {
+      id: sel.exerciceId,
+      name: sel.name,
+      picture: sel.picture ?? null,
+      description: null,
+      is_bodyweight: false,
+      is_unilateral: false
+    };
+    this.previewGroups = [];
+
+    const wanted = sel.exerciceId;
+    try {
+      if (!this.groupsCatalog) {
+        this.groupsCatalog = await this.exerciceService.getExercicesGroupedByMuscleGroup();
+      }
+      // Ako je korisnik u međuvremenu otvorio drugu vježbu, ne diraj njene grupe.
+      if (this.previewEx && this.previewEx.id === wanted) {
+        this.previewGroups = this.groupsCatalog
+          .filter(g => g.exercices.some(e => e.id === wanted))
+          .map(g => g.name);
+      }
+    } catch {
+      // Grupe su ukras — pregled radi i bez njih.
+    }
+  }
+
+  closeExPreview() {
+    this.previewEx = null;
+    this.previewGroups = [];
   }
 
   async onSubmitPlan() {
@@ -1211,15 +1648,10 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
       return;
     }
 
-    if (!this.newPlanName.trim()) {
-      this.createError = 'Naziv plana je obavezan.';
-      return;
-    }
-
-    // Prilagođavanje tuđeg plana pravi NOVI plan (vidi adaptPlan()) — naziv i
-    // opis kreću prazni namjerno, pa oba moraju biti eksplicitno popunjena.
-    if (this.adaptingFromPlanId && !this.newPlanDescription.trim()) {
-      this.createError = 'Opis je obavezan kad prilagođavaš tuđi plan.';
+    // Nevaljana forma se ne šalje — polja koja fale se protresu i poruka
+    // objasni šta nedostaje (vidi shakeInvalid).
+    if (!this.formReady) {
+      this.shakeInvalid();
       return;
     }
 
@@ -1230,7 +1662,9 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
         dayNumber: day.dayNumber,
         dayName: day.dayName,
         dayTypeId: day.dayTypeId,
-        exercices: day.selectedExercices.map((ex, index) => ({
+        // Red koji upravo svira izlaznu animaciju uklanjanja je već uklonjen
+        // za korisnika — ne smije u bazu.
+        exercices: day.selectedExercices.filter(ex => !ex.closing).map((ex, index) => ({
           exerciceId: ex.exerciceId,
           targetSets: ex.targetSets,
           targetReps: ex.targetReps,

@@ -3969,3 +3969,65 @@ sadržaj u zoni palca.
    draft-collapse: max-height + margin + padding + border), ne samo sebe — pa
    sadržaj ispod TEČE za njom umjesto da skoči. Pravilo upisano i u skill
    tecne-animacije kao obavezno za svaki ulazak/izlazak elementa iz toka.
+
+## [2026-08-10] Redizajn UX-a plan buildera — dan-tabovi, tečni birač vježbi, sticky akciona traka
+**Tip:** funkcionalnost
+**Ref:** Markova primjedba „UI za pravljenje treninga nije toliko dobar"
+
+**Problem:** Modal za pravljenje/izmjenu plana je crtao svih sedam dana kao
+mrežu stisnutih kartica: izbor vježbe se jedva vidio (tanka promjena obruba),
+serije/ponavljanja su bila dva gola polja ispod kartice, „Gotovo"/„Sačuvaj" se
+tražilo skrolom, redovi u danu bez sličica i bez animacije preuređivanja,
+native `<select>` za tipove je otvarao sistemski točak, a prazan dan nije
+govorio šta dalje.
+
+**Rješenje:** Editor plana presložen oko JEDNOG dana sa tabovima PON–NED
+(bedž broja vježbi + obojen tip dana; prelaz dana ulazi talasom, unazad
+obrnutim redom). Sadržaj skroluje između zaglavlja i STALNE akcione trake
+(Otkaži · napredak `n vježbi · m/7 dana` · Sačuvaj). Birač vježbi je pun panel
+sa jasnim zaglavljem, pretragom i ljepljivim nazivima grupa; izabrana kartica
+dobija volt okvir/ispunu, kap mastila iz TAČKE DODIRA i redni broj u danu, a
+iz kartice se tečno izduži „ostrvo" sa serije × ponavljanja i +/- steperima
+(dynamic-island obrazac iz treninga; prostor animiran — susjedi teku). Red
+liste dana: sličica (dodir → isti pregled kao tab Vježbe), redni broj, naziv,
+čip serije×pon., strelice sa FLIP animacijom (recept iz treninga) i uklanjanje
+kroz kolaps prostora. Native selecti zamijenjeni kućnim `app-dropdown`
+(animiran panel, kap iz dodira, tastatura, `t-field-min`). Validacija:
+„Sačuvaj" je vizuelno ugašeno dok forma ne valja, a dodir protrese polja koja
+fale (naziv/tip/opis) i ispiše poruku uz traku. Nacrt (planDraft) i dalje radi:
+snimak sada nosi i `picture` po vježbi (stari nacrti se dopune iz kataloga),
+a prolazna animaciona stanja (closing/pop) se NE snimaju.
+
+**Dodirnuti fajlovi:**
+- `src/app/components/shared/dropdown/dropdown.component.{ts,html,scss}` —
+  novo: kućni padajući meni (listbox), animiran po skillu tecne-animacije
+- `src/app/components/shared/exercice-detail/exercice-detail.component.{ts,html,scss}` —
+  novo: pregled vježbe izdvojen sa taba Vježbe u zajedničku komponentu
+- `src/app/components/exercices/exercices.component.html:112` — detalj modal
+  zamijenjen `<app-exercice-detail>`; `.scss` — preseljeni stilovi uklonjeni
+- `src/app/app.module.ts` — deklarisane obje nove komponente
+- `src/app/components/dashboard/dashboard.component.ts` — `SelectedExercice`
+  dobija `picture` + prolazna polja; `planDraft()` snima samo trajna polja;
+  `backfillPictures()`; FLIP `moveInDay`/`flipRow`; `removeFromDay` sa
+  kolapsom; `goToEditDay`/`editDayKey`/`dayAnimDir`; birač: `pickerQuery`,
+  `pickerShownGroups`, `pickedOrd`, `toggleExercicePick` sa kapi iz dodira i
+  `islandClosing`; steperi `bumpTarget`; validacija `formReady`/`shakeInvalid`
+  (tip plana sada obavezan); pregled `openExPreview` (grupe lijeno, keširano)
+- `src/app/components/dashboard/dashboard.component.html` — modal plana:
+  `plan-scroll` + `plan-actionbar`, dan-tabovi, `day-pane` (rađa se iznova po
+  `editDayKey`), lista `sel-row`, prazna stanja; birač `picker2`; preview
+- `src/app/components/dashboard/dashboard.component.scss` — sekcija „EDITOR
+  PLANA" + „BIRAČ VJEŽBI (picker2)"; mrtvi stilovi stare mreže uklonjeni;
+  sve novo pokriveno `prefers-reduced-motion`
+
+**Efekat:** Na telefonu se plan slaže dan po dan palcem: tab pokazuje koliko
+je gdje izabrano, izabrana vježba se vidi iz aviona (okvir + broj + ostrvo sa
+ciljevima), „Sačuvaj"/„Gotovo" su uvijek na ekranu, preuređivanje se VIDI, a
+prazan dan kaže tačno šta da se uradi. Sve promjene stanja su animirane
+kućnim jezikom; nacrt preživljava i dalje svaki prekid.
+
+**Napomene:** Dugme „Sačuvaj" namjerno NIJE `disabled` dok forma ne valja —
+mrtvo dugme ne umije da objasni zašto; umjesto toga je vizuelno ugašeno, a
+dodir trese polja koja fale. Tip plana je novim pravilom obavezan i pri
+izmjeni starih planova bez tipa. Stari nacrti (bez `picture`) se dopunjavaju
+pri vraćanju; šema nacrta ostaje `v1` jer je izmjena unazad kompatibilna.

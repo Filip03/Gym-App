@@ -109,26 +109,6 @@
   </div>
 </div>
 
-<!-- Detaljan prikaz vježbe -->
-<div class="modal-overlay detail-overlay" *ngIf="detail" (click)="closeDetail()">
-  <div class="detail-card" (click)="$event.stopPropagation()">
-
-    <button type="button" class="detail-close" (click)="closeDetail()" aria-label="Zatvori">
-      <i class="material-icons">close</i>
-    </button>
-
-    <div class="detail-media">
-      <img *ngIf="detail.picture" [src]="getExercicePictureUrl(detail.picture)" [alt]="detail.name">
-      <span class="ph" *ngIf="!detail.picture"><i class="material-icons">fitness_center</i></span>
-    </div>
-
-    <h2 class="detail-name">{{ detail.name }}</h2>
-
-    <div class="detail-groups" *ngIf="detailGroups.length">
-      <span class="dg" *ngFor="let g of detailGroups">{{ g }}</span>
-    </div>
-
-    <p class="detail-text" *ngIf="detail.description">{{ detail.description }}</p>
-    <p class="detail-text empty-text" *ngIf="!detail.description">Nema opisa za ovu vježbu.</p>
-  </div>
-</div>
+<!-- Detaljan prikaz vježbe — zajednička komponenta, koristi je i editor plana -->
+<app-exercice-detail *ngIf="detail" [exercice]="detail" [groups]="detailGroups"
+                     (dismiss)="closeDetail()"></app-exercice-detail>
