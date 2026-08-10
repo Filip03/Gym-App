@@ -1,13 +1,13 @@
 // ---------------------------------------------------------------------------
-// SPLASH — ASCII TALAS-POLJE
+// SPLASH — „PLJESAK KREDE"
 //
-// Ekran je podijeljen na tri sloja:
-//   1. `.field`  — more od znakova (dva <pre> koja JS prepisuje po kadru),
-//   2. `.veil`   — mirno zatamnjenje u centru i po ivicama, da se identitet čita,
-//   3. `.identity` — logo, natpis i mjerač; jedino što se ovdje animira CSS-om.
+// Tri sloja:
+//   1. `.veil`     — statičan mekan sjaj iza identiteta,
+//   2. `.mark-wrap` — logo + oblak krede (4 mrlje) + prsten udara,
+//   3. natpis i traka punjenja.
 //
-// Sve animacije su transform/opacity. Trajanja i kašnjenja moraju pratiti
-// vremensku osu u landing.component.ts (T_MARK, T_TAG, T_METER, T_EXIT).
+// Sve su transform/opacity keyframe animacije sa fiksnim `animation-delay`-om
+// — vremenska osa mora pratiti T_EXIT/T_LEAVE u landing.component.ts.
 // ---------------------------------------------------------------------------
 
 :host { display: block; }
@@ -30,82 +30,17 @@
   transition: opacity 460ms var(--ease), transform 520ms var(--ease-out);
 }
 
-// Izlaz: cijeli kadar se blago udalji i pretopi (talas u istom trenutku nabuja
-// — posljednji udar iz PULSES).
+// Izlaz: cijeli kadar se blago udalji i pretopi.
 .landing.leaving {
   opacity: 0;
   transform: scale(1.035);
-}
-
-// --- Talas-polje -----------------------------------------------------------
-
-.field {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  user-select: none;
-  -webkit-user-select: none;
-
-  font-family: var(--font-data);
-  font-weight: 500;
-  font-size: 18px;      // JS prepisuje po širini ekrana
-  line-height: 21px;    // JS prepisuje
-  letter-spacing: 0;
-  white-space: pre;
-
-  animation: field-in 900ms var(--ease-out) both;
-}
-
-@keyframes field-in {
-  from { opacity: 0; transform: scale(1.06); }
-  to   { opacity: 1; transform: scale(1); }
-}
-
-.glyphs {
-  position: absolute;
-  top: 0;
-  left: 0;
-  margin: 0;
-  font: inherit;
-  letter-spacing: inherit;
-  white-space: pre;
-}
-
-// Mirna voda: jedva vidljiv reljef, samo da se osjeti da polje živi.
-.deep {
-  color: color-mix(in srgb, var(--ice) 15%, transparent);
-}
-
-// Grebeni: neon i mek sjaj. Sjaj pada na ~15% ćelija (ostalo su razmaci), pa
-// je iscrtavanje sjenke po kadru jeftino.
-.crest {
-  color: var(--volt);
-  text-shadow: 0 0 8px var(--volt-a40);
-}
-
-// Lenjir za mjerenje stvarne širine znaka — ne smije uticati na raspored.
-.ruler {
-  position: absolute;
-  top: 0;
-  left: 0;
-  visibility: hidden;
-  white-space: pre;
-  pointer-events: none;
 }
 
 .veil {
   position: absolute;
   inset: 0;
   pointer-events: none;
-
-  background:
-    radial-gradient(58% 40% at 50% 50%,
-      color-mix(in srgb, var(--void) 86%, transparent) 0%,
-      transparent 72%),
-    radial-gradient(120% 92% at 50% 50%,
-      transparent 38%,
-      color-mix(in srgb, var(--void) 72%, transparent) 100%);
+  background: radial-gradient(46% 34% at 50% 42%, var(--volt-a10) 0%, transparent 72%);
 }
 
 // --- Identitet -------------------------------------------------------------
@@ -125,7 +60,7 @@
   transition: transform 460ms var(--ease);
 }
 
-// Izlaz: identitet POTONE nazad u more (ink-retreat osjećaj) dok se sve gasi.
+// Izlaz: identitet blago potone dok se sve gasi.
 .landing.leaving .identity {
   transform: translateY(10px) scaleX(1.04) scaleY(.94);
 }
@@ -137,27 +72,44 @@
   isolation: isolate;
 }
 
-// Ink-bloom: kap volta krene ispod loga u trenutku izranjanja i razlije se
-// kroz polje. Ide IZA loga (z-index -1 u sopstvenom stacking kontekstu).
-.mark-wrap::after {
-  content: '';
+// Oblak krede: četiri mrlje, svaka bježi u svom pravcu (--dx/--dy) dok raste
+// i blijedi — čupavo, ne savršen krug, kao stvarna prašina.
+//
+// NAMJERNO ISPRED loga (bez z-index trika): `.mark` (img) je nepozicioniran
+// element, pa bi čak i z-index:-1 na mrljama zavisio od suptilnih pravila
+// slaganja stacking konteksta. Ovako je zagarantovano vidljivo — prašina
+// stvarno i poleti oko/preko ruku pri pljesku, ne iza njih.
+.puff {
   position: absolute;
-  z-index: -1;
-  width: 18px;
-  height: 18px;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  top: 50%;
+  left: 50%;
   border-radius: 50%;
-  background: var(--volt-a40);
   pointer-events: none;
-  animation: ink-bloom 760ms var(--ease-out) 600ms both;
+
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--mist) 75%, transparent) 0%,
+    transparent 70%);
+  filter: blur(2px);
+
+  opacity: 0;
+  animation: puff-bloom 820ms var(--ease-out) both;
 }
 
-@keyframes ink-bloom {
-  from { transform: scale(0);  opacity: .9; }
-  to   { transform: scale(28); opacity: 0; }
+.puff.p1 { --dx: -68px; --dy: -42px; animation-delay: 140ms; }
+.puff.p2 { --dx: 62px;  --dy: -30px; animation-delay: 165ms; }
+.puff.p3 { --dx: -34px; --dy: 58px;  animation-delay: 155ms; }
+.puff.p4 { --dx: 44px;  --dy: 52px;  animation-delay: 180ms; }
+
+@keyframes puff-bloom {
+  0%   { opacity: 0;  transform: translate(0, 0) scale(.2); }
+  28%  { opacity: .9; }
+  100% { opacity: 0;  transform: translate(var(--dx), var(--dy)) scale(6); }
 }
 
-// Prsten koji odlazi sa loga — vidljivi parnjak udara koji u istom trenutku
-// krene kroz talas-polje.
+// Prsten udara: vidljivi "zvuk" pljeska, ide u akcentnoj boji.
 .mark-wrap::before {
   content: '';
   position: absolute;
@@ -165,16 +117,17 @@
   border-radius: var(--r-xl);
   border: 1px solid var(--volt-a40);
   pointer-events: none;
-  animation: ring-out 900ms var(--ease-out) 660ms both;
+  animation: ring-out 760ms var(--ease-out) 150ms both;
 }
 
 @keyframes ring-out {
-  0%   { opacity: 0; transform: scale(.86); }
+  0%   { opacity: 0;  transform: scale(.86); }
   22%  { opacity: .9; }
-  100% { opacity: 0; transform: scale(1.5); }
+  100% { opacity: 0;  transform: scale(1.42); }
 }
 
-// Logo IZRANJA: istegnut po visini dok se diže, pa se slegne (squash & stretch).
+// Logo IZRANJA od udarca: stisne se po širini dok se diže, pa se slegne
+// (squash & stretch).
 .mark {
   width: clamp(128px, 36vw, 184px);
   aspect-ratio: 1;
@@ -188,30 +141,27 @@
     0 24px 60px -20px rgba(0, 0, 0, .9),
     0 0 48px -12px var(--volt-a20);
 
-  animation: mark-surface 660ms var(--ease-out) 560ms both;
+  animation: mark-surface 620ms var(--ease-out) 150ms both;
 }
 
 @keyframes mark-surface {
-  0%   { opacity: 0; transform: translateY(30%) scaleX(.82) scaleY(1.20); }
+  0%   { opacity: 0; transform: translateY(18%) scaleX(.84) scaleY(1.16); }
   40%  { opacity: 1; }
-  62%  { transform: translateY(-5%) scaleX(1.07) scaleY(.93); }
+  62%  { transform: translateY(-4%) scaleX(1.06) scaleY(.94); }
   82%  { transform: translateY(1%)  scaleX(.985) scaleY(1.015); }
   100% { opacity: 1; transform: translateY(0) scaleX(1) scaleY(1); }
 }
 
-// Natpis: mono zato što se DEKODIRA iz šuma — svaki znak mora biti iste širine,
-// inače bi se linija trzala dok se slova zaključavaju.
 .tagline {
   margin: 0;
-  font-family: var(--font-data);
+  font-family: var(--font-display);
   font-size: clamp(0.9375rem, 4.2vw, 1.25rem);
   font-weight: 500;
   letter-spacing: var(--ls-wide);
   line-height: var(--lh-tight);
-  white-space: pre;
   color: var(--mist);
 
-  animation: rise 520ms var(--ease-spring) 980ms both;
+  animation: rise 520ms var(--ease-spring) 620ms both;
 }
 
 .tagline .lead {
@@ -219,24 +169,36 @@
   text-shadow: 0 0 14px var(--volt-a20);
 }
 
-// Mjerač: instrument-tabla u malom, puni se do samog preusmjerenja.
+// Traka punjenja: puni se do samog preusmjerenja (širina uvijek 100%, samo se
+// razvlači skalom — vidi zamke u skillu tečne-animacije o animiranju širine).
 .readout {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  margin: 0;
-
-  font-family: var(--font-data);
-  font-size: var(--t-2xs);
-  letter-spacing: var(--ls-wider);
-  color: var(--dust);
-
-  animation: rise 460ms var(--ease-spring) 1480ms both;
+  width: 120px;
+  animation: rise 460ms var(--ease-spring) 900ms both;
 }
 
-.readout .meter {
-  letter-spacing: 0;
-  color: var(--volt-soft);
+.bar-track {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--mist) 28%, transparent);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: var(--volt);
+  border-radius: inherit;
+  animation: bar-fill 1700ms linear 900ms both;
+}
+
+@keyframes bar-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
 }
 
 // Talas sadržaja: djeca ulaze odozdo.
@@ -245,21 +207,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-// --- Svijetla tema ---------------------------------------------------------
-// Na kosti more mora biti DISKRETNIJE: tamnozeleni grebeni bez sjaja (neon sjaj
-// na svijetlom samo zamuti znak), a mirna voda tanak grafitni reljef.
+// --- Svijetla tema -----------------------------------------------------------
+// Sjenka od 90% crne je na svijetloj podlozi mrlja, a ne dubina.
 :host-context([data-theme='light']) {
-
-  .deep  { color: color-mix(in srgb, var(--ice) 13%, transparent); }
-
-  .crest {
-    color: color-mix(in srgb, var(--volt) 66%, transparent);
-    text-shadow: none;
-  }
-
   .tagline .lead { text-shadow: none; }
 
-  // Sjenka od 90% crne je na svijetloj podlozi mrlja, a ne dubina.
   .mark {
     box-shadow:
       0 0 0 6px var(--volt-a10),
@@ -268,18 +220,20 @@
   }
 }
 
-// --- Smanjen pokret --------------------------------------------------------
-// Statičan kadar: polje se ne talasa (JS nacrta jedan kadar i stane), a ovdje
-// se gase svi ulazi, kap, prsten i pretapanje.
+// --- Smanjen pokret ----------------------------------------------------------
+// Statično krajnje stanje: logo pun, natpis vidljiv, traka puna, bez oblaka
+// krede ni prstena.
 @media (prefers-reduced-motion: reduce) {
 
-  .field,
   .mark,
   .tagline,
-  .readout { animation: none; }
+  .readout,
+  .bar-fill { animation: none; }
 
-  .mark-wrap::before,
-  .mark-wrap::after { display: none; }
+  .bar-fill { transform: scaleX(1); }
+
+  .puff,
+  .mark-wrap::before { display: none; }
 
   .landing,
   .identity { transition: none; }
