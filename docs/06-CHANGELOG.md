@@ -4185,3 +4185,9 @@ prsten je na telefonu i dalje isplivavao iako je na desktop Chrome-u bio
 odsječen. `-webkit-mask-image: -webkit-radial-gradient(white, black)` +
 `isolation: isolate` na `.dock-surface` tjeraju WebKit da kliping primijeni.
 Pouka: vizuelna verifikacija na desktopu NIJE dokaz za iOS.
+
+**Dopuna — cio krug, uvučeni tabovi (Markova presuda umjesto cutoffa):**
+sječenje prstena lukom „ne valja — vrati": tjeme vraćeno IZVAN stakla (krug
+uvijek cio), a geometrija uvučena da prsten stane POD luk: sjedište ikona
+dublje (crestY 35→44), izdizanje 15→12, prsten 64→48 (ne dodiruje liniju),
+kupola 86→92px. WebKit maska ostaje na staklu (čuva mastilo u obliku luka).

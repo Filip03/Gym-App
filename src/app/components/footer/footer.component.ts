@@ -88,7 +88,7 @@ export class FooterComponent implements OnDestroy {
   private half = 1;      // vodoravna poluosa elipse kupole
   private rise = 0;      // pad luka od tjemena do ivice elipse
   private step = 60;     // vodoravni razmak između slotova
-  private readonly crestY = 35;   // visina centra ikone u tjemenu, od vrha doka
+  private readonly crestY = 44;   // dublje u kupoli — cio prsten stane pod luk
 
   // --- stanje ---------------------------------------------------------------
   private pos = 0;       // trenutna pozicija tjemena u slotovima
@@ -300,7 +300,7 @@ export class FooterComponent implements OnDestroy {
       const near = flat ? 0 : Math.exp(-(u * u) / 0.62);   // 1 u tjemenu, pada u stranu
       const pull = 0.30 * u * Math.exp(-(u * u) / 2);  // magnet: klizi ka tjemenu
       const x = this.xAt(i - pull);
-      const y = Math.min(this.crestY + this.dip(x) - 15 * near, maxY);
+      const y = Math.min(this.crestY + this.dip(x) - 12 * near, maxY);
       const s = 0.84 + 0.40 * near;
 
       el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${s.toFixed(3)})`;
