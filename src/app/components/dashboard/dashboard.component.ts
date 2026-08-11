@@ -10,6 +10,7 @@ import { ExerciceService, MuscleGroupWithExercices } from '../../services/exerci
 import { DropdownOption } from '../shared/dropdown/dropdown.component';
 import { TrainingService } from '../../services/training.service';
 import { NewsService, NewsItem } from '../../services/news.service';
+import { NotifyService } from '../../services/notify.service';
 import { DAY_NAMES as DAYS } from '../../shared/day-names';
 import { ExerciceDetailService } from '../shared/exercice-detail/exercice-detail.service';
 import { LIVE_WINDOW_H, WARMUP_GRACE_MIN } from '../../shared/warmup-grace';
@@ -324,7 +325,8 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
     private newsService: NewsService,
     private drafts: DraftService,
     private router: Router,
-    private exDetail: ExerciceDetailService) {}
+    private exDetail: ExerciceDetailService,
+    private notify: NotifyService) {}
 
   async ngOnInit() {
     const user = this.authService.getCurrentUser();
@@ -1892,6 +1894,18 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
       } else {
         await this.dashboardService.followPlan(this.viewedPlan.id, user.id);
         this.isFollowing = true;
+
+        // Autoru plana stiže push da ima novog pratioca (Markov izbor uz
+        // reakcije; „oboren rekord" svjesno preskočen). Tiho na grešci.
+        if (this.viewedPlan.created_by && this.viewedPlan.created_by !== user.id) {
+          const me = (user.user_metadata as any)?.['username'] ?? 'Neko iz ekipe';
+          void this.notify.sendToUser(
+            this.viewedPlan.created_by,
+            'Novi pratilac plana',
+            `${me} sada prati „${this.viewedPlan.name ?? 'tvoj plan'}"`,
+            '/dashboard'
+          );
+        }
       }
     } catch (err: any) {
       this.viewError = err.message ?? 'Greška prilikom ažuriranja praćenja plana.';

@@ -4450,3 +4450,20 @@ razliva klasom kroz komponentu; reduced-motion sve gasi.
    odluka): to su ekrani razgledanja — aplikacija poslije njih kreće od
    dashboarda. Lista se provjerava i pri ČITANJU zapisa, pa ni ranije
    upisan /blog ne vraća tamo nijednom.
+
+**Dopuna — rezime treninga na globalni obrazac (prva primjena pravila):**
+rezime je plutajuća kartica, a zavjesa mu je na telefonu gutala kupolu
+(ista „cut off" klasa). Sada: `float-overlay` + `appPortal` (zavjesa do dna,
+kartica iznad menija, imun na iOS skrol-zamku) + novi `FloatLayerService` —
+brojač plutajućih slojeva komponenti, ljuska preko njega drži `float-open`
+pa futer izranja iznad zavjese (do sad su to mogli samo slojevi iz ljuske).
+
+**Dopuna — društvena obavještenja (Markov izbor: reakcije + pratilac plana;
+„oboren rekord" svjesno preskočen kao previše buke):** novi `NotifyService`
+šalje push DRUGOM korisniku preko istog Spring Boot šasija kao tajmer pauze
+(`POST /api/notifications/social`, JWT auth). Okidači: reakcija na tuđu
+objavu (dodavanje/zamjena — skidanje je tiho) → „Nova reakcija · Reakcija od
+X: 💪" (klik vodi na /blog); zapraćen tuđi plan → „Novi pratilac plana · X
+sada prati ‚…'" (klik na /dashboard). Za sopstvene objave/planove se ne
+šalje. TIHO NA GREŠCI — dok Filip ne doda endpoint, pozivi padaju u
+console.warn i ništa se ne mijenja; proradi samo od sebe kad backend stigne.
