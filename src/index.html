@@ -4,11 +4,13 @@
   <meta charset="utf-8">
   <title>GymApp</title>
   <base href="/">
-  <!-- Namjerno BEZ viewport-fit=cover: iOS tada sam drži stranicu iznad trake
-       za gestove (env(safe-area-inset-*) je 0 i sav safe-area kod miruje).
-       Probano sa cover (31.07.2026): futer se manuelnim podizanjem uvijek
-       činio ili previsok ili prenizak — Markova presuda: vrati kako je bilo. -->
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- viewport-fit=cover SAMO radi VRHA (11.08.2026): u bookmark režimu iOS
+       boju status trake čita jednom pri pokretanju, pa promjena teme uživo
+       ostavlja pogrešnu boju oko notcha — sada se stranica proteže pod traku
+       i HEADER je farba sam, u živoj temi. Dno isto: futer svojom površinom
+       boji zonu gestova (--safe-b živ), a ikone drži --footer-gap formula na
+       istoj vizuelnoj visini kao prije cover-a. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="GymApp">
@@ -19,7 +21,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <!-- Podrazumijevano tamna podloga (--void). ThemeService azurira ovu vrijednost
        pri svakoj promjeni teme. -->
-  <meta name="theme-color" content="#06080B">
+  <meta name="theme-color" content="#0C1117">
 </head>
 <body>
   <app-root></app-root>

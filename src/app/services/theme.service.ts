@@ -8,9 +8,12 @@ export type Theme = 'dark' | 'light';
  * `_tokens.scss`. Drzi se rucno u sinhronu sa tokenima: <meta> ne moze citati
  * CSS varijablu.
  */
+// Boja HEADERA (--carbon), ne podloge: traka statusa/notcha stoji TIK iznad
+// headera pa mora biti isti materijal — sa bojom podloge se vidio šav
+// (bijeli header, bež notch zona — Markova prijava sa telefona).
 const THEME_COLOR: Record<Theme, string> = {
-  dark:  '#06080B',
-  light: '#ECEBE4',
+  dark:  '#0C1117',
+  light: '#FFFFFF',
 };
 
 /**
