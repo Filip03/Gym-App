@@ -770,7 +770,11 @@
 </div>
 
 <!-- Sažetak po završetku treninga -->
-<div class="modal-overlay summary-overlay" *ngIf="showSummary && summary" (click)="closeSummary()">
+<!-- `float-overlay` + `appPortal` (globalno pravilo za plutajuće kartice):
+     zavjesa do dna, kartica iznad menija, futer izranja iznad zavjese
+     (FloatLayerService), a portal na <body> čuva od iOS skrol-zamke. -->
+<div class="modal-overlay summary-overlay float-overlay" appPortal
+     *ngIf="showSummary && summary" (click)="closeSummary()">
   <div class="summary-card" [attr.data-tone]="summary.tone" (click)="$event.stopPropagation()">
 
     <div class="sum-icon">

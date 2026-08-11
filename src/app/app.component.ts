@@ -6,6 +6,7 @@ import { ProfilePreviewService } from './shared/profile-preview.directive';
 import { PushNotificationService } from './services/push-notification.service';
 import { AuthService } from './services/auth.service';
 import { LastRouteService } from './services/last-route.service';
+import { FloatLayerService } from './services/float-layer.service';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +29,7 @@ export class AppComponent{
     private router: Router,
     public preview: ProfilePreviewService,
     public exDetail: ExerciceDetailService,
+    public float: FloatLayerService,
     push: PushNotificationService,
     private auth: AuthService,
     private lastRoute: LastRouteService

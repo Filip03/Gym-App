@@ -6,6 +6,7 @@ import { AudioService } from '../../services/audio.service';
 import { GlitchService } from '../../services/glitch.service';
 import { OfflineQueueService } from '../../services/offline-queue.service';
 import { NavLockService } from '../../services/nav-lock.service';
+import { FloatLayerService } from '../../services/float-layer.service';
 import { RestTimerService } from '../../services/rest-timer.service';
 import {
   PickerGroup, PickerOption, toPickerGroups, flattenGroups
@@ -304,7 +305,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     private navLock: NavLockService,
     private router: Router,
     private route: ActivatedRoute,
-    public restTimer: RestTimerService
+    public restTimer: RestTimerService,
+    private floatLayer: FloatLayerService
   ) {}
 
   /**
@@ -1674,6 +1676,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   // -------------------------------------------------------------------------
 
   ngOnDestroy() {
+    // Napuštanje ekrana sa otvorenim rezimeom ne smije ostaviti futer izdignut.
+    if (this.showSummary) this.floatLayer.close();
     this.queue.onFlushed = null;
     clearTimeout(this.saveTimer);
     clearInterval(this.restTick);
@@ -1832,7 +1836,11 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     return m === 0 ? `${h} h` : `${h} h ${m} min`;
   }
 
-  closeSummary() { this.showSummary = false; }
+  closeSummary() {
+    if (!this.showSummary) return;
+    this.showSummary = false;
+    this.floatLayer.close();
+  }
 
   /**
    * Ukupno ODRAĐENIH serija danas — prikazuje se uz oznaku da je trening gotov.
@@ -1852,6 +1860,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
 
       this.buildSummary();
       this.showSummary = true;
+      // Rezime je plutajuća kartica — futer izranja iznad njene zavjese.
+      this.floatLayer.open();
       this.exercices.forEach(e => { e.showLogForm = false; e.menuOpen = false; });
       if (this.summary?.tone === 'record') this.audio.play('record');
     } catch (err: any) {
