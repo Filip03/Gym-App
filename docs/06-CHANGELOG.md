@@ -4493,3 +4493,20 @@ gestova pokriva čista FARBA: fiksna traka (body::after, z 55) u boji stakla
 za klasični meni, a u kupola režimu u boji PODLOGE (staklo je pravilo
 postolje pa je luk izgledao viši). `<html>` dobio boju podloge kao osigurač
 — sirovo crno UA platno ne može proviriti nigdje.
+
+---
+
+## 2026-08-12 — Info o vježbi iz pregleda plana i iz treninga
+
+**Šta:** Ko ne zna koja je vježba, sad je vidi (slika + opis + grupe) kroz
+ISTI globalni popup (ExerciceDetailService) koji već koriste Vježbe, builder
+i leaderboard — Markov zahtjev.
+
+**Kako:**
+1. **Pregled plana** (svog ili tuđeg, špil dana): red vježbe je dugme —
+   dodir otvara popup; diskretna info ikona na redu kao nagovještaj.
+   Podaci već stižu kroz getFullPlan (name/picture/description).
+2. **Trening:** u meniju reda (tri tačkice) nova stavka „Info o vježbi".
+   Sesija sada nosi i description + mišićne grupe (findSession select +
+   SessionExercice model) — popup ima i opis i grupe; keširane sesije od
+   ranije ih nemaju pa popup uredno prikaže bez opisa (?? null).

@@ -32,6 +32,9 @@ export interface SessionExercice {
   isUnilateral: boolean;
   /** Vježba za noge — L/D opcija tada govori o nogama, ne o rukama. */
   isLegs: boolean;
+  /** Opis i mišićne grupe — za info popup (dodir na „Info" u meniju reda). */
+  description: string | null;
+  groups: string[];
 }
 
 export interface WorkoutSession {
@@ -376,7 +379,7 @@ export class TrainingService {
         workout_plan:plan_id ( name ),
         session_exercices (
           id, exercice_id, order_num, target_sets, target_reps, is_extra,
-          exercices:exercice_id ( name, picture, is_bodyweight, is_unilateral,
+          exercices:exercice_id ( name, picture, description, is_bodyweight, is_unilateral,
             exercice_muscle ( muscle_group:muscle_group_id ( name ) ) ),
           replaced:replaced_exercice_id ( name )
         )
@@ -416,7 +419,11 @@ export class TrainingService {
           isBodyweight: se.exercices?.is_bodyweight ?? false,
           isUnilateral: se.exercices?.is_unilateral ?? false,
           isLegs: ((se.exercices?.exercice_muscle ?? []) as any[])
-            .some(m => /leg/i.test(m.muscle_group?.name ?? ''))
+            .some(m => /leg/i.test(m.muscle_group?.name ?? '')),
+          description: se.exercices?.description ?? null,
+          groups: ((se.exercices?.exercice_muscle ?? []) as any[])
+            .map(m => m.muscle_group?.name)
+            .filter((n: any): n is string => !!n)
         }))
     };
 

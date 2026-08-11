@@ -7,6 +7,7 @@ import { GlitchService } from '../../services/glitch.service';
 import { OfflineQueueService } from '../../services/offline-queue.service';
 import { NavLockService } from '../../services/nav-lock.service';
 import { FloatLayerService } from '../../services/float-layer.service';
+import { ExerciceDetailService } from '../shared/exercice-detail/exercice-detail.service';
 import { RestTimerService } from '../../services/rest-timer.service';
 import {
   PickerGroup, PickerOption, toPickerGroups, flattenGroups
@@ -306,7 +307,8 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     private router: Router,
     private route: ActivatedRoute,
     public restTimer: RestTimerService,
-    private floatLayer: FloatLayerService
+    private floatLayer: FloatLayerService,
+    private exDetail: ExerciceDetailService
   ) {}
 
   /**
@@ -2322,6 +2324,18 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
 
   getPictureUrl(picture: string | null): string | null {
     return picture ? this.exerciceService.getPublicUrl(picture) : null;
+  }
+
+  /**
+   * Info o vježbi — isti globalni popup kao na Vježbama/planovima (za onoga
+   * ko ne zna koja je vježba). Meni reda se zatvori, popup preuzima.
+   */
+  openExInfo(ex: TodayExercice) {
+    ex.menuOpen = false;
+    this.exDetail.open(
+      { name: ex.name, picture: ex.picture, description: ex.description ?? null },
+      ex.groups ?? []
+    );
   }
 
   goToLeaderboard(ex: TodayExercice) {

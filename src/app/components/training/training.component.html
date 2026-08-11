@@ -254,6 +254,9 @@
             <i class="material-icons">accessibility_new</i>
             {{ ex.isBodyweight ? 'Nije tjelesna težina' : 'Tjelesna težina' }}
           </button>
+          <button type="button" (click)="openExInfo(ex)">
+            <i class="material-icons">info_outline</i> Info o vježbi
+          </button>
           <button type="button" (click)="goToLeaderboard(ex)">
             <i class="material-icons">leaderboard</i> Rang lista
           </button>
