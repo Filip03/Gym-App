@@ -5,6 +5,7 @@ import { BlogService, BlogMediaItem, BlogReaction } from '../../services/blog.se
 import { compressImage } from '../../shared/image-compress';
 import { compressVideo } from '../../shared/video-compress';
 import { ProfileService } from '../../services/profile.service';
+import { NotifyService } from '../../services/notify.service';
 
 /** Objave jednog perioda — „Danas", „Juče", „Jul 2026"… */
 interface BlogGroup {
@@ -118,6 +119,7 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
     private audio: AudioService,
     private blogService: BlogService,
     private profileService: ProfileService,
+    private notify: NotifyService,
     private zone: NgZone
   ) {}
 
@@ -447,7 +449,19 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.closePalette();
 
     try {
-      await this.blogService.setReaction(item.id, this.currentUserId, kind);
+      const outcome = await this.blogService.setReaction(item.id, this.currentUserId, kind);
+
+      // Vlasniku objave stiže push — samo pri dodavanju/zamjeni (skidanje je
+      // tiho) i nikad za sopstvenu objavu. Tiho na grešci (NotifyService).
+      if (outcome !== 'removed' && item.ownerId && item.ownerId !== this.currentUserId) {
+        const me = this.usernames.get(this.currentUserId) ?? 'Neko iz ekipe';
+        void this.notify.sendToUser(
+          item.ownerId,
+          'Nova reakcija',
+          `Reakcija od ${me}: ${kind}`,
+          '/blog'
+        );
+      }
     } catch {
       // Vrati kako je bilo — bolje pošten korak nazad nego lažni balončić.
       this.reactionsByMedia.set(item.id, before);
