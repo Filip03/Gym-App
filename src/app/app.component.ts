@@ -40,6 +40,18 @@ export class AppComponent{
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe(() => {
 
+        // Slojevi iz LJUSKE (pregled vježbe, pregled profila) žive iznad svih
+        // ruta, pa ih promjena rute sama ne ruši — otkad je meni vidljiv (i
+        // klikabilan) ispod plutajuće kartice, navigacija bi ih ostavila da
+        // vise nad novim ekranom. Zatvaranje je idempotentno.
+        this.exDetail.close();
+        this.preview.close();
+
+        // Osigurač: navigacija NIKAD ne smije zateći sakriven header/meni
+        // (imerzivni pregled ih skloni; ma šta se desilo pregledu, rute ih
+        // vraćaju).
+        document.documentElement.classList.remove('immersive');
+
         const hiddenRoutes = [
           '/',
         ];

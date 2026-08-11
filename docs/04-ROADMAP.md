@@ -76,6 +76,9 @@ Cilj: da podaci koji se već prikupljaju počnu nešto da znače.
 | 2.5 | Streak / kontinuitet treniranja | D6 | ☑ GOTOVO — niz sedmica u profilu |
 | 2.6 | Tajmer pauze između serija | D4 | ☐ ČEKA |
 | 2.7 | Offline upis (lokalni red čekanja + sinhronizacija) | D5 | ☑ GOTOVO |
+| 2.8 | Biranje dana za danas (propušten dan se radi kad čovjek može) | ADR-0004 | ☑ GOTOVO |
+| 2.9 | „Prilagodi sebi" zatvara krug (otprati original + aktiviraj kopiju) | ADR-0004 | ☑ GOTOVO |
+| 2.10 | Privatni planovi (`is_private`) | ADR-0004 | ☑ GOTOVO |
 
 ---
 

@@ -10,6 +10,17 @@
       <span class="day-type" *ngIf="session.dayTypeName">{{ session.dayTypeName }}</span>
       <span class="plan-name">{{ session.planName }}</span>
       <span class="view-date num" *ngIf="viewOnly">{{ todayDate | date:'dd.MM.yyyy.' }}</span>
+      <!-- Dok trening nije počeo, danas se može odraditi BILO KOJI dan plana
+           (propušten zbog bolesti/pauze). Poslije prve serije čip se sipne —
+           `gone` skuplja i njegov PROSTOR, pa susjedi teku, ne skaču. -->
+      <button type="button" class="day-swap" *ngIf="!viewOnly"
+              [class.gone]="!canChangeDay"
+              [disabled]="dayPickerLoading || !canChangeDay"
+              (click)="openDayPicker()"
+              title="Danas radi drugi dan iz plana">
+        <i class="material-icons">swap_horiz</i>
+        <span class="ds-text">{{ dayPickerLoading ? 'Učitavam…' : 'Promijeni dan' }}</span>
+      </button>
     </div>
     <!-- Alatke zaglavlja postoje samo u ŽIVOM treningu — u pregledu istorije
          nema ni dodavanja ni tajmera. (Pri Filipovom merge-u uslov se obrnuo,
@@ -119,6 +130,12 @@
 
   <div class="rest-day" *ngIf="isRestDay">
     <p>Danas je rest day.</p>
+    <!-- „Radi dan iz plana" je baš scenario propuštenog dana: po kalendaru
+         odmor, a čovjek hoće grudi od ponedjeljka. -->
+    <button type="button" class="btn-ghost" *ngIf="canChangeDay"
+            [disabled]="dayPickerLoading" (click)="openDayPicker()">
+      {{ dayPickerLoading ? 'Učitavam…' : 'Radi dan iz plana' }}
+    </button>
     <button type="button" class="btn-ghost" (click)="openAdd()">Ipak treniram</button>
   </div>
 
@@ -681,6 +698,50 @@
   (pick)="confirmSwap($event)"
   (dismiss)="closeSwap()">
 </app-exercice-picker>
+
+<!-- Biranje dana za danas: sesija se presloži iz izabranog dana plana.
+     Plan ostaje netaknut — promjena važi samo za današnji trening. -->
+<div class="modal-overlay day-picker-overlay" *ngIf="dayPickerOpen || dayPickerClosing"
+     [class.dp-closing]="dayPickerClosing" (click)="closeDayPicker()">
+  <div class="modal-card day-picker-card" (click)="$event.stopPropagation()">
+    <h3>Koji dan radiš danas?</h3>
+    <p class="modal-note">Važi samo za današnji trening — plan ostaje kakav jeste.</p>
+
+    <div class="dp-list">
+      <button type="button" class="dp-day"
+              *ngFor="let d of pickerDays; let i = index"
+              [class.on]="isCurrentDay(d)"
+              [class.rest]="isRestEntry(d)"
+              [class.busy]="changingDayId === (d?.id ?? 'rest')"
+              [style.animation-delay.ms]="60 + i * 45"
+              [disabled]="changingDayId !== null"
+              (click)="pickDay(d)">
+        <!-- Grid: svaka informacija ima SVOJU kolonu, poravnatu kroz sve
+             redove — naziv | tip | broj vježbi | kvačica. -->
+        <span class="dp-main">
+          <span class="dp-name">{{ d.name }}</span>
+          <span class="dp-tag" *ngIf="isScheduledDay(d)">danas po planu</span>
+        </span>
+        <span class="dp-type" *ngIf="!isRestEntry(d)">{{ d.day_type?.name || 'Trening' }}</span>
+        <span class="dp-type dp-rest" *ngIf="isRestEntry(d)">odmor</span>
+        <span class="dp-count num">
+          <ng-container *ngIf="dayExCount(d) > 0">{{ dayExCount(d) }} vj.</ng-container>
+        </span>
+        <span class="dp-state">
+          <i class="material-icons dp-check" *ngIf="isCurrentDay(d) && changingDayId === null">check</i>
+          <i class="material-icons dp-spin" *ngIf="changingDayId === (d?.id ?? 'rest')">sync</i>
+        </span>
+      </button>
+    </div>
+
+    <p class="error" *ngIf="dayPickerError">{{ dayPickerError }}</p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" [disabled]="changingDayId !== null"
+              (click)="closeDayPicker()">Zatvori</button>
+    </div>
+  </div>
+</div>
 
 <!-- Serije i ponavljanja za ovaj trening -->
 <div class="modal-overlay" *ngIf="showTargetModal" (click)="closeTargets()">

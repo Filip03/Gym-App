@@ -31,10 +31,11 @@
     // skrivene trake) ofarbani istom bojom čine jednu ogromnu ploču na dnu
     // (Markov IMG_4577). Ovako oko vidi traku visoku koliko i ikone, a ikone
     // svejedno ostaju iznad zone gestova.
+    // POVRŠINA (--carbon), ne podloga (--void) — vidi komentar u .dock-surface.
     background: linear-gradient(
         to bottom,
-        color-mix(in srgb, var(--void) 95%, transparent) calc(100% - var(--footer-gap)),
-        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
+        color-mix(in srgb, var(--carbon) 95%, transparent) calc(100% - var(--footer-gap)),
+        color-mix(in srgb, var(--carbon) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
         transparent 100%
     );
     border-top: 1px solid var(--line);
@@ -42,12 +43,12 @@
 
 // Svijetla tema: NEPROVIDNO u pojasu ikona (providnost je puštala kartice da
 // prosijavaju), pa isto blijeđenje kroz zonu gestova.
-// Ista boja i u header.component.scss — mijenjati u paru!
+// U trojci sa kupolom i header.component.scss — mijenjati zajedno!
 :host-context([data-theme='light']) .footer {
     background: linear-gradient(
         to bottom,
-        var(--void) calc(100% - var(--footer-gap)),
-        color-mix(in srgb, var(--void) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
+        var(--carbon) calc(100% - var(--footer-gap)),
+        color-mix(in srgb, var(--carbon) 55%, transparent) calc(100% - var(--footer-gap) * 0.45),
         transparent 100%
     );
 }
@@ -178,11 +179,39 @@
 // a prelaz bi ih vukao unazad.
 // ---------------------------------------------------------------------------
 
+// Dok je otvorena PLUTAJUĆA kartica (float-open na ljusci): cio futer iznad
+// njenog scrima (z 150) — luk i prsten vire iznad ravne gornje ivice futera,
+// pa bi ih scrim inače sjekao po pravoj liniji (Markov menu_bug, repriza).
+// Puni paneli (z 100+bottom:0) i dalje prekrivaju futer — njih se ne tiče.
+// 340 = iznad pregleda vježbe (150) I pregleda profila (300, a on je iznad
+// blog lightboxa 200).
+:host-context(.float-open) {
+    z-index: 340;
+}
+
+// NE `100%`: host kupole je visine 0 (luk je apsolutno dijete koje visi iz
+// njega), pa je procenat pomjerao futer za mizernih 24px — meni je na
+// telefonu ostajao preko snimka. Fiksna distanca nosi i kupolu (92) i
+// klasični futer (64), plus sjenka/safe zona.
+:host-context(html.immersive) {
+    transform: translateY(calc(var(--footer-h) + var(--safe-b) + 48px));
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+}
+
 :host {
     display: block;
     flex: none;
     position: relative;
     z-index: 60;
+
+    // Imerzivni pregled (blog lightbox stavi `immersive` na <html>): cio
+    // futer (i klasični i kupola) klizne DOLJE van ekrana — ne prelazi više
+    // preko snimka i reakcija (Markova prijava). Nazad istom oprugom.
+    transition: transform 420ms var(--ease-spring);
 
     // Ne rezerviše se CIJELA zona gestova — ikone smiju da joj priđu 12px
     // (iOS-ove native trake rade isto): puna rezerva ih je držala previsoko
@@ -246,19 +275,65 @@
 
     border-radius: 50% 50% 0 0 / var(--arc-rise, 64px) var(--arc-rise, 64px) 0 0;
 
+    // WebKit (iPhone!): overflow+border-radius NE sijeku djecu na sopstvenom
+    // kompozitnom sloju (tjeme koristi translate3d) — na Safariju je prsten
+    // i dalje isplivavao van luka iako je na Chrome-u bio uredno odsječen.
+    // Maska tjera WebKit da kliping stvarno primijeni na oblik luka.
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+    isolation: isolate;
+
     // Bez backdrop-filter — vidi objašnjenje u header.component.scss.
-    background: color-mix(in srgb, var(--void) 95%, transparent);
+    // POVRŠINA (--carbon), ne podloga (--void): traka mora biti svjetlija od
+    // sadržaja iza sebe da se čita kao zaseban sloj — sa bojom podloge se
+    // stapala u jedno (Markova prijava, svijetla tema). Isto u header-u i
+    // klasičnom futeru — mijenjati u TROJKU!
+    background: color-mix(in srgb, var(--carbon) 95%, transparent);
     border-top: 1px solid var(--line);
     box-shadow: 0 -16px 38px -22px rgba(0, 0, 0, .8);
 
     transform-origin: 50% 50%;
     transition: transform var(--d-slower) var(--ease-spring);
+
+    // Svjetlosni RUB po vrhu luka — staklo hvata svjetlo na ivici.
+    box-shadow: 0 -16px 38px -22px rgba(0, 0, 0, .8),
+                inset 0 2px 8px -4px rgba(255, 255, 255, .35);
 }
 
-// Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju).
-// Ista vrijednost i u header.component.scss — mijenjati u paru!
+// POKRETNI ODSJAJ (Apple staklo): mekani specularni blik koji KLIZI po kupoli
+// prateći tjeme (--sheen-x upisuje render() svaki kadar) — svjetlo koje se
+// prelama u staklu dok se prevlači. Maska luka ga sama sijece u oblik.
+.dock-surface::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+        42% 70% at var(--sheen-x, 50%) -8%,
+        rgba(255, 255, 255, .22),
+        rgba(255, 255, 255, .07) 45%,
+        transparent 72%
+    );
+}
+
+// Na bijelom staklu bijeli blik ne postoji — svjetlo koje putuje nosi blagi
+// volt ton, kao da se akcenat prelama kroz staklo.
+:host-context([data-theme='light']) .dock-surface::before {
+    background: radial-gradient(
+        42% 70% at var(--sheen-x, 50%) -8%,
+        rgba(62, 148, 0, .12),
+        rgba(62, 148, 0, .04) 45%,
+        transparent 72%
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dock-surface::before { background-position: center; }
+}
+
+// Svijetla tema: NEPROVIDNO (providnost je puštala kartice da prosijavaju),
+// bijelo kao kartice — u trojci sa headerom i klasičnim futerom.
 :host-context([data-theme='light']) .dock-surface {
-    background: var(--void);
+    background: var(--carbon);
 }
 
 // Prevlačenje: kupola se razlije (squash & stretch)…

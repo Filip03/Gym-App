@@ -17,6 +17,8 @@ import { ProfileComponent } from './components/profile/profile.component';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { NumFieldDirective } from './shared/num-field.directive';
 import { ProfilePreviewDirective } from './shared/profile-preview.directive';
+import { BubblePhysicsDirective } from './shared/bubble-physics.directive';
+import { PortalDirective } from './shared/portal.directive';
 import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
 import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
@@ -56,6 +58,8 @@ import { GlitchOverlayComponent } from './components/glitch-overlay/glitch-overl
     FormsModule,
     NumFieldDirective,
     ProfilePreviewDirective,
+    BubblePhysicsDirective,
+    PortalDirective,
     ServiceWorkerModule.register('ngsw-worker.js', {
       enabled: !isDevMode(),
       // Register the ServiceWorker as soon as the application is stable

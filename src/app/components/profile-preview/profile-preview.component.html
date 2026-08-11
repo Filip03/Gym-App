@@ -1,4 +1,8 @@
-<div class="modal-overlay" *ngIf="userId" (click)="close()">
+<!-- `float-overlay`: kartica PLUTA (ne pun panel) — zavjesa do dna, meni
+     izranja iznad nje. Ranije je pun panel naglo progutao cio ekran i meni,
+     pa je ulazak djelovao kao treptaj (Markova prijava). -->
+<div class="modal-overlay pv-overlay float-overlay" *ngIf="userId"
+     [class.closing]="closing" (click)="close()">
   <div class="modal-card preview-card" (click)="$event.stopPropagation()">
 
     <button type="button" class="pv-close" (click)="close()" aria-label="Zatvori">

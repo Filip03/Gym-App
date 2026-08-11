@@ -43,9 +43,11 @@
 
     <div class="dock-surface"></div>
 
-    <span class="dock-tick" *ngFor="let t of tickSlots" aria-hidden="true"></span>
-
+    <!-- Tjeme je IZVAN stakla — krug ostaje CIO (bez sječenja); da ne viri
+         preko luka, ikone su uvučene dublje u kupolu (crestY/ring geometrija). -->
     <span class="dock-crest" aria-hidden="true"></span>
+
+    <span class="dock-tick" *ngFor="let t of tickSlots" aria-hidden="true"></span>
 
     <ng-container *ngFor="let it of items; let i = index">
 

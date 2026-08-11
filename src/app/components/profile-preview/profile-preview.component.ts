@@ -45,6 +45,8 @@ const MONTHS = [
 })
 export class ProfilePreviewComponent implements OnChanges {
   @Input() userId: string | null = null;
+  /** Izlazna animacija u toku (drži je ProfilePreviewService). */
+  @Input() closing = false;
   @Output() closed = new EventEmitter<void>();
 
   loading = false;

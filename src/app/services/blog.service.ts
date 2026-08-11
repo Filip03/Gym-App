@@ -10,6 +10,7 @@ import { environment } from '../../environments/env';
 // Vidi supabase/functions/r2-presign i supabase/migrations/20260726020000_blog_media.sql.
 
 interface BlogMediaRow {
+  id: string;
   key: string;
   type: 'image' | 'video';
   created_at: string;
@@ -17,7 +18,16 @@ interface BlogMediaRow {
   size: number | null;
 }
 
+/** Jedna reakcija — red iz `blog_reactions`. */
+export interface BlogReaction {
+  mediaId: string;
+  profileId: string;
+  kind: string;
+}
+
 export interface BlogMediaItem {
+  /** `blog_media.id` — ključ za reakcije. */
+  id: string;
   name: string;
   url: string;
   type: 'image' | 'video';
@@ -44,12 +54,13 @@ export class BlogService {
   async listMedia(): Promise<BlogMediaItem[]> {
     const { data, error } = await this.supabase.client
       .from('blog_media')
-      .select('key, type, created_at, uploaded_by, size')
+      .select('id, key, type, created_at, uploaded_by, size')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     return ((data ?? []) as BlogMediaRow[]).map(row => ({
+      id: row.id,
       name: row.key,
       url: this.getPublicUrl(row.key),
       type: row.type,
@@ -61,6 +72,65 @@ export class BlogService {
 
   getPublicUrl(key: string): string {
     return `${environment.r2PublicUrl}/${key}`;
+  }
+
+  // -------------------------------------------------------------------------
+  // Reakcije
+  // -------------------------------------------------------------------------
+
+  /** Sve reakcije odjednom — grupa je mala, jedan upit umjesto upita po objavi. */
+  async listReactions(): Promise<BlogReaction[]> {
+    const { data, error } = await this.supabase.client
+      .from('blog_reactions')
+      .select('media_id, profile_id, kind')
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    return ((data ?? []) as any[]).map(r => ({
+      mediaId: r.media_id,
+      profileId: r.profile_id,
+      kind: r.kind
+    }));
+  }
+
+  /**
+   * Postavi/skini SVOJU reakciju — jedna po osobi po objavi (unique u bazi):
+   * ista vrsta = skidanje, druga vrsta = zamjena, ničega = dodavanje.
+   */
+  async setReaction(mediaId: string, profileId: string, kind: string): Promise<'added' | 'removed' | 'replaced'> {
+    const { data: existing, error } = await this.supabase.client
+      .from('blog_reactions')
+      .select('id, kind')
+      .eq('media_id', mediaId)
+      .eq('profile_id', profileId)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!existing) {
+      const { error: insError } = await this.supabase.client
+        .from('blog_reactions')
+        .insert({ media_id: mediaId, profile_id: profileId, kind });
+      if (insError) throw insError;
+      return 'added';
+    }
+
+    if (existing.kind === kind) {
+      const { error: delError } = await this.supabase.client
+        .from('blog_reactions')
+        .delete()
+        .eq('id', existing.id);
+      if (delError) throw delError;
+      return 'removed';
+    }
+
+    const { error: updError } = await this.supabase.client
+      .from('blog_reactions')
+      .update({ kind })
+      .eq('id', existing.id);
+    if (updError) throw updError;
+    return 'replaced';
   }
 
   async uploadMedia(file: File, userId: string): Promise<void> {

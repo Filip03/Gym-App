@@ -88,6 +88,14 @@
       </button>
     </div>
 
+    <!-- Prolazna potvrda radnje čiji efekat nije vidljiv iz liste (npr.
+         „Prilagodi sebi" otprati original i aktivira kopiju u pozadini). -->
+    <div class="saved-note" *ngIf="savedNote && !loading"
+         [class.closing]="savedNoteClosing" (click)="dismissSavedNote()">
+      <i class="material-icons">task_alt</i>
+      <span class="sn-text">{{ savedNote }}</span>
+    </div>
+
     <div class="sections" *ngIf="!loading && !errorMessage">
 
         <section class="my-plans">
@@ -206,6 +214,23 @@
                           placeholder="Izaberi tip plana"
                           (valueChange)="onPlanTypeSelected($event)"></app-dropdown>
           </div>
+
+          <!-- Isti obrazac kao „Osobine" kod nove vježbe, u kućnom jeziku
+               pokreta: razliv reda + kap iz dodira + ikone rođene talasom. -->
+          <button type="button" class="opt-row" [class.on]="newPlanIsPrivate"
+                  [class.pop]="privPop" (click)="togglePlanPrivacy($event)">
+            <ng-container *ngFor="let k of [privKey]">
+              <i class="material-icons opt-icon-in">{{ newPlanIsPrivate ? 'lock' : 'lock_open' }}</i>
+            </ng-container>
+            <span class="opt-text">Privatan plan
+              <small>drugi ga ne vide u listi niti ga mogu zapratiti</small></span>
+            <ng-container *ngFor="let k of [privKey]">
+              <i class="material-icons opt-state opt-state-in">
+                {{ newPlanIsPrivate ? 'check_circle' : 'radio_button_unchecked' }}</i>
+            </ng-container>
+            <span class="opt-ink" *ngIf="privInk"
+                  [style.left.%]="privInk.x" [style.top.%]="privInk.y"></span>
+          </button>
         </div>
 
         <hr class="divider" />
@@ -388,7 +413,13 @@
 
       <div class="plan-info-section">
         <div class="group">
-          <h2>{{ viewedPlan.name }}</h2>
+          <h2>
+            {{ viewedPlan.name }}
+            <!-- Vidi je samo vlasnik — tuđi privatni planovi ne stižu dovde. -->
+            <span class="private-chip" *ngIf="viewedPlan.is_private">
+              <i class="material-icons">lock</i>Privatan
+            </span>
+          </h2>
           <div class="plan-actions">
             <button type="button" class="edit-plan-btn" *ngIf="isOwnPlan" (click)="openEditModal()">Izmijeni</button>
             <button

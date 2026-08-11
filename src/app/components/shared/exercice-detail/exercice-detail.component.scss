@@ -5,7 +5,64 @@
 
 // Iznad SVIH modala koji ga mogu otvoriti (editor plana je na 100, birač
 // vježbi na 120) — pregled je uvijek posljednji sloj.
-.detail-overlay { z-index: 150; }
+//
+// ULAZ: globalni `overlay-in` samo mijenja providnost, a iOS backdrop-blur
+// na to ne reaguje nego PUKNE odjednom — otud Markov utisak „on/off bez
+// smooth ulaza". Zato se ovdje animira i SAMO zamućenje (blur 0 → 8px).
+.detail-overlay {
+  z-index: 150;
+  animation: detail-veil-in 320ms var(--ease-out) both;
+}
+
+// IZLAZ (kućno pravilo: svaki prelaz ima pokret, i povratni): zavjesa se
+// razbistri i izblijedi, kartica se sipne nazad dolje. Stanje drži servis
+// 300ms pa tek onda skida element iz DOM-a.
+.detail-overlay.closing {
+  animation: detail-veil-out 280ms var(--ease) both;
+  pointer-events: none;
+}
+.detail-overlay.closing .detail-card {
+  animation: detail-out 280ms var(--ease) both;
+}
+
+@keyframes detail-veil-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes detail-veil-out {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
+  }
+}
+
+@keyframes detail-out {
+  0%  { opacity: 1; transform: translateY(0)    scale(1); }
+  35% {             transform: translateY(3px)  scale(1.01, .96); }
+  to  { opacity: 0; transform: translateY(18px) scale(.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-overlay,
+  .detail-overlay.closing,
+  .detail-overlay.closing .detail-card,
+  .detail-card { animation: none; }
+}
 
 .detail-card {
   position: relative;

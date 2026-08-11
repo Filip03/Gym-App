@@ -1,7 +1,7 @@
-import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
 import { AudioService } from '../../services/audio.service';
-import { BlogService, BlogMediaItem } from '../../services/blog.service';
+import { BlogService, BlogMediaItem, BlogReaction } from '../../services/blog.service';
 import { compressImage } from '../../shared/image-compress';
 import { compressVideo } from '../../shared/video-compress';
 import { ProfileService } from '../../services/profile.service';
@@ -18,13 +18,75 @@ const MONTHS = [
   'Jul', 'Avgust', 'Septembar', 'Oktobar', 'Novembar', 'Decembar'
 ];
 
+/** Paleta reakcija — emoji je i vrijednost u bazi (blog_reactions.kind). */
+const REACTION_KINDS = ['💪', '🔥', '🐐', '😂', '❤️'];
+
+
+/**
+ * Jedan balon = JEDNA OSOBA (Markova ispravka: grupisanje po vrsti je
+ * sakrivalo ljude) — krug sa njenim emojiem i njenom profilnom slikom:
+ * vidi se i KO i ŠTA na prvi pogled.
+ */
+interface ReactionBubble {
+  kind: string;
+  profileId: string;
+  username: string;
+  avatar: string | null;
+  mine: boolean;
+  /** Lična veličina balona (±15%) — determinističko iz id-ja. */
+  scale: number;
+}
+
 @Component({
   selector: 'app-blog',
   templateUrl: './blog.component.html',
   styleUrls: ['./blog.component.scss']
 })
-export class BlogComponent implements OnInit {
+export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('fileInput') fileInputRef!: ElementRef<HTMLInputElement>;
+  /** Traka od tri panela u pregledu — prst je vuče uživo (bez CD po kadru). */
+  @ViewChild('lbStrip') lbStripRef?: ElementRef<HTMLElement>;
+  /** Korijen pregleda — pri otvaranju se premješta na <body> (vidi šablon). */
+  @ViewChild('lbRoot') lbRootRef?: ElementRef<HTMLElement>;
+  /** Tekući video u pregledu — NAŠE kontrole (nativne su gutale gestove). */
+  @ViewChild('lbVideo') lbVideoRef?: ElementRef<HTMLVideoElement>;
+
+  // --- Naše video kontrole ----------------------------------------------------
+  //
+  // Nativni `controls` overlay je na iOS-u KRAO dodire — listanje preko
+  // snimka nije radilo, hvatalo se samo za ivicu ekrana (Markova prijava).
+  // Zato: štit preko videa nosi gestove, dodir = play/pauza, tanka traka
+  // napretka + zvuk su naši.
+  videoPaused = false;
+  videoMuted = false;
+  videoProgress = 0;
+
+  toggleVideo(event: Event) {
+    event.stopPropagation();
+    const v = this.lbVideoRef?.nativeElement;
+    if (!v) return;
+    if (v.paused) void v.play().catch(() => this.videoPaused = true);
+    else v.pause();
+  }
+
+  toggleVideoMute(event: Event) {
+    event.stopPropagation();
+    this.videoMuted = !this.videoMuted;
+  }
+
+  onVideoTime(v: HTMLVideoElement) {
+    this.videoProgress = v.duration ? (v.currentTime / v.duration) * 100 : 0;
+  }
+
+  /** Poslije listanja na drugi snimak: novi src ne pokreće autoplay sam. */
+  private kickVideo() {
+    this.videoPaused = false;
+    this.videoProgress = 0;
+    setTimeout(() => {
+      const v = this.lbVideoRef?.nativeElement;
+      if (v) void v.play().catch(() => this.videoPaused = true);
+    });
+  }
 
   loading = true;
   errorMessage = '';
@@ -55,11 +117,20 @@ export class BlogComponent implements OnInit {
     private authService: AuthService,
     private audio: AudioService,
     private blogService: BlogService,
-    private profileService: ProfileService
+    private profileService: ProfileService,
+    private zone: NgZone
   ) {}
 
   get selectedItem(): BlogMediaItem | null {
     return this.selectedIndex >= 0 ? this.flat[this.selectedIndex] ?? null : null;
+  }
+
+  /** Susjedi u pregledu — bočni paneli trake, da prevlačenje ima šta da dovuče. */
+  get prevItem(): BlogMediaItem | null {
+    return this.selectedIndex > 0 ? this.flat[this.selectedIndex - 1] ?? null : null;
+  }
+  get nextItem(): BlogMediaItem | null {
+    return this.selectedIndex >= 0 ? this.flat[this.selectedIndex + 1] ?? null : null;
   }
 
   get total(): number { return this.flat.length; }
@@ -94,7 +165,14 @@ export class BlogComponent implements OnInit {
     this.errorMessage = '';
 
     try {
-      this.mediaItems = await this.blogService.listMedia();
+      // Reakcije stižu uporedo; ako padnu, galerija živi i bez njih.
+      const [media] = await Promise.all([
+        this.blogService.listMedia(),
+        this.blogService.listReactions()
+          .then(rows => this.indexReactions(rows))
+          .catch(() => {})
+      ]);
+      this.mediaItems = media;
       this.buildGroups();
     } catch (err: any) {
       this.errorMessage = err.message ?? 'Greška pri učitavanju sadržaja.';
@@ -170,6 +248,242 @@ export class BlogComponent implements OnInit {
   /** `Math` u predlošku — za ograničavanje kašnjenja animacije. */
   readonly Math = Math;
 
+  // --- Reakcije ---------------------------------------------------------------
+  //
+  // Balončići u uglu objave koji se NAKUPLJAJU: emoji + glave reaktora +
+  // broj. Dodir na [+] otvori paletu; dodir na balončić dodaje/skida MOJU
+  // reakciju te vrste (toggle). Optimistički: prikaz se mijenja odmah, upis
+  // ide u pozadini, a na grešku se vrati.
+
+  readonly reactionKinds = REACTION_KINDS;
+  /** Sve reakcije po objavi (media id → redovi). */
+  private reactionsByMedia = new Map<string, BlogReaction[]>();
+
+  /**
+   * Paleta je JEDNA, na nivou komponente, `position: fixed` uz dodirnuto [+]
+   * — unutar kartice ju je sjekao `overflow: hidden` (Markova prijava), a
+   * `content-visibility` na kartici ubija i fixed u njoj.
+   */
+  paletteItem: BlogMediaItem | null = null;
+  paletteClosing = false;
+  /** Tačka sidra palete — gornji-lijevi ugao [+] dugmeta, viewport koordinate. */
+  paletteX = 0;
+  paletteY = 0;
+  /** Paleta otvorena NAGORE ili NADOLJE — zavisi od mjesta na ekranu. */
+  paletteUp = true;
+  /**
+   * Polje za BILO KOJI emoji (Markova želja: sistemska tastatura, ne
+   * predefinisan spisak) — fokusira se čim se rodi, emoji se primijeni čim
+   * je otkucan (bez potvrde). Web ne može sam otvoriti emoji raspored —
+   * korisnik ga bira na svojoj tastaturi.
+   */
+  customOpen = false;
+  customEmoji = '';
+  private paletteTimer: any = null;
+
+  /**
+   * ASCII/emoji prskalica na dodatu reakciju — Markov registar („tony stark
+   * / ascii efekti"): glifovi prsnu iz tačke dodira i izblijede.
+   */
+  burst: { x: number; y: number; parts: { ch: string; dx: number; dy: number; rot: number; delay: number; big: boolean }[] } | null = null;
+  private burstTimer: any = null;
+  private burstSeq = 0;
+
+  private indexReactions(rows: BlogReaction[]) {
+    const map = new Map<string, BlogReaction[]>();
+    for (const r of rows) {
+      const list = map.get(r.mediaId) ?? [];
+      list.push(r);
+      map.set(r.mediaId, list);
+    }
+    this.reactionsByMedia = map;
+  }
+
+  /**
+   * Baloni jedne objave — jedan po OSOBI, NAJNOVIJE ČETIRI (Markov limit:
+   * više od 4 pretrpa fotografiju); ostatak stane u „+N" balon.
+   */
+  bubblesOf(item: BlogMediaItem): ReactionBubble[] {
+    const rows = this.reactionsByMedia.get(item.id) ?? [];
+    return rows.slice(-4).map(r => ({
+      kind: r.kind,
+      profileId: r.profileId,
+      username: this.usernames.get(r.profileId) ?? '—',
+      avatar: this.avatars.get(r.profileId) ?? null,
+      mine: r.profileId === this.currentUserId,
+      scale: this.bubbleScale(r.profileId)
+    }));
+  }
+
+  hiddenCount(item: BlogMediaItem): number {
+    return Math.max(0, (this.reactionsByMedia.get(item.id) ?? []).length - 4);
+  }
+
+  /** Dodir na „+N": etiketa sa svima koji nisu stali u jato. */
+  onOverflowTap(item: BlogMediaItem, event: Event) {
+    event.stopPropagation();
+    const rows = this.reactionsByMedia.get(item.id) ?? [];
+    const hidden = rows.slice(0, -4)
+      .map(r => `${this.usernames.get(r.profileId) ?? '—'} ${r.kind}`)
+      .join(' · ');
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.peek = { x: r.left + r.width / 2, y: r.top - 8, text: hidden };
+    clearTimeout(this.peekTimer);
+    this.peekTimer = setTimeout(() => this.peek = null, 2200);
+  }
+
+  /**
+   * Veličina balona po osobi, ±15% (Markova želja: dinamično a pregledno) —
+   * determinističko iz id-ja, pa je isti čovjek uvijek iste veličine.
+   */
+  private bubbleScale(profileId: string): number {
+    let h = 0;
+    for (let i = 0; i < profileId.length; i++) h = (h * 31 + profileId.charCodeAt(i)) >>> 0;
+    return 0.85 + (h % 31) / 100;
+  }
+
+  trackBubble = (_: number, b: ReactionBubble) => b.profileId;
+
+  /**
+   * Dodir na TUĐI balon: kratka etiketa „ko · šta" uz balon (na desktopu i
+   * title radi). Dodir na SVOJ balon skida reakciju (vidi onBubbleTap).
+   */
+  peek: { x: number; y: number; text: string } | null = null;
+  private peekTimer: any = null;
+
+  onBubbleTap(item: BlogMediaItem, b: ReactionBubble, event: Event) {
+    event.stopPropagation();
+    if (b.mine) { void this.toggleReaction(item, b.kind, event); return; }
+
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.peek = { x: r.left + r.width / 2, y: r.top - 8, text: `${b.username} · ${b.kind}` };
+    clearTimeout(this.peekTimer);
+    this.peekTimer = setTimeout(() => this.peek = null, 1400);
+  }
+
+  togglePalette(item: BlogMediaItem, event: Event) {
+    event.stopPropagation();
+    if (this.paletteItem?.id === item.id && !this.paletteClosing) { this.closePalette(); return; }
+
+    const r = (event.currentTarget as HTMLElement).getBoundingClientRect();
+
+    clearTimeout(this.paletteTimer);
+    this.paletteClosing = false;
+    this.customOpen = false;
+    this.customEmoji = '';
+    // Ne smije van desne ivice (paleta je široka do ~300px).
+    this.paletteX = Math.max(8, Math.min(r.left, window.innerWidth - 308));
+    // Pri vrhu ekrana nema mjesta iznad — paleta se otvara ispod dugmeta.
+    // Nagore raste kroz omotač (translateY(-100%)), pa i grid ima kuda.
+    this.paletteUp = r.top > 260;
+    this.paletteY = this.paletteUp ? r.top - 10 : r.bottom + 10;
+    this.paletteItem = item;
+  }
+
+  closePalette() {
+    if (!this.paletteItem || this.paletteClosing) return;
+    this.paletteClosing = true;
+    clearTimeout(this.paletteTimer);
+    this.paletteTimer = setTimeout(() => {
+      this.paletteItem = null;
+      this.paletteClosing = false;
+      this.customOpen = false;
+    }, 260);
+  }
+
+  /** Dodir van palete je zatvara; listanje takođe — fiksna ne smije da lebdi. */
+  @HostListener('document:click')
+  onDocClick() { this.closePalette(); }
+  @HostListener('window:wheel')
+  @HostListener('window:touchmove')
+  onDocScroll() { if (this.paletteItem && !this.paletteClosing) this.closePalette(); }
+
+  /** Fokus na polje čim ga *ngIf rodi — da tastatura iskoči iz istog dodira. */
+  @ViewChild('rxInput') set rxInput(el: ElementRef<HTMLInputElement> | undefined) {
+    el?.nativeElement.focus({ preventScroll: true });
+  }
+
+  /**
+   * Emoji se primjenjuje ČIM je otkucan: uzima se prva grafema (💪🏿 i slične
+   * sekvence ostaju cijele), čisto ASCII kucanje se ignoriše.
+   */
+  onCustomEmoji(value: string, event: Event) {
+    this.customEmoji = value;
+    const raw = value.trim();
+    if (!raw || /^[\x00-\x7F]+$/.test(raw)) return;
+
+    let first = raw;
+    try {
+      const seg = new (Intl as any).Segmenter(undefined, { granularity: 'grapheme' });
+      first = seg.segment(raw)[Symbol.iterator]().next().value?.segment ?? raw;
+    } catch {
+      first = [...raw].slice(0, 2).join('');
+    }
+
+    if (this.paletteItem) void this.toggleReaction(this.paletteItem, first, event);
+    this.customEmoji = '';
+  }
+
+  /**
+   * JEDNA reakcija po osobi (Markova odluka): ista vrsta = skidanje, druga
+   * vrsta = zamjena stare, ničega = dodavanje. Optimistički — na grešku se
+   * vrati snimak od prije.
+   */
+  async toggleReaction(item: BlogMediaItem, kind: string, event: Event) {
+    event.stopPropagation();
+    if (!this.currentUserId) return;
+
+    const rows = this.reactionsByMedia.get(item.id) ?? [];
+    const before = rows.map(r => ({ ...r }));
+    const mine = rows.findIndex(r => r.profileId === this.currentUserId);
+    const hadSame = mine >= 0 && rows[mine].kind === kind;
+
+    if (mine >= 0) rows.splice(mine, 1);
+    if (!hadSame) {
+      rows.push({ mediaId: item.id, profileId: this.currentUserId, kind });
+      this.fireBurst(event, kind);
+    }
+    this.reactionsByMedia.set(item.id, rows);
+    this.closePalette();
+
+    try {
+      await this.blogService.setReaction(item.id, this.currentUserId, kind);
+    } catch {
+      // Vrati kako je bilo — bolje pošten korak nazad nego lažni balončić.
+      this.reactionsByMedia.set(item.id, before);
+    }
+  }
+
+  /** Prskalica iz tačke dodira: izabrani emoji + ASCII glifovi iz registra. */
+  private fireBurst(event: Event, kind: string) {
+    const el = event.currentTarget as HTMLElement | null;
+    const r = el?.getBoundingClientRect();
+    if (!r) return;
+
+    const GLYPHS = ['+', '*', '×', '▲', '█', '░', '·', '>', '/'];
+    const seq = ++this.burstSeq;
+    const parts = Array.from({ length: 12 }, (_, i) => {
+      // Bez Math.random u petlji rendera nije problem — ovo je jednokratno.
+      const ang = (i / 12) * Math.PI * 2 + Math.random() * 0.5;
+      const dist = 34 + Math.random() * 42;
+      const big = i % 4 === 0;
+      return {
+        ch: big ? kind : GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+        dx: Math.cos(ang) * dist,
+        dy: Math.sin(ang) * dist - 18,
+        rot: (Math.random() - 0.5) * 140,
+        delay: Math.floor(Math.random() * 90),
+        big
+      };
+    });
+
+    this.burst = { x: r.left + r.width / 2, y: r.top + r.height / 2, parts };
+    clearTimeout(this.burstTimer);
+    this.burstTimer = setTimeout(() => {
+      if (seq === this.burstSeq) this.burst = null;
+    }, 820);
+  }
+
   triggerUpload() {
     this.audio.play('blogAdd');
     if (this.uploading || this.compressing) return;
@@ -189,40 +503,177 @@ export class BlogComponent implements OnInit {
     if (event.key === 'ArrowLeft')  this.prev();
   }
 
-  // Prevlačenje kroz objave na telefonu — isti prag i uslov kao u špilu dana.
+  // --- Prevlačenje u pregledu — slika PRATI prst -----------------------------
+  //
+  // Ranije: prag na touchend pa trenutni skok na susjednu sliku — „uopšte
+  // nije smooth" (Markova prijava). Sada traka od tri panela (prethodna,
+  // tekuća, sljedeća) klizi pod prstom uživo, a na puštanju se sa oprugom
+  // prelije na cilj ili vrati. Nadolje: slika tone za prstom uz tamnjenje,
+  // pa flick zatvori pregled.
+  //
+  // IZVEDBA BEZ CD-a PO KADRU: touchmove se kači ručno VAN Angular zone i
+  // piše transform direktno u stil — 60fps bez change detectiona; Angular se
+  // budi tek na kraju (promjena indeksa/zatvaranje).
+
   private touchX = 0;
   private touchY = 0;
+  /** Osovina poteza se ZAKLJUČA na prvih ~10px — poslije nema preskakanja. */
+  private dragAxis: 'h' | 'v' | null = null;
+  private lastDx = 0;
+  private lastDy = 0;
+  /** Šta uraditi kad tranzicija trake završi: pomak indeksa ili zatvaranje. */
+  private pendingStep = 0;
+  private pendingClose = false;
+  private moveHandler: ((e: TouchEvent) => void) | null = null;
 
-  onTouchStart(event: TouchEvent) {
-    if (event.touches.length !== 1) return;
-    this.touchX = event.touches[0].clientX;
-    this.touchY = event.touches[0].clientY;
+  private get strip(): HTMLElement | null {
+    return this.lbStripRef?.nativeElement ?? null;
   }
 
-  onTouchEnd(event: TouchEvent) {
-    const t = event.changedTouches[0];
-    if (!t) return;
+  onTouchStart(event: TouchEvent) {
+    if (event.touches.length !== 1 || this.pendingStep || this.pendingClose) return;
+    this.touchX = event.touches[0].clientX;
+    this.touchY = event.touches[0].clientY;
+    this.dragAxis = null;
+    this.lastDx = this.lastDy = 0;
+
+    this.strip?.classList.remove('snap');
+
+    this.moveHandler = (e: TouchEvent) => this.onStripMove(e);
+    this.zone.runOutsideAngular(() =>
+      document.addEventListener('touchmove', this.moveHandler!, { passive: false }));
+  }
+
+  private onStripMove(event: TouchEvent) {
+    const t = event.touches[0];
+    const strip = this.strip;
+    if (!t || !strip) return;
 
     const dx = t.clientX - this.touchX;
     const dy = t.clientY - this.touchY;
 
-    // Povlačenje NADOLJE zatvara — uobičajen pokret za pregled slike na
-    // telefonu, i jedini izlaz koji ne traži pogađanje malog dugmeta u uglu.
-    if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+    if (!this.dragAxis) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      this.dragAxis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'h' : 'v';
+    }
+
+    event.preventDefault();
+
+    if (this.dragAxis === 'h') {
+      // Na krajevima traka pruža otpor — dovuče se malo pa hoće nazad.
+      const atEdge = (dx > 0 && this.selectedIndex === 0)
+        || (dx < 0 && this.selectedIndex === this.total - 1);
+      this.lastDx = atEdge ? dx * 0.35 : dx;
+      strip.style.transform = `translateX(calc(-33.3333% + ${this.lastDx.toFixed(1)}px))`;
+    } else {
+      this.lastDy = Math.max(0, dy);
+      strip.style.transform =
+        `translateX(-33.3333%) translateY(${this.lastDy.toFixed(1)}px)`;
+      // Pozadina blijedi što je slika niže — vidi se kuda vodi pokret.
+      // Varijablu čita .lb (pozadina), ne okvir za klizanje!
+      (strip.closest('.lb') as HTMLElement | null)?.style.setProperty(
+        '--lb-fade', Math.max(0.25, 1 - this.lastDy / 420).toFixed(3));
+    }
+  }
+
+  onTouchEnd() {
+    if (this.moveHandler) {
+      document.removeEventListener('touchmove', this.moveHandler);
+      this.moveHandler = null;
+    }
+
+    const strip = this.strip;
+    if (!strip || !this.dragAxis) { this.dragAxis = null; return; }
+
+    strip.classList.add('snap');
+
+    if (this.dragAxis === 'h') {
+      if (this.lastDx < -70 && this.selectedIndex < this.total - 1) {
+        this.pendingStep = 1;
+        strip.style.transform = 'translateX(-66.6667%)';
+      } else if (this.lastDx > 70 && this.selectedIndex > 0) {
+        this.pendingStep = -1;
+        strip.style.transform = 'translateX(0%)';
+      } else {
+        strip.style.transform = 'translateX(-33.3333%)';
+      }
+    } else {
+      if (this.lastDy > 110) {
+        this.pendingClose = true;
+        strip.style.transform = 'translateX(-33.3333%) translateY(70vh)';
+        (strip.closest('.lb') as HTMLElement | null)?.style.setProperty('--lb-fade', '0');
+      } else {
+        strip.style.transform = 'translateX(-33.3333%)';
+        (strip.closest('.lb') as HTMLElement | null)?.style.setProperty('--lb-fade', '1');
+      }
+    }
+
+    this.dragAxis = null;
+    this.lastDx = this.lastDy = 0;
+  }
+
+  /** Kraj klizanja trake — tek SADA se mijenja indeks, pa nema duplog skoka. */
+  onStripTransitionEnd(event: TransitionEvent) {
+    if (event.target !== this.strip || event.propertyName !== 'transform') return;
+
+    if (this.pendingClose) {
+      this.pendingClose = false;
       this.closeLightbox();
       return;
     }
 
-    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    if (dx < 0) this.next(); else this.prev();
+    if (this.pendingStep) {
+      this.selectedIndex += this.pendingStep;
+      this.pendingStep = 0;
+      this.kickVideo();
+      const strip = this.strip;
+      if (strip) {
+        // Paneli su se preslagali oko novog indeksa — traka se bez animacije
+        // vrati u sredinu, oko ne vidi ništa (isti piksel).
+        strip.classList.remove('snap');
+        strip.style.transform = 'translateX(-33.3333%)';
+      }
+    }
   }
 
   openLightbox(item: BlogMediaItem) {
     this.selectedIndex = this.indexOf(item);
+    this.pendingStep = 0;
+    this.pendingClose = false;
+    this.videoPaused = false;
+    this.videoMuted = false;
+    this.videoProgress = 0;
+    // Imerzivno: header i kupola kliznu VAN ekrana (CSS u njihovim
+    // komponentama sluša ovu klasu) — sav ekran pripada snimku/slici.
+    document.documentElement.classList.add('immersive');
   }
 
   closeLightbox() {
     this.selectedIndex = -1;
+    this.pendingStep = 0;
+    this.pendingClose = false;
+    document.documentElement.classList.remove('immersive');
+  }
+
+  /**
+   * Premještanje pregleda na <body>: `position: fixed` unutar skrol-kontejnera
+   * se na iOS-u ponaša kao `absolute` (WebKit mana) — pregled je na telefonu
+   * bio zarobljen ispod headera. Angular bindingi rade i na premještenom
+   * čvoru, a *ngIf ga uredno skida ma gdje bio.
+   */
+  ngAfterViewChecked() {
+    const el = this.lbRootRef?.nativeElement;
+    if (el && el.parentElement !== document.body) document.body.appendChild(el);
+  }
+
+  ngOnDestroy() {
+    if (this.moveHandler) document.removeEventListener('touchmove', this.moveHandler);
+    clearTimeout(this.paletteTimer);
+    clearTimeout(this.burstTimer);
+    clearTimeout(this.peekTimer);
+    // Napuštanje ekrana dok je pregled otvoren ne smije ostaviti aplikaciju
+    // bez headera i menija.
+    document.documentElement.classList.remove('immersive');
   }
 
   async onFileSelected(event: Event) {

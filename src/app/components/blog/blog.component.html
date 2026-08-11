@@ -69,22 +69,110 @@
         </header>
 
         <button type="button" class="post-media" (click)="openLightbox(item)">
-          <video *ngIf="item.type === 'video'" [src]="item.url" muted playsinline preload="metadata"></video>
+          <video *ngIf="item.type === 'video'" [src]="item.url" muted playsinline webkit-playsinline preload="metadata"></video>
           <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name" loading="lazy">
 
           <span class="play" *ngIf="item.type === 'video'">
             <i class="material-icons">play_arrow</i>
           </span>
         </button>
+
+        <!-- Balončići reakcija — ORGANSKI grozd sa fizikom (appBubbles):
+             lebde, privlače se strunama, bježe od pokazivača. -->
+        <div class="rx post-rx" appBubbles (click)="$event.stopPropagation()">
+          <ng-container *ngTemplateOutlet="rxTpl; context: { $implicit: item }"></ng-container>
+        </div>
       </article>
     </div>
 
   </ng-container>
 </section>
 
-<!-- Pregled -->
-<div class="lb" *ngIf="selectedItem as item" (click)="closeLightbox()"
-     (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)">
+<!-- Reakcije: JEDAN šablon za karticu i pregled. Svaki balon = jedna OSOBA:
+     njen emoji + njena profilna. Dodir na svoj balon skida reakciju, na tuđi
+     pokaže „ko · šta"; [+] otvara paletu. -->
+<ng-template #rxTpl let-item>
+  <!-- Balon = OSOBA: profilna puni krug, izabrani emoji je bedž u uglu.
+       Lična veličina (±15%) kroz --bs — dinamično jato, a čitljivo. -->
+  <button type="button" class="rx-b"
+          *ngFor="let b of bubblesOf(item); trackBy: trackBubble"
+          [class.on]="b.mine"
+          [style.--bs]="b.scale"
+          (click)="onBubbleTap(item, b, $event)"
+          [title]="b.username + ' · ' + b.kind"
+          [attr.aria-label]="b.username + ' — reakcija ' + b.kind">
+    <span class="rx-face">
+      <img *ngIf="b.avatar" [src]="b.avatar" alt="">
+      <i class="material-icons" *ngIf="!b.avatar">person</i>
+    </span>
+    <span class="rx-e">{{ b.kind }}</span>
+  </button>
+
+  <!-- Ko nije stao u četiri — „+N" balon; dodir pokaže spisak. -->
+  <button type="button" class="rx-b rx-over" *ngIf="hiddenCount(item) > 0"
+          (click)="onOverflowTap(item, $event)"
+          [attr.aria-label]="'Još ' + hiddenCount(item) + ' reakcija'">
+    <span class="rx-over-n num">+{{ hiddenCount(item) }}</span>
+  </button>
+
+  <button type="button" class="rx-add" [class.open]="paletteItem?.id === item.id"
+          (click)="togglePalette(item, $event)" aria-label="Dodaj reakciju">
+    <i class="material-icons">add_reaction</i>
+  </button>
+</ng-template>
+
+<!-- Etiketa „ko · šta" uz dodirnut tuđi balon — sama nestane. -->
+<div class="rx-peek" *ngIf="peek" [style.left.px]="peek.x" [style.top.px]="peek.y">
+  {{ peek.text }}
+</div>
+
+<!-- Paleta reakcija — JEDNA, fiksna uz dodirnuto [+], IZNAD svega (kartica ju
+     je sjekla kroz overflow). Omotač rješava smjer: nagore raste kroz
+     translateY(-100%), pa i emoji meni ima kuda da se otvori. -->
+<div class="rx-pal-wrap" *ngIf="paletteItem" [class.up]="paletteUp"
+     [style.left.px]="paletteX" [style.top.px]="paletteY"
+     (click)="$event.stopPropagation()">
+  <div class="rx-pal" [class.closing]="paletteClosing">
+    <div class="rx-quick">
+      <button type="button" class="rx-p"
+              *ngFor="let k of reactionKinds; let i = index"
+              [style.animation-delay.ms]="paletteClosing ? 0 : 40 + i * 35"
+              (click)="toggleReaction(paletteItem, k, $event)">{{ k }}</button>
+
+      <button type="button" class="rx-p rx-more" [class.on]="customOpen"
+              [style.animation-delay.ms]="paletteClosing ? 0 : 40 + reactionKinds.length * 35"
+              (click)="customOpen = !customOpen; $event.stopPropagation()"
+              aria-label="Bilo koji emoji">
+        <i class="material-icons">keyboard</i>
+      </button>
+
+      <!-- BILO KOJI emoji sa SISTEMSKE tastature: polje se fokusira čim se
+           rodi, emoji se primijeni čim je otkucan (bez potvrde). -->
+      <input class="rx-custom" #rxInput *ngIf="customOpen"
+             [ngModel]="customEmoji"
+             (ngModelChange)="onCustomEmoji($event, $any($event))"
+             (input)="onCustomEmoji($any($event.target).value, $event)"
+             (click)="$event.stopPropagation()"
+             maxlength="8" autocomplete="off"
+             aria-label="Otkucaj bilo koji emoji">
+    </div>
+  </div>
+</div>
+
+<!-- ASCII/emoji prskalica na dodatu reakciju — glifovi prsnu iz tačke dodira. -->
+<div class="rx-burst" *ngIf="burst" [style.left.px]="burst.x" [style.top.px]="burst.y">
+  <span class="rx-bit" *ngFor="let p of burst.parts"
+        [class.big]="p.big"
+        [style.--dx]="p.dx" [style.--dy]="p.dy" [style.--rot]="p.rot"
+        [style.animation-delay.ms]="p.delay">{{ p.ch }}</span>
+</div>
+
+<!-- Pregled. #lbRoot: element se pri otvaranju PREMJEŠTA na <body> —
+     `position: fixed` unutar skrol-kontejnera se na iOS-u ponaša kao
+     `absolute` (poznata WebKit mana), pa je pregled na telefonu bio zarobljen
+     ispod headera. Ista doktrina kao slojevi u ljusci (08-KONVENCIJE). -->
+<div class="lb" #lbRoot *ngIf="selectedItem as item" (click)="closeLightbox()"
+     (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd()">
 
   <header class="lb-bar" (click)="$event.stopPropagation()">
     <div class="lb-who">
@@ -102,15 +190,73 @@
     <i class="material-icons">chevron_left</i>
   </button>
 
-  <div class="lb-stage" (click)="$event.stopPropagation()">
-    <video *ngIf="item.type === 'video'" [src]="item.url" controls autoplay playsinline></video>
-    <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name">
+  <!-- Traka od TRI panela: prethodna · tekuća · sljedeća. Prst je vuče uživo
+       (transform direktno iz koda, van change detectiona), na puštanju se sa
+       oprugom prelije na cilj — indeks se mijenja tek kad klizanje završi. -->
+  <!-- Klik na PODLOGU (van medija) zatvara — kao i prije; klik na sam medij
+       namjerno ne radi ništa (da pokušaj zumiranja ne izbaci iz pregleda). -->
+  <div class="lb-viewport">
+  <div class="lb-strip" #lbStrip
+       (transitionend)="onStripTransitionEnd($event)">
+
+    <div class="lb-pane">
+      <ng-container *ngIf="prevItem as p">
+        <video *ngIf="p.type === 'video'" [src]="p.url" muted playsinline webkit-playsinline preload="metadata"
+               (click)="$event.stopPropagation()"></video>
+        <img *ngIf="p.type === 'image'" [src]="p.url" alt=""
+             (click)="$event.stopPropagation()">
+      </ng-container>
+    </div>
+
+    <!-- BEZ nativnih kontrola: njihov overlay na iOS-u krade gestove pa
+         listanje preko snimka nije radilo. Štit nosi gestove i play/pauzu,
+         traka napretka i zvuk su naši, u stilu aplikacije. -->
+    <div class="lb-pane">
+      <video #lbVideo *ngIf="item.type === 'video'" [src]="item.url"
+             autoplay playsinline webkit-playsinline [muted]="videoMuted"
+             (play)="videoPaused = false" (pause)="videoPaused = true"
+             (timeupdate)="onVideoTime($any($event.target))"></video>
+      <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name"
+           (click)="$event.stopPropagation()">
+
+      <ng-container *ngIf="item.type === 'video'">
+        <button type="button" class="lbv-shield" (click)="toggleVideo($event)"
+                aria-label="Pusti/pauziraj">
+          <span class="lbv-play" *ngIf="videoPaused">
+            <i class="material-icons">play_arrow</i>
+          </span>
+        </button>
+
+        <div class="lbv-bar" (click)="$event.stopPropagation()">
+          <span class="lbv-track"><span class="lbv-fill" [style.width.%]="videoProgress"></span></span>
+          <button type="button" class="lbv-mute" (click)="toggleVideoMute($event)"
+                  [attr.aria-label]="videoMuted ? 'Uključi zvuk' : 'Ugasi zvuk'">
+            <i class="material-icons">{{ videoMuted ? 'volume_off' : 'volume_up' }}</i>
+          </button>
+        </div>
+      </ng-container>
+    </div>
+
+    <div class="lb-pane">
+      <ng-container *ngIf="nextItem as n">
+        <video *ngIf="n.type === 'video'" [src]="n.url" muted playsinline webkit-playsinline preload="metadata"
+               (click)="$event.stopPropagation()"></video>
+        <img *ngIf="n.type === 'image'" [src]="n.url" alt=""
+             (click)="$event.stopPropagation()">
+      </ng-container>
+    </div>
+  </div>
   </div>
 
   <button type="button" class="lb-nav next" *ngIf="selectedIndex < total - 1"
           (click)="$event.stopPropagation(); next()" aria-label="Sljedeća">
     <i class="material-icons">chevron_right</i>
   </button>
+
+  <!-- Reakcije i u pregledu — isti organski grozd, pri dnu. -->
+  <div class="rx lb-rx" appBubbles (click)="$event.stopPropagation()">
+    <ng-container *ngTemplateOutlet="rxTpl; context: { $implicit: item }"></ng-container>
+  </div>
 
   <span class="lb-hint">
     {{ total > 1 ? 'Prevuci lijevo/desno · povuci dolje za izlaz' : 'Povuci dolje za izlaz' }}

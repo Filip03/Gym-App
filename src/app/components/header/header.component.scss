@@ -15,14 +15,30 @@
   // pa je svaka promjena visine sadržaja tjerala pregledač da ponovo računa
   // zamućenje preko velike površine. Mjereno: otvaranje menija vježbe je zbog
   // toga kasnilo oko sekunde i preskakalo animaciju.
-  background: color-mix(in srgb, var(--void) 94%, transparent);
+  // POVRŠINA (--carbon), ne podloga (--void): traka mora biti svjetlija od
+  // sadržaja da se čita kao zaseban sloj — sa bojom podloge se stapala
+  // (Markova prijava, svijetla tema). U trojci sa kupolom i klasičnim
+  // futerom (footer.component.scss) — mijenjati zajedno!
+  background: color-mix(in srgb, var(--carbon) 94%, transparent);
 
-  // Svijetla tema: neprovidno i nijansu svjetlije od podloge — u paru sa
-  // futerom (ista vrijednost u footer.component.scss, mijenjati zajedno).
+  // Svijetla tema: neprovidno (bijelo kao kartice).
   :host-context([data-theme='light']) & {
-    background: var(--void);
+    background: var(--carbon);
   }
   border-bottom: 1px solid var(--line);
+
+  // Imerzivni pregled (blog lightbox stavi `immersive` na <html>): zaglavlje
+  // klizne GORE van ekrana — sav ekran pripada snimku. Nazad isto tečno.
+  transition: transform 420ms var(--ease-spring);
+}
+
+:host-context(html.immersive) .header {
+  transform: translateY(calc(-100% - var(--safe-t)));
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header { transition: none; }
 }
 
 .back {

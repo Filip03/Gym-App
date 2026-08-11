@@ -19,6 +19,8 @@ export interface WorkoutPlan {
   name: string | null;
   description: string | null;
   plan_type_id: string | null;
+  /** Privatan plan: drugima nevidljiv u izlogu, ne može se zapratiti. */
+  is_private: boolean;
 }
 
 export interface PlanMember {

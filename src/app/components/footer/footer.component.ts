@@ -88,7 +88,7 @@ export class FooterComponent implements OnDestroy {
   private half = 1;      // vodoravna poluosa elipse kupole
   private rise = 0;      // pad luka od tjemena do ivice elipse
   private step = 60;     // vodoravni razmak između slotova
-  private readonly crestY = 35;   // visina centra ikone u tjemenu, od vrha doka
+  private readonly crestY = 44;   // dublje u kupoli — cio prsten stane pod luk
 
   // --- stanje ---------------------------------------------------------------
   private pos = 0;       // trenutna pozicija tjemena u slotovima
@@ -149,7 +149,7 @@ export class FooterComponent implements OnDestroy {
     if (!dock || !dock.isConnected) return;
 
     this.surface = dock.querySelector<HTMLElement>('.dock-surface');
-    this.crest   = dock.querySelector<HTMLElement>('.dock-crest');
+    this.crest   = dock.querySelector<HTMLElement>('.dock-crest');   // u .dock-surface
     this.itemEls = Array.from(dock.querySelectorAll<HTMLElement>('.dock-item'));
     this.tickEls = Array.from(dock.querySelectorAll<HTMLElement>('.dock-tick'));
 
@@ -246,7 +246,9 @@ export class FooterComponent implements OnDestroy {
     // Ikone se drže uske kolone i na laptopu — na 1200 px razvučen red od šest
     // ikona preko cijelog ekrana ne bi bio ni luk ni navigacija.
     const L = Math.min(w, 520);
-    const edge = Math.min(Math.max(L * 0.115, 36), 58);
+    // 0.115/36–58 → 0.155/50–70: krajnje ikone bliže unutra — na samom rubu
+    // luka su sjedale toliko nisko da je ležište virilo van kupole.
+    const edge = Math.min(Math.max(L * 0.155, 50), 70);
     this.step = (L - 2 * edge) / (this.items.length - 1);
 
     // Kupola je šira od doka (viri sa strana) da je blago naginjanje ne odlijepi
@@ -287,6 +289,12 @@ export class FooterComponent implements OnDestroy {
     this.crest.style.transform =
       `translate3d(${cx.toFixed(2)}px, ${(cy - 3).toFixed(2)}px, 0)`;
 
+    // Odsjaj na staklu prati tjeme — svjetlo se prelama kroz kupolu.
+    if (this.surface) {
+      const sheen = 50 + (cx / Math.max(this.half * 2, 1)) * 100;
+      this.surface.style.setProperty('--sheen-x', sheen.toFixed(1) + '%');
+    }
+
     // Ikona (kutija 56px, centrirana) ne smije proviriti ispod doka — na uskom
     // ekranu rub luka padne duboko, pa se krajnje ikone bez ovoga isijecaju.
     const maxY = this.dock.clientHeight - 34;
@@ -298,7 +306,7 @@ export class FooterComponent implements OnDestroy {
       const near = flat ? 0 : Math.exp(-(u * u) / 0.62);   // 1 u tjemenu, pada u stranu
       const pull = 0.30 * u * Math.exp(-(u * u) / 2);  // magnet: klizi ka tjemenu
       const x = this.xAt(i - pull);
-      const y = Math.min(this.crestY + this.dip(x) - 15 * near, maxY);
+      const y = Math.min(this.crestY + this.dip(x) - 12 * near, maxY);
       const s = 0.84 + 0.40 * near;
 
       el.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) scale(${s.toFixed(3)})`;

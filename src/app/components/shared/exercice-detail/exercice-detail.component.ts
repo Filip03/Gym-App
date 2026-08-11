@@ -26,6 +26,8 @@ export class ExerciceDetailComponent {
   @Input() exercice: ExerciceDetailData | null = null;
   /** Nazivi mišićnih grupa; prazan niz = red sa grupama se ne prikazuje. */
   @Input() groups: string[] = [];
+  /** Izlazna animacija u toku (drži je servis) — zavjesa i kartica odlaze. */
+  @Input() closing = false;
 
   @Output() dismiss = new EventEmitter<void>();
 

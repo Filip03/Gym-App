@@ -12,13 +12,25 @@ import { Directive, HostBinding, HostListener, Injectable, Input } from '@angula
 export class ProfilePreviewService {
   /** Korisnik čiji je pregled otvoren; null = zatvoreno. */
   userId: string | null = null;
+  /** Izlazna animacija u toku — element ostaje u DOM-u dok odsvira (kućno pravilo). */
+  closing = false;
+  private closeTimer: any = null;
 
   open(userId: string | null | undefined) {
-    if (userId) this.userId = userId;
+    if (!userId) return;
+    clearTimeout(this.closeTimer);
+    this.closing = false;
+    this.userId = userId;
   }
 
   close() {
-    this.userId = null;
+    if (!this.userId || this.closing) return;
+    this.closing = true;
+    clearTimeout(this.closeTimer);
+    this.closeTimer = setTimeout(() => {
+      this.userId = null;
+      this.closing = false;
+    }, 300);
   }
 }
 

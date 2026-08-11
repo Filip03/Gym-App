@@ -193,6 +193,24 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
   pickerSuggested: PickerOption[] | null = null;
   pickerSuggestedLabel = 'Preporučeno';
 
+  // --- Biranje dana za danas --------------------------------------------------
+  //
+  // Život prekida plan (bolest, menstruacija, pauza): propušteni dan mora
+  // moći da se odradi DANAS, bez čekanja da kalendar ponovo dođe na red.
+  // Sesija se presloži iz izabranog dana plana (changeSessionDay) — plan se
+  // ne dira, niko drugi ne osjeti ništa. Nudi se samo dok trening još nije
+  // počeo (nijedna upisana serija).
+  dayPickerOpen = false;
+  /** Kratko stanje za IZLAZNU animaciju — CSS ne svira na uklanjanju iz DOM-a. */
+  dayPickerClosing = false;
+  dayPickerLoading = false;
+  /** Preslaganje sesije u toku — id dana koji je izabran, radi kvačice-časovnika. */
+  changingDayId: string | null | 'rest' = null;
+  dayPickerError = '';
+  pickerDays: any[] = [];
+  private pickerPlan: any = null;
+  private dayPickerCloseTimer: any = null;
+
   // --- Bilješka uz trening ----------------------------------------------------
   //
   // Kolona `note` postoji otkad je tabela napravljena, ali se nikad nije
@@ -479,6 +497,100 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
 
     // Stigli su pravi logovi — skeleton iz keša (ako ga je bilo) je zamijenjen.
     this.hydrating = false;
+  }
+
+  // --- Biranje dana za danas --------------------------------------------------
+
+  /**
+   * Dan se mijenja samo dok trening još nije počeo: živa sesija, nijedna
+   * upisana serija, logovi stigli (ne iz keš-skeleta). Poslije prve serije
+   * preslaganje bi treningu izmaklo tlo, pa dugme nestaje.
+   */
+  get canChangeDay(): boolean {
+    return !this.viewOnly && !!this.session && !this.isFinished
+      && !this.hydrating && this.totalSets === 0 && !this.reordering;
+  }
+
+  async openDayPicker() {
+    if (this.dayPickerOpen || this.dayPickerLoading || !this.canChangeDay) return;
+
+    this.dayPickerLoading = true;
+    this.dayPickerError = '';
+
+    try {
+      const plan = await this.trainingService.getPlanForUser(this.currentUserId);
+      if (!plan) {
+        this.errorMessage = 'Nemaš plan koji pratiš — dan nema odakle da se uzme.';
+        return;
+      }
+
+      this.pickerPlan = plan;
+      this.pickerDays = [...(plan.workout_days ?? [])]
+        .sort((a: any, b: any) => (a.day_number ?? 0) - (b.day_number ?? 0));
+
+      clearTimeout(this.dayPickerCloseTimer);
+      this.dayPickerClosing = false;
+      this.dayPickerOpen = true;
+    } catch (err: any) {
+      this.errorMessage = humanError(err, 'Greška pri učitavanju plana.');
+    } finally {
+      this.dayPickerLoading = false;
+    }
+  }
+
+  closeDayPicker() {
+    if (!this.dayPickerOpen || this.changingDayId !== null) return;
+    this.dayPickerOpen = false;
+    this.dayPickerClosing = true;
+    clearTimeout(this.dayPickerCloseTimer);
+    this.dayPickerCloseTimer = setTimeout(() => {
+      this.dayPickerClosing = false;
+      this.dayPickerError = '';
+    }, 320);
+  }
+
+  /** Kvačica u biraču: dan iz kojeg je sesija trenutno presložena. */
+  isCurrentDay(day: any): boolean {
+    return (day?.id ?? null) === (this.session?.workoutDayId ?? null);
+  }
+
+  /** Oznaka „danas po planu" — dan koji bi kalendar sam izabrao. */
+  isScheduledDay(day: any): boolean {
+    return day?.name === this.session?.dayLabel;
+  }
+
+  dayExCount(day: any): number {
+    return (day?.day_exercice ?? []).length;
+  }
+
+  /** Dan bez tipa i bez vježbi je odmor — isto pravilo kao pri kreiranju sesije. */
+  isRestEntry(day: any): boolean {
+    return !day?.day_type?.name && this.dayExCount(day) === 0;
+  }
+
+  async pickDay(day: any) {
+    if (this.changingDayId !== null || !this.session) return;
+    if (this.isCurrentDay(day)) { this.closeDayPicker(); return; }
+
+    this.changingDayId = day?.id ?? 'rest';
+    this.dayPickerError = '';
+
+    try {
+      const fresh = await this.trainingService.changeSessionDay(
+        this.currentUserId, this.session, this.pickerPlan, day
+      );
+
+      if (fresh) {
+        this.session = fresh;
+        await this.hydrate();
+      }
+
+      this.changingDayId = null;
+      this.closeDayPicker();
+    } catch (err: any) {
+      this.changingDayId = null;
+      this.dayPickerError = humanError(err, 'Greška pri promjeni dana.');
+    }
   }
 
   /**
@@ -1569,6 +1681,7 @@ export class TrainingComponent implements OnInit, OnDestroy, DoCheck {
     clearTimeout(this.tiFlashTimer);
     clearTimeout(this.bwFlipTimer);
     clearTimeout(this.layoutTimer);
+    clearTimeout(this.dayPickerCloseTimer);
     // Ostrva za unos: nedovršena skupljanja, „pop" i držanje stepera.
     this.closeTimers.forEach(t => clearTimeout(t));
     clearTimeout(this.popTimer);

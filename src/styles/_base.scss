@@ -7,6 +7,13 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+// Brzi uzastopni dodiri (unos serija, steperi, dodavanje) ne smiju postati
+// dvoklik-zum — `manipulation` zadržava skrol i pinch-zum, gasi samo dvoklik.
+// U LiveContainer ljusci je ovo kritično: tamo se zum ne može ni vratiti.
+// `touch-action` se NE nasljeđuje, zato univerzalni selektor; najniže je
+// specifičnosti, pa posebna pravila (kupola `none`, špil `pan-y`) pobjeđuju.
+* { touch-action: manipulation; }
+
 html, body, app-root {
   margin: 0;
   padding: 0;
@@ -489,6 +496,18 @@ button:not(:disabled):active { transform: scale(0.97); }
   :root.nav-dome .modal-card {
     padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-6));
   }
+}
+
+// PLUTAJUĆE kartice (pregled vježbe — `float-overlay`): scrim ide DO SAMOG
+// DNA na svim širinama, kao jednolika zavjesa i IZA menija — inače se
+// završavao ravnom linijom iznad futera, pa je sadržaj pored kupole virio
+// oštar i svijetao, a liniju je čitalo kao „odsječen meni" (Markov screenshot
+// 10.08.2026). Futer se u tom stanju izdiže IZNAD scrima (`float-open` na
+// ljusci, z 160 u footer.component.scss) — kupola cijela i klikabilna.
+// Padding drži karticu u međuprostoru iznad menija.
+.modal-overlay.float-overlay {
+  bottom: 0;
+  padding-bottom: calc(var(--footer-h) + var(--safe-b) + var(--s-4));
 }
 
 .modal-card {

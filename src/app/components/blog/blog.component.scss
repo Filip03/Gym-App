@@ -144,12 +144,18 @@
 // čita mirno, a slika se vidi cijela.
 
 .post {
+  position: relative;   // sidro za balončiće reakcija u uglu
   margin-bottom: var(--s-4);
   overflow: hidden;
 
   background: var(--carbon-high);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
+
+  // Duga lista velikih medija: ono van ekrana se ne crta — listanje bez
+  // štucanja (Markova prijava). Rezervisana visina drži skrol traku mirnom.
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
 
   animation: post-in 460ms var(--ease-spring) backwards;
 }
@@ -283,18 +289,11 @@
 // Pregled slika je MRAK u OBJE teme — fotografije se gledaju na crnom, pa
 .lb {
   position: fixed;
-  top: calc(var(--header-h) + var(--safe-t));
-  bottom: calc(var(--footer-h) + var(--safe-b));
 
-  // Kupola, samo telefon: do ivice ekrana, kao .modal-overlay u _base.scss —
-  // bez sive trake ispod; na desktopu meni ostaje vidljiv.
-  @media (max-width: 639px) {
-    :root.nav-dome & {
-      bottom: 0;
-    }
-  }
-  left: 0;
-  right: 0;
+  // PREKO CIJELOG EKRANA: header i kupola za to vrijeme kliznu van
+  // (html.immersive — vidi header/footer komponente), pa snimku pripada sve
+  // od vrha do dna. Ranije su trake prelazile preko snimka i reakcija.
+  inset: 0;
   z-index: 200;
   display: grid;
   // `minmax(0, 1fr)`, ne `1fr` — inače srednja kolona ne smije da bude uža od
@@ -318,10 +317,15 @@
   // Sav sadržaj pregleda je na tokenima koji se okreću sa temom — ime
   // (--ice), datum (--mist), brojač (--dust), dugmad (--carbon-high). Da je
   // podloga stalno skoro crna, u svijetloj temi bi tekst na njoj nestao.
-  // Isti izbor je već napravljen na `.post-media img`, gdje okvir oko slike
-  // takođe koristi --void.
-  background: rgba(3, 5, 7, .94);
+  // `--lb-fade` (piše je kod tokom povlačenja nadolje) tamu postepeno skida,
+  // pa se vidi kuda pokret vodi.
+  background: rgba(3, 5, 7, calc(.94 * var(--lb-fade, 1)));
   animation: lb-in var(--d-base) var(--ease-out) both;
+
+  // SVI gestovi u pregledu su naši (klizanje trake, povlačenje nadolje) —
+  // pregledač ne smije usput da skroluje ni da zumira.
+  touch-action: none;
+  overflow: hidden;
 }
 
 .lb-bar {
@@ -329,12 +333,16 @@
   top: 0;
   left: 0;
   right: 0;
+  // IZNAD video elementa i njegovih nativnih kontrola — X za izlaz mora
+  // postojati UVIJEK, i na videu (Markova prijava sa telefona).
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  // Više prostora od vrha. Ranije je dugme za izlaz bilo zalijepljeno za samu
-  // ivicu ekrana — tamo gdje je pregledačeva traka i gdje palac teško dohvata.
-  padding: var(--s-4);
+  // Više prostora od vrha (+safe-t: pregled sad ide OD SAMOG VRHA ekrana).
+  // Ranije je dugme za izlaz bilo zalijepljeno za samu ivicu — tamo gdje je
+  // pregledačeva traka i gdje palac teško dohvata.
+  padding: calc(var(--safe-t) + var(--s-4)) var(--s-4) var(--s-4);
   background: linear-gradient(180deg, rgba(3, 5, 7, .90) 0%, transparent 100%);
 }
 
@@ -390,26 +398,128 @@
 // Kad je i polje grid, njegov red je `auto` pa ga slika opet razvuče — ista
 // zamka jedan nivo niže. Kod običnog bloka `height: 100%` na slici se računa
 // prema određenoj visini bloka, pa `object-fit: contain` konačno ima okvir.
-.lb-stage {
+// Okvir za klizanje: siječe bočne panele — bez njega bi susjedna slika
+// virila u žljebovima strelica dok traka miruje.
+.lb-viewport {
   grid-column: 2;
-  display: block;
   height: 100%;
   min-height: 0;
+  overflow: hidden;
+}
+
+// Traka od tri panela (prethodna · tekuća · sljedeća), široka tri polja.
+// Prst je vuče uživo (transform piše kod, bez CD-a), a `snap` uključi oprugu
+// za prelijevanje na cilj ili povratak. -33.3333% = tekuća u sredini.
+.lb-strip {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  transform: translateX(-33.3333%);
+  will-change: transform;
+}
+.lb-strip.snap { transition: transform 340ms var(--ease-spring); }
+
+// Sve zamke visine naslijeđene od starog `.lb-stage` (vidi komentare iznad):
+// običan blok, određena visina, `object-fit: contain` u punom okviru.
+.lb-pane {
+  flex: 0 0 33.3333%;
+  min-width: 0;
+  display: block;
+  height: 100%;
   padding: var(--s-10) var(--s-2);
 }
 
-// `width/height: 100%` + `object-fit: contain`, ne `max-*`.
-//
-// Okvir slike je time tačno veličine polja, a sama fotografija se uklapa u
-// njega sa crnim rubovima gdje treba. Nikakva veličina originala ne može da
-// prelije ekran — a `max-height` u procentima traži da roditelj ima određenu
-// visinu, što se pokazalo kao stalan izvor grešaka.
-.lb-stage img,
-.lb-stage video {
+.lb-pane img,
+.lb-pane video {
   width: 100%;
   height: 100%;
   object-fit: contain;
   border-radius: var(--r-md);
+}
+
+// Gestovi preko VIDEA su naši (listanje/izlaz) — nativne kontrole su ih krale.
+.lb-pane { position: relative; }
+.lb-pane video { touch-action: none; }
+
+// Providni ŠTIT preko snimka: nosi gestove i dodir (play/pauza). Ispod trake
+// zaglavlja (z6) i reakcija (z3) — ne smeta im.
+.lbv-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: 0;
+  touch-action: none;
+  cursor: pointer;
+}
+
+// Veliko play dugme kad je pauzirano — staklo u kućnom stilu, rodi se s pop.
+.lbv-play {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--carbon) 55%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--volt-a40);
+  color: var(--ice);
+  box-shadow: 0 0 24px -8px rgba(96, 220, 255, .5);
+  animation: lbv-pop 320ms var(--ease-spring) both;
+}
+.lbv-play .material-icons { font-size: 44px; }
+
+// Traka napretka + zvuk — pri dnu panela, iznad štita.
+.lbv-bar {
+  position: absolute;
+  left: var(--s-5);
+  right: var(--s-5);
+  bottom: var(--s-4);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.lbv-track {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .22);
+  overflow: hidden;
+}
+
+.lbv-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--volt);
+  box-shadow: 0 0 8px var(--volt-a40);
+}
+
+.lbv-mute {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--carbon) 60%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line-strong);
+  color: var(--ice);
+  cursor: pointer;
+}
+.lbv-mute .material-icons { font-size: 18px; }
+
+@keyframes lbv-pop {
+  0%   { opacity: 0; transform: scale(.5); }
+  60%  { opacity: 1; transform: scale(1.08, .94); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .lb-nav {
@@ -431,12 +541,12 @@
 // Na telefonu se lista prevlačenjem; strelice bi pojele pola širine slike.
 @media (max-width: 560px) {
   .lb-nav { display: none; }
-  .lb-stage { grid-column: 1 / -1; }
+  .lb-viewport { grid-column: 1 / -1; }
 
   // Slika se malo smanji da oko nje ostane pozadina — dodir na nju zatvara
   // pregled. Bez toga slika pokrije skoro sve, a dodir po njoj ne radi ništa
   // (namjerno, da se ne zatvara pri pokušaju zumiranja).
-  .lb-stage { padding: var(--s-10) var(--s-4); }
+  .lb-pane { padding: var(--s-10) var(--s-4); }
 }
 
 .lb-hint {
@@ -479,6 +589,359 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+// --- Reakcije — balončići koji se nakupljaju u uglu objave ------------------
+//
+// Kućni jezik: balončić PUKNE pri rađanju (squash & stretch), paleta se
+// razlije iz [+] dugmeta, emoji izranjaju talasom, broj se „popne" pri
+// promjeni. Mat staklo preko fotografije da se čita na svakoj podlozi.
+
+.rx {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+// FIZIKA (appBubbles doda `bp-on` — bez reduced-motion): kontejner postaje
+// REGION, balončići lete po njemu (position: absolute + transform iz
+// simulacije), a [+] ostaje usidren dolje-lijevo kao stabilna meta.
+.rx.bp-on {
+  width: 244px;
+  height: 152px;
+  max-width: 72vw;
+}
+.rx.bp-on .rx-b {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  margin: 0;
+  will-change: transform;
+
+  // KLJUČNO: bez rx-pop! Animacija koja dira transform (fill both) TRAJNO
+  // pregazi transform koji simulacija upisuje — svi baloni su se crtali na
+  // istoj tački, jedan preko drugog („vidimo samo jedno", Markova prijava).
+  // Ulazak ovdje glumi sama fizika (balon se rodi kod sidra pa ga opruga
+  // odvuče u slot); od CSS-a ostaje samo treperenje providnosti.
+  animation: rx-flicker 420ms steps(7) both;
+}
+
+.post-rx {
+  position: absolute;
+  left: var(--s-3);
+  bottom: var(--s-3);
+  z-index: 2;
+  // Prostor između balončića propušta dodir na sliku (otvaranje pregleda).
+  pointer-events: none;
+}
+.post-rx > * { pointer-events: auto; }
+
+// HOLOGRAM balon (Markov „tony stark" registar): KRUG kao balon od sapunice
+// — emoji u sredini, profilna slika vlasnika kao bedž dolje-desno. Staklo sa
+// gradijentnim volt→cijan rubom, skanline pruge, blik pri rađanju,
+// materijalizacija sa treperenjem.
+.rx-b {
+  position: relative;
+  display: grid;
+  place-items: center;
+  // Lična veličina ±15% (--bs iz šablona) — jato diše i veličinom.
+  width: calc(46px * var(--bs, 1));
+  height: calc(46px * var(--bs, 1));
+  border-radius: 50%;
+
+  border: 1px solid transparent;
+  background:
+    linear-gradient(color-mix(in srgb, var(--carbon) 84%, transparent),
+                    color-mix(in srgb, var(--carbon) 84%, transparent)) padding-box,
+    linear-gradient(115deg, var(--volt-a40), rgba(96, 220, 255, .55) 45%, var(--volt-a40)) border-box;
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  color: var(--ice);
+  cursor: pointer;
+
+  animation:
+    rx-pop     480ms var(--ease-spring) both,
+    rx-flicker 420ms steps(7) both;
+  transition: box-shadow var(--d-fast) var(--ease);
+}
+.rx-b:active .rx-e { transform: scale(.85); }
+
+// Skanline pruge + blik koji klizne — SVE u jednom sloju sa radijusom kruga
+// (bedž sa profilnom viri van kruga, pa overflow: hidden ne dolazi u obzir).
+.rx-b::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;   // PREKO profilne — hologramska projekcija lica
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .22) 50%, transparent 70%)
+      no-repeat -80% 0 / 60% 100%,
+    repeating-linear-gradient(0deg, transparent 0 2px, rgba(96, 220, 255, .06) 2px 3px);
+  animation: rx-sweep 900ms var(--ease-out) 160ms both;
+}
+.rx-b:hover::before { animation: rx-sweep 700ms var(--ease-out) both; }
+
+// Moja reakcija — puni sjaj: jači rub + spoljni glow.
+.rx-b.on {
+  background:
+    linear-gradient(color-mix(in srgb, var(--volt-a10) 55%, var(--carbon)),
+                    color-mix(in srgb, var(--volt-a10) 55%, var(--carbon))) padding-box,
+    linear-gradient(115deg, var(--volt), rgba(96, 220, 255, .8) 45%, var(--volt)) border-box;
+  box-shadow: 0 0 14px -5px var(--volt-a40), 0 0 20px -9px rgba(96, 220, 255, .6);
+}
+
+// Profilna PUNI balon — lice je glavno (odmah se vidi KO je reagovao).
+.rx-face {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--carbon-high);
+}
+.rx-face img { width: 100%; height: 100%; object-fit: cover; }
+.rx-face .material-icons { font-size: 20px; color: var(--dust); }
+
+// Emoji kao bedž u donjem-desnom uglu — mala staklena kapsula, u ravnoteži
+// sa licem (raniji ogromni emoji preko sličice je gušio balon).
+.rx-e {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  background: color-mix(in srgb, var(--carbon) 90%, transparent);
+  border: 1px solid var(--volt-a40);
+  box-shadow: 0 0 6px -2px rgba(96, 220, 255, .6);
+  transition: transform var(--d-fast) var(--ease);
+}
+
+// „+N" balon — ko nije stao u četiri; dodir pokaže spisak.
+.rx-over .rx-over-n {
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: var(--volt);
+}
+
+// Etiketa „ko · šta" uz dodirnut tuđi balon.
+.rx-peek {
+  position: fixed;
+  z-index: 500;
+  transform: translate(-50%, -100%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--carbon) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--volt-a40);
+  color: var(--ice);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: rx-rise 220ms var(--ease-spring) both;
+}
+
+.rx-add {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+
+  background: color-mix(in srgb, var(--carbon) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--line-strong);
+  color: var(--mist);
+  cursor: pointer;
+  transition: color var(--d-fast) var(--ease),
+              border-color var(--d-fast) var(--ease),
+              box-shadow var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease);
+}
+.rx-add .material-icons { font-size: 16px; }
+.rx-add:active { transform: scale(.93); }
+.rx-add.open {
+  color: var(--volt);
+  border-color: var(--volt-a40);
+  box-shadow: 0 0 12px -4px rgba(96, 220, 255, .5);
+}
+
+// Paleta — JEDNA, fiksna uz dodirnuto [+], IZNAD SVEGA (z 400 > futer 340 >
+// pregled profila 300). Omotač nosi POZICIJU (nagore kroz translateY(-100%),
+// pa i emoji meni raste u pravom smjeru), unutrašnja pilula nosi ANIMACIJU —
+// razdvojeno, da se scale animacija i smještaj ne tuku oko transforma.
+.rx-pal-wrap {
+  position: fixed;
+  z-index: 400;
+}
+.rx-pal-wrap.up { transform: translateY(-100%); }
+
+.rx-pal {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 26px;
+
+  border: 1px solid transparent;
+  background:
+    linear-gradient(color-mix(in srgb, var(--carbon) 92%, transparent),
+                    color-mix(in srgb, var(--carbon) 92%, transparent)) padding-box,
+    linear-gradient(115deg, var(--volt-a40), rgba(96, 220, 255, .55) 45%, var(--volt-a40)) border-box;
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow: 0 12px 34px -12px rgba(0, 0, 0, .6),
+              0 0 22px -8px rgba(96, 220, 255, .35);
+
+  animation: rx-pal-in 340ms var(--ease-spring) both;
+}
+.rx-pal-wrap.up .rx-pal { transform-origin: 16px 100%; }
+.rx-pal-wrap:not(.up) .rx-pal { transform-origin: 16px 0; }
+.rx-pal.closing { animation: rx-pal-out 240ms var(--ease) both; }
+
+.rx-quick {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+
+.rx-p {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  animation: rx-rise 260ms var(--ease-spring) both;
+  transition: background-color var(--d-fast) var(--ease),
+              box-shadow var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease);
+}
+.rx-p:hover {
+  background: var(--volt-a10);
+  box-shadow: 0 0 12px -4px rgba(96, 220, 255, .55);
+}
+.rx-p:active { transform: scale(1.18); }
+.rx-pal.closing .rx-p { animation: none; }
+
+.rx-more { color: var(--mist); }
+
+// Polje za BILO KOJI emoji sa sistemske tastature — emoji se primijeni čim je
+// otkucan. Font OBAVEZNO kroz max(..., --t-field-min) (kućno pravilo polja).
+.rx-custom {
+  width: 76px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--volt-a40);
+  background: var(--carbon-high);
+  color: var(--ice);
+  text-align: center;
+  font-size: max(19px, var(--t-field-min));
+  animation: rx-rise 260ms var(--ease-spring) both;
+}
+.rx-custom:focus { outline: none; border-color: var(--volt); }
+.rx-more .material-icons { font-size: 19px; }
+.rx-more.on { color: var(--volt); }
+
+// --- Prskalica: ASCII glifovi + emoji prsnu iz tačke dodira -----------------
+.rx-burst {
+  position: fixed;
+  z-index: 500;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.rx-bit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--font-data);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--volt);
+  text-shadow: 0 0 8px var(--volt-a40);
+  animation: rx-bit-fly 640ms var(--ease-out) both;
+}
+.rx-bit:nth-child(3n) { color: rgba(96, 220, 255, .95); text-shadow: 0 0 8px rgba(96, 220, 255, .5); }
+.rx-bit.big { font-size: 19px; text-shadow: none; }
+
+@keyframes rx-bit-fly {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(.4) rotate(0deg); }
+  12%  { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx) * 1px), calc(-50% + var(--dy) * 1px))
+               rotate(calc(var(--rot) * 1deg)) scale(1);
+  }
+}
+
+// Hologramska materijalizacija: treperenje u koracima, kao projekcija koja
+// se pali; i blik koji pređe preko stakla.
+@keyframes rx-flicker {
+  0%   { opacity: 0; }
+  18%  { opacity: .9; }
+  32%  { opacity: .35; }
+  48%  { opacity: 1; }
+  62%  { opacity: .7; }
+  78%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+@keyframes rx-sweep {
+  to {
+    background-position: 180% 0, 0 0;
+  }
+}
+
+// U pregledu: balončići pri dnu, iznad nagovještaja.
+.lb-rx {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--safe-b) + 44px);
+  z-index: 3;
+  justify-content: center;
+}
+
+@keyframes rx-pop {
+  0%   { opacity: 0; transform: scale(.35); }
+  55%  { opacity: 1; transform: scale(1.09, .9); }
+  80%  {             transform: scale(.97, 1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rx-rise {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rx-pal-in {
+  0%   { opacity: 0; transform: scale(.3, .5); }
+  60%  { opacity: 1; transform: scale(1.04, .94); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes rx-pal-out {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(.45, .6); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .post, .group > h3, .group > .group-head { animation: none; }
+  .rx-b, .rx-b::after, .rx-n-in, .rx-pal, .rx-p, .rx-custom,
+  .rx-bit, .lb-strip.snap { animation: none; transition: none; }
 }

@@ -1,4 +1,7 @@
-<div class="shell">
+<!-- `float-open`: otvorena je PLUTAJUĆA kartica (pregled vježbe). Futer se
+     tada izdiže IZNAD njenog scrima — inače ravna ivica scrima siječe luk
+     kupole i prsten koji vire iznad vrha futera (Markov menu_bug, repriza). -->
+<div class="shell" [class.float-open]="!!exDetail.exercice || !!preview.userId">
 
     <app-header *ngIf="showLayout"></app-header>
 
@@ -16,14 +19,17 @@
     <app-exercice-detail *ngIf="exDetail.exercice"
                          [exercice]="exDetail.exercice"
                          [groups]="exDetail.groups"
+                         [closing]="exDetail.closing"
                          (dismiss)="exDetail.close()"></app-exercice-detail>
 
     <!-- Brzi pregled profila — JEDAN modal za cijelu aplikaciju; otvara ga
          ProfilePreviewService preko [appProfilePreview] zakačke na avatarima. -->
-    <app-profile-preview [userId]="preview.userId" (closed)="preview.close()"></app-profile-preview>
+    <app-profile-preview [userId]="preview.userId" [closing]="preview.closing"
+                         (closed)="preview.close()"></app-profile-preview>
 
     <!-- Cyberpunk glitch preko cijelog ekrana za trenutke napretka (veća
          kilaža / rekord) — okida ga GlitchService, npr. iz training ekrana. -->
     <app-glitch-overlay></app-glitch-overlay>
+
 
 </div>

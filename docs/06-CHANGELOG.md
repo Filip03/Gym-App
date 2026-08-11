@@ -4171,3 +4171,282 @@ ijednog round-tripa, a mreža ih u pozadini tiho dopuni. Živi podaci (serije,
 prazan). Ko dodaje novu mutaciju planova/sesije/kataloga, mora pogoditi
 invalidaciju — spisak tačaka u ADR-0003. Ključevi reda čekanja
 (`gymapp.queue.*`) i nacrta (`gymapp.draft.*`) nijesu dirani.
+
+**Dopuna istog dana — ležište u staklu kupole (Markov menu_bug):** svijetleći
+prsten aktivne ikone je na krajnjim pozicijama isplivavao van luka. Tjeme je
+preseljeno U `.dock-surface` (overflow + luk radius ga sijeku oblikom stakla
+— sjaj sada živi u kupoli), a krajnje ikone su blago uvučene ka unutra
+(edge 0.115/36–58 → 0.155/50–70). Bez smanjivanja ikona — mete za palac
+netaknute.
+
+**Dopuna — WebKit kliping (Markova ponovljena prijava, s pravom):** Safari na
+iPhone-u NE sijече kompozitnu djecu (translate3d sloj) kroz overflow+radius —
+prsten je na telefonu i dalje isplivavao iako je na desktop Chrome-u bio
+odsječen. `-webkit-mask-image: -webkit-radial-gradient(white, black)` +
+`isolation: isolate` na `.dock-surface` tjeraju WebKit da kliping primijeni.
+Pouka: vizuelna verifikacija na desktopu NIJE dokaz za iOS.
+
+**Dopuna — cio krug, uvučeni tabovi (Markova presuda umjesto cutoffa):**
+sječenje prstena lukom „ne valja — vrati": tjeme vraćeno IZVAN stakla (krug
+uvijek cio), a geometrija uvučena da prsten stane POD luk: sjedište ikona
+dublje (crestY 35→44), izdizanje 15→12, prsten 64→48 (ne dodiruje liniju),
+kupola 86→92px. WebKit maska ostaje na staklu (čuva mastilo u obliku luka).
+
+**Dopuna — Apple staklo na kupoli (Markova želja za detaljem):** pokretni
+specularni odsjaj klizi po staklu prateći tjeme (`--sheen-x` iz render(),
+radial blik odozgo; jači u svijetloj temi) + svjetlosni rub po vrhu luka
+(inset sjaj). Maska luka sijece odsjaj u oblik stakla; reduced-motion ga
+umiri u centar.
+
+---
+
+## 2026-08-10 — Plan po mjeri pojedinca (ADR-0004) + gašenje dvoklik-zuma
+
+**Šta:** Tri funkcionalnosti iz testa sa korisnicom van grupe (uvid: „život
+prekida plan" — menstruacija, bolest, pauza) + popravka dodira.
+
+**1. Biranje dana za danas** (`training.service.ts` `changeSessionDay`,
+`training.component.*`): dok trening nije počeo (nijedna serija), u zaglavlju
+stoji čip „Promijeni dan" (na rest-day ekranu i dugme „Radi dan iz plana") →
+birač svih 7 dana (naziv, tip, broj vježbi, oznake „danas po planu" i
+trenutnog dana) → sesija se presloži iz izabranog dana. Plan NETAKNUT — mijenja
+se samo današnja sesija (`workout_day_id`, `day_type_name`,
+`session_exercices`); `day_label` ostaje stvarni dan (istorija: KAD vs ŠTA).
+Brana u servisu: postoji li ijedan log, promjena se odbija. Model
+`WorkoutSession` dobio `workoutDayId` (za kvačicu u biraču). Čip nestaje
+kolapsom svog prostora (`gone` — max-width/padding→0), birač ima talas ulaska
+po danima i sip izlaz.
+
+**2. „Prilagodi sebi" zatvara krug** (`dashboard.component.ts` onSubmitPlan):
+Filipova kopija tuđeg plana (2a67171) ostajala je mrtva — praćeni plan ima
+prioritet u rezoluciji, a kopija se nije aktivirala. Sada: otprati original →
+aktiviraj kopiju → prolazna potvrda (`saved-note`, koreografija draft trake).
+
+**3. Privatni planovi** (`20260810000000_plan_visibility.sql`,
+`is_private boolean not null default false`): prekidač „Privatan plan" u
+builderu (opt-row obrazac kao kod vježbe), oznaka „Privatan" u pregledu.
+`getOtherPlans` filtrira privatne; postojeći pratioci OSTAJU (privatnost skida
+plan iz izloga, ne izbacuje ljude). Default javno — ništa se nikom ne mijenja.
+
+**Uz to — dashboard traka „danas na redu"** sada čita SESIJU kad postoji
+(keš `peekTodaySession` pa mreža), tek onda plan — poslije promjene dana ili
+izmjene vježbi traka više ne laže; usput jedan upit manje (getSessionTimes +
+getSessionByDate → samo sesija).
+
+**Uz to — dvoklik-zum ugašen** (`_base.scss`): `* { touch-action:
+manipulation }` — brzi uzastopni dodiri (steperi, serije) više ne zumiraju
+stranicu; skrol i pinch ostaju. U LiveContainer ljusci se zum nije mogao ni
+vratiti (Markova prijava). Univerzalni selektor je najniže specifičnosti —
+posebna pravila (kupola `none`, špil `pan-y`) i dalje pobjeđuju.
+
+**Zašto ne pomjeranje ciklusa:** odbačeno u ADR-0004 — dani nose imena dana u
+sedmici, offset bi pravio zbrku, a biranje dana pokriva stvarnu potrebu.
+
+**Dopuna istog dana — trake kao POVRŠINA, meni ispod plutajućih kartica,
+poravnat birač dana (Markove prijave uživo):**
+
+1. **Header, kupola i klasični futer prešli sa `--void` na `--carbon`** — u
+   svijetloj temi su nosili TAČNO boju podloge pa su se stapali sa sadržajem
+   („bar meni istom bojom"); sada su bijeli kao kartice (u tamnoj nijansu
+   svjetliji od podloge). Sva tri mjesta u trojci — mijenjati zajedno. Pokretni
+   odsjaj na bijelom staklu prešao u blagi volt ton (bijeli blik na bijelom ne
+   postoji).
+2. **`float-overlay` izuzetak** (`_base.scss`, `exercice-detail`): pregled
+   vježbe je plutajuća kartica, a pravilo „scrim do dna" (≤639px, kupola) je
+   ispod nje gutalo meni bez ičega preko njega. Plutajući slojevi sada
+   zaustavljaju scrim iznad futera — meni ostaje vidljiv i upotrebljiv; zato
+   ljuska pri navigaciji zatvara svoje slojeve (exDetail/preview close u
+   NavigationEnd — idempotentno).
+3. **Birač dana kao grid** — naziv | tip | broj vježbi | kvačica, kolone
+   poravnate kroz sve redove (raniji flex je desni dio slagao „random").
+
+**Dopuna — „Zatvori" odvojeno od liste dana:** u biraču dana je dugme sjedalo
+uz posljednji red kao osmi dan. Sada: razmak + tanka linija iznad (zasebna
+zona); na telefonu (pun panel) pada na dno u zonu palca (margin-top: auto).
+
+**Dopuna — futer IZNAD scrima plutajuće kartice (menu_bug repriza):** scrim
+pregleda vježbe se završava na ravnoj liniji vrha futera, a luk kupole i
+prsten vire iznad nje — pa ih je scrim sjekao po pravoj liniji. Dok je
+plutajuća kartica otvorena, ljuska stavi `float-open` na `.shell`, a futer se
+izdigne iznad scrima (z 160 > 150): kupola cijela, meni klikabilan. Puni
+paneli (bottom:0) i dalje prekrivaju futer kao do sada.
+
+**Dopuna — zavjesa do dna, kupola iznad nje (Markov screenshot 22.55):**
+prethodni pokušaj je scrim zaustavljao iznad futera, pa je pored kupole virio
+oštar, svijetao sadržaj ispod ravne linije šava. Sada `float-overlay` scrim
+ide DO SAMOG DNA na svim širinama (jednolika zavjesa i iza menija), kartica
+se drži iznad menija paddingom, a futer (`float-open`, z 160) izranja IZNAD
+zavjese — kupola cijela, bez šava, meni klikabilan.
+
+---
+
+## 2026-08-10 — Plutajući slojevi: pravi ulaz i izlaz; pregled profila kao kartica
+
+**Šta:** Dvije Markove prijave: pregled vježbe se palio „on/off" bez ulazne
+animacije, a pregled profila je treptao — pun panel naglo proguta ekran i
+meni pa TEK ONDA odsvira ulaz elementa.
+
+**Uzrok on/off utiska:** globalni `overlay-in` animira samo providnost, a
+iOS backdrop-blur na opacity ne reaguje postepeno nego PUKNE odjednom.
+
+**Kako:**
+1. **Pregled vježbe** (`exercice-detail.*`): ulaz sada animira i samo
+   zamućenje (blur 0→8px, `detail-veil-in`), a IZLAZ postoji (kućno pravilo):
+   servis drži `closing` 300ms — zavjesa se razbistri, kartica se sipne — pa
+   tek onda skida element iz DOM-a.
+2. **Pregled profila** (`profile-preview.*`): više NIJE pun panel nego
+   PLUTAJUĆA kartica na svim širinama (`float-overlay` — zavjesa do dna, meni
+   izranja iznad nje), sa istom ulazno/izlaznom koreografijom. Specifičnost
+   `.modal-overlay.pv-overlay .preview-card` pobjeđuje mobilni pun-panel i
+   nav-dome padding.
+3. **Futer u float-open stanju** podignut na z 340 (iznad pregleda profila
+   300, koji je iznad blog lightboxa 200).
+
+**Efekat:** oba pregleda ulaze mekim zamućenjem + izranjanjem kartice, izlaze
+istim pokretom unazad; meni je sve vrijeme vidljiv i upotrebljiv ispod
+plutajuće kartice.
+
+---
+
+## 2026-08-10 — Blog: reakcije-balončići + listanje koje prati prst
+
+**Šta:** Markove ideje za blog: reakcije „kao balončići u uglu koji se
+nakupljaju... sa slikama profilnih" i glatko listanje u pregledu (staro je
+skakalo na prag, bez praćenja prsta). Friends/close-friends krugovi svjesno
+PRESKOČENI — Markova riječ: poenta grupe je da svi vide sve, reakcije su
+pravi alat.
+
+**1. Reakcije** (`20260810010000_blog_reactions.sql`, `blog.service.ts`,
+`blog.component.*`): tabela `blog_reactions` (media × profil × vrsta,
+unique — ponovni dodir iste vrste je skidanje). Paleta: 💪 🔥 🐐 😂 ❤️.
+U uglu objave (i pri dnu pregleda) balončići: emoji + do 3 profilne glave +
+broj; moja reakcija nosi volt rub; [+] otvara paletu koja se razlije iz
+dugmeta (emoji talasom), balončić PUKNE pri rađanju, broj se „popne" pri
+promjeni. Optimistički upis sa vraćanjem na grešku. Jedan ng-template — dva
+mjesta (kartica + lightbox).
+
+**2. Pregled prati prst** (`blog.component.ts/html/scss`): traka od TRI
+panela (prethodna · tekuća · sljedeća) klizi UŽIVO pod prstom — touchmove se
+kači van Angular zone i piše transform direktno (60fps bez change
+detectiona); na puštanju opruga prelije na cilj ili vrati (indeks se mijenja
+tek na kraju klizanja, `transitionend`). Na krajevima traka pruža otpor.
+Povlačenje nadolje: slika tone za prstom uz tamnjenje pozadine
+(`--lb-fade`), flick zatvara. `touch-action: none` na pregledu — pregledač
+se ne miješa.
+
+**3. Listanje feeda bez štucanja:** `content-visibility: auto` +
+`contain-intrinsic-size` na `.post` — objave van ekrana se ne crtaju.
+
+**Provjereno uživo (lokal):** paleta → 🔥 → balončić sa glavom i volt rubom;
+red u bazi; brisanje objave kaskadno nosi reakcije. Test objave obrisane.
+
+**⚠️ Prije sljedećeg deploya na cloud Supabase moraju DVIJE migracije:**
+`20260810000000_plan_visibility.sql` i `20260810010000_blog_reactions.sql`.
+
+**Dopuna — reakcije v2 (Markove prijave i „tony stark" želja):**
+
+1. **Paleta na globalnom nivou:** `position: fixed` uz dodirnuto [+] (z 400,
+   iznad futera i svih pregleda) — unutar kartice ju je sjekao
+   `overflow: hidden`, a `content-visibility` bi ubio i fixed u njoj. Jedna
+   paleta za cio ekran; sidro i smjer (gore/dolje) računa komponenta;
+   zatvara se na dodir vani i na listanje.
+2. **Custom emoji:** dugme-tastatura u paleti otvara polje (telefon nudi
+   emoji tastaturu) — bilo koji emoji postaje reakcija (prva grafema,
+   ASCII odbijen). Font kroz max(..., --t-field-min), kućno pravilo.
+3. **Hologramski stil:** balončići i paleta sa volt→cijan gradijentnim rubom
+   (dvoslojni background), skanline teksturom, blikom koji klizne pri
+   rađanju i materijalizacijom sa treperenjem (steps); moja reakcija nosi
+   spoljni glow. **ASCII prskalica:** na dodatu reakciju glifovi
+   (+ * × ▲ █ ░ · > /) i izabrani emoji prsnu iz tačke dodira (fixed sloj,
+   bez uticaja na raspored).
+4. **Simulacija više korisnika nad lokalnom bazom:** 12 PRAVIH objava
+   kopirano iz cloud `blog_media` (R2 je javan pa se slike/snimci vide
+   lokalno; Kaćin cloud id mapiran na lokalni) + reakcije sva tri korisnika,
+   uključujući custom 🍗.
+5. **Uzrok „Edge Function non-2xx" pri otpremi NA LOKALU:** funkcija
+   r2-presign traži R2 tajne (Filipovi Cloudflare ključevi) koje postoje
+   samo na cloud projektu — lokalno nema `supabase/functions/.env`. Dodat
+   `.env.example` šablon; otprema radi na produkciji, lokalno tek kad se
+   ključevi upišu (fajl je u .gitignore, repo je javan).
+
+**Dopuna — reakcije v3 (Markove tri):**
+
+1. **Jedna reakcija po osobi** (`20260810020000_blog_reactions_one_per_user.sql`):
+   unique prešao sa (media, profil, vrsta) na (media, profil) uz dedupe
+   (ostaje najnovija). Front: nova vrsta ZAMJENJUJE staru, ista je skida
+   (`setReaction`: added/removed/replaced).
+2. **Naš emoji meni umjesto tastature:** OS emoji tastatura se ne može
+   programski otvoriti ni na jednoj platformi — dugme sada širi paletu u
+   NAŠ grid (40 kuriranih emojia, isti svuda, bez iskakanja tastature).
+   Paleta dobila omotač (`rx-pal-wrap`, translateY(-100%) za smjer nagore)
+   pa i grid raste u pravom smjeru; scale animacija ostala na piluli.
+3. **Organska fizika balončića** (`shared/bubble-physics.directive.ts`,
+   `appBubbles`): balončići su tijela u maloj simulaciji — opruga ka domu u
+   grozdu (ručno štimovani slotovi), parovi se odbijaju pri sudaru i blago
+   privlače na daljini („nevidljive strune"), svako tijelo leluja svojim
+   sinusom, pokazivač ih nježno razmiče. rAF VAN Angular zone, transform
+   direktno — nula CD po kadru; MutationObserver usklađuje tijela sa *ngFor.
+   `prefers-reduced-motion`: direktiva se ne pali, ostaje mirni red.
+
+**Dopuna — pregled slika do dna:** `.lb` je stajao iznad futera pa je ispod
+ostajala pruga sirovog sadržaja sa kupolom preko (Markov screenshot 23.43) —
+sada bottom: 0 na svim širinama (imerzivan prikaz preko svega).
+
+---
+
+## 2026-08-11 — Blog paket final: baloni-osobe, imerzivni pregled, naše video kontrole
+
+**Šta (iterirano uživo sa Markom kroz noć):**
+
+1. **Balon = OSOBA** (ne vrsta): profilna puni krug, emoji je bedž u uglu —
+   vidi se KO i ŠTA. Maks 4 najnovija + „+N" balon (dodir = spisak ostalih);
+   lične veličine ±15% (deterministički iz id-ja). Dodir na svoj balon skida
+   reakciju, na tuđi pokaže etiketu „ko · šta".
+2. **Fizika oslobođena:** ulazna rx-pop animacija (fill both, transform) je
+   GAZILA transform iz simulacije — svi baloni na istoj tački („vidimo samo
+   jedno"). U bp-on režimu ulaz glumi sama fizika, CSS zadržava samo
+   treperenje providnosti. Slotovi ručno rašireni; jače lelujanje.
+3. **Imerzivni pregled:** otvaranje slike/snimka klizne header GORE i futer
+   DOLJE (html.immersive; navigacija ga čisti — osigurač u ljusci), pregled
+   preko CIJELOG ekrana. Dva iOS zahvata: futer se pomjera FIKSNOM distancom
+   (host kupole je visine 0 pa je translateY(100%) pomjerao 24px — meni je
+   na telefonu ostajao preko snimka) i **pregled se premješta na <body>**
+   (`fixed` unutar skrol-kontejnera se na iOS-u ponaša kao `absolute` —
+   pregled je bio zarobljen ispod headera).
+4. **Naše video kontrole:** nativni `controls` overlay na iOS-u krade dodire
+   (listanje preko snimka nije radilo). Izbačen; providni štit nosi gestove,
+   dodir = play/pauza (stakleno dugme), tanka volt traka napretka + zvuk.
+   `webkit-playsinline` na svim videima (stari webview-i tjeraju native
+   fullscreen). Klik na podlogu opet zatvara (okvir je gutao klik);
+   `--lb-fade` ciljao pogrešan element poslije uvođenja okvira — popravljeno.
+5. **Bilo koji emoji sa SISTEMSKE tastature** umjesto predefinisanog grida:
+   tastatura-dugme otvori prazno polje (bez placeholder emojia — zbunjivao),
+   fokus odmah, emoji se primijeni čim je otkucan (prva grafema, ASCII se
+   ignoriše). Web ne može sam otvoriti emoji raspored — korisnik ga bira.
+6. **Popravljena moja regresija:** imerzivna izmjena je presjekla `.header`
+   SCSS blok — header bez strukture, logo u punoj veličini preko svega
+   („cijela aplikacija je logo"); Sass je orphan-deklaracije progutao bez
+   greške pa je build prolazio. Pouka: poslije replace-izmjena SCSS-a čitati
+   fajl, ne vjerovati samo EXIT kodu. Pregledu profila usput vraćena veza za
+   izlaznu animaciju ([closing] binding je falio u ljusci).
+7. Lokalna simulacija: posteri (logo artwork) izbačeni iz lokalne blog_media
+   kopije — pravili su zbrku pri testiranju; cloud netaknut. Privremeni dev
+   pečat verzije (M1/M2) dodat pa uklonjen na Markov zahtjev.
+
+**Dopuna — prekidač „Privatan plan" u kućnom jeziku (Markov zahtjev prije
+slanja instrukcija Filipu):** pri promjeni se red razlije (squash & stretch
+kao tajmer-ostrvo), kap mastila krene iz tačke dodira (overflow: hidden je
+drži u redu), a katanac i kvačica se rode talasom (privKey rebirth). Restart
+razliva klasom kroz komponentu; reduced-motion sve gasi.
+
+**Dopuna — globalni mehanizam za „cut off" klasu + blog nije ulazna strana:**
+
+1. **`appPortal` direktiva** (`shared/portal.directive.ts`): svaki plutajući
+   sloj se premješta na `<body>` — van dometa overflow sječenja, iOS
+   skrol-zamke i tuđih stacking contexta. Pravilo u 08-KONVENCIJE: svaki
+   novi sloj ide kroz portal; postojeći koji rade se ne diraju, prevode se
+   pri prvoj reprodukciji.
+2. **Blog i news više NISU na bijeloj listi vraćanja rute** (Markova
+   odluka): to su ekrani razgledanja — aplikacija poslije njih kreće od
+   dashboarda. Lista se provjerava i pri ČITANJU zapisa, pa ni ranije
+   upisan /blog ne vraća tamo nijednom.
