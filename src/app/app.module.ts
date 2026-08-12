@@ -19,6 +19,7 @@ import { NumFieldDirective } from './shared/num-field.directive';
 import { ProfilePreviewDirective } from './shared/profile-preview.directive';
 import { BubblePhysicsDirective } from './shared/bubble-physics.directive';
 import { PortalDirective } from './shared/portal.directive';
+import { AvatarCropComponent } from './components/shared/avatar-crop/avatar-crop.component';
 import { BlogComponent } from './components/blog/blog.component';
 import { HeaderComponent } from './components/header/header.component';
 import { ExercicePickerComponent } from './components/shared/exercice-picker/exercice-picker.component';
@@ -47,7 +48,8 @@ import { GlitchOverlayComponent } from './components/glitch-overlay/glitch-overl
     DatePickerComponent,
     ProfilePreviewComponent,
     NewsComponent,
-    GlitchOverlayComponent
+    GlitchOverlayComponent,
+    AvatarCropComponent
   ],
   imports: [
     BrowserModule,

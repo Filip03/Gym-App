@@ -16,6 +16,7 @@ interface BlogMediaRow {
   created_at: string;
   uploaded_by: string | null;
   size: number | null;
+  caption: string | null;
 }
 
 /** Jedna reakcija — red iz `blog_reactions`. */
@@ -29,6 +30,8 @@ export interface BlogMediaItem {
   /** `blog_media.id` — ključ za reakcije. */
   id: string;
   name: string;
+  /** Opis objave iz kompozera. null = bez teksta. */
+  caption: string | null;
   url: string;
   type: 'image' | 'video';
   createdAt: string;
@@ -54,7 +57,7 @@ export class BlogService {
   async listMedia(): Promise<BlogMediaItem[]> {
     const { data, error } = await this.supabase.client
       .from('blog_media')
-      .select('id, key, type, created_at, uploaded_by, size')
+      .select('id, key, type, created_at, uploaded_by, size, caption')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -62,6 +65,7 @@ export class BlogService {
     return ((data ?? []) as BlogMediaRow[]).map(row => ({
       id: row.id,
       name: row.key,
+      caption: row.caption ?? null,
       url: this.getPublicUrl(row.key),
       type: row.type,
       createdAt: row.created_at,
@@ -133,7 +137,7 @@ export class BlogService {
     return 'replaced';
   }
 
-  async uploadMedia(file: File, userId: string): Promise<void> {
+  async uploadMedia(file: File, userId: string, caption: string | null = null): Promise<void> {
     const isVideo = file.type.startsWith('video/');
     const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
 
@@ -158,8 +162,22 @@ export class BlogService {
 
     const { error: insertError } = await this.supabase.client
       .from('blog_media')
-      .insert({ key, type: isVideo ? 'video' : 'image', uploaded_by: userId, size: file.size });
+      .insert({ key, type: isVideo ? 'video' : 'image', uploaded_by: userId, size: file.size, caption });
 
     if (insertError) throw insertError;
+  }
+
+  /**
+   * Brisanje objave — red iz baze (reakcije odu kaskadno preko FK). Sam fajl
+   * OSTAJE na R2 (presign funkcija zna samo upload; brisanje sa R2 traži
+   * dopunu edge funkcije — zabilježeno za Filipa). Za feed je nevidljiv.
+   */
+  async deleteMedia(id: string): Promise<void> {
+    const { error } = await this.supabase.client
+      .from('blog_media')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
   }
 }

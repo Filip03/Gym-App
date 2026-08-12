@@ -1,0 +1,30 @@
+<!-- Kroper profilne — plutajuća kartica kroz portal (globalno pravilo):
+     zavjesa do dna, meni izranja iznad (FloatLayerService u .ts). -->
+<div class="modal-overlay ac-overlay float-overlay" appPortal
+     [class.closing]="closing" (click)="onDismiss()">
+  <div class="ac-card" (click)="$event.stopPropagation()">
+
+    <h3>Namjesti profilnu</h3>
+    <p class="ac-note">Prevuci sliku prstom; uštipni (ili točkić) za zum —
+      u krugu je tačno ono što će se vidjeti.</p>
+
+    <!-- Pozornica: slika iza kružne maske; svi gestovi su naši. -->
+    <div class="ac-stage" #stage
+         (pointerdown)="onPointerDown($event)"
+         (pointermove)="onPointerMove($event)"
+         (pointerup)="onPointerEnd($event)"
+         (pointercancel)="onPointerEnd($event)"
+         (wheel)="onWheel($event)">
+      <img #img [src]="imgUrl" alt="" draggable="false" (load)="onImgLoad()">
+      <div class="ac-mask" aria-hidden="true"></div>
+    </div>
+
+    <div class="ac-actions">
+      <button type="button" class="btn-ghost" (click)="onDismiss()">Otkaži</button>
+      <button type="button" class="btn-primary" [disabled]="!ready || busy" (click)="confirm()">
+        {{ busy ? 'Sječem…' : 'Sačuvaj' }}
+      </button>
+    </div>
+
+  </div>
+</div>

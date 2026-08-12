@@ -17,6 +17,11 @@
       </div>
       <input #fileInput type="file" accept="image/*" hidden (change)="onFileSelected($event)">
 
+      <!-- Kroper: krug pokazuje šta će TAČNO biti profilna (prevuci + zum). -->
+      <app-avatar-crop *ngIf="cropFile" [file]="cropFile"
+                       (done)="onCropDone($event)"
+                       (dismiss)="cropFile = null"></app-avatar-crop>
+
       <div class="profile-info" *ngIf="!editing">
         <div class="username-row">
           <h2>{{ profile.username }}</h2>

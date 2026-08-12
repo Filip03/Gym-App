@@ -4580,3 +4580,31 @@ zapisan ako se ikad širi na veću površinu.
 2. **Vježbe: trackBy na grupe i kartice** — svjež katalog poslije keširanog
    prvog kadra više ne ruši DOM, pa ulazna animacija svira JEDNOM (bio
    „dupli load" bljesak).
+
+---
+
+## 2026-08-12 — Kroper profilne + Blog v2 (Markova lista, potvrđeno „sve je dobro")
+
+**1. Kroper profilne slike** (`shared/avatar-crop`, profil): slika se više ne
+šalje naslijepo — kartica sa krugom pokazuje TAČNO šta će biti profilna;
+prst prevlači, uštip/točkić zumira (oko tačke pod prstima, van Angular
+zone), „Sačuvaj" isiječe 512×512 JPEG i TO ide u bucket (usput brže
+učitavanje profilnih svuda). Portal + float obrazac + FloatLayerService.
+
+**2. Blog v2:**
+- **Prvi kadar videa** — iOS ne dekodira frejm bez `#t=0.001` fragmenta na
+  src (feed + bočni paneli pregleda); stajao je samo play na praznom.
+- **Kompozer objave** — izbor fajla otvara pregled + polje za opis
+  (`blog_media.caption`, migracija `20260812000000_blog_caption.sql`);
+  objava tek na „Objavi". Opis se prikazuje u feedu i u pregledu.
+- **TRIM videa** — dvije ručke nad trakom, prevlačenje premotava pregled,
+  reprodukcija se vrti u rezu; ffmpeg (`-ss`/`-to` u istom prolazu kao
+  kompresija) isiječe STVARNO. Kad je trim zadat, „original ako je manji"
+  fallback se preskače (poništio bi rez).
+- **Brisanje svoje objave** — dvostepeno dugme (naoruža se pa briše, 3s
+  reset); reakcije odu kaskadno. Fajl ostaje na R2 dok edge funkcija ne
+  dobije DELETE (zabilježeno za Filipa).
+- **Reakcije u fullscreen pregledu** — paleta/prskalica/etiketa kroz
+  `appPortal` (fixed slojevi u skrolu — globalno pravilo).
+- **Skrol kartica** — kompozer i kroper skroluju SEBE (max-height +
+  overscroll contain), zavjesa ne propušta potez stranici iza.
