@@ -4510,3 +4510,10 @@ i leaderboard — Markov zahtjev.
    Sesija sada nosi i description + mišićne grupe (findSession select +
    SessionExercice model) — popup ima i opis i grupe; keširane sesije od
    ranije ih nemaju pa popup uredno prikaže bez opisa (?? null).
+
+**Dopuna — portal za cijelu familiju modala treninga (Markova prijava:
+cutoff u Zamijeni/Dodaj):** birač vježbi (shared exercice-picker), birač
+dana i modal serija×ponavljanja dobili `appPortal` — slojevi na <body>, van
+skrol-kontejnera i njegovih iOS zamki, kao rezime i pregled slika. Napomena:
+server je bio pao tokom Markovog testa, pa je dio „vraćenih" bugova
+vjerovatno bio stari keširani bundle.
