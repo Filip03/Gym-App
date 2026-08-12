@@ -18,6 +18,7 @@ export class AppComponent{
  showLayout = true;
  showFooter = true;
 
+
  // Ekrani sa mrežom (kartice jedna pored druge) traže više prostora na laptopu.
  // Ekrani sa listom se čitaju bolje u uskoj koloni — red od 1100px je predaleko
  // da oko prati od naziva vježbe do dugmeta.

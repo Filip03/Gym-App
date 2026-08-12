@@ -1,4 +1,6 @@
-<div class="modal-overlay picker-overlay" (click)="dismiss.emit()">
+<!-- appPortal (globalno pravilo, 08-KONVENCIJE): sloj na <body>, van
+     skrol-zamke i svakog sječenja — „cutoff" familija. -->
+<div class="modal-overlay picker-overlay" appPortal (click)="dismiss.emit()">
   <div class="modal-card picker-card" (click)="$event.stopPropagation()">
 
     <header class="picker-head">

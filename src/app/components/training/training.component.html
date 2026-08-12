@@ -704,7 +704,7 @@
 
 <!-- Biranje dana za danas: sesija se presloži iz izabranog dana plana.
      Plan ostaje netaknut — promjena važi samo za današnji trening. -->
-<div class="modal-overlay day-picker-overlay" *ngIf="dayPickerOpen || dayPickerClosing"
+<div class="modal-overlay day-picker-overlay" appPortal *ngIf="dayPickerOpen || dayPickerClosing"
      [class.dp-closing]="dayPickerClosing" (click)="closeDayPicker()">
   <div class="modal-card day-picker-card" (click)="$event.stopPropagation()">
     <h3>Koji dan radiš danas?</h3>
@@ -747,7 +747,7 @@
 </div>
 
 <!-- Serije i ponavljanja za ovaj trening -->
-<div class="modal-overlay" *ngIf="showTargetModal" (click)="closeTargets()">
+<div class="modal-overlay" appPortal *ngIf="showTargetModal" (click)="closeTargets()">
   <div class="modal-card target-modal" (click)="$event.stopPropagation()">
     <h3>{{ targetTarget?.name }}</h3>
     <p class="modal-note">Vrijedi samo za današnji trening.</p>

@@ -36,28 +36,29 @@ html {
   background-color: var(--void);
 }
 
-// FARBA za zonu gestova (bookmark/standalone sa viewport-fit=cover): ispod
-// okvira aplikacije ostaje pojas do pravog dna ekrana — pokriva ga fiksna
-// traka u boji stakla menija (--carbon), ispod futera (z 55 < 60), bez
-// IJEDNOG uticaja na raspored. U običnom pregledaču env() je 0 = nevidljiva.
-body::after {
-  content: '';
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background: var(--carbon);
-  z-index: 55;
-  pointer-events: none;
+// BOOKMARK (standalone) + KUPOLA: PLATNO nosi boju STAKLA menija.
+//
+// Zašto uopšte: u bookmark režimu je početni blok (ICB) NIŽI od samog
+// prozora — `100svh` i SVAKI `position: fixed` staju na njegovoj ivici, a
+// prozor ide do prave donje ivice ekrana. Zato zonu gestova farba jedino
+// SADRŽAJ (`.shell` je 100svh + env, vidi app.component.scss), dok fiksni
+// slojevi — i slika (`body::before`) i backstop (`body::after`) — dotle NE
+// STIŽU: staju taman iznad zone. Ostatak koji svh+env račun promaši (par
+// piksela) pada na PLATNO, a platno je bilo --void, pa se ispod bijele/tamne
+// kupole vidjela tanka traka druge boje (Markova prijava sa telefona).
+//
+// Zašto baš platno: ono je JEDINI sloj koji pokriva cio prozor, i crta se
+// ISPOD svega — pa se, za razliku od višeg body::after, ne može pojaviti
+// pored luka kao pravougaonik preko sadržaja (probano, palo). Boja se mijenja
+// bez ijednog piksela rasporeda: luk, ikone, Safari i desktop ostaju netaknuti,
+// a ostatak se čita kao nastavak stakla do dna — koliki god bio.
+//
+// Klasični futer je NAMJERNO izuzet: njegova pozadina se pri dnu gasi u
+// podlogu, pa mu je --void ostatak i tačna boja.
+@media (display-mode: standalone) {
+  :root.nav-dome { background-color: var(--carbon); }
 }
 
-// KUPOLA: traka u boji stakla joj je pravila bijelo POSTOLJE pa je luk
-// izgledao viši (Markova presuda). Kupola lebdi nad SADRŽAJEM — pa i zona
-// gestova pod njom nosi boju podloge, ne stakla.
-:root.nav-dome body::after {
-  background: var(--void);
-}
 
 body {
   background-color: var(--void);

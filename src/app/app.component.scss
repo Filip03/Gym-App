@@ -28,6 +28,18 @@
   overflow: hidden;   // stranica nema šta da skroluje
 }
 
+// Bookmark/standalone: svh se završava IZNAD zone home linije, pa je dno
+// ostajalo „ničije" (crni/farbani pojas — Markove prijave). Okvir se
+// produžava za env(bottom) — najbliži pogodak (fixed inset:0 je bio GORI:
+// viewport sam isključuje zonu, pa se pojas vratio a ikone spustile).
+// Sitni ostatak koji ovaj račun promaši farba PLATNO (<html> u boji stakla,
+// _base.scss): fiksni backstop dotle ne stiže — `fixed` se mjeri po istom
+// ICB-u koji se završava iznad zone gestova. NE dodavati ovdje rezervu
+// „za svaki slučaj": svaki piksel visine okvira spušta luk i ikone.
+@media (display-mode: standalone) {
+  .shell { height: calc(100svh + env(safe-area-inset-bottom, 0px)); }
+}
+
 
 .scroll-area {
   flex: 1;
@@ -65,4 +77,5 @@
 @media (min-width: 900px) {
   .content { padding-inline: var(--s-6); }
 }
+
 

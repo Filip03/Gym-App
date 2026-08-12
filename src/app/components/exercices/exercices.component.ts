@@ -86,6 +86,16 @@ export class ExercicesComponent implements OnInit {
     }
   }
 
+  /**
+   * trackBy za grupe i kartice: kad poslije keširanog prvog kadra stigne
+   * svjež katalog, Angular bez ovoga sruši i iznova rodi SVE čvorove — pa
+   * ulazne animacije odsviraju drugi put („dupli load" bljesak, Markova
+   * prijava 12.08.2026). Sa identitetom po id-ju čvorovi se zadrže, sadržaj
+   * se tiho osvježi, animacija svira jednom.
+   */
+  trackGroup = (_: number, g: MuscleGroupWithExercices) => g.id;
+  trackEx = (_: number, e: { id: string }) => e.id;
+
   /** Isti raspored i za keširan i za svjež katalog — jedno mjesto istine. */
   private applyGroups(groups: MuscleGroupWithExercices[]) {
     this.groups = groups;

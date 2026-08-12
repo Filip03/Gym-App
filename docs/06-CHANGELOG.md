@@ -4510,3 +4510,101 @@ i leaderboard — Markov zahtjev.
    Sesija sada nosi i description + mišićne grupe (findSession select +
    SessionExercice model) — popup ima i opis i grupe; keširane sesije od
    ranije ih nemaju pa popup uredno prikaže bez opisa (?? null).
+
+**Dopuna — portal za cijelu familiju modala treninga (Markova prijava:
+cutoff u Zamijeni/Dodaj):** birač vježbi (shared exercice-picker), birač
+dana i modal serija×ponavljanja dobili `appPortal` — slojevi na <body>, van
+skrol-kontejnera i njegovih iOS zamki, kao rezime i pregled slika. Napomena:
+server je bio pao tokom Markovog testa, pa je dio „vraćenih" bugova
+vjerovatno bio stari keširani bundle.
+
+**Dopuna — staklo kupole do pravog dna (Markov bug_menu):** ispod luka je u
+standalone režimu ostajao crni pojas zone gestova (okvir staje na 100svh).
+Staklo kupole (`.dock-surface`) se sada produžava nadolje za
+env(safe-area-inset-bottom) — luk i ikone na ISTOJ visini (raspored ne zna
+za safe-b), samo donja ivica stakla dodiruje dno ekrana. Bez postolja, bez
+podizanja — isti oblik, duže staklo.
+
+---
+
+## 2026-08-12 — Tanki pojas na dnu u bookmark režimu (kupola)
+
+**Šta:** U PWA bookmark režimu je na samom dnu, ispod luka kupole, ostajala
+traka od par piksela u boji PODLOGE (--void) — jasno vidljiva ispod bijelog
+(svijetla tema) i tamnog stakla menija. Markova prijava sa telefona.
+
+**Zašto se dešavalo:** U standalone režimu je početni blok (ICB) niži od samog
+prozora aplikacije — `100svh` i svaki `position: fixed` staju na njegovoj
+ivici, dok prozor ide do prave donje ivice ekrana. Zato zonu gestova može da
+oboji samo SADRŽAJ u toku (`.shell` je `100svh + env(bottom)`), a nijedan
+fiksni sloj: ni pozadinska slika (`body::before`), ni backstop
+(`body::after`) — oba staju iznad zone. Ostatak koji `svh + env` račun
+promaši pada na PLATNO (canvas), a platno je nosilo `--void`.
+
+**Rješenje:** Platno u bookmark režimu i kupola modu dobija boju STAKLA
+(`--carbon`) umjesto podloge, pa se ostatak čita kao nastavak menija do dna —
+koliki god bio. Platno je jedini sloj koji pokriva cio prozor i crta se ispod
+svega, pa ne može (kao raniji viši `body::after`) proviriti pored luka kao
+pravougaonik preko sadržaja. Klasični futer je izuzet: njegova pozadina se
+pri dnu gasi u podlogu, pa mu `--void` ostatak i jeste tačna boja.
+
+**Dodirnuti fajlovi:**
+- `src/styles/_base.scss` — novo pravilo `@media (display-mode: standalone) {
+  :root.nav-dome { background-color: var(--carbon) } }`; ispravljen komentar
+  uz `body::after` (u bookmark režimu ne dohvata dno — ostaje kao rezerva za
+  obični Safari/desktop)
+- `src/app/app.component.scss` — komentar uz `.shell` visinu: ostatak farba
+  platno, a ne backstop; upozorenje da se visina okvira ne „zaokružuje"
+  naviše jer svaki piksel spušta luk i ikone
+
+**Efekat:** Dno je jednobojno do ivice ekrana u obje teme. Nula promjena
+rasporeda — visina luka, položaj ikona, obični Safari i desktop netaknuti
+(pravilo je zaključano na `display-mode: standalone` + `.nav-dome`).
+
+**Napomene:** Boja se mijenja bez pretapanja pri promjeni teme (`html.theme-anim`
+gađa potomke, ne sam `<html>`) — na par piksela je nevidljivo, ali je razlog
+zapisan ako se ikad širi na veću površinu.
+
+**Dopuna — finale dna + Vježbe bez duplog bljeska:**
+
+1. **Dno ekrana (bookmark) — zaključeno na platformskoj granici.** Mjerenje
+   na Markovom telefonu (ih=shB=dkB=846, env=34) dokazalo: okvir i kupola
+   dopiru do POSLJEDNJEG piksela koji iOS daje web aplikaciji; pojas home
+   linije ispod toga je van ICB-a i web ga smije samo OBOJITI platnom (Opus
+   agentova dijagnoza: `:root.nav-dome` canvas = --carbon u standalone).
+   Okvir: `calc(100svh + env(bottom))` u standalone; klasične ikone diže
+   --footer-gap iz env(); `body::after` backstop OBRISAN — crtao je tanku
+   bijelu liniju preko dna na desktopu (Markova prijava), a posao mu je
+   preuzelo platno. Neuspjeli pokušaji dokumentovani u komentarima (fixed
+   inset:0 — ICB isključuje zonu; produženje stakla — overflow siječe).
+2. **Vježbe: trackBy na grupe i kartice** — svjež katalog poslije keširanog
+   prvog kadra više ne ruši DOM, pa ulazna animacija svira JEDNOM (bio
+   „dupli load" bljesak).
+
+---
+
+## 2026-08-12 — Kroper profilne + Blog v2 (Markova lista, potvrđeno „sve je dobro")
+
+**1. Kroper profilne slike** (`shared/avatar-crop`, profil): slika se više ne
+šalje naslijepo — kartica sa krugom pokazuje TAČNO šta će biti profilna;
+prst prevlači, uštip/točkić zumira (oko tačke pod prstima, van Angular
+zone), „Sačuvaj" isiječe 512×512 JPEG i TO ide u bucket (usput brže
+učitavanje profilnih svuda). Portal + float obrazac + FloatLayerService.
+
+**2. Blog v2:**
+- **Prvi kadar videa** — iOS ne dekodira frejm bez `#t=0.001` fragmenta na
+  src (feed + bočni paneli pregleda); stajao je samo play na praznom.
+- **Kompozer objave** — izbor fajla otvara pregled + polje za opis
+  (`blog_media.caption`, migracija `20260812000000_blog_caption.sql`);
+  objava tek na „Objavi". Opis se prikazuje u feedu i u pregledu.
+- **TRIM videa** — dvije ručke nad trakom, prevlačenje premotava pregled,
+  reprodukcija se vrti u rezu; ffmpeg (`-ss`/`-to` u istom prolazu kao
+  kompresija) isiječe STVARNO. Kad je trim zadat, „original ako je manji"
+  fallback se preskače (poništio bi rez).
+- **Brisanje svoje objave** — dvostepeno dugme (naoruža se pa briše, 3s
+  reset); reakcije odu kaskadno. Fajl ostaje na R2 dok edge funkcija ne
+  dobije DELETE (zabilježeno za Filipa).
+- **Reakcije u fullscreen pregledu** — paleta/prskalica/etiketa kroz
+  `appPortal` (fixed slojevi u skrolu — globalno pravilo).
+- **Skrol kartica** — kompozer i kroper skroluju SEBE (max-height +
+  overscroll contain), zavjesa ne propušta potez stranici iza.

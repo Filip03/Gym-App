@@ -47,7 +47,17 @@ function extensionOf(name: string): string {
 // Skalira na max 1280px širine (visina se računa da ostane paran broj — h264 to zahtijeva)
 // i umjeren CRF/bitrate. "veryfast" preset je kompromis brzina/veličina, bitan jer se
 // sve ovo dešava na klijentovom telefonu, ne na serveru.
-export async function compressVideo(file: File, onProgress?: (ratio: number) => void): Promise<File> {
+/**
+ * `trim`: isijeci raspon [start, end] u sekundama (Markov zahtjev 12.08.2026)
+ * — ide kroz ISTI ffmpeg prolaz kao kompresija (`-ss`/`-to`), pa trimovanje
+ * ne košta ništa dodatno. Kad je trim zadat, rezultat se vraća UVIJEK (i da
+ * ispadne veći od originala — original bi poništio rez).
+ */
+export async function compressVideo(
+  file: File,
+  onProgress?: (ratio: number) => void,
+  trim?: { start: number; end: number }
+): Promise<File> {
   const ffmpeg = await getFFmpeg();
 
   const onProgressEvent = ({ progress }: { progress: number }) => {
@@ -61,8 +71,11 @@ export async function compressVideo(file: File, onProgress?: (ratio: number) => 
   try {
     await ffmpeg.writeFile(inputName, await fetchFile(file));
 
-    await ffmpeg.exec([
-      '-i', inputName,
+    const args = ['-i', inputName];
+    // -ss/-to POSLIJE -i: sporije (dekodira do reza) ali tačno u kadar —
+    // klipovi iz teretane su kratki, tačnost je bitnija.
+    if (trim) args.push('-ss', trim.start.toFixed(2), '-to', trim.end.toFixed(2));
+    args.push(
       '-vf', "scale='min(1280,iw)':-2",
       '-c:v', 'libx264',
       '-preset', 'veryfast',
@@ -70,13 +83,15 @@ export async function compressVideo(file: File, onProgress?: (ratio: number) => 
       '-c:a', 'aac',
       '-b:a', '128k',
       outputName
-    ]);
+    );
+    await ffmpeg.exec(args);
 
     const data = await ffmpeg.readFile(outputName);
     const blob = new Blob([data as Uint8Array], { type: 'video/mp4' });
 
-    // Ako je "kompresovana" verzija ispala veća (kratak/već kompresovan klip), zadrži original.
-    if (blob.size >= file.size) return file;
+    // Ako je "kompresovana" verzija ispala veća (kratak/već kompresovan klip),
+    // zadrži original — ali NIKAD kad je zadat trim (original bi poništio rez).
+    if (!trim && blob.size >= file.size) return file;
 
     const newName = file.name.replace(/\.[^.]+$/, '') + '.mp4';
     return new File([blob], newName, { type: 'video/mp4' });

@@ -6,6 +6,7 @@ import { compressImage } from '../../shared/image-compress';
 import { compressVideo } from '../../shared/video-compress';
 import { ProfileService } from '../../services/profile.service';
 import { NotifyService } from '../../services/notify.service';
+import { FloatLayerService } from '../../services/float-layer.service';
 
 /** Objave jednog perioda — „Danas", „Juče", „Jul 2026"… */
 interface BlogGroup {
@@ -51,6 +52,8 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('lbRoot') lbRootRef?: ElementRef<HTMLElement>;
   /** Tekući video u pregledu — NAŠE kontrole (nativne su gutale gestove). */
   @ViewChild('lbVideo') lbVideoRef?: ElementRef<HTMLVideoElement>;
+  /** Video u kompozeru — trim ručke ga premotavaju (ref jer je pod *ngIf). */
+  @ViewChild('bcVideo') bcVideoRef?: ElementRef<HTMLVideoElement>;
 
   // --- Naše video kontrole ----------------------------------------------------
   //
@@ -99,6 +102,30 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
   compressing = false;
   compressProgress = 0;
 
+  // --- Kompozer objave (Markov zahtjev: pregled + opis PRIJE objave) --------
+  //
+  // Izbor fajla više NE objavljuje odmah naslijepo: otvori se kartica sa
+  // pregledom slike/snimka i poljem za opis — objava tek na „Objavi".
+  composeFile: File | null = null;
+  composeUrl = '';
+  composeIsVideo = false;
+  composeCaption = '';
+  composeClosing = false;
+  private composeCloseTimer: any = null;
+
+  // Trim videa (Markov zahtjev): dvije ručke nad trakom — ffmpeg isiječe
+  // tačno [trimStart, trimEnd]. Pregled: prevlačenje ručke premotava video,
+  // a reprodukcija se vrti u izabranom rasponu.
+  composeDuration = 0;
+  trimStart = 0;
+  trimEnd = 0;
+  private trimHandle: 'l' | 'r' | null = null;
+
+  /** Dvostepeno brisanje svoje objave: prvi dodir naoruža („Sigurno?"), drugi briše. */
+  confirmDeleteId: string | null = null;
+  deletingId: string | null = null;
+  private confirmDeleteTimer: any = null;
+
   /** Objave grupisane po periodu — struktura umjesto jedne beskonačne mreže. */
   groups: BlogGroup[] = [];
   /** Ravan spisak istim redom kao na ekranu — za kretanje kroz pregled. */
@@ -120,6 +147,7 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
     private blogService: BlogService,
     private profileService: ProfileService,
     private notify: NotifyService,
+    private floatLayer: FloatLayerService,
     private zone: NgZone
   ) {}
 
@@ -685,19 +713,116 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
     clearTimeout(this.paletteTimer);
     clearTimeout(this.burstTimer);
     clearTimeout(this.peekTimer);
+    clearTimeout(this.composeCloseTimer);
+    clearTimeout(this.confirmDeleteTimer);
+    URL.revokeObjectURL(this.composeUrl);
+    if (this.composeFile) this.floatLayer.close();
     // Napuštanje ekrana dok je pregled otvoren ne smije ostaviti aplikaciju
     // bez headera i menija.
     document.documentElement.classList.remove('immersive');
   }
 
-  async onFileSelected(event: Event) {
+  onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
 
     if (!file) return;
 
+    // Kompozer umjesto slijepe objave: pregled + opis, pa tek „Objavi".
     this.uploadError = '';
+    URL.revokeObjectURL(this.composeUrl);
+    this.composeFile = file;
+    this.composeUrl = URL.createObjectURL(file);
+    this.composeIsVideo = file.type.startsWith('video/');
+    this.composeCaption = '';
+    this.composeClosing = false;
+    this.composeDuration = 0;
+    this.trimStart = 0;
+    this.trimEnd = 0;
+    this.floatLayer.open();
+  }
+
+  onComposeMeta(v: HTMLVideoElement) {
+    this.composeDuration = isFinite(v.duration) ? v.duration : 0;
+    this.trimStart = 0;
+    this.trimEnd = this.composeDuration;
+  }
+
+  /** Reprodukcija u pregledu se vrti unutar izabranog raspona. */
+  onComposeTime(v: HTMLVideoElement) {
+    if (!this.composeDuration) return;
+    if (v.currentTime >= this.trimEnd - 0.05 || v.currentTime < this.trimStart - 0.25) {
+      v.currentTime = this.trimStart;
+    }
+  }
+
+  onTrimDown(event: PointerEvent, track: HTMLElement) {
+    if (!this.composeDuration) return;
+    event.preventDefault();
+    track.setPointerCapture?.(event.pointerId);
+
+    const t = this.trimValueAt(event, track);
+    // Bliža ručka se hvata — i drag odmah premotava pregled na nju.
+    this.trimHandle =
+      Math.abs(t - this.trimStart) <= Math.abs(t - this.trimEnd) ? 'l' : 'r';
+    this.moveTrim(t);
+  }
+
+  onTrimMove(event: PointerEvent, track: HTMLElement) {
+    if (!this.trimHandle) return;
+    this.moveTrim(this.trimValueAt(event, track));
+  }
+
+  onTrimUp() { this.trimHandle = null; }
+
+  private trimValueAt(event: PointerEvent, track: HTMLElement): number {
+    const r = track.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (event.clientX - r.left) / r.width));
+    return f * this.composeDuration;
+  }
+
+  private moveTrim(t: number) {
+    const MIN = 0.5;   // rez kraći od pola sekunde nema smisla
+    const video = this.bcVideoRef?.nativeElement;
+    if (this.trimHandle === 'l') {
+      this.trimStart = Math.min(t, this.trimEnd - MIN);
+      if (video) video.currentTime = this.trimStart;
+    } else {
+      this.trimEnd = Math.max(t, this.trimStart + MIN);
+      if (video) video.currentTime = this.trimEnd;
+    }
+  }
+
+  fmtT(t: number): string {
+    const s = Math.max(0, Math.round(t));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  closeComposer() {
+    if (!this.composeFile || this.composeClosing) return;
+    this.composeClosing = true;
+    clearTimeout(this.composeCloseTimer);
+    this.composeCloseTimer = setTimeout(() => {
+      URL.revokeObjectURL(this.composeUrl);
+      this.composeFile = null;
+      this.composeUrl = '';
+      this.composeClosing = false;
+      this.floatLayer.close();
+    }, 280);
+  }
+
+  async publishCompose() {
+    const file = this.composeFile;
+    if (!file || this.uploading || this.compressing) return;
+
+    const caption = this.composeCaption.trim() || null;
+    // Trim se šalje samo ako je stvarno pomjeren (tolerancija za drhtaj ručke).
+    const trim = this.composeIsVideo && this.composeDuration > 0
+      && (this.trimStart > 0.05 || this.trimEnd < this.composeDuration - 0.05)
+      ? { start: this.trimStart, end: this.trimEnd }
+      : undefined;
+    this.closeComposer();
 
     let toUpload = file;
 
@@ -708,7 +833,7 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
       } else if (file.type.startsWith('video/')) {
         this.compressing = true;
         this.compressProgress = 0;
-        toUpload = await compressVideo(file, ratio => this.compressProgress = ratio);
+        toUpload = await compressVideo(file, ratio => this.compressProgress = ratio, trim);
       }
     } catch {
       // Kompresija ne uspije (npr. stariji browser bez podrške) — otpremi original
@@ -721,12 +846,45 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.uploading = true;
 
     try {
-      await this.blogService.uploadMedia(toUpload, this.userId);
+      await this.blogService.uploadMedia(toUpload, this.userId, caption);
       await this.loadMedia();
     } catch (err: any) {
       this.uploadError = err.message ?? 'Greška prilikom otpremanja fajla.';
     } finally {
       this.uploading = false;
+    }
+  }
+
+  /** Dvostepeno brisanje — bez ružnog sistemskog confirm-a. */
+  askDelete(item: BlogMediaItem, event: Event) {
+    event.stopPropagation();
+
+    if (this.confirmDeleteId !== item.id) {
+      this.confirmDeleteId = item.id;
+      clearTimeout(this.confirmDeleteTimer);
+      this.confirmDeleteTimer = setTimeout(() => this.confirmDeleteId = null, 3000);
+      return;
+    }
+
+    clearTimeout(this.confirmDeleteTimer);
+    this.confirmDeleteId = null;
+    void this.doDelete(item);
+  }
+
+  private async doDelete(item: BlogMediaItem) {
+    if (this.deletingId) return;
+    this.deletingId = item.id;
+
+    try {
+      await this.blogService.deleteMedia(item.id);
+      this.mediaItems = this.mediaItems.filter(m => m.id !== item.id);
+      this.reactionsByMedia.delete(item.id);
+      this.buildGroups();
+      if (this.selectedItem?.id === item.id) this.closeLightbox();
+    } catch (err: any) {
+      this.uploadError = err.message ?? 'Greška pri brisanju objave.';
+    } finally {
+      this.deletingId = null;
     }
   }
 }

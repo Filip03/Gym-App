@@ -66,16 +66,29 @@
           <span class="post-kind" *ngIf="item.type === 'video'">
             <i class="material-icons">videocam</i>
           </span>
+          <!-- Brisanje svoje objave — dvostepeno: prvi dodir „Sigurno?", drugi briše. -->
+          <button type="button" class="post-del" *ngIf="isMine(item)"
+                  [class.arm]="confirmDeleteId === item.id"
+                  [disabled]="deletingId === item.id"
+                  (click)="askDelete(item, $event)"
+                  [attr.aria-label]="confirmDeleteId === item.id ? 'Potvrdi brisanje' : 'Obriši objavu'">
+            <i class="material-icons">{{ confirmDeleteId === item.id ? 'delete_forever' : 'delete_outline' }}</i>
+            <span class="pd-sure" *ngIf="confirmDeleteId === item.id">Sigurno?</span>
+          </button>
         </header>
 
         <button type="button" class="post-media" (click)="openLightbox(item)">
-          <video *ngIf="item.type === 'video'" [src]="item.url" muted playsinline webkit-playsinline preload="metadata"></video>
+          <!-- #t=0.001: iOS bez ovoga NE dekodira prvi kadar — stajao je samo play
+               na praznom (Markova prijava); fragment tjera seek na 1ms. -->
+          <video *ngIf="item.type === 'video'" [src]="item.url + '#t=0.001'" muted playsinline webkit-playsinline preload="metadata"></video>
           <img *ngIf="item.type === 'image'" [src]="item.url" [alt]="item.name" loading="lazy">
 
           <span class="play" *ngIf="item.type === 'video'">
             <i class="material-icons">play_arrow</i>
           </span>
         </button>
+
+        <p class="post-caption" *ngIf="item.caption">{{ item.caption }}</p>
 
         <!-- Balončići reakcija — ORGANSKI grozd sa fizikom (appBubbles):
              lebde, privlače se strunama, bježe od pokazivača. -->
@@ -122,14 +135,14 @@
 </ng-template>
 
 <!-- Etiketa „ko · šta" uz dodirnut tuđi balon — sama nestane. -->
-<div class="rx-peek" *ngIf="peek" [style.left.px]="peek.x" [style.top.px]="peek.y">
+<div class="rx-peek" appPortal *ngIf="peek" [style.left.px]="peek.x" [style.top.px]="peek.y">
   {{ peek.text }}
 </div>
 
 <!-- Paleta reakcija — JEDNA, fiksna uz dodirnuto [+], IZNAD svega (kartica ju
      je sjekla kroz overflow). Omotač rješava smjer: nagore raste kroz
      translateY(-100%), pa i emoji meni ima kuda da se otvori. -->
-<div class="rx-pal-wrap" *ngIf="paletteItem" [class.up]="paletteUp"
+<div class="rx-pal-wrap" appPortal *ngIf="paletteItem" [class.up]="paletteUp"
      [style.left.px]="paletteX" [style.top.px]="paletteY"
      (click)="$event.stopPropagation()">
   <div class="rx-pal" [class.closing]="paletteClosing">
@@ -160,7 +173,7 @@
 </div>
 
 <!-- ASCII/emoji prskalica na dodatu reakciju — glifovi prsnu iz tačke dodira. -->
-<div class="rx-burst" *ngIf="burst" [style.left.px]="burst.x" [style.top.px]="burst.y">
+<div class="rx-burst" appPortal *ngIf="burst" [style.left.px]="burst.x" [style.top.px]="burst.y">
   <span class="rx-bit" *ngFor="let p of burst.parts"
         [class.big]="p.big"
         [style.--dx]="p.dx" [style.--dy]="p.dy" [style.--rot]="p.rot"
@@ -178,6 +191,7 @@
     <div class="lb-who">
       <span class="lb-name" [appProfilePreview]="item.ownerId">{{ authorOf(item) }}</span>
       <span class="lb-date num">{{ item.createdAt | date:'dd.MM.yyyy. HH:mm' }}</span>
+      <span class="lb-cap" *ngIf="item.caption">{{ item.caption }}</span>
     </div>
     <span class="lb-count num">{{ selectedIndex + 1 }} / {{ total }}</span>
     <button type="button" class="lb-close" (click)="closeLightbox()" aria-label="Zatvori">
@@ -201,7 +215,7 @@
 
     <div class="lb-pane">
       <ng-container *ngIf="prevItem as p">
-        <video *ngIf="p.type === 'video'" [src]="p.url" muted playsinline webkit-playsinline preload="metadata"
+        <video *ngIf="p.type === 'video'" [src]="p.url + '#t=0.001'" muted playsinline webkit-playsinline preload="metadata"
                (click)="$event.stopPropagation()"></video>
         <img *ngIf="p.type === 'image'" [src]="p.url" alt=""
              (click)="$event.stopPropagation()">
@@ -239,7 +253,7 @@
 
     <div class="lb-pane">
       <ng-container *ngIf="nextItem as n">
-        <video *ngIf="n.type === 'video'" [src]="n.url" muted playsinline webkit-playsinline preload="metadata"
+        <video *ngIf="n.type === 'video'" [src]="n.url + '#t=0.001'" muted playsinline webkit-playsinline preload="metadata"
                (click)="$event.stopPropagation()"></video>
         <img *ngIf="n.type === 'image'" [src]="n.url" alt=""
              (click)="$event.stopPropagation()">
@@ -263,3 +277,45 @@
   </span>
 </div>
 
+
+<!-- KOMPOZER: pregled + opis PRIJE objave (Markov zahtjev — bez slijepog
+     slanja). Plutajuća kartica kroz portal; futer diže FloatLayerService. -->
+<div class="modal-overlay bc-overlay float-overlay" appPortal *ngIf="composeFile"
+     [class.closing]="composeClosing" (click)="closeComposer()">
+  <div class="bc-card" (click)="$event.stopPropagation()">
+    <h3>Nova objava</h3>
+
+    <div class="bc-media">
+      <video #bcVideo *ngIf="composeIsVideo" [src]="composeUrl"
+             muted playsinline webkit-playsinline controls
+             (loadedmetadata)="onComposeMeta($any($event.target))"
+             (timeupdate)="onComposeTime($any($event.target))"></video>
+      <img *ngIf="!composeIsVideo" [src]="composeUrl" alt="Pregled izabrane slike">
+    </div>
+
+    <!-- TRIM: dvije ručke — prevlačenje premotava pregled, reprodukcija se
+         vrti u izabranom rasponu, ffmpeg pri objavi isiječe tačno taj rez. -->
+    <div class="bc-trim" *ngIf="composeIsVideo && composeDuration > 0">
+      <span class="bc-t num">{{ fmtT(trimStart) }}</span>
+      <div class="bc-track" #trimTrack
+           (pointerdown)="onTrimDown($event, trimTrack)"
+           (pointermove)="onTrimMove($event, trimTrack)"
+           (pointerup)="onTrimUp()" (pointercancel)="onTrimUp()">
+        <span class="bc-range"
+              [style.left.%]="trimStart / composeDuration * 100"
+              [style.right.%]="100 - trimEnd / composeDuration * 100"></span>
+        <span class="bc-handle" [style.left.%]="trimStart / composeDuration * 100"></span>
+        <span class="bc-handle" [style.left.%]="trimEnd / composeDuration * 100"></span>
+      </div>
+      <span class="bc-t num">{{ fmtT(trimEnd) }}</span>
+    </div>
+
+    <textarea class="bc-caption" [(ngModel)]="composeCaption" rows="2" maxlength="240"
+              placeholder="Opis objave (nije obavezan)…"></textarea>
+
+    <div class="bc-actions">
+      <button type="button" class="btn-ghost" (click)="closeComposer()">Otkaži</button>
+      <button type="button" class="btn-primary" (click)="publishCompose()">Objavi</button>
+    </div>
+  </div>
+</div>

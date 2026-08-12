@@ -103,6 +103,8 @@ export class ProfileComponent implements OnInit {
 
   uploading = false;
   uploadError = '';
+  /** Izabrana slika čeka u kroperu — otprema ide tek sa isječkom. */
+  cropFile: File | null = null;
 
   editing = false;
   saving = false;
@@ -1120,17 +1122,29 @@ export class ProfileComponent implements OnInit {
     this.fileInputRef.nativeElement.click();
   }
 
-  async onFileSelected(event: Event) {
+  onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
 
     if (!file || !this.profile) return;
 
+    // Ne šalje se naslijepo (Markov zahtjev): prvo kroper — krug pokazuje
+    // šta će TAČNO biti profilna, pa se otprema isječak.
+    this.uploadError = '';
+    this.cropFile = file;
+  }
+
+  /** Isječak iz kropera (512×512 JPEG) — tek OVO ide u bucket. */
+  async onCropDone(blob: Blob) {
+    this.cropFile = null;
+    if (!this.profile) return;
+
     this.uploading = true;
     this.uploadError = '';
 
     try {
+      const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
       const path = await this.profileService.uploadProfilePicture(this.profile.id, file);
       this.profile.profile_pic_url = path;
       this.updateAvatarUrl();

@@ -1,0 +1,118 @@
+// Kroper profilne — kućni jezik: zavjesa sa animiranim zamućenjem (iOS pop
+// fix — vidi exercice-detail), kartica izroni sa oprugom, izlaz je isto to
+// unazad (closing drži komponenta).
+
+:host { display: contents; }
+
+.ac-overlay {
+  z-index: 150;
+  animation: ac-veil-in 320ms var(--ease-out) both;
+  touch-action: none;   // zavjesa ne propušta skrol stranici iza
+}
+
+.ac-overlay.closing {
+  animation: ac-veil-out 280ms var(--ease) both;
+  pointer-events: none;
+}
+.ac-overlay.closing .ac-card {
+  animation: ac-out 280ms var(--ease) both;
+}
+
+.ac-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  margin: auto var(--s-4);
+  padding: var(--s-6) var(--s-5);
+
+  // I ova kartica na malom ekranu skroluje sebe, ne stranicu.
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+
+  background: var(--carbon);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-xl);
+  box-shadow: var(--lift-3);
+  text-align: center;
+
+  animation: ac-in 520ms cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+
+.ac-note {
+  margin-top: var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--mist);
+}
+
+// Pozornica: kvadrat, slika apsolutno u centru (transform je piše kod),
+// preko nje kružna maska. SVI potezi pripadaju kroperu — bez skrola/zuma
+// stranice (touch-action: none).
+.ac-stage {
+  position: relative;
+  width: min(78vw, 300px);
+  aspect-ratio: 1;
+  margin: var(--s-5) auto 0;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--void);
+  touch-action: none;
+  cursor: grab;
+}
+.ac-stage:active { cursor: grabbing; }
+
+.ac-stage img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+  will-change: transform;
+  max-width: none;      // globalna img pravila ne smiju skalirati original
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none; // gestove hvata pozornica, ne slika
+}
+
+// Krug: sve van njega zatamnjeno (box-shadow trik), volt prsten na ivici.
+.ac-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 999px color-mix(in srgb, var(--void) 72%, transparent);
+  border: 2px solid var(--volt-a40);
+  pointer-events: none;
+}
+
+.ac-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+@keyframes ac-in {
+  from { opacity: 0; transform: translateY(24px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes ac-out {
+  0%  { opacity: 1; transform: translateY(0)   scale(1); }
+  35% {             transform: translateY(3px) scale(1.01, .96); }
+  to  { opacity: 0; transform: translateY(18px) scale(.96); }
+}
+
+@keyframes ac-veil-in {
+  from { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+}
+
+@keyframes ac-veil-out {
+  from { opacity: 1; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  to   { opacity: 0; backdrop-filter: blur(0); -webkit-backdrop-filter: blur(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ac-overlay, .ac-overlay.closing, .ac-card,
+  .ac-overlay.closing .ac-card { animation: none; }
+}
