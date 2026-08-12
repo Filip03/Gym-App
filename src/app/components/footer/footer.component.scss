@@ -217,7 +217,9 @@
     // (iOS-ove native trake rade isto): puna rezerva ih je držala previsoko
     // iznad donje ivice, pa je futer djelovao odlijepljen od dna. Istu
     // vrijednost koriste i visina hosta i visina/padding/gradijent `.footer`-a.
-    --footer-gap: max(calc(var(--safe-b) - 12px), 0px);
+    // env() DIREKTNO (--safe-b je za ostatak rasporeda namjerno 0): sa
+    // okvirom do pravog dna, klasične ikone diže baš stvarna zona gestova.
+    --footer-gap: max(calc(env(safe-area-inset-bottom, 0px) - 12px), 0px);
 
     // Klasični režim: futer je obično flex dijete i rezerviše svoju traku.
     height: calc(var(--footer-h) + var(--footer-gap));
@@ -263,11 +265,7 @@
 .dock-surface {
     position: absolute;
     top: 0;
-    // Staklo se produžava NADOLJE i kroz zonu gestova (env direktno — --safe-b
-    // je za raspored namjerno 0): luk i ikone ostaju na istoj visini, samo
-    // donja ivica stakla dodiruje pravo dno ekrana — bez crnog „prozora"
-    // ispod kupole (Markov bug_menu), a bez ravnog postolja koje je dizalo luk.
-    bottom: calc(-24px - env(safe-area-inset-bottom, 0px));
+    bottom: -24px;
     left: -8%;
     right: -8%;
     overflow: hidden;          // mastilo se razlijeva SAMO kroz kupolu
