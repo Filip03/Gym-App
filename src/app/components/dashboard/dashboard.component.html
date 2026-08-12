@@ -491,12 +491,17 @@
                   <span class="day-type-badge">{{ day.day_type?.name ?? 'Rest' }}</span>
                 </div>
 
+                <!-- Dodir na vježbu otvara info popup (globalni sloj) — ko ne
+                     zna koja je vježba, ovdje je vidi sa slikom i opisom. -->
                 <div class="exercice-view-list" *ngIf="day.day_exercice.length > 0">
-                  <div class="exercice-view-item" *ngFor="let dayEx of day.day_exercice; let i = index">
+                  <button type="button" class="exercice-view-item"
+                          *ngFor="let dayEx of day.day_exercice; let i = index"
+                          (click)="viewPlanExercice(dayEx)">
                     <span class="ord num">{{ i + 1 }}</span>
                     <span class="exercice-name">{{ dayEx.exercices?.name }}</span>
                     <span class="exercice-sets-reps">{{ dayEx.target_sets }} × {{ dayEx.target_reps }}</span>
-                  </div>
+                    <i class="material-icons evi-info">info_outline</i>
+                  </button>
                 </div>
 
                 <p *ngIf="day.day_exercice.length === 0" class="no-exercices">Rest day</p>

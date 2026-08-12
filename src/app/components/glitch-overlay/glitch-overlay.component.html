@@ -8,6 +8,9 @@
     <span class="ruler" #ruler>MMMMMMMMMMMMMMMMMMMM</span>
     <pre class="glyphs deep" #deep></pre>
     <pre class="glyphs crest" #crest></pre>
+    <!-- Varnice: NEKA slova talasa zasvijetle neonom pa se ugase (Markova
+         evolucija 11.08.2026) — treći sloj, ista mreža, samo rijetki znakovi. -->
+    <pre class="glyphs neon" #neon></pre>
 </div>
 
 <!-- Jedan prolaz poruke. `*ngFor` preko jednočlanog niza: promjena ključa
@@ -25,8 +28,11 @@
 
     <!-- Velika poruka — skrembluje se pa dekodira slijeva nadesno, odstoji,
          pa se raspadne u tvrdim koracima. Sadržaj vrti komponenta. -->
+    <!-- Po jedan span po znaku: slovo bljesne kad se zaključa iz šuma, a
+         poslije dekodiranja nasumična slova sijevaju kao nestabilan neon. -->
     <div class="msg-box">
-        <span class="msg">{{ displayText }}</span>
+        <span class="msg"><span class="g-ch" [class.lit]="c.lit"
+              *ngFor="let c of chars; trackBy: trackChar">{{ c.ch }}</span></span>
     </div>
 
 </div>

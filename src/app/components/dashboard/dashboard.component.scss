@@ -748,16 +748,33 @@
   margin-top: var(--s-2);
 }
 
+// Red je DUGME (dodir otvara info popup vježbe) — širina i lijevo poravnanje
+// se moraju vratiti jer ih dugme po difoltu nema.
 .exercice-view-item {
   display: flex;
   align-items: center;
   gap: var(--s-2);
+  width: 100%;
   padding: var(--s-2);
   background: var(--carbon-high);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   font-size: var(--t-xs);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--d-fast) var(--ease),
+              transform var(--d-fast) var(--ease);
 }
+.exercice-view-item:hover { border-color: var(--volt-a40); }
+.exercice-view-item:active { transform: scale(.985); }
+
+// Diskretan nagovještaj da red ima „još" — info ikona u dahu boje.
+.exercice-view-item .evi-info {
+  flex-shrink: 0;
+  font-size: 15px;
+  color: var(--dust);
+}
+.exercice-view-item:hover .evi-info { color: var(--volt); }
 
 .exercice-view-item .ord {
   flex-shrink: 0;

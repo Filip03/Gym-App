@@ -30,6 +30,35 @@ html {
   color-scheme: dark;
 }
 
+// I <html> nosi boju podloge — osigurač: gdje god okvir ne stigne (safe
+// zone, preskok visine), proviri TEMA, nikad sirovo crno UA platno.
+html {
+  background-color: var(--void);
+}
+
+// FARBA za zonu gestova (bookmark/standalone sa viewport-fit=cover): ispod
+// okvira aplikacije ostaje pojas do pravog dna ekrana — pokriva ga fiksna
+// traka u boji stakla menija (--carbon), ispod futera (z 55 < 60), bez
+// IJEDNOG uticaja na raspored. U običnom pregledaču env() je 0 = nevidljiva.
+body::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: env(safe-area-inset-bottom, 0px);
+  background: var(--carbon);
+  z-index: 55;
+  pointer-events: none;
+}
+
+// KUPOLA: traka u boji stakla joj je pravila bijelo POSTOLJE pa je luk
+// izgledao viši (Markova presuda). Kupola lebdi nad SADRŽAJEM — pa i zona
+// gestova pod njom nosi boju podloge, ne stakla.
+:root.nav-dome body::after {
+  background: var(--void);
+}
+
 body {
   background-color: var(--void);
   color: var(--ice);

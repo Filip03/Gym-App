@@ -166,7 +166,11 @@
   --page-wide: 1120px;
 
   // Sigurna zona iPhone-a — bez ovoga footer upada u traku za gestove.
-  --safe-b: env(safe-area-inset-bottom, 0px);
+  // DNO OSTAJE NA NULI za raspored i uz viewport-fit=cover: puštanje safe-b
+  // u raspored je kupolu dizalo/uvećavalo (Markova presuda 11.08: „meni
+  // prevelik, kao podignut"). Zonu gestova NE popunjava raspored nego čista
+  // FARBA — fiksna traka u _base.scss (body::after) u boji stakla menija.
+  --safe-b: 0px;
   --safe-t: env(safe-area-inset-top, 0px);
 }
 

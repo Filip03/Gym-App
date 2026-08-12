@@ -72,10 +72,35 @@
   text-shadow: 0 0 8px var(--volt-a40);
 }
 
+// VARNICE (Markova evolucija): rijetka slova talasa zasvijetle punim neonom —
+// bijelo jezgro sa jakim oreolom u boji trenutka — pa se ugase. Sloj nosi
+// najviše ~7 znakova u kadru, pa jak glow ne košta ništa.
+// AE-stil glow: užareno bijelo jezgro + bloom u više gausovskih prstenova
+// (usko jako → široko meko) — slovo kao SIJALICA, ne samo svjetlija boja.
+.neon {
+  color: #fff;
+  text-shadow:
+    0 0 3px  #fff,
+    0 0 8px  #eaffc9,
+    0 0 16px #b8ff30,
+    0 0 30px var(--volt),
+    0 0 56px var(--volt),
+    0 0 96px var(--volt-a40);
+}
+
 // Zlatni talas — zlata nema u tokenima, lokalni topli tonovi (isti kao poruka).
 .glitch-field.gold {
   .deep  { color: rgba(245, 196, 69, 0.42); }
   .crest { color: #FFD75A; text-shadow: 0 0 8px rgba(245, 196, 69, 0.45); }
+  .neon  {
+    text-shadow:
+      0 0 3px  #fff,
+      0 0 8px  #fff3c4,
+      0 0 16px #FFD75A,
+      0 0 30px #F5C445,
+      0 0 56px #F5C445,
+      0 0 96px rgba(245, 196, 69, 0.5);
+  }
 }
 
 // Lenjir za mjerenje stvarne širine znaka — ne smije uticati na raspored.
@@ -113,11 +138,32 @@
   .glitch-field {
     .deep  { color: color-mix(in srgb, var(--volt) 34%, transparent); }
     .crest { color: color-mix(in srgb, var(--volt) 70%, transparent); text-shadow: none; }
+    // Varnice SVIJETLE i na kosti (izuzetak od „bez neona na svijetlom" —
+    // upravo su one sijalice): bijelo jezgro + ZASIĆEN zeleni bloom, koji se
+    // na svijetloj podlozi vidi jasnije od bijelog oreola.
+    .neon  {
+      color: #fff;
+      text-shadow:
+        0 0 3px  #fff,
+        0 0 8px  #b8ff30,
+        0 0 18px #7ddF00,
+        0 0 34px #3E9400,
+        0 0 60px rgba(62, 148, 0, 0.5);
+    }
   }
 
   .glitch-field.gold {
     .deep  { color: rgba(166, 124, 0, 0.30); }
     .crest { color: #A67C00; text-shadow: none; }
+    .neon  {
+      color: #fff;
+      text-shadow:
+        0 0 3px  #fff,
+        0 0 8px  #FFE38A,
+        0 0 18px #FFC400,
+        0 0 34px #A67C00,
+        0 0 60px rgba(166, 124, 0, 0.5);
+    }
   }
 
   .glitch-pass.gold {
@@ -217,6 +263,25 @@
   }
 }
 
+// --- Neon po slovu (Markova evolucija: „glow na neka slova") ----------------
+// Slovo koje se upravo zaključa iz šuma BLJESNE bijelim jezgrom sa jakim
+// oreolom (varnica putuje frontom dekodiranja), a poslije zaključavanja
+// nasumična slova sijevaju — neon sa nestabilnim cijevima. Gašenje je meko
+// (transition), pa sijev ima rep kao prava cijev.
+.g-ch {
+  transition: text-shadow 220ms var(--ease), color 220ms var(--ease);
+}
+
+.g-ch.lit {
+  color: #fff;
+  text-shadow:
+    0 0 6px  var(--g-flash),
+    0 0 18px var(--g-glow),
+    0 0 46px var(--g-glow),
+    0 0 90px var(--g-glow-soft);
+  transition: none;   // paljenje je TRENUTNO — samo se gašenje razliva
+}
+
 @keyframes g-msg-in {
   0%   { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.88, 1.10); }
   60%  { opacity: 1; transform: translate3d(0, -3px, 0) scale(1.04, 0.96); }
@@ -234,4 +299,5 @@
 @media (prefers-reduced-motion: reduce) {
   .glitch-field,
   .glitch-pass { display: none; }
+  .g-ch, .g-ch.lit { transition: none; text-shadow: none; color: inherit; }
 }

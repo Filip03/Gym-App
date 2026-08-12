@@ -98,8 +98,13 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
   kind: GlitchKind = 'volt';
   /** Prazno = nema efekta; [ključ] = jedan prolaz u toku. */
   burst: number[] = [];
-  /** Tekst u centru — skrembluje se pa zaključava u konačnu poruku. */
-  displayText = '';
+  /**
+   * Poruka u centru — po JEDNOM ZNAKU (Markova evolucija 11.08.2026): slovo
+   * BLJESNE (`lit`) u trenutku kad se zaključa iz šuma, a poslije potpunog
+   * dekodiranja nasumična slova kratko sijevaju kao nestabilne neonske
+   * cijevi. Isti efekat kao do sad, samo upadljiviji.
+   */
+  chars: { ch: string; lit: boolean }[] = [];
 
   // Polje talasa je STALNO u DOM-u (prazan <pre> ne košta ništa) — da bi
   // ViewChild referencije postojale prije prvog kadra, bez čekanja na CD.
@@ -107,14 +112,26 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
   @ViewChild('ruler') private rulerRef!: ElementRef<HTMLElement>;
   @ViewChild('deep')  private deepRef!: ElementRef<HTMLElement>;
   @ViewChild('crest') private crestRef!: ElementRef<HTMLElement>;
+  @ViewChild('neon')  private neonRef!: ElementRef<HTMLElement>;
 
   private sub: Subscription | null = null;
   private endTimer: any = null;
   private msgStartTimer: any = null;
   private scrambleTimer: any = null;
+  /** Neon-sijevanje poslije zaključavanja poruke. */
+  private flickerTimer: any = null;
 
   // Talas
   private raf = 0;
+  /**
+   * Varnice u talasu: rijetka slova koja zasvijetle punim neonom pa se ugase.
+   * Žive po nekoliko kadrova (na ~30fps to je 100–230ms) — dovoljno da ih oko
+   * uhvati kao sijev, dovoljno kratko da ostanu „random", ne tapet.
+   */
+  private sparks: { row: number; col: number; ch: string; ttl: number }[] = [];
+
+  /** Krupni, puni znakovi za varnice — veća masa slova nosi jači sjaj. */
+  private static readonly SPARK_GLYPHS = ['█', '▓', '@', '#', '◉', '¤'];
   private waveT0 = 0;
   private lastDraw = -1;
   private waveKind: GlitchKind = 'volt';
@@ -146,7 +163,12 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
     this.scramble(e.message, e.kind);
 
     clearTimeout(this.endTimer);
-    this.endTimer = setTimeout(() => this.burst = [], TOTAL[e.kind]);
+    this.endTimer = setTimeout(() => {
+      this.burst = [];
+      clearInterval(this.flickerTimer);
+      this.flickerTimer = null;
+      this.chars = [];
+    }, TOTAL[e.kind]);
   }
 
   // --- Faza 2: ASCII talas ---------------------------------------------------
@@ -179,8 +201,10 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
   /** Gasi kadar i briše polje — talas ne smije ostati zamrznut na ekranu. */
   private stopWave() {
     if (this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+    this.sparks = [];
     if (this.deepRef)  this.deepRef.nativeElement.textContent = '';
     if (this.crestRef) this.crestRef.nativeElement.textContent = '';
+    if (this.neonRef)  this.neonRef.nativeElement.textContent = '';
   }
 
   /**
@@ -310,6 +334,56 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
 
     this.deepRef.nativeElement.textContent = deep;
     this.crestRef.nativeElement.textContent = crest;
+    this.drawSparks(fade, frontX, tailW);
+  }
+
+  /**
+   * Varnice: dok talas ne blijedi, održava se ~7 živih — nova se rađa NA
+   * frontu (tu gustina i ionako vri), živi 3–7 kadrova pa se ugasi. Sloj se
+   * gradi samo za redove koji imaju varnicu; ostalo su isječci praznog reda.
+   */
+  private drawSparks(fade: number, frontX: Float32Array, tailW: number) {
+    const cols = this.cols, rows = this.rows, blank = this.blank;
+
+    for (const s of this.sparks) s.ttl--;
+    this.sparks = this.sparks.filter(s => s.ttl > 0);
+
+    // „U većoj količini" (Markova dorada): ~22 živih varnica, rasute po
+    // CIJELOM repu talasa, ne samo uz front — polje stalno iskri.
+    if (fade >= 1) {
+      let attempts = 48;
+      while (this.sparks.length < 22 && attempts-- > 0) {
+        const y = (Math.random() * rows) | 0;
+        const f = frontX[y];
+        if (f < 2) continue;
+        const col = Math.max(0, Math.min(cols - 1,
+          Math.round(f - Math.random() * Math.min(tailW, 26))));
+        const SG = GlitchOverlayComponent.SPARK_GLYPHS;
+        this.sparks.push({
+          row: y,
+          col,
+          ch: SG[(Math.random() * SG.length) | 0],
+          ttl: 4 + ((Math.random() * 6) | 0)
+        });
+      }
+    }
+
+    const byRow = new Map<number, { col: number; ch: string }[]>();
+    for (const s of this.sparks) {
+      const list = byRow.get(s.row) ?? [];
+      list.push(s);
+      byRow.set(s.row, list);
+    }
+
+    let neon = '';
+    for (let y = 0; y < rows; y++) {
+      const hits = byRow.get(y);
+      if (!hits) { neon += blank + '\n'; continue; }
+      let row = blank;
+      for (const h of hits) row = row.slice(0, h.col) + h.ch + row.slice(h.col + 1);
+      neon += row + '\n';
+    }
+    this.neonRef.nativeElement.textContent = neon;
   }
 
   // --- Faza 3: poruka --------------------------------------------------------
@@ -323,8 +397,10 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
   private scramble(message: string, kind: GlitchKind) {
     clearTimeout(this.msgStartTimer);
     clearInterval(this.scrambleTimer);
+    clearInterval(this.flickerTimer);
 
-    this.displayText = this.noise(message, 0);
+    let prevLocked = 0;
+    this.chars = this.noise(message, 0, 0);
 
     this.msgStartTimer = setTimeout(() => {
       const ticks = Math.max(1, Math.round(DECODE[kind] / TICK_MS));
@@ -334,26 +410,58 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
       this.scrambleTimer = setInterval(() => {
         tick++;
         const locked = Math.min(message.length, Math.round(tick * perTick));
-        this.displayText = this.noise(message, locked);
+        this.chars = this.noise(message, locked, prevLocked);
+        prevLocked = locked;
 
         if (locked >= message.length) {
           clearInterval(this.scrambleTimer);
           this.scrambleTimer = null;
+          this.startFlicker(kind);
         }
       }, TICK_MS);
     }, MSG_START_MS);
   }
 
-  /** Prvih `locked` znakova pravo, ostatak nasumičan šum; razmaci se ne diraju. */
-  private noise(message: string, locked: number): string {
-    let out = message.slice(0, locked);
-    for (let i = locked; i < message.length; i++) {
-      out += message[i] === ' '
-        ? ' '
-        : GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+  /**
+   * Prvih `locked` znakova pravo, ostatak nasumičan šum; razmaci se ne
+   * diraju. Znak koji se UPRAVO zaključao ([prevLocked, locked)) dobija
+   * `lit` — bljesak traje do sljedećeg otkucaja, pa se front dekodiranja
+   * čita kao varnica koja putuje kroz poruku.
+   */
+  private noise(message: string, locked: number, prevLocked: number): { ch: string; lit: boolean }[] {
+    const out: { ch: string; lit: boolean }[] = [];
+    for (let i = 0; i < message.length; i++) {
+      if (i < locked) {
+        out.push({ ch: message[i], lit: i >= prevLocked && message[i] !== ' ' });
+      } else {
+        out.push({
+          ch: message[i] === ' ' ? ' ' : GLYPHS[Math.floor(Math.random() * GLYPHS.length)],
+          lit: false
+        });
+      }
     }
     return out;
   }
+
+  /**
+   * Poslije zaključavanja: svakih ~160ms jedno-dva nasumična slova kratko
+   * sijevnu — neon sa nestabilnim cijevima. Gasi se sa krajem prolaza.
+   */
+  private startFlicker(kind: GlitchKind) {
+    clearInterval(this.flickerTimer);
+    this.flickerTimer = setInterval(() => {
+      for (const c of this.chars) c.lit = false;
+      const eligible = this.chars.filter(c => c.ch !== ' ');
+      const hits = 1 + Math.floor(Math.random() * 2);
+      for (let k = 0; k < hits && eligible.length; k++) {
+        eligible[Math.floor(Math.random() * eligible.length)].lit = true;
+      }
+      // Novi niz — da OnPush/CD sigurno vidi promjenu.
+      this.chars = [...this.chars];
+    }, 160);
+  }
+
+  trackChar = (i: number) => i;
 
   ngOnDestroy() {
     this.sub?.unsubscribe();
@@ -361,5 +469,6 @@ export class GlitchOverlayComponent implements OnInit, OnDestroy {
     clearTimeout(this.endTimer);
     clearTimeout(this.msgStartTimer);
     clearInterval(this.scrambleTimer);
+    clearInterval(this.flickerTimer);
   }
 }

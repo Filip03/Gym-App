@@ -4467,3 +4467,46 @@ X: 💪" (klik vodi na /blog); zapraćen tuđi plan → „Novi pratilac plana �
 sada prati ‚…'" (klik na /dashboard). Za sopstvene objave/planove se ne
 šalje. TIHO NA GREŠCI — dok Filip ne doda endpoint, pozivi padaju u
 console.warn i ništa se ne mijenja; proradi samo od sebe kad backend stigne.
+
+---
+
+## 2026-08-11 — Glitch varnice + notch/safe-zone paket (Markova presuda: valja)
+
+**1. Varnice u ASCII talasu (glitch v3.2):** treći `neon` sloj — ~22 nasumična
+slova talasa istovremeno ZASVIJETLE kao sijalice (AE-stil: bijelo užareno
+jezgro + šest gausovskih prstenova blooma, volt/zlatno po vrsti), žive
+130–330ms pa se gase; krupni znakovi (█▓@#) nose sjaj. Svijetla tema dobila
+IZUZETAK od „bez neona na kosti" — varnice su upravo sijalice (zasićen
+zeleni/jantarni bloom). Centralna poruka: slovo bljesne pri dekodiranju +
+neon-štucanje poslije (po znaku, `chars` niz umjesto stringa).
+
+**2. Notch/status zona prati temu:** theme-color meta (i manifest) prešao sa
+boje PODLOGE na boju HEADERA (#FFFFFF / #0C1117) — ThemeService ga već
+mijenja uživo. Bookmark snima boje pri instalaciji — postojeći bookmarci se
+moraju JEDNOM presnimiti (vrijedi i za ekipu poslije deploya!).
+
+**3. viewport-fit=cover + safe zone:** vrh — stranica ide pod status traku i
+header je farba sam u živoj temi (--safe-t aktivan; promjena teme mijenja
+notch zonu odmah, iOS-ovo „zapamtio sam pri pokretanju" zaobiđeno). Dno —
+raspored OSTAJE na safe-b=0 (puštanje u raspored je dizalo kupolu); zonu
+gestova pokriva čista FARBA: fiksna traka (body::after, z 55) u boji stakla
+za klasični meni, a u kupola režimu u boji PODLOGE (staklo je pravilo
+postolje pa je luk izgledao viši). `<html>` dobio boju podloge kao osigurač
+— sirovo crno UA platno ne može proviriti nigdje.
+
+---
+
+## 2026-08-12 — Info o vježbi iz pregleda plana i iz treninga
+
+**Šta:** Ko ne zna koja je vježba, sad je vidi (slika + opis + grupe) kroz
+ISTI globalni popup (ExerciceDetailService) koji već koriste Vježbe, builder
+i leaderboard — Markov zahtjev.
+
+**Kako:**
+1. **Pregled plana** (svog ili tuđeg, špil dana): red vježbe je dugme —
+   dodir otvara popup; diskretna info ikona na redu kao nagovještaj.
+   Podaci već stižu kroz getFullPlan (name/picture/description).
+2. **Trening:** u meniju reda (tri tačkice) nova stavka „Info o vježbi".
+   Sesija sada nosi i description + mišićne grupe (findSession select +
+   SessionExercice model) — popup ima i opis i grupe; keširane sesije od
+   ranije ih nemaju pa popup uredno prikaže bez opisa (?? null).

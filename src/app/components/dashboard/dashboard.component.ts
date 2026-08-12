@@ -1733,6 +1733,20 @@ export class DashboardComponent implements OnInit, OnDestroy, DoCheck {
    * (zajednička komponenta exercice-detail). Mišićne grupe se dovlače lijeno,
    * jednom, i kešuju — ukras su, pa njihova greška ne ruši pregled.
    */
+  /**
+   * Info o vježbi iz PREGLEDA plana (tuđeg ili svog) — za onoga ko ne zna
+   * koja je vježba. Isti globalni popup kao u builderu i na Vježbama.
+   */
+  viewPlanExercice(dayEx: any) {
+    const ex = dayEx?.exercices;
+    if (!ex) return;
+    this.exDetail.open({
+      name: ex.name ?? null,
+      picture: ex.picture ?? null,
+      description: ex.description ?? null
+    }, []);
+  }
+
   async openExPreview(day: DayEntry, sel: SelectedExercice) {
     const full = day.availableExercices.find(e => e.id === sel.exerciceId);
     const ex = full ?? {
