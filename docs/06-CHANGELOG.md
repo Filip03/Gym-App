@@ -4517,3 +4517,10 @@ dana i modal serija×ponavljanja dobili `appPortal` — slojevi na <body>, van
 skrol-kontejnera i njegovih iOS zamki, kao rezime i pregled slika. Napomena:
 server je bio pao tokom Markovog testa, pa je dio „vraćenih" bugova
 vjerovatno bio stari keširani bundle.
+
+**Dopuna — staklo kupole do pravog dna (Markov bug_menu):** ispod luka je u
+standalone režimu ostajao crni pojas zone gestova (okvir staje na 100svh).
+Staklo kupole (`.dock-surface`) se sada produžava nadolje za
+env(safe-area-inset-bottom) — luk i ikone na ISTOJ visini (raspored ne zna
+za safe-b), samo donja ivica stakla dodiruje dno ekrana. Bez postolja, bez
+podizanja — isti oblik, duže staklo.
