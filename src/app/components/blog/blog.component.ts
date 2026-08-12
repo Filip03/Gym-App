@@ -876,7 +876,7 @@ export class BlogComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.deletingId = item.id;
 
     try {
-      await this.blogService.deleteMedia(item.id);
+      await this.blogService.deleteMedia(item.id, item.name);
       this.mediaItems = this.mediaItems.filter(m => m.id !== item.id);
       this.reactionsByMedia.delete(item.id);
       this.buildGroups();

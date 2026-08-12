@@ -168,11 +168,23 @@ export class BlogService {
   }
 
   /**
-   * Brisanje objave — red iz baze (reakcije odu kaskadno preko FK). Sam fajl
-   * OSTAJE na R2 (presign funkcija zna samo upload; brisanje sa R2 traži
-   * dopunu edge funkcije — zabilježeno za Filipa). Za feed je nevidljiv.
+   * Brisanje objave — prvo fajl sa R2 (edge funkcija r2-delete), PA red iz
+   * baze (reakcije odu kaskadno preko FK). Redoslijed je bitan: r2-delete
+   * provjerava vlasništvo čitajući `uploaded_by` iz blog_media reda, pa taj
+   * red mora još postojati u trenutku poziva.
+   *
+   * Ako R2 čišćenje padne (mreža, funkcija još nije deploy-ovana...), briši
+   * red iz baze ionako — objava mora nestati iz feeda odmah; u najgorem
+   * slučaju ostaje siroče na R2, što ne smeta korisnicima.
    */
-  async deleteMedia(id: string): Promise<void> {
+  async deleteMedia(id: string, key: string): Promise<void> {
+    const { error: r2Error } = await this.supabase.client.functions.invoke('r2-delete', {
+      body: { key }
+    });
+    if (r2Error) {
+      console.error('r2-delete nije uspio — fajl ostaje na R2 kao siroče', r2Error);
+    }
+
     const { error } = await this.supabase.client
       .from('blog_media')
       .delete()
